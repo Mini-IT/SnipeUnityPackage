@@ -1,0 +1,14 @@
+{
+    "name": "MiniIT.Snipe.Runtime",
+    "references": [
+		"MiniIT.GooglePlay.Runtime",
+		"MiniIT.Facebook.Runtime"
+    ],
+    "optionalUnityReferences": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": []
+}

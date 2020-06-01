@@ -1,0 +1,12 @@
+{
+    "name": "MiniIT.Facebook.Runtime",
+    "references": [
+    ],
+    "optionalUnityReferences": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": []
+}
