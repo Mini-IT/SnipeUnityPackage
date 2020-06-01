@@ -4,8 +4,8 @@
 
 <ul>
 <li> SnipePackage - Snipe Client library
-<li> GooglePlayPackage - <a href="https://github.com/playgameservices/play-games-plugin-for-unity">Google Play plugin</a> wrapper for Snipe Client
-<li> FacebookPackage - <a href="https://developers.facebook.com/docs/unity/">Facebook plugin</a> wrapper for Snipe Client
+<li> GooglePlayPackage - <a href="https://github.com/playgameservices/play-games-plugin-for-unity">Google Play plugin</a> wrapper
+<li> FacebookPackage - <a href="https://developers.facebook.com/docs/unity/">Facebook plugin</a> wrapper
 </ul>
 
 ## Installation guide
