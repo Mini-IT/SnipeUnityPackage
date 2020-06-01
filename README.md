@@ -1,4 +1,4 @@
-# Snipe Package
+# Snipe Unity Package
 
 
 ## Installation guide
