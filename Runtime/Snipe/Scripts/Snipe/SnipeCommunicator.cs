@@ -17,7 +17,7 @@ namespace MiniIT.Snipe
 
 		public string LoginName { get; private set; }
 
-		internal SnipeClient Client { get; set; }
+		public SnipeClient Client { get; protected set; }
 		public SnipeServiceCommunicator ServiceCommunicator { get; private set; }
 
 		public int RestoreConnectionAttempts = 3;
