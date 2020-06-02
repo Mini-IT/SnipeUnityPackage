@@ -71,25 +71,10 @@ namespace MiniIT.Social
 			mInitializationCompleteCallback = callback;
 			mInitializationFailedCallback = fail_callback;
 
-			// HACK: FB.IsInitialized may return false, so we can't rely on it.
-			// Check if FB.FacebookImpl != null. But this getter may throw a NullReferenceException
-			bool inited = FB.IsInitialized;
-			//if (!inited)
-			//{
-			//	try
-			//	{
-			//		inited = (FB.FacebookImpl != null);
-			//	}
-			//	catch(Exception)
-			//	{
-			//		inited = false;
-			//	}
-			//}
-
-			if (inited)
+			if (FB.IsInitialized)
 				OnInitComplete();
 			else
-				FB.Init(OnInitComplete);//, OnHideUnity);
+				FB.Init(OnInitComplete);
 		}
 
 		public override void Logout()
@@ -136,11 +121,6 @@ namespace MiniIT.Social
 			InstanceInitializationComplete?.Invoke();
 		}
 
-		//private void OnHideUnity(bool isGameShown)
-		//{
-		//	//Debug.Log("Is game showing? " + isGameShown);
-		//}
-
 		private void OnLogin(ILoginResult result)
 		{
 			if (!FB.IsLoggedIn || result.Error != null)
@@ -157,8 +137,6 @@ namespace MiniIT.Social
 			{
 				if (AccessToken.CurrentAccessToken != null)
 				{
-					//string player_id = AccessToken.CurrentAccessToken.UserId;
-
 					var request_data = new Dictionary<string, string>();
 					request_data["fields"] = PROFILE_FIELDS;
 					FB.API("me", HttpMethod.GET,
@@ -227,7 +205,6 @@ namespace MiniIT.Social
 		{
 			if (userids != null && userids.Count > 0)
 			{
-				// не будем отправлять следующий запрос, до тех пор, пока не получим ответ на предыдущий
 				if (mAwaitingProfilesCount > 0)
 				{
 					mRequestProfilesQueue.Enqueue(new RequestProfilesQueueItem()
@@ -238,8 +215,6 @@ namespace MiniIT.Social
 					return;
 				}
 				
-				// Facebook GraphAPI не позволяет запрашивать информацию о нескольких пользователях в одном запросе,
-				// поэтому выполним отдельные вызовы для каждого userid из массива
 				mAwaitingProfilesCount = userids.Count;
 				mProfiles = new List<SocialUserProfile>();
 				mRequestProfilesCallback = callback;
@@ -264,7 +239,7 @@ namespace MiniIT.Social
 				SocialUserProfile rec = PrepareProfile(response.RawResult);
 				mProfiles.Add(rec);
 				
-				// если дождались ответов для всех запрошенных пользователей
+				// if all requested profiles are gotten
 				if (mAwaitingProfilesCount <= 0)
 				{
 					if (mRequestProfilesCallback != null)
@@ -279,7 +254,6 @@ namespace MiniIT.Social
 				}
 			}
 
-			// если в очереди ожидают еще запросы, выполним их
 			if (mRequestProfilesQueue.Count > 0)
 			{
 				RequestProfilesQueueItem req = mRequestProfilesQueue.Dequeue();
@@ -295,16 +269,15 @@ namespace MiniIT.Social
 		private SocialUserProfile PrepareProfile(ExpandoObject data)
 		{
 			string profile_id = data.ContainsKey("uid") ? data.SafeGetString("uid") : data.SafeGetString("id");
-			SocialUserProfile profile = new SocialUserProfile(profile_id, this.NetworkType);
+			SocialUserProfile profile = new FacebookUserProfile(profile_id, this.NetworkType);
 			profile.FirstName   = data.SafeGetString("first_name");
 			profile.LastName    = data.SafeGetString("last_name");
 			profile.PhotoSmallURL = "https://graph.facebook.com/" + profile.Id + "/picture/?width=50&height=50";
 			profile.PhotoMediumURL = "https://graph.facebook.com/" + profile.Id + "/picture/?width=100&height=100";
 			//profile.Link         = data.ContainsKey("link") ? Convert.ToString(data["link"]) : data.ContainsKey("profile_url") ? Convert.ToString(data["profile_url"]) : ("http://www.facebook.com/" + profile.Id);
-			//profile.Gender       = (((string)(data.ContainsKey("sex") ? data["sex"] : data["gender"]) != "female")) ? 1 : 2;  // 1-мужской, 2-женский; приходит: "male"/"female"
+			//profile.Gender       = (((string)(data.ContainsKey("sex") ? data["sex"] : data["gender"]) != "female")) ? 1 : 2;  // 1-male, 2-female
 			//profile.Online       = Convert.ToBoolean( data["online"] );
 
-			// добавим в кэш
 			AddProfileToCache(profile);
 			Debug.Log("[FacebookProvider] PrepareProfile " + profile.ToJSONString());
 			

@@ -11,10 +11,10 @@ namespace MiniIT.Social
 	[System.Serializable]
 	public class SocialUserProfile
 	{
-		private string mID;                  // id пользователя в соцсети
-		private string mSocialNetworkType;
-		
-		private ExpandoObject mRawData;  // данные профиля в том виде, котором они получены от соцсети
+		protected string mID;                  // id пользователя в соцсети
+		protected string mSocialNetworkType;
+
+		protected ExpandoObject mRawData;  // данные профиля в том виде, котором они получены от соцсети
 		
 		public string FirstName;          // имя пользователя
 		public string LastName;           // фамилия пользователя
@@ -30,8 +30,8 @@ namespace MiniIT.Social
 		
 		private string mCombinedID = "";   // кобминированный ID пользователя, включающий ID соцсети и ID пользователя в этой соцсети
 
-		private SimpleImageLoader mSmallPhotoLoader;
-		private SimpleImageLoader mMediumPhotoLoader;
+		protected SimpleImageLoader mSmallPhotoLoader;
+		protected SimpleImageLoader mMediumPhotoLoader;
 
 		public SocialUserProfile(string id = "", string network_type = "__")
 		{
@@ -94,7 +94,7 @@ namespace MiniIT.Social
 			return this.Equals(p.Id, p.NetworkType); //????
 		}
 		
-		public ExpandoObject ToObject()
+		public virtual ExpandoObject ToObject(bool full = true)
 		{
 			ExpandoObject profile = new ExpandoObject();
 			profile["id"]   = this.Id;
@@ -103,16 +103,19 @@ namespace MiniIT.Social
 			profile["last_name"]    = this.LastName;
 			profile["photo_small"]  = this.PhotoSmallURL;
 			profile["photo_medium"] = this.PhotoMediumURL;
-			profile["link"]         = this.Link;
-			profile["gender"]       = this.Gender;
-			profile["online"]       = this.Online;
-			profile["invitable"]    = this.Invitable;
+			if (full)
+			{
+				profile["link"] = this.Link;
+				profile["gender"] = this.Gender;
+				profile["online"] = this.Online;
+				profile["invitable"] = this.Invitable;
+			}
 			return profile;
 		}
 
-		public string ToJSONString()
+		public virtual string ToJSONString(bool full = true)
 		{
-			return this.ToObject().ToJSONString();
+			return this.ToObject(full).ToJSONString();
 		}
 		
 		public SocialUserProfile Clone()
@@ -248,6 +251,8 @@ namespace MiniIT.Social
 						LoadedPhotoSmall = texture;
 						if (callback != null)
 							callback.Invoke(texture);
+
+						mSmallPhotoLoader = null;
 					},
 					true
 				);
@@ -270,7 +275,17 @@ namespace MiniIT.Social
 				if (mMediumPhotoLoader != null && mMediumPhotoLoader.Url != this.PhotoMediumURL)
 					mMediumPhotoLoader.Cancel();
 
-				mMediumPhotoLoader = SimpleImageLoader.Load(this.PhotoMediumURL, callback, true);
+				mMediumPhotoLoader = SimpleImageLoader.Load(this.PhotoMediumURL,
+					(Texture2D texture) =>
+					{
+						LoadedPhotoMedium = texture;
+						if (callback != null)
+							callback.Invoke(texture);
+
+						mMediumPhotoLoader = null;
+					},
+					true
+				);
 			}
 
 			return mMediumPhotoLoader;
