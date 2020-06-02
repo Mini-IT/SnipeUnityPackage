@@ -11,7 +11,7 @@ namespace MiniIT.Snipe
 
 		public bool Ready { get { return Client != null && Client.LoggedIn; } }
 
-		internal SnipeServiceClient Client { get; private set; }
+		public SnipeServiceClient Client { get; private set; }
 
 		private Queue<ExpandoObject> mReceivedMessages = null;
 
