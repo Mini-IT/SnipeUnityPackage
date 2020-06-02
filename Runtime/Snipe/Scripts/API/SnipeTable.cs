@@ -11,8 +11,6 @@ namespace MiniIT.Snipe
 {
 	public class SnipeTable
 	{
-		//public static string Path;
-
 		private const int MAX_LOADERS_COUNT = 5;
 		private static int mLoadersCount = 0;
 
@@ -47,10 +45,11 @@ namespace MiniIT.Snipe
 				using (UnityWebRequest loader = new UnityWebRequest(url))
 				{
 					loader.downloadHandler = new DownloadHandlerBuffer();
+					loader.timeout = 5; // seconds
 					yield return loader.SendWebRequest();
 					if (loader.isNetworkError || loader.isHttpError)
 					{
-						UnityEngine.Debug.Log("[SnipeTable] Network error: Failed to load table - " + table_name);
+						UnityEngine.Debug.Log($"[SnipeTable] Network error: Failed to load table - {table_name} - {loader.error}");
 					}
 					else
 					{
