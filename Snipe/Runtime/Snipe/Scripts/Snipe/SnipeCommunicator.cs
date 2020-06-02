@@ -8,12 +8,16 @@ namespace MiniIT.Snipe
 	public class SnipeCommunicator : MonoBehaviour, IDisposable
 	{
 		public delegate void MessageReceivedHandler(ExpandoObject data, bool original = false);
+		public delegate void ConnectionSucceededHandler();
+		public delegate void ConnectionFailedHandler(bool will_restore = false);
+		public delegate void LoginSucceededHandler();
+		public delegate void PreDestroyHandler();
 
-		public event Action ConnectionSucceeded;
-		public event Action ConnectionFailed;
-		public event Action LoginSucceeded;
+		public event ConnectionSucceededHandler ConnectionSucceeded;
+		public event ConnectionFailedHandler ConnectionFailed;
+		public event LoginSucceededHandler LoginSucceeded;
 		public event MessageReceivedHandler MessageReceived;
-		public event Action PreDestroy;
+		public event PreDestroyHandler PreDestroy;
 
 		public string LoginName { get; private set; }
 
@@ -101,7 +105,7 @@ namespace MiniIT.Snipe
 			Debug.Log("[SnipeCommunicator] OnAuthFailed");
 
 			if (ConnectionFailed != null)
-				ConnectionFailed.Invoke();
+				ConnectionFailed.Invoke(false);
 		}
 
 		protected virtual void InitClient()
@@ -200,14 +204,15 @@ namespace MiniIT.Snipe
 
 			if (mRestoreConnectionAttempt < RestoreConnectionAttempts && !mDisconnecting)
 			{
+				ConnectionFailed?.Invoke(true);
+				
 				mRestoreConnectionAttempt++;
 				Debug.Log($"[SnipeCommunicator] Attempt to restore connection {mRestoreConnectionAttempt}");
 				StartCoroutine(WaitAndInitClient());
 			}
 			else
 			{
-				if (ConnectionFailed != null)
-					ConnectionFailed.Invoke();
+				ConnectionFailed?.Invoke(false);
 			}
 		}
 
