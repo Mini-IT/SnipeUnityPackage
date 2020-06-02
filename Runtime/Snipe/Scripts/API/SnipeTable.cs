@@ -20,7 +20,7 @@ namespace MiniIT.Snipe
 		public bool Loaded { get; private set; } = false;
 		public bool LoadingFailed { get; private set; } = false;
 
-		internal IEnumerator LoadTableCoroutine(string table_name)
+		public IEnumerator LoadTableCoroutine(string table_name)
 		{
 			while (mLoadersCount >= MAX_LOADERS_COUNT)
 				yield return 0;

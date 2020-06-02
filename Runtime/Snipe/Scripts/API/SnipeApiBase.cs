@@ -7,12 +7,12 @@ namespace MiniIT.Snipe
 	{
 		public SnipeCommunicator Communicator { get; private set; }
 
-		internal SnipeApiBase(SnipeCommunicator communicator)
+		public SnipeApiBase(SnipeCommunicator communicator)
 		{
 			this.Communicator = communicator;
 		}
 
-		internal SnipeRequest CreateRequest(ExpandoObject data)
+		public SnipeRequest CreateRequest(ExpandoObject data)
 		{
 			if (Communicator == null || !Communicator.LoggedIn)
 				return null;
@@ -22,7 +22,7 @@ namespace MiniIT.Snipe
 			return request;
 		}
 
-		internal SnipeServiceRequest CreateServiceRequest(ExpandoObject data)
+		public SnipeServiceRequest CreateServiceRequest(ExpandoObject data)
 		{
 			if (Communicator == null || Communicator.ServiceCommunicator == null || !Communicator.ServiceCommunicator.Ready)
 				return null;
