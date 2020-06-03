@@ -14,7 +14,11 @@ Allow it to add external package manager registries. (It's optional but it helps
 
 ## Updating
 
-Unity Package Manager doesn't support auto updates for git-based packages. But there are some ways to initiate an update manually.
+<p>
+Unity Package Manager doesn't support auto updates for git-based packages. But there are some ways to initiate an update manually. We made a helper script. To run it click "Snipe/Force Update Package" menu item.
+</p><p>
+If it doesn't work try one of other methods:
+</p>
 <ul>
 <li> You may add the same package again using git URL. Package manager will update an existing one.
 <li> Alternatively you may manually edit your project's Packages/manifest.json. Just remove "com.miniit.snipe.client" inside "lock" section.
