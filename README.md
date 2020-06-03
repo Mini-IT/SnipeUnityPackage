@@ -22,7 +22,9 @@ Unity Package Manager doesn't support auto updates for git-based packages. But t
 
 ## Third-party libraries used
 
-Ionic.Zlib
-[websocket-sharp](https://github.com/sta/websocket-sharp)
-WebSocket.jslib - for WebGL build target  (not fully supported yet)
-[MPack](https://github.com/caesay/MPack)
+<ul>
+<li> Ionic.Zlib
+<li> [websocket-sharp](https://github.com/sta/websocket-sharp)
+<li> WebSocket.jslib - for WebGL build target  (not fully supported yet)
+<li> [MPack](https://github.com/caesay/MPack)
+</ul>
