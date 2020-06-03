@@ -10,7 +10,7 @@
 Allow it to add external package manager registries. (It's optional but it helps you to stay updated)
 <li> <a href="https://docs.unity3d.com/Manual/upm-ui-giturl.html">Add</a> Snipe Tools package to Unity's Package Manager - https://github.com/Mini-IT/SnipeToolsUnityPackage.git
 <li> After package import is done in Unity editor "Snipe" menu should appear.
-<li> Click <b>"Snipe/Initialize Assembly Definitions"</b> menu item. In FacebookSDK and GooglePlayGames folders should MiniIT.XXXX.Runtime.asmdef files should appear.
+<li> Click <b>"Snipe/Initialize Assembly Definitions"</b> menu item. MiniIT.XXXX.XXXX.asmdef files should appear FacebookSDK and GooglePlayGames folders.
 <li> Click <b>"Snipe/Force Update Package"</b> menu item
 </ul>
 
