@@ -9,13 +9,13 @@
 <li> Install <a href="https://github.com/googlesamples/unity-jar-resolver/blob/master/external-dependency-manager-latest.unitypackage">External Dependency Manager for Unity</a>. Actually it is already should be installed because it is included in the previous packages.<br />
 Allow it to add external package manager registries. (It's optional but it helps you to stay updated)
 <li> <a href="https://docs.unity3d.com/Manual/upm-ui-giturl.html">Add</a> Snipe package (this repository) to Unity's Package Manager - https://github.com/Mini-IT/SnipeUnityPackage.git
-<li> After package import is done in Unity editor "Snipe" menu should appear. Click "Snipe/Initialize Assembly Definitions" menu item
+<li> After package import is done in Unity editor "Snipe" menu should appear. Click <b>"Snipe/Initialize Assembly Definitions"</b> menu item
 </ul>
 
 ## Updating
 
 <p>
-Unity Package Manager doesn't support auto updates for git-based packages. But there are some ways to initiate an update manually. We made a helper script. To run it click "Snipe/Force Update Package" menu item.
+Unity Package Manager doesn't support auto updates for git-based packages. But there are some ways to initiate an update manually. We made a helper script. To run it click <b>"Snipe/Force Update Package"</b> menu item.
 </p><p>
 If it doesn't work try one of other methods:
 </p>
