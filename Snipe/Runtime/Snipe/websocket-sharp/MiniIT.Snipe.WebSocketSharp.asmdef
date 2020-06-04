@@ -1,9 +1,7 @@
 {
-    "name": "MiniIT.Snipe.Editor",
-    "references": ["MiniIT.Snipe.Runtime"],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "name": "MiniIT.Snipe.WebSocketSharp",
+    "references": [],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

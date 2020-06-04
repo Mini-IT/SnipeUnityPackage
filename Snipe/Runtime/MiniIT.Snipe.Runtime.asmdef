@@ -2,11 +2,13 @@
     "name": "MiniIT.Snipe.Runtime",
     "references": [
 		"MiniIT.GooglePlay.Runtime",
-		"MiniIT.Facebook.Runtime"
+		"MiniIT.Facebook.Runtime",
+		"MiniIT.Snipe.MPack",
+		"MiniIT.Snipe.WebSocketSharp"
     ],
     "optionalUnityReferences": [],
     "excludePlatforms": [],
-    "allowUnsafeCode": true,
+    "allowUnsafeCode": false,
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,
