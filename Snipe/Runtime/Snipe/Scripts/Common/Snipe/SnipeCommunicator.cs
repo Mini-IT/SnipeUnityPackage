@@ -239,12 +239,10 @@ namespace MiniIT.Snipe
 			string message_type = data.SafeGetString("type");
 			string error_code = data.SafeGetString("errorCode");
 
-#if UNITY_EDITOR
-			if (!string.IsNullOrEmpty(error_code) && error_code != "ok")
+			if (SnipeConfig.Instance?.debug == true && !string.IsNullOrEmpty(error_code) && error_code != "ok")
 			{
 				Debug.LogError("[SnipeCommunicator] errorCode = " + error_code);
 			}
-#endif
 
 			switch (message_type)
 			{

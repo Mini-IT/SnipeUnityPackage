@@ -5,9 +5,7 @@ using System.IO;
 using System.Net;
 using System.Text;
 using MiniIT;
-#if !(UNITY_WEBGL && !UNITY_EDITOR)
 using WebSocketSharp;
-#endif
 
 namespace MiniIT.Snipe
 {
@@ -21,15 +19,12 @@ namespace MiniIT.Snipe
 
 		#pragma warning restore 0067
 
-#if !(UNITY_WEBGL && !UNITY_EDITOR)
 		private WebSocket mWebSocket = null;
-#endif
 
 		public WebSocketWrapper()
 		{
 		}
 
-#if !(UNITY_WEBGL && !UNITY_EDITOR)
 		public void Connect(string url)
 		{
 			Disconnect();
@@ -104,10 +99,9 @@ namespace MiniIT.Snipe
 		{
 			get
 			{
-				return (mWebSocket != null && mWebSocket.IsConnected);
+				return (mWebSocket != null && mWebSocket.ReadyState == WebSocketState.Open);
 			}
 		}
-#endif
 
 		#region IDisposable implementation
 		

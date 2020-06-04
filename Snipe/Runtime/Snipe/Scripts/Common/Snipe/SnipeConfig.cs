@@ -6,14 +6,9 @@ using MiniIT;
 
 public class SnipeConfig
 {
-	public static SnipeConfig Instance
-	{
-		get;
-#if !UNITY_EDITOR
-		private
-#endif
-		set;
-	}
+	public static SnipeConfig Instance { get; private set; }
+
+	public bool debug = false;
 
 	public string snipe_client_key;
 	public string snipe_app_info;

@@ -1,8 +1,6 @@
 ﻿using System;
-#if UNITY_IOS
 using System.Runtime.InteropServices;
 using AOT;
-#endif
 using UnityEngine;
 using MiniIT;
 using MiniIT.Snipe;
@@ -20,7 +18,6 @@ public class AppleGameCenterAuthProvider : BindProvider
 		mAuthSuccessCallback = success_callback;
 		mAuthFailCallback = fail_callback;
 
-#if UNITY_IOS
 		if (AppleGameCenterProvider.InstanceInitialized)
 		{
 			string gc_login = AppleGameCenterProvider.Instance.PlayerProfile.Id;
@@ -46,12 +43,10 @@ public class AppleGameCenterAuthProvider : BindProvider
 			AppleGameCenterProvider.InstanceInitializationComplete -= OnAppleGameCenterProviderInitializationComplete;
 			AppleGameCenterProvider.InstanceInitializationComplete += OnAppleGameCenterProviderInitializationComplete;
 		}
-#endif
 
 		InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
 	}
 
-#if UNITY_IOS
 	private void OnAppleGameCenterProviderInitializationComplete()
 	{
 		Debug.Log("[AppleGameCenterAuthProvider] OnAppleGameCenterProviderInitializationComplete");
@@ -63,15 +58,13 @@ public class AppleGameCenterAuthProvider : BindProvider
 			CheckAuthExists(null);
 		}
 	}
-#endif
 
 	public override void RequestBind(BindResultCallback bind_callback = null)
 	{
 		Debug.Log("[AppleGameCenterAuthProvider] RequestBind");
 
 		mBindResultCallback = bind_callback;
-
-#if UNITY_IOS
+		
 		if (PlayerPrefs.HasKey(SnipePrefs.AUTH_UID) && PlayerPrefs.HasKey(SnipePrefs.AUTH_KEY))
 		{
 			if (AppleGameCenterProvider.InstanceInitialized)
@@ -113,7 +106,6 @@ public class AppleGameCenterAuthProvider : BindProvider
 
 		AppleGameCenterProvider.InstanceInitializationComplete -= OnAppleGameCenterProviderInitializationComplete;
 		AppleGameCenterProvider.InstanceInitializationComplete += OnAppleGameCenterProviderInitializationComplete;
-#endif
 
 		InvokeBindResultCallback(ERROR_NOT_INITIALIZED);
 	}
@@ -165,8 +157,7 @@ public class AppleGameCenterAuthProvider : BindProvider
 
 #region GenerateIdentityVerificationSignature
 	// https://gist.github.com/BastianBlokland/bbc02a407b05beaf3f55ead3dd10f808
-
-#if UNITY_IOS
+	
 	[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 	private delegate void IdentityVerificationSignatureCallback(
 		string publicKeyUrl,
@@ -196,11 +187,11 @@ public class AppleGameCenterAuthProvider : BindProvider
 		var salt = new byte[saltLength];
 		Marshal.Copy(saltPointer, salt, 0, saltLength);
 
-		UnityEngine.Debug.Log($"publicKeyUrl: {publicKeyUrl}");
-		UnityEngine.Debug.Log($"signature length: {signature?.Length}");
-		UnityEngine.Debug.Log($"salt length: {salt?.Length}");
-		UnityEngine.Debug.Log($"timestamp: {timestamp}");
-		UnityEngine.Debug.Log($"error: {error}");
+		//UnityEngine.Debug.Log($"publicKeyUrl: {publicKeyUrl}");
+		//UnityEngine.Debug.Log($"signature length: {signature?.Length}");
+		//UnityEngine.Debug.Log($"salt length: {salt?.Length}");
+		//UnityEngine.Debug.Log($"timestamp: {timestamp}");
+		//UnityEngine.Debug.Log($"error: {error}");
 
 		if (mLoginSignatureCallback != null)
 		{
@@ -214,6 +205,5 @@ public class AppleGameCenterAuthProvider : BindProvider
 			mLoginSignatureCallback.Invoke(data);
 		}
 	}
-#endif
 #endregion // GenerateIdentityVerificationSignature
 }

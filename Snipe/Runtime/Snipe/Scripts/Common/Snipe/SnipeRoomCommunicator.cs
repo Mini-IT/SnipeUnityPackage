@@ -77,9 +77,10 @@ namespace MiniIT.Snipe
 		{
 			base.ProcessSnipeMessage(data, original);
 
-#if UNITY_EDITOR
-			Debug.Log("[SnipeRoomCommunicator] OnRoomResponse: " + (data != null ? data.ToJSONString() : "null"));
-#endif
+			if (SnipeConfig.Instance?.debug == true)
+			{
+				Debug.Log("[SnipeRoomCommunicator] OnRoomResponse: " + (data != null ? data.ToJSONString() : "null"));
+			}
 
 			string message_type = data.SafeGetString("type");
 			string error_code = data.SafeGetString("errorCode");

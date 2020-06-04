@@ -1,0 +1,15 @@
+{
+    "name": "MiniIT.Snipe.Client.Android",
+    "references": ["MiniIT.Snipe.Client"],
+    "includePlatforms": [
+		"Android"
+	],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
