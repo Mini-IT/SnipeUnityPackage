@@ -1,6 +1,6 @@
 {
     "name": "MiniIT.Snipe.Client.iOS",
-    "references": ["MiniIT.Snipe.Client"],
+    "references": ["MiniIT.Snipe.Client.Runtime"],
     "includePlatforms": [
 		"iOS"
 	],

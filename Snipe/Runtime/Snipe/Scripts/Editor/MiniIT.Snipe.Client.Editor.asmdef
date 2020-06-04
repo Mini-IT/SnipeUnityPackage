@@ -1,6 +1,6 @@
 {
     "name": "MiniIT.Snipe.Client.Editor",
-    "references": ["MiniIT.Snipe.Client"],
+    "references": ["MiniIT.Snipe.Client.Runtime"],
     "includePlatforms": [
 		"Editor"
 	],

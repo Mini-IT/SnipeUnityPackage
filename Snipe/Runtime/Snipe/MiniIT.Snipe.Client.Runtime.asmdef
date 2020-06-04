@@ -1,5 +1,5 @@
 {
-    "name": "MiniIT.Snipe.Runtime",
+    "name": "MiniIT.Snipe.Client.Runtime",
     "references": [
 		"MiniIT.GooglePlay.Runtime",
 		"MiniIT.Facebook.Runtime",
