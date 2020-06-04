@@ -4,7 +4,8 @@
 ## Installation guide
 
 <ul>
-<li> Install <a href="https://developers.facebook.com/docs/unity/">Facebook SDK for Unity</a> (direct <a href="https://origincache.facebook.com/developers/resources/?id=FacebookSDK-current.zip">download link</a>)
+<li> Install <a href="https://developers.facebook.com/docs/unity/">Facebook SDK for Unity</a> (direct <a href="https://origincache.facebook.com/developers/resources/?id=FacebookSDK-current.zip">download link</a>) <br />
+Don't install "Examples" folder or remove it if it is already installed.
 <li> Install <a href="https://github.com/playgameservices/play-games-plugin-for-unity">Google Play Games for Unity</a>
 <li> Install <a href="https://github.com/googlesamples/unity-jar-resolver/blob/master/external-dependency-manager-latest.unitypackage">External Dependency Manager for Unity</a>. Actually it is already should be installed because it is included in the previous packages.<br />
 Allow it to add external package manager registries. (It's optional but it helps you to stay updated)
