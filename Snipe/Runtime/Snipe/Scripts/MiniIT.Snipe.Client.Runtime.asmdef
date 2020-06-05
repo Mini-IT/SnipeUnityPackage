@@ -1,22 +1,19 @@
 {
-    "name": "MiniIT.Snipe.Client.Android",
+    "name": "MiniIT.Snipe.Client.Runtime",
     "references": [
 		"MiniIT.Snipe.Core",
 		"MiniIT.Snipe.Client.Core",
-		"MiniIT.Snipe.Client.Runtime",
 		"MiniIT.Snipe.Social.Runtime",
 		"MiniIT.Snipe.Social.Android",
-		"MiniIT.GooglePlay.Runtime"
-	],
-    "includePlatforms": [
-		"Android"
-	],
+		"MiniIT.Snipe.Social.iOS",
+		"MiniIT.Snipe.Social.Editor",
+		"MiniIT.Snipe.MPack"
+    ],
+    "optionalUnityReferences": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,
-    "defineConstraints": [],
-    "versionDefines": [],
-    "noEngineReferences": false
+    "defineConstraints": []
 }

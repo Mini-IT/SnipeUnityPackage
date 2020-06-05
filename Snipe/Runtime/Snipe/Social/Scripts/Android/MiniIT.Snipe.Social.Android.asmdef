@@ -1,0 +1,16 @@
+{
+    "name": "MiniIT.Snipe.Social.Android",
+    "references": [
+		"MiniIT.Snipe.Social.Runtime",
+		"MiniIT.GooglePlay.Runtime"
+	],
+    "optionalUnityReferences": [],
+    "includePlatforms": [
+		"Android"
+	],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": []
+}

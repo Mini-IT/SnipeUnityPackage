@@ -1,19 +1,15 @@
 {
-    "name": "MiniIT.Snipe.Client.Editor",
+    "name": "MiniIT.Snipe.Social.Editor",
     "references": [
-		"MiniIT.Snipe.Core",
-		"MiniIT.Snipe.Client.Runtime",
 		"MiniIT.Snipe.Social.Runtime"
 	],
+    "optionalUnityReferences": [],
     "includePlatforms": [
 		"Editor"
 	],
-    "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,
-    "defineConstraints": [],
-    "versionDefines": [],
-    "noEngineReferences": false
+    "defineConstraints": []
 }

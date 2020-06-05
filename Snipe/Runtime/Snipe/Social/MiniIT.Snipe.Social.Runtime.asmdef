@@ -1,0 +1,13 @@
+{
+    "name": "MiniIT.Snipe.Social.Runtime",
+    "references": [
+		"MiniIT.Snipe.Core"
+	],
+    "optionalUnityReferences": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": []
+}

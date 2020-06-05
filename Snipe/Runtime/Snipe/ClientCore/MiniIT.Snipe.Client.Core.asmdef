@@ -1,0 +1,14 @@
+{
+    "name": "MiniIT.Snipe.Client.Core",
+    "references": [
+		"MiniIT.Snipe.Core",
+		"MiniIT.Snipe.WebSocketSharp"
+	],
+    "optionalUnityReferences": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": []
+}

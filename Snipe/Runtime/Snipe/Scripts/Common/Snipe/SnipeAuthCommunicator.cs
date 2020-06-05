@@ -93,7 +93,9 @@ namespace MiniIT.Snipe
 			ProviderType auth_provider = null;
 			foreach (AuthProvider provider in mInstance.mAuthProviders)
 			{
-				if (provider.GetType().Equals(typeof(ProviderType)))
+				//var provider_type = provider.GetType();
+				//if (provider_type.Equals(typeof(ProviderType)) || provider_type.IsSubclassOf(typeof(ProviderType)))
+				if (provider is ProviderType)
 				{
 					auth_provider = provider as ProviderType;
 					break;

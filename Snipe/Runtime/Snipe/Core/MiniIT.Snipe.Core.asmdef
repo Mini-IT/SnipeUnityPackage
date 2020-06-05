@@ -1,10 +1,6 @@
 {
-    "name": "MiniIT.Snipe.Client.Runtime",
-    "references": [
-		"MiniIT.GooglePlay.Runtime",
-		"MiniIT.Snipe.MPack",
-		"MiniIT.Snipe.WebSocketSharp"
-    ],
+    "name": "MiniIT.Snipe.Core",
+    "references": [],
     "optionalUnityReferences": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

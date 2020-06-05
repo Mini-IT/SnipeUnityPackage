@@ -1,19 +1,15 @@
 {
-    "name": "MiniIT.Snipe.Client.iOS",
+    "name": "MiniIT.Snipe.Social.iOS",
     "references": [
-		"MiniIT.Snipe.Core",
-		"MiniIT.Snipe.Client.Runtime",
 		"MiniIT.Snipe.Social.Runtime"
 	],
+    "optionalUnityReferences": [],
     "includePlatforms": [
 		"iOS"
 	],
-    "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,
-    "defineConstraints": [],
-    "versionDefines": [],
-    "noEngineReferences": false
+    "defineConstraints": []
 }
