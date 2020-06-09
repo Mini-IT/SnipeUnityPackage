@@ -14,7 +14,7 @@ public class GooglePlayAuthProvider : BindProvider
 		mAuthSuccessCallback = success_callback;
 		mAuthFailCallback = fail_callback;
 
-//#if UNITY_ANDROID
+#if UNITY_ANDROID && !UNITY_EDITOR
 		if (GooglePlayProvider.InstanceInitialized)
 		{
 			string google_login = GooglePlayProvider.Instance.PlayerProfile.Id;
@@ -38,12 +38,12 @@ public class GooglePlayAuthProvider : BindProvider
 			GooglePlayProvider.InstanceInitializationComplete -= OnGooglePlayProviderInitializationComplete;
 			GooglePlayProvider.InstanceInitializationComplete += OnGooglePlayProviderInitializationComplete;
 		}
-//#endif
+#endif
 
 		InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
 	}
 
-//#if UNITY_ANDROID
+#if UNITY_ANDROID && !UNITY_EDITOR
 	private void OnGooglePlayProviderInitializationComplete()
 	{
 		Debug.Log("[GooglePlayAuthProvider] OnGooglePlayProviderInitializationComplete");
@@ -55,7 +55,7 @@ public class GooglePlayAuthProvider : BindProvider
 			CheckAuthExists(null);
 		}
 	}
-//#endif
+#endif
 
 	public override void RequestBind(BindResultCallback bind_callback = null)
 	{
@@ -63,7 +63,7 @@ public class GooglePlayAuthProvider : BindProvider
 
 		mBindResultCallback = bind_callback;
 
-//#if UNITY_ANDROID
+#if UNITY_ANDROID && !UNITY_EDITOR
 		if (PlayerPrefs.HasKey(SnipePrefs.AUTH_UID) && PlayerPrefs.HasKey(SnipePrefs.AUTH_KEY))
 		{
 			if (GooglePlayProvider.InstanceInitialized)
@@ -107,7 +107,7 @@ public class GooglePlayAuthProvider : BindProvider
 
 		GooglePlayProvider.InstanceInitializationComplete -= OnGooglePlayProviderInitializationComplete;
 		GooglePlayProvider.InstanceInitializationComplete += OnGooglePlayProviderInitializationComplete;
-//#endif
+#endif
 
 		InvokeBindResultCallback(ERROR_NOT_INITIALIZED);
 	}

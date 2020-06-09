@@ -4,9 +4,7 @@
 		"MiniIT.Snipe.Core",
 		"MiniIT.Snipe.Client.Core",
 		"MiniIT.Snipe.Social.Runtime",
-		"MiniIT.Snipe.Social.Android",
-		"MiniIT.Snipe.Social.iOS",
-		"MiniIT.Snipe.Social.Editor",
+		"MiniIT.GooglePlay.Runtime",
 		"MiniIT.Snipe.MPack"
     ],
     "optionalUnityReferences": [],

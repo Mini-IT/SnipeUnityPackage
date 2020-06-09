@@ -1,10 +1,13 @@
 ﻿using System;
-using System.Runtime.InteropServices;
-using AOT;
 using UnityEngine;
 using MiniIT;
 using MiniIT.Snipe;
 using MiniIT.Social;
+
+#if UNITY_IOS
+using System.Runtime.InteropServices;
+using AOT;
+#endif
 
 public class AppleGameCenterAuthProvider : BindProvider
 {
@@ -18,6 +21,7 @@ public class AppleGameCenterAuthProvider : BindProvider
 		mAuthSuccessCallback = success_callback;
 		mAuthFailCallback = fail_callback;
 
+#if UNITY_IOS
 		if (AppleGameCenterProvider.InstanceInitialized)
 		{
 			string gc_login = AppleGameCenterProvider.Instance.PlayerProfile.Id;
@@ -43,10 +47,12 @@ public class AppleGameCenterAuthProvider : BindProvider
 			AppleGameCenterProvider.InstanceInitializationComplete -= OnAppleGameCenterProviderInitializationComplete;
 			AppleGameCenterProvider.InstanceInitializationComplete += OnAppleGameCenterProviderInitializationComplete;
 		}
+#endif
 
 		InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
 	}
 
+#if UNITY_IOS
 	private void OnAppleGameCenterProviderInitializationComplete()
 	{
 		Debug.Log("[AppleGameCenterAuthProvider] OnAppleGameCenterProviderInitializationComplete");
@@ -58,6 +64,7 @@ public class AppleGameCenterAuthProvider : BindProvider
 			CheckAuthExists(null);
 		}
 	}
+#endif
 
 	public override void RequestBind(BindResultCallback bind_callback = null)
 	{
@@ -65,6 +72,7 @@ public class AppleGameCenterAuthProvider : BindProvider
 
 		mBindResultCallback = bind_callback;
 		
+#if UNITY_IOS
 		if (PlayerPrefs.HasKey(SnipePrefs.AUTH_UID) && PlayerPrefs.HasKey(SnipePrefs.AUTH_KEY))
 		{
 			if (AppleGameCenterProvider.InstanceInitialized)
@@ -106,6 +114,7 @@ public class AppleGameCenterAuthProvider : BindProvider
 
 		AppleGameCenterProvider.InstanceInitializationComplete -= OnAppleGameCenterProviderInitializationComplete;
 		AppleGameCenterProvider.InstanceInitializationComplete += OnAppleGameCenterProviderInitializationComplete;
+#endif
 
 		InvokeBindResultCallback(ERROR_NOT_INITIALIZED);
 	}
@@ -156,6 +165,7 @@ public class AppleGameCenterAuthProvider : BindProvider
 	}
 
 #region GenerateIdentityVerificationSignature
+#if UNITY_IOS
 	// https://gist.github.com/BastianBlokland/bbc02a407b05beaf3f55ead3dd10f808
 	
 	[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -205,5 +215,6 @@ public class AppleGameCenterAuthProvider : BindProvider
 			mLoginSignatureCallback.Invoke(data);
 		}
 	}
+#endif
 #endregion // GenerateIdentityVerificationSignature
 }
