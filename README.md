@@ -11,7 +11,7 @@ Don't install "Examples" directory or remove it if it is already installed.
 Allow it to add external package manager registries. (It's optional but it helps you to stay updated)
 <li> <a href="https://docs.unity3d.com/Manual/upm-ui-giturl.html">Add</a> <b>Snipe Tools</b> package to Unity's Package Manager - https://github.com/Mini-IT/SnipeToolsUnityPackage.git <br />
 After package import is done in Unity editor "Snipe" menu should appear.
-<li> Click <b>"Snipe/Initialize Assembly Definitions"</b> menu item. MiniIT.XXXX.XXXX.asmdef files should appear in FacebookSDK and GooglePlayGames directories.
+<li> Click <b>"Snipe/Initialize Assembly Definitions"</b> menu item. MiniIT.GooglePlay.XXXX.asmdef files should appear in GooglePlayGames and GooglePlayGames/Editor directories.
 <li> Click <b>"Snipe/Force Update Package"</b> menu item
 </ul>
 
