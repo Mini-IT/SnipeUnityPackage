@@ -5,9 +5,9 @@ using UnityEngine;
 using UnityEngine.SocialPlatforms;
 using MiniIT;
 
-//#if UNITY_ANDROID
+#if UNITY_ANDROID && !UNITY_EDITOR
 using GooglePlayGames;
-//#endif
+#endif
 
 namespace MiniIT.Social
 {
@@ -55,7 +55,7 @@ namespace MiniIT.Social
 
 		public GooglePlayProvider () : base(SocialNetworkType.GOOGLE_PLAY)
 		{
-//#if UNITY_ANDROID
+#if UNITY_ANDROID && !UNITY_EDITOR
 			//mInitialServerAuthCodeUsed = false;
 
 			GooglePlayGames.BasicApi.PlayGamesClientConfiguration config = new GooglePlayGames.BasicApi.PlayGamesClientConfiguration.Builder()
@@ -66,7 +66,7 @@ namespace MiniIT.Social
 			GooglePlayGames.PlayGamesPlatform.InitializeInstance(config);
 			GooglePlayGames.PlayGamesPlatform.DebugLogEnabled = true;
 			GooglePlayGames.PlayGamesPlatform.Activate();
-//#endif
+#endif
 			sInstance = this;
 		}
 		
@@ -101,7 +101,7 @@ namespace MiniIT.Social
 				UnityEngine.Social.localUser.Authenticate(ProcessAuthentication);
 		}
 		
-//#if UNITY_ANDROID
+#if UNITY_ANDROID && !UNITY_EDITOR
 		public override void Logout()
 		{
 			if (Initialized)
@@ -111,7 +111,7 @@ namespace MiniIT.Social
 			}
 			base.Logout();
 		}
-//#endif
+#endif
 
 		// This function gets called when Authenticate completes
 		// Note that if the operation is successful, Social.localUser will contain data from the server. 
@@ -159,22 +159,9 @@ namespace MiniIT.Social
 		
 		public void GetServerAuthToken(Action<string> callback)
 		{
-			//if (!Initialized)
-			//	return "";
-//#if UNITY_ANDROID
-			//if (!mInitialServerAuthCodeUsed)
-			//{
-			//	mInitialServerAuthCodeUsed = true;
-			//	callback.Invoke(PlayGamesPlatform.Instance.GetServerAuthCode());
-			//}
-			//else
-			{
-				PlayGamesPlatform.Instance.GetAnotherServerAuthCode(false, callback);
-			}
-			
-//#else
-			//return "";
-//#endif
+#if UNITY_ANDROID && !UNITY_EDITOR
+			PlayGamesPlatform.Instance.GetAnotherServerAuthCode(false, callback);
+#endif
 		}
 
 		private void OnLocalUserInitialized(IUserProfile profile = null)
@@ -212,7 +199,7 @@ namespace MiniIT.Social
 			profile.PhotoSmallURL  = DUMMY_AVATAR_URL;
 			profile.PhotoMediumURL = DUMMY_AVATAR_URL;
 
-//#if UNITY_ANDROID
+#if UNITY_ANDROID && !UNITY_EDITOR
 			if (data.id == GooglePlayGames.PlayGamesPlatform.Instance.localUser.id)
 			{
 				string url = GooglePlayGames.PlayGamesPlatform.Instance.GetUserImageUrl();
@@ -222,7 +209,7 @@ namespace MiniIT.Social
 					profile.PhotoMediumURL = url;
 				}
 			}
-//#endif
+#endif
 			// добавим в кэш
 			//SetProfileData(profile);
 
@@ -233,10 +220,10 @@ namespace MiniIT.Social
 
 		public void ShowLeaderboardUI(string leaderboard_id = "")
 		{
-//#if UNITY_ANDROID
+#if UNITY_ANDROID && !UNITY_EDITOR
 			if (!string.IsNullOrEmpty(leaderboard_id))
 				(UnityEngine.Social.Active as GooglePlayGames.PlayGamesPlatform).SetDefaultLeaderboardForUI(leaderboard_id);
-//#endif
+#endif
 
 			UnityEngine.Social.ShowLeaderboardUI();
 		}
