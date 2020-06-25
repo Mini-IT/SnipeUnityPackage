@@ -20,7 +20,9 @@ namespace MiniIT.Snipe
 	public class SnipeClient : MonoBehaviour, IDisposable
 	{
 		private const double HEARTBEAT_INTERVAL = 30;      // seconds
-		private const int CHECK_CONNECTION_TIMEOUT = 3000; // milliseconds
+		private const int CHECK_CONNECTION_TIMEOUT = 2000; // milliseconds
+		
+		private static readonly ExpandoObject PING_MESSAGE_DATA = new ExpandoObject() { ["messageType"] = "kit/user.ping" };
 
 		private string mClientKey;
 		public string ClientKey
@@ -401,6 +403,8 @@ namespace MiniIT.Snipe
 						mWebSocketClient.SendRequest(message);
 					}
 				}
+				
+				StartCheckConnection(false);
 			}
 			else
 			{
@@ -414,7 +418,7 @@ namespace MiniIT.Snipe
 		{
 			if (mLoggedIn)
 			{
-				SendRequest("kit/user.ping");
+				SendRequest(PING_MESSAGE_DATA);
 			}
 		}
 
@@ -483,7 +487,7 @@ namespace MiniIT.Snipe
 
 			if (focus)
 			{
-				StartCheckConnection();
+				SendPingRequest(); // check connection
 			}
 			else
 			{
@@ -540,7 +544,7 @@ namespace MiniIT.Snipe
 			mHeartbeatTriggerTicks = DateTime.Now.AddSeconds(HEARTBEAT_INTERVAL).Ticks;
 		}
 
-		private void StartCheckConnection()
+		private void StartCheckConnection(bool send_request = true)
 		{
 			if (DebugEnabled)
 				Debug.Log("[SnipeClient] StartCheckConnection");
@@ -556,7 +560,7 @@ namespace MiniIT.Snipe
 			mCheckConnectionCancellation?.Cancel();
 
 			mCheckConnectionCancellation = new CancellationTokenSource();
-			_ = CheckConnectionTask(mCheckConnectionCancellation.Token);
+			_ = CheckConnectionTask(mCheckConnectionCancellation.Token, send_request);
 		}
 
 		private void StopCheckConnection()
@@ -571,9 +575,10 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async Task CheckConnectionTask(CancellationToken cancellation)
+		private async Task CheckConnectionTask(CancellationToken cancellation, bool send_request = true)
 		{
-			SendPingRequest();
+			if (send_request)
+				SendPingRequest();
 
 			await Task.Delay(CHECK_CONNECTION_TIMEOUT, cancellation);
 
