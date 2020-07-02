@@ -40,7 +40,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			if (mCommunicator.LoggedIn)
+			if (mCommunicator.LoggedIn || MessageType == "user.login")
 			{
 				mRequestId = mCommunicator.Request(this);
 			}
