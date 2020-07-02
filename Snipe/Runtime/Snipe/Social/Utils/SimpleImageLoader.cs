@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.Networking;
 using System;
 using System.Collections;
@@ -14,6 +15,8 @@ namespace MiniIT.Utils
 
 		private const int MAX_LOADERS_COUNT = 3;
 		private static int mLoadersCount = 0;
+		
+		private static readonly Vector2 SPRITE_PIVOT = new Vector2(0.5f, 0.5f);
 
 #if UNITY_EDITOR
 		public string Url;
@@ -64,6 +67,39 @@ namespace MiniIT.Utils
 			{
 				loader.DoLoad(url, callback);
 			}
+			return loader;
+		}
+		
+		public static SimpleImageLoader LoadSprite(string url, Action<Sprite> callback = null)
+		{
+			return Load(url,
+				(texture) =>
+				{
+					callback?.Invoke(Sprite.Create(texture, new Rect(0.0f, 0.0f, texture.width, texture.height), SPRITE_PIVOT));
+				},
+				true
+			);
+		}
+		
+		public static SimpleImageLoader LoadSprite(string url, Image image, bool activate = true, GameObject preloader = null)
+		{
+			var loader = LoadSprite(url,
+				(sprite) =>
+				{
+					if (image != null)
+					{
+						image.sprite = sprite;
+						if (activate)
+							image.enabled = true;
+						if (preloader != null)
+							preloader.SetActive(false);
+					}
+				}
+			);
+			
+			if (preloader != null)
+				preloader.SetActive(loader != null);
+			
 			return loader;
 		}
 
