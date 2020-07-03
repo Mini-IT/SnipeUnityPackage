@@ -221,7 +221,7 @@ namespace MiniIT.Snipe
 			Debug.Log($"[SnipeCommunicator] OnRoomConnectionFailed");
 			if (Connected)
 			{
-				OnConnectionFailed(data);
+				Client.Disconnect();
 			}
 		}
 
