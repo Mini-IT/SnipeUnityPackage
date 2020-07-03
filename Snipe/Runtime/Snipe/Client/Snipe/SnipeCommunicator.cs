@@ -222,6 +222,7 @@ namespace MiniIT.Snipe
 			if (Connected)
 			{
 				Client.Disconnect();
+				OnConnectionFailed(data);
 			}
 		}
 
