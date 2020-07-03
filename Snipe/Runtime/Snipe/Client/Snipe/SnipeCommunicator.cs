@@ -215,6 +215,15 @@ namespace MiniIT.Snipe
 				ConnectionFailed?.Invoke(false);
 			}
 		}
+		
+		internal void OnRoomConnectionFailed(ExpandoObject data = null)
+		{
+			Debug.Log($"[SnipeCommunicator] OnRoomConnectionFailed");
+			if (Connected)
+			{
+				OnConnectionFailed(data);
+			}
+		}
 
 		private void OnSnipeResponse(ExpandoObject data)
 		{

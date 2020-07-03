@@ -57,6 +57,20 @@ namespace MiniIT.Snipe
 				mGameCommunicator.LoginSucceeded += OnGameLogin;
 			}
 		}
+		
+		protected override void OnConnectionFailed(ExpandoObject data = null)
+		{
+			Debug.Log($"[SnipeRoomCommunicator] Game Connection failed");
+			base.OnConnectionFailed(data);
+
+			if (RestoreConnectionAttempts < 1 && !mDisconnecting)
+			{
+				if (mGameCommunicator != null && mGameCommunicator.Connected)
+				{
+					mGameCommunicator.OnRoomConnectionFailed(data);
+				}
+			}
+		}
 
 		private void OnGameLogin()
 		{
