@@ -66,7 +66,11 @@ namespace MiniIT.Snipe
 		private void AddOnLoginSucceededListener()
 		{
 			if (mCommunicator == null)
+			{
+				mCallback?.Invoke(ErrorMessageInvalidClient);
+				Dispose();
 				return;
+			}
 			
 			if (mCommunicator is SnipeRoomCommunicator room_communicator)
 			{
