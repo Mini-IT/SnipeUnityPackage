@@ -5,9 +5,15 @@ namespace MiniIT.Snipe
 {
 	public class SnipeRequest : IDisposable
 	{
+		public const string ERROR_INVALIND_CLIENT = "invalidClient";
 		public const string ERROR_NO_CONNECTION = "noConnection";
 		public const string ERROR_NOT_LOGGED_IN = "notLoggedIn";
 		public const string ERROR_INVALIND_DATA = "invalidData";
+		
+		protected static readonly ExpandoObject ErrorMessageInvalidClient = new ExpandoObject() { { "errorCode", ERROR_INVALIND_CLIENT } };
+		protected static readonly ExpandoObject ErrorMessageNoConnection = new ExpandoObject() { { "errorCode", ERROR_NO_CONNECTION } };
+		protected static readonly ExpandoObject ErrorMessageNotLoggedIn = new ExpandoObject() { { "errorCode", ERROR_NOT_LOGGED_IN } };
+		protected static readonly ExpandoObject ErrorMessageInvalidData = new ExpandoObject() { { "errorCode", ERROR_INVALIND_DATA } };
 
 		protected SnipeClient mClient;
 		protected Action<ExpandoObject> mCallback;
@@ -31,17 +37,24 @@ namespace MiniIT.Snipe
 
 		public virtual void Request(Action<ExpandoObject> callback = null)
 		{
-			if (mClient == null || !mClient.Connected)
+			if (mClient == null)
 			{
 				if (callback != null)
-					callback.Invoke(new ExpandoObject() { { "errorCode", ERROR_NO_CONNECTION } });
+					callback.Invoke(ErrorMessageInvalidClient);
+				return;
+			}
+			
+			if (!mClient.Connected)
+			{
+				if (callback != null)
+					callback.Invoke(ErrorMessageNoConnection);
 				return;
 			}
 
 			if (!mClient.LoggedIn)
 			{
 				if (callback != null)
-					callback.Invoke(new ExpandoObject() { { "errorCode", ERROR_NOT_LOGGED_IN } });
+					callback.Invoke(ErrorMessageNotLoggedIn);
 				return;
 			}
 
@@ -51,7 +64,7 @@ namespace MiniIT.Snipe
 			if (!CheckMessageType())
 			{
 				if (callback != null)
-					callback.Invoke(new ExpandoObject() { { "errorCode", ERROR_INVALIND_DATA } });
+					callback.Invoke(ErrorMessageInvalidData);
 				return;
 			}
 
@@ -84,10 +97,13 @@ namespace MiniIT.Snipe
 			mRequestId = mClient.SendRequest(MessageType, Data);
 		}
 
-		private void OnConnectionLost(ExpandoObject data)
+		protected virtual void OnConnectionLost(ExpandoObject data)
 		{
 			if (mCallback != null)
-				mCallback.Invoke(new ExpandoObject() { { "errorCode", ERROR_NO_CONNECTION } });
+			{
+				mCallback.Invoke(ErrorMessageNoConnection);
+				mCallback = null;
+			}
 		}
 
 		protected void OnMessageReceived(ExpandoObject response_data)
@@ -108,6 +124,8 @@ namespace MiniIT.Snipe
 
 		public virtual void Dispose()
 		{
+			mCallback = null;
+			
 			if (mClient != null)
 			{
 				mClient.ConnectionLost -= OnConnectionLost;
