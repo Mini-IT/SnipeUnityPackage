@@ -29,6 +29,16 @@ namespace MiniIT.Snipe
 			SetCallback(callback);
 			SendRequest();
 		}
+		
+		protected virtual void SetCallback(Action<ExpandoObject> callback)
+		{
+			mCallback = callback;
+			if (mCallback != null && mClient != null)
+			{
+				mClient.MessageReceived -= OnMessageReceived;
+				mClient.MessageReceived += OnMessageReceived;
+			}
+		}
 
 		protected override void SendRequest()
 		{
