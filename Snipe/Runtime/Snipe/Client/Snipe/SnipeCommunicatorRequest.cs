@@ -58,7 +58,7 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		protected virtual void OnConnectionLost(ExpandoObject data)
+		protected override void OnConnectionLost(ExpandoObject data)
 		{
 			AddOnLoginSucceededListener();
 		}
