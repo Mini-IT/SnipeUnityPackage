@@ -83,7 +83,7 @@ namespace MiniIT.Snipe
 		protected virtual void SetCallback(Action<ExpandoObject> callback)
 		{
 			mCallback = callback;
-			if (mCallback != null && mClient != null)
+			if (mClient != null)
 			{
 				mClient.ConnectionLost -= OnConnectionLost;
 				mClient.MessageReceived -= OnMessageReceived;

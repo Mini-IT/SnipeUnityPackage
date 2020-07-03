@@ -29,16 +29,6 @@ namespace MiniIT.Snipe
 			SetCallback(callback);
 			SendRequest();
 		}
-		
-		protected virtual void SetCallback(Action<ExpandoObject> callback)
-		{
-			mCallback = callback;
-			if (mCallback != null && mClient != null)
-			{
-				mClient.MessageReceived -= OnMessageReceived;
-				mClient.MessageReceived += OnMessageReceived;
-			}
-		}
 
 		protected override void SendRequest()
 		{
@@ -58,9 +48,6 @@ namespace MiniIT.Snipe
 				return;
 			}
 			
-			mCommunicator.ConnectionFailed -= OnCommunicatorConnectionLost;
-			mCommunicator.ConnectionFailed += OnCommunicatorConnectionLost;
-
 			if (mCommunicator.LoggedIn || MessageType == "user.login")
 			{
 				mRequestId = mCommunicator.Request(this);
@@ -71,7 +58,7 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		protected void OnCommunicatorConnectionLost(bool will_restore)
+		protected virtual void OnConnectionLost(ExpandoObject data)
 		{
 			AddOnLoginSucceededListener();
 		}
@@ -120,7 +107,6 @@ namespace MiniIT.Snipe
 
 				mCommunicator.LoginSucceeded -= OnCommunicatorLoginSucceeded;
 				mCommunicator.PreDestroy -= OnCommunicatorPreDestroy;
-				mCommunicator.ConnectionFailed -= OnCommunicatorConnectionLost;
 			}
 			
 			if (mCallback != null)
