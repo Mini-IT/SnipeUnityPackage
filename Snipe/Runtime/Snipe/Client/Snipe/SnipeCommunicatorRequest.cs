@@ -97,7 +97,11 @@ namespace MiniIT.Snipe
 				}
 
 				mCommunicator.LoginSucceeded -= OnCommunicatorLoginSucceeded;
-
+				
+				// update client instance and event listeners
+				mClient = mCommunicator.Client;
+				SetCallback(mCallback);
+				
 				mRequestId = mCommunicator.Request(this);
 			}
 		}
@@ -122,11 +126,10 @@ namespace MiniIT.Snipe
 
 		public override void Dispose()
 		{
-			mCallback = null;
+			base.Dispose();
 			
 			OnCommunicatorPreDestroy();
-
-			base.Dispose();
+			mCommunicator = null;
 		}
 	}
 }
