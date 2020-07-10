@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections;
 using System.Collections.Generic;
 using MiniIT;
 using UnityEngine;
@@ -68,11 +69,43 @@ namespace MiniIT.Snipe
 			foreach (var pair in dictionary)
 			{
 				if (pair.Value is MPack mpack_value)
+				{
 					map.Add(MPack.From(pair.Key), mpack_value);
+				}
 				else if (pair.Value is Dictionary<string, object> value_dictionary)
+				{
 					map.Add(MPack.From(pair.Key), ConvertToMPackMap(value_dictionary));
+				}
+				else if (pair.Value is IList value_list)
+				{
+					var mpack_list = new MPackArray();
+					foreach (var value_item in value_list)
+					{
+						MPack item = null;
+						if (value_item is IExpandoObjectConvertable value_obj)
+						{
+							mpack_list.Add(ConvertToMPackMap(value_obj.ConvertToExpandoObject()));
+						}
+						else
+						{
+							try
+							{
+								mpack_list.Add(MPack.From(value_item));
+							}
+							catch (NotSupportedException)
+							{ }
+						}
+						
+					}
+					map.Add(MPack.From(pair.Key), mpack_list);
+				}
 				else
-					map.Add(MPack.From(pair.Key), MPack.From(pair.Value));
+				{
+					if (pair.Value != null)
+						map.Add(MPack.From(pair.Key), MPack.From(pair.Value));
+					else
+						Debug.LogError($"[SnipeServiceClient] Value is null. Key = '{pair.Key}'. Null values are not supported. The parameter won't be added to the message.");
+				}
 			}
 
 			return map;
