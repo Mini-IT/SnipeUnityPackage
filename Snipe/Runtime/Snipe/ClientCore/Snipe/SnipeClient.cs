@@ -319,9 +319,8 @@ namespace MiniIT.Snipe
 		public void DisconnectAndDispatch(Action<ExpandoObject> event_to_dispatch)
 		{
 			if (DebugEnabled)
-//#if DEBUG
-			Debug.Log("[SnipeClient] DisconnectAndDispatch");
-//#endif
+				Debug.LogWarning("[SnipeClient] DisconnectAndDispatch. " + DisconnectReason);
+			
 			if (mTCPClient != null)
 			{
 				mTCPClient.Dispose();
