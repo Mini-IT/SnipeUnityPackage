@@ -62,9 +62,9 @@ namespace MiniIT.Snipe
 
 			if (!connected)
 			{
-#if DEBUG
+//#if DEBUG
 				Debug.Log("[SnipeTCPClient] TCP Client connection failed");
-#endif
+//#endif
 
 				if (mTcpClient == null)
 				{
@@ -151,9 +151,9 @@ namespace MiniIT.Snipe
 			catch (Exception e)
 #pragma warning restore CS0168
 			{
-#if DEBUG
+//#if DEBUG
 				Debug.Log("[SnipeTCPClient] ReadCallback GetStream error: " + e.Message);
-#endif
+//#endif
 				Disconnect();
 				if (OnConnectionLost != null)
 					OnConnectionLost.Invoke();
@@ -172,9 +172,9 @@ namespace MiniIT.Snipe
 			catch (Exception e)
 #pragma warning restore CS0168
 			{
-#if DEBUG
+//#if DEBUG
 				Debug.Log("[SnipeTCPClient] ReadCallback stream.EndRead error: " + e.Message);
-#endif
+//#endif
 				Disconnect();
 				if (OnConnectionLost != null)
 					OnConnectionLost.Invoke();
