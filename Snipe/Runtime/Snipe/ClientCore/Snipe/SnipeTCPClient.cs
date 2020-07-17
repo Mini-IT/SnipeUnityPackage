@@ -54,7 +54,7 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception e)
 			{
-				Debug.Log("[SnipeTCPClient] TCP Client initialization failed: " + e.Message);
+				Debug.LogWarning("[SnipeTCPClient] TCP Client initialization failed: " + e.Message);
 
 				connected = false;
 				
@@ -63,7 +63,7 @@ namespace MiniIT.Snipe
 			if (!connected)
 			{
 //#if DEBUG
-				Debug.Log("[SnipeTCPClient] TCP Client connection failed");
+				Debug.LogWarning("[SnipeTCPClient] TCP Client connection failed");
 //#endif
 
 				if (mTcpClient == null)
@@ -121,9 +121,9 @@ namespace MiniIT.Snipe
 				if (OnConnectionSucceeded != null)
 					OnConnectionSucceeded.Invoke();
 			}
-			catch(Exception)
+			catch (Exception e)
 			{
-				//Debug.Log("[SnipeTCPClient] ConnectCallback: " + e.Message);
+				Debug.LogWarning("[SnipeTCPClient] ConnectCallback exception: " + e.Message);
 
 				mConnected = false;
 
@@ -152,7 +152,7 @@ namespace MiniIT.Snipe
 #pragma warning restore CS0168
 			{
 //#if DEBUG
-				Debug.Log("[SnipeTCPClient] ReadCallback GetStream error: " + e.Message);
+				Debug.LogWarning("[SnipeTCPClient] ReadCallback GetStream error: " + e.Message);
 //#endif
 				Disconnect();
 				if (OnConnectionLost != null)
@@ -173,7 +173,7 @@ namespace MiniIT.Snipe
 #pragma warning restore CS0168
 			{
 //#if DEBUG
-				Debug.Log("[SnipeTCPClient] ReadCallback stream.EndRead error: " + e.Message);
+				Debug.LogWarning("[SnipeTCPClient] ReadCallback stream.EndRead error: " + e.Message);
 //#endif
 				Disconnect();
 				if (OnConnectionLost != null)
@@ -192,7 +192,7 @@ namespace MiniIT.Snipe
 					catch(Exception ex)
 					{
 //#if DEBUG
-						Debug.Log("[SnipeTCPClient] ProcessData error: " + ex.Message);
+						Debug.LogWarning("[SnipeTCPClient] ProcessData error: " + ex.Message);
 //#endif
 					}
 				}
@@ -287,7 +287,7 @@ namespace MiniIT.Snipe
 					catch (Exception error)
 					{
 //#if DEBUG
-						Debug.Log("[SnipeTCPClient] Deserialization error: " + error.Message);
+						Debug.LogWarning("[SnipeTCPClient] Deserialization error: " + error.Message);
 						Debug.Log("mMessageString = " + mMessageString);
 //#endif
 						
@@ -335,9 +335,9 @@ namespace MiniIT.Snipe
 						stream.WriteByte(0);  // every message ends with zero
 					}
 				}
-				catch (Exception)
+				catch (Exception e)
 				{
-					//Debug.Log("[SnipeTCPClient] SendRequest failed: " + e.Message);
+					Debug.LogWarning("[SnipeTCPClient] SendRequest failed: " + e.Message);
 
 					Disconnect();
 					if (OnConnectionLost != null)
