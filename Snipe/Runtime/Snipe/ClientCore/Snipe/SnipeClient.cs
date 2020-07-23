@@ -7,7 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 
 //
-// Client to Snipe server
 // http://snipeserver.com
 // https://github.com/Mini-IT/SnipeWiki/wiki
 

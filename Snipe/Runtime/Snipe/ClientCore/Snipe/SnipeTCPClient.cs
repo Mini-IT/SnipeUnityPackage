@@ -12,7 +12,6 @@ using MiniIT;
 using UnityEngine;
 
 //
-// Client to Snipe server
 // http://snipeserver.com
 // https://github.com/Mini-IT/SnipeWiki/wiki
 

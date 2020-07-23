@@ -33,7 +33,7 @@ namespace MiniIT.Snipe
 			mWebSocket.OnOpen += OnWebSocketConnected;
 			mWebSocket.OnClose += OnWebSocketClosed;
 			mWebSocket.OnMessage += OnWebSocketMessage;
-			mWebSocket.Connect();
+			mWebSocket.ConnectAsync();
 		}
 
 		public void Disconnect()
@@ -43,7 +43,7 @@ namespace MiniIT.Snipe
 				mWebSocket.OnOpen -= OnWebSocketConnected;
 				mWebSocket.OnClose -= OnWebSocketClosed;
 				mWebSocket.OnMessage -= OnWebSocketMessage;
-				mWebSocket.Close();
+				mWebSocket.CloseAsync();
 				mWebSocket = null;
 			}
 		}
@@ -72,7 +72,7 @@ namespace MiniIT.Snipe
 
 			lock (mWebSocket)
 			{
-				mWebSocket.Send(message);
+				mWebSocket.SendAsync(message, null);
 			}
 		}
 
@@ -83,7 +83,7 @@ namespace MiniIT.Snipe
 
 			lock (mWebSocket)
 			{
-				mWebSocket.Send(bytes);
+				mWebSocket.SendAsync(bytes, null);
 			}
 		}
 

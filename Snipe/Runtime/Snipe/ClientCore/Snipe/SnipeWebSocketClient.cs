@@ -9,7 +9,6 @@ using Ionic.Zlib;
 using MiniIT;
 
 //
-// Client to Snipe server
 // http://snipeserver.com
 // https://github.com/Mini-IT/SnipeWiki/wiki
 
