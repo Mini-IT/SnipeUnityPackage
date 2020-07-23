@@ -29,7 +29,7 @@ public class AppleGameCenterAuthProvider : BindProvider
 			{
 				mLoginSignatureCallback = (data) =>
 				{
-					Debug.Log("[AppleGameCenterAuthProvider] RequestAuth - LoginSignatureCallback");
+					DebugLogger.Log("[AppleGameCenterAuthProvider] RequestAuth - LoginSignatureCallback");
 					
 					data["messageType"] = REQUEST_USER_LOGIN;
 					data["login"] = gc_login;
@@ -55,7 +55,7 @@ public class AppleGameCenterAuthProvider : BindProvider
 #if UNITY_IOS
 	private void OnAppleGameCenterProviderInitializationComplete()
 	{
-		Debug.Log("[AppleGameCenterAuthProvider] OnAppleGameCenterProviderInitializationComplete");
+		DebugLogger.Log("[AppleGameCenterAuthProvider] OnAppleGameCenterProviderInitializationComplete");
 
 		AppleGameCenterProvider.InstanceInitializationComplete -= OnAppleGameCenterProviderInitializationComplete;
 
@@ -68,7 +68,7 @@ public class AppleGameCenterAuthProvider : BindProvider
 
 	public override void RequestBind(BindResultCallback bind_callback = null)
 	{
-		Debug.Log("[AppleGameCenterAuthProvider] RequestBind");
+		DebugLogger.Log("[AppleGameCenterAuthProvider] RequestBind");
 
 		mBindResultCallback = bind_callback;
 		
@@ -82,14 +82,14 @@ public class AppleGameCenterAuthProvider : BindProvider
 				{
 					mLoginSignatureCallback = (data) =>
 					{
-						Debug.Log("[AppleGameCenterAuthProvider] RequestBind - LoginSignatureCallback");
+						DebugLogger.Log("[AppleGameCenterAuthProvider] RequestBind - LoginSignatureCallback");
 
 						string auth_login = PlayerPrefs.GetString(SnipePrefs.AUTH_UID);
 						string auth_token = PlayerPrefs.GetString(SnipePrefs.AUTH_KEY);
 
 						if (string.IsNullOrEmpty(auth_login) || string.IsNullOrEmpty(auth_token))
 						{
-							Debug.Log("[AppleGameCenterAuthProvider] internal uid or token is invalid");
+							DebugLogger.Log("[AppleGameCenterAuthProvider] internal uid or token is invalid");
 							InvokeBindResultCallback(AuthProvider.ERROR_PARAMS_WRONG);
 							return;
 						}
@@ -101,7 +101,7 @@ public class AppleGameCenterAuthProvider : BindProvider
 						data["loginInt"] = auth_login;
 						data["authInt"] = auth_token;
 
-						Debug.Log("[AppleGameCenterAuthProvider] send user.bind " + data.ToJSONString());
+						DebugLogger.Log("[AppleGameCenterAuthProvider] send user.bind " + data.ToJSONString());
 						SingleRequestClient.Request(SnipeConfig.Instance.auth, data, OnBindResponse);
 					};
 					generateIdentityVerificationSignature(VerificationSignatureGeneratorCallback);
@@ -197,11 +197,11 @@ public class AppleGameCenterAuthProvider : BindProvider
 		var salt = new byte[saltLength];
 		Marshal.Copy(saltPointer, salt, 0, saltLength);
 
-		//UnityEngine.Debug.Log($"publicKeyUrl: {publicKeyUrl}");
-		//UnityEngine.Debug.Log($"signature length: {signature?.Length}");
-		//UnityEngine.Debug.Log($"salt length: {salt?.Length}");
-		//UnityEngine.Debug.Log($"timestamp: {timestamp}");
-		//UnityEngine.Debug.Log($"error: {error}");
+		//UnityEngine.DebugLogger.Log($"publicKeyUrl: {publicKeyUrl}");
+		//UnityEngine.DebugLogger.Log($"signature length: {signature?.Length}");
+		//UnityEngine.DebugLogger.Log($"salt length: {salt?.Length}");
+		//UnityEngine.DebugLogger.Log($"timestamp: {timestamp}");
+		//UnityEngine.DebugLogger.Log($"error: {error}");
 
 		if (mLoginSignatureCallback != null)
 		{

@@ -60,7 +60,7 @@ namespace MiniIT.Snipe
 		
 		protected override void OnConnectionFailed(ExpandoObject data = null)
 		{
-			Debug.Log($"[SnipeRoomCommunicator] Game Connection failed");
+			DebugLogger.Log($"[SnipeRoomCommunicator] Game Connection failed");
 			base.OnConnectionFailed(data);
 
 			if (RestoreConnectionAttempts < 1 && !mDisconnecting)
@@ -93,7 +93,7 @@ namespace MiniIT.Snipe
 
 			if (SnipeConfig.Instance?.debug == true)
 			{
-				Debug.Log("[SnipeRoomCommunicator] OnRoomResponse: " + (data != null ? data.ToJSONString() : "null"));
+				DebugLogger.Log("[SnipeRoomCommunicator] OnRoomResponse: " + (data != null ? data.ToJSONString() : "null"));
 			}
 
 			string message_type = data.SafeGetString("type");

@@ -149,8 +149,8 @@ namespace MiniIT.Snipe
 				}
 				catch (Exception e)
 				{
-					Debug.Log("[SnipeClient] DispatchEvent error: " + e.ToString() + e.Message);
-					Debug.Log("[SnipeClient] ErrorData: " + (data != null ? data.ToJSONString() : "null"));
+					DebugLogger.Log("[SnipeClient] DispatchEvent error: " + e.ToString() + e.Message);
+					DebugLogger.Log("[SnipeClient] ErrorData: " + (data != null ? data.ToJSONString() : "null"));
 				}
 			}
 		}
@@ -173,7 +173,7 @@ namespace MiniIT.Snipe
 
 		public void Connect()
 		{
-			Debug.Log($"[SnipeClient] Connect - {mConnectionHost} : {mConnectionPort} ws: {mConnectionWebSocketURL}");
+			DebugLogger.Log($"[SnipeClient] Connect - {mConnectionHost} : {mConnectionPort} ws: {mConnectionWebSocketURL}");
 
 			if (!string.IsNullOrEmpty(mConnectionHost) && mConnectionPort > 0)
 			{
@@ -318,7 +318,7 @@ namespace MiniIT.Snipe
 		public void DisconnectAndDispatch(Action<ExpandoObject> event_to_dispatch)
 		{
 			if (DebugEnabled)
-				Debug.LogWarning("[SnipeClient] DisconnectAndDispatch. " + DisconnectReason);
+				DebugLogger.LogWarning("[SnipeClient] DisconnectAndDispatch. " + DisconnectReason);
 			
 			if (mTCPClient != null)
 			{
@@ -364,7 +364,7 @@ namespace MiniIT.Snipe
 			if (DebugEnabled)
 			{
 //#if DEBUG
-				Debug.Log($"[SnipeClient] [{ConnectionId}] SendRequest " + parameters.ToJSONString());
+				DebugLogger.Log($"[SnipeClient] [{ConnectionId}] SendRequest " + parameters.ToJSONString());
 //#endif
 			}
 
@@ -481,7 +481,7 @@ namespace MiniIT.Snipe
 
 		private void OnApplicationFocus(bool focus)
 		{
-			Debug.Log($"[SnipeClient] OnApplicationFocus focus = {focus}");
+			DebugLogger.Log($"[SnipeClient] OnApplicationFocus focus = {focus}");
 
 			if (focus)
 			{
@@ -530,7 +530,7 @@ namespace MiniIT.Snipe
 					SendPingRequest();
 					ResetHeartbeatTimer();
 
-					Debug.Log("[SnipeClient] Heartbeat ping");
+					DebugLogger.Log("[SnipeClient] Heartbeat ping");
 				}
 
 				await Task.Delay(5000, cancellation);
@@ -545,12 +545,12 @@ namespace MiniIT.Snipe
 		private void StartCheckConnection(bool send_request = true)
 		{
 			if (DebugEnabled)
-				Debug.Log("[SnipeClient] StartCheckConnection");
+				DebugLogger.Log("[SnipeClient] StartCheckConnection");
 
 			if (!mLoggedIn)
 			{
 				if (DebugEnabled)
-					Debug.Log("[SnipeClient] Not logged in yet");
+					DebugLogger.Log("[SnipeClient] Not logged in yet");
 
 				return;
 			}
@@ -569,7 +569,7 @@ namespace MiniIT.Snipe
 				mCheckConnectionCancellation = null;
 
 				if (DebugEnabled)
-					Debug.Log("[SnipeClient] StopCheckConnection");
+					DebugLogger.Log("[SnipeClient] StopCheckConnection");
 			}
 		}
 
@@ -584,7 +584,7 @@ namespace MiniIT.Snipe
 
 			// Disconnect detected
 			if (DebugEnabled)
-				Debug.Log("[SnipeClient] CheckConnectionTask - Disconnect detected");
+				DebugLogger.Log("[SnipeClient] CheckConnectionTask - Disconnect detected");
 
 			mConnected = false;
 			DisconnectReason = "CheckConnectionTask - Disconnect detected";

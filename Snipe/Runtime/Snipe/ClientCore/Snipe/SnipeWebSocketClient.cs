@@ -28,7 +28,7 @@ namespace MiniIT.Snipe
 			Disconnect();
 
 //#if DEBUG
-			Debug.Log("[SnipeWebSocketClient] WebSocket Connect to " + url);
+			DebugLogger.Log("[SnipeWebSocketClient] WebSocket Connect to " + url);
 //#endif
 
 			mWebSocketClient = new WebSocketWrapper();
@@ -41,7 +41,7 @@ namespace MiniIT.Snipe
 		protected void OnWebSocketConnected()
 		{
 //#if DEBUG
-			Debug.Log("[SnipeWebSocketClient] OnWebSocketConnected");
+			DebugLogger.Log("[SnipeWebSocketClient] OnWebSocketConnected");
 //#endif
 			
 			mConnected = true;
@@ -52,7 +52,7 @@ namespace MiniIT.Snipe
 		
 		protected void OnWebSocketClose()
 		{
-			Debug.Log("[SnipeWebSocketClient] OnWebSocketClose");
+			DebugLogger.Log("[SnipeWebSocketClient] OnWebSocketClose");
 
 			if (this.mConnected)
 			{
@@ -73,7 +73,7 @@ namespace MiniIT.Snipe
 		/*
 		protected void OnWebSocketError (object sender, WebSocketSharp.ErrorEventArgs e)
 		{
-			Debug.Log("[SnipeWebSocketClient] OnWebSocketError: " + e.Message);
+			DebugLogger.Log("[SnipeWebSocketClient] OnWebSocketError: " + e.Message);
 			//DispatchEvent(ErrorHappened);
 		}
 		*/
@@ -115,7 +115,7 @@ namespace MiniIT.Snipe
 							mMessageString = UTF8Encoding.UTF8.GetString( decompressed_buffer );
 
 //#if DEBUG
-//							Debug.Log("[SnipeWebSocketClient] decompressed mMessageString = " + mMessageString);
+//							DebugLogger.Log("[SnipeWebSocketClient] decompressed mMessageString = " + mMessageString);
 //#endif
 						}
 						else
@@ -125,14 +125,14 @@ namespace MiniIT.Snipe
 							mMessageString = UTF8Encoding.UTF8.GetString(str_buf);
 
 //#if DEBUG
-//							Debug.Log("[SnipeWebSocketClient] mMessageString = " + mMessageString);
+//							DebugLogger.Log("[SnipeWebSocketClient] mMessageString = " + mMessageString);
 //#endif
 						}
 					}
 					catch(Exception)
 					{
 //#if DEBUG
-						//Debug.Log("[SnipeWebSocketClient] OnWebSocketMessage ProcessData error: " + ex.Message);
+						//DebugLogger.Log("[SnipeWebSocketClient] OnWebSocketMessage ProcessData error: " + ex.Message);
 //#endif
 						//CheckConnectionLost();
 					}
@@ -154,7 +154,7 @@ namespace MiniIT.Snipe
 #if DEBUG
 					catch (Exception error)
 					{
-						Debug.Log("[SnipeWebSocketClient] Deserialization error: " + error.Message);
+						DebugLogger.Log("[SnipeWebSocketClient] Deserialization error: " + error.Message);
 #else
 					catch (Exception)
 					{

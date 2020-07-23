@@ -149,7 +149,7 @@ namespace MiniIT.Snipe
 
 		public static bool SetCurrentProvider(AuthProvider provider)
 		{
-			Debug.Log($"[SnipeAuthCommunicator] SetCurrentProvider - {provider?.ProviderId}");
+			DebugLogger.Log($"[SnipeAuthCommunicator] SetCurrentProvider - {provider?.ProviderId}");
 
 			InitInstance();
 
@@ -234,7 +234,7 @@ namespace MiniIT.Snipe
 
 			if (mInstance.mCurrentProvider == null)
 			{
-				Debug.Log("[SnipeAuthCommunicator] Authorize<ProviderType> - provider not found");
+				DebugLogger.Log("[SnipeAuthCommunicator] Authorize<ProviderType> - provider not found");
 
 				if (fail_callback != null)
 					fail_callback.Invoke();
@@ -395,7 +395,7 @@ namespace MiniIT.Snipe
 
 		private void OnCurrentProviderAuthFail(string error_code)
 		{
-			Debug.Log("[SnipeAuthCommunicator] OnCurrentProviderAuthFail (" + (mCurrentProvider != null ? mCurrentProvider.ProviderId : "null") + ") error_code: " + error_code);
+			DebugLogger.Log("[SnipeAuthCommunicator] OnCurrentProviderAuthFail (" + (mCurrentProvider != null ? mCurrentProvider.ProviderId : "null") + ") error_code: " + error_code);
 
 			mRebindAllProviders = false;
 

@@ -139,7 +139,7 @@ namespace MiniIT.Utils
 
 				if (loader.isNetworkError || loader.isHttpError)
 				{
-					Debug.Log("[SimpleImageLoader] Error loading image: " + url);
+					DebugLogger.Log("[SimpleImageLoader] Error loading image: " + url);
 				}
 				else
 				{

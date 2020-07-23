@@ -234,7 +234,7 @@ namespace MiniIT.Social
 				return;
 			
 			UnityEngine.Social.ReportScore(score, board_id,
-				(bool success) => { Debug.Log("[UnitySocialAPIProvider] ReportScore " + (success ? "success" : "fail")); }
+				(bool success) => { DebugLogger.Log("[UnitySocialAPIProvider] ReportScore " + (success ? "success" : "fail")); }
 			);
 		}
 
@@ -253,7 +253,7 @@ namespace MiniIT.Social
 				return;
 			
 			UnityEngine.Social.ReportProgress(achievement_id, 100,  // 100%
-				(bool success) => { Debug.Log("[UnitySocialAPIProvider] ReportAchievementReached " + (success ? "success" : "fail")); }
+				(bool success) => { DebugLogger.Log("[UnitySocialAPIProvider] ReportAchievementReached " + (success ? "success" : "fail")); }
 			);
 		}
 

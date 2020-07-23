@@ -97,7 +97,7 @@ namespace MiniIT.Social
 
 		private void OnInitComplete()
 		{
-			Debug.Log("[FacebookProvider] FB.Init completed: Is user logged in? " + FB.IsLoggedIn);
+			DebugLogger.Log("[FacebookProvider] FB.Init completed: Is user logged in? " + FB.IsLoggedIn);
 			if (FB.IsLoggedIn)
 			{
 				GetPlayerProfile();
@@ -125,7 +125,7 @@ namespace MiniIT.Social
 		{
 			if (!FB.IsLoggedIn || result.Error != null)
 			{
-				Debug.Log("[FacebookProvider] Login failed. Error Response:\n" + result.Error);
+				DebugLogger.Log("[FacebookProvider] Login failed. Error Response:\n" + result.Error);
 
 				if (mInitializationFailedCallback != null)
 					mInitializationFailedCallback.Invoke();
@@ -279,7 +279,7 @@ namespace MiniIT.Social
 			//profile.Online       = Convert.ToBoolean( data["online"] );
 
 			AddProfileToCache(profile);
-			Debug.Log("[FacebookProvider] PrepareProfile " + profile.ToJSONString());
+			DebugLogger.Log("[FacebookProvider] PrepareProfile " + profile.ToJSONString());
 			
 			return profile;
 		}
@@ -289,7 +289,7 @@ namespace MiniIT.Social
 			// Some platforms return the empty string instead of null.
 			if (!String.IsNullOrEmpty(response.Error))
 			{
-				Debug.Log("[FacebookProvider] response error: " + response.Error);
+				DebugLogger.Log("[FacebookProvider] response error: " + response.Error);
 
 				//var error_data = new ExpandoObject();
 				//error_data["error"] = response.Error;

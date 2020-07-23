@@ -22,7 +22,7 @@ public class GooglePlayAuthProvider : BindProvider
 			{
 				GooglePlayProvider.Instance.GetServerAuthToken((google_token) =>
 				{
-					Debug.Log("[GooglePlayAuthProvider] google_token : " + (string.IsNullOrEmpty(google_token) ? "empty" : "ok"));
+					DebugLogger.Log("[GooglePlayAuthProvider] google_token : " + (string.IsNullOrEmpty(google_token) ? "empty" : "ok"));
 
 					if (string.IsNullOrEmpty(google_token))
 						InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
@@ -46,7 +46,7 @@ public class GooglePlayAuthProvider : BindProvider
 #if UNITY_ANDROID && !UNITY_EDITOR
 	private void OnGooglePlayProviderInitializationComplete()
 	{
-		Debug.Log("[GooglePlayAuthProvider] OnGooglePlayProviderInitializationComplete");
+		DebugLogger.Log("[GooglePlayAuthProvider] OnGooglePlayProviderInitializationComplete");
 
 		GooglePlayProvider.InstanceInitializationComplete -= OnGooglePlayProviderInitializationComplete;
 
@@ -59,7 +59,7 @@ public class GooglePlayAuthProvider : BindProvider
 
 	public override void RequestBind(BindResultCallback bind_callback = null)
 	{
-		Debug.Log("[GooglePlayAuthProvider] RequestBind");
+		DebugLogger.Log("[GooglePlayAuthProvider] RequestBind");
 
 		mBindResultCallback = bind_callback;
 
@@ -68,13 +68,13 @@ public class GooglePlayAuthProvider : BindProvider
 		{
 			if (GooglePlayProvider.InstanceInitialized)
 			{
-				Debug.Log("[GooglePlayAuthProvider] GetServerAuthToken");
+				DebugLogger.Log("[GooglePlayAuthProvider] GetServerAuthToken");
 
 				GooglePlayProvider.Instance.GetServerAuthToken((google_token) =>
 				{
 					if (string.IsNullOrEmpty(google_token))
 					{
-						Debug.Log("[GooglePlayAuthProvider] google_token is empty");
+						DebugLogger.Log("[GooglePlayAuthProvider] google_token is empty");
 						InvokeBindResultCallback(AuthProvider.ERROR_NOT_INITIALIZED);
 						return;
 					}
@@ -84,7 +84,7 @@ public class GooglePlayAuthProvider : BindProvider
 
 					if (string.IsNullOrEmpty(auth_login) || string.IsNullOrEmpty(auth_token))
 					{
-						Debug.Log("[GooglePlayAuthProvider] internal uid or token is invalid");
+						DebugLogger.Log("[GooglePlayAuthProvider] internal uid or token is invalid");
 						InvokeBindResultCallback(AuthProvider.ERROR_PARAMS_WRONG);
 						return;
 					}
@@ -97,7 +97,7 @@ public class GooglePlayAuthProvider : BindProvider
 					data["loginInt"] = auth_login;
 					data["authInt"] = auth_token;
 
-					Debug.Log("[GooglePlayAuthProvider] send user.bind " + data.ToJSONString());
+					DebugLogger.Log("[GooglePlayAuthProvider] send user.bind " + data.ToJSONString());
 					SingleRequestClient.Request(SnipeConfig.Instance.auth, data, OnBindResponse);
 				});
 

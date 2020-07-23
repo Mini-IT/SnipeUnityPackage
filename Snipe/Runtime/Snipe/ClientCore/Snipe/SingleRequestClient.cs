@@ -38,7 +38,7 @@ namespace MiniIT.Snipe
 
 		private void OnConnectionSucceeded(ExpandoObject data)
 		{
-			Debug.Log($"[SingleRequestClient] ({mRequestData?.SafeGetString("messageType")}) Connection succeeded");
+			DebugLogger.Log($"[SingleRequestClient] ({mRequestData?.SafeGetString("messageType")}) Connection succeeded");
 
 			mClient.MessageReceived += OnResponse;
 			mClient.SendRequest(mRequestData);
@@ -46,7 +46,7 @@ namespace MiniIT.Snipe
 
 		private void OnConnectionFailed(ExpandoObject data)
 		{
-			Debug.Log($"[SingleRequestClient] ({mRequestData?.SafeGetString("messageType")}) Connection failed");
+			DebugLogger.Log($"[SingleRequestClient] ({mRequestData?.SafeGetString("messageType")}) Connection failed");
 
 			mClient.MessageReceived -= OnResponse;
 
@@ -56,7 +56,7 @@ namespace MiniIT.Snipe
 
 		private void OnResponse(ExpandoObject data)
 		{
-			Debug.Log($"[SingleRequestClient] ({mRequestData?.SafeGetString("messageType")}) OnResponse {data?.ToJSONString()}");
+			DebugLogger.Log($"[SingleRequestClient] ({mRequestData?.SafeGetString("messageType")}) OnResponse {data?.ToJSONString()}");
 
 			if (data.SafeGetString("type") == mRequestData?.SafeGetString("messageType"))
 			{
@@ -75,7 +75,7 @@ namespace MiniIT.Snipe
 
 		private void DisposeClient()
 		{
-			Debug.Log($"[SingleRequestClient] ({mRequestData?.SafeGetString("messageType")}) DisposeClient");
+			DebugLogger.Log($"[SingleRequestClient] ({mRequestData?.SafeGetString("messageType")}) DisposeClient");
 
 			mCallback = null;
 			mRequestData = null;

@@ -29,7 +29,7 @@ public class FacebookAuthProvider : BindProvider
 
 	private void OnFacebookProviderInitializationComplete()
 	{
-		Debug.Log("[FacebookAuthProvider] OnFacebookProviderInitializationComplete");
+		DebugLogger.Log("[FacebookAuthProvider] OnFacebookProviderInitializationComplete");
 
 		FacebookProvider.InstanceInitializationComplete -= OnFacebookProviderInitializationComplete;
 
@@ -41,7 +41,7 @@ public class FacebookAuthProvider : BindProvider
 
 	public override void RequestBind(BindResultCallback bind_callback = null)
 	{
-		Debug.Log("[FacebookAuthProvider] RequestBind");
+		DebugLogger.Log("[FacebookAuthProvider] RequestBind");
 
 		mBindResultCallback = bind_callback;
 
@@ -62,7 +62,7 @@ public class FacebookAuthProvider : BindProvider
 					["authInt"] = auth_token,
 				};
 
-				Debug.Log("[FacebookAuthProvider] send user.bind " + data.ToJSONString());
+				DebugLogger.Log("[FacebookAuthProvider] send user.bind " + data.ToJSONString());
 				SingleRequestClient.Request(SnipeConfig.Instance.auth, data, OnBindResponse);
 
 				return;

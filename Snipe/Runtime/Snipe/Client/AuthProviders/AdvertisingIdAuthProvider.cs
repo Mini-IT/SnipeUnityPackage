@@ -25,7 +25,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 
 		void advertising_id_callback(string advertising_id, bool tracking_enabled, string error)
 		{
-			Debug.Log($"[AdvertisingIdAuthProvider] advertising_id : {advertising_id} , error : {error}");
+			DebugLogger.Log($"[AdvertisingIdAuthProvider] advertising_id : {advertising_id} , error : {error}");
 
 			AdvertisingId = advertising_id;
 
@@ -35,7 +35,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 			}
 			else
 			{
-				Debug.Log("[AdvertisingIdAuthProvider] advertising_id is invalid");
+				DebugLogger.Log("[AdvertisingIdAuthProvider] advertising_id is invalid");
 
 				InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
 			}
@@ -49,7 +49,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 			}
 			else
 			{
-				Debug.Log("[AdvertisingIdAuthProvider] advertising id is not supported on this platform");
+				DebugLogger.Log("[AdvertisingIdAuthProvider] advertising id is not supported on this platform");
 
 				InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
 			}
@@ -67,14 +67,14 @@ public class AdvertisingIdAuthProvider : BindProvider
 
 	public override void RequestBind(BindResultCallback bind_callback = null)
 	{
-		Debug.Log("[AdvertisingIdAuthProvider] RequestBind");
+		DebugLogger.Log("[AdvertisingIdAuthProvider] RequestBind");
 
 		//NeedToBind = false;
 		mBindResultCallback = bind_callback;
 
 		void advertising_id_callback(string advertising_id, bool tracking_enabled, string error)
 		{
-			Debug.Log($"[AdvertisingIdAuthProvider] advertising_id : {advertising_id} , {error}");
+			DebugLogger.Log($"[AdvertisingIdAuthProvider] advertising_id : {advertising_id} , {error}");
 
 			AdvertisingId = advertising_id;
 
@@ -83,7 +83,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 
 			if (string.IsNullOrEmpty(auth_login) || string.IsNullOrEmpty(auth_token))
 			{
-				Debug.Log("[AdvertisingIdAuthProvider] internal uid or token is invalid");
+				DebugLogger.Log("[AdvertisingIdAuthProvider] internal uid or token is invalid");
 
 				InvokeBindResultCallback(AuthProvider.ERROR_PARAMS_WRONG);
 			}
@@ -100,12 +100,12 @@ public class AdvertisingIdAuthProvider : BindProvider
 						["authInt"] = auth_token,
 					};
 
-					Debug.Log("[AdvertisingIdAuthProvider] send user.bind " + data.ToJSONString());
+					DebugLogger.Log("[AdvertisingIdAuthProvider] send user.bind " + data.ToJSONString());
 					SingleRequestClient.Request(SnipeConfig.Instance.auth, data, OnBindResponse);
 				}
 				else
 				{
-					Debug.Log("[AdvertisingIdAuthProvider] advertising_id is invalid");
+					DebugLogger.Log("[AdvertisingIdAuthProvider] advertising_id is invalid");
 
 					InvokeBindResultCallback(AuthProvider.ERROR_NOT_INITIALIZED);
 				}
@@ -120,7 +120,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 			}
 			else
 			{
-				Debug.Log("[AdvertisingIdAuthProvider] advertising id is not supported on this platform");
+				DebugLogger.Log("[AdvertisingIdAuthProvider] advertising id is not supported on this platform");
 
 				InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
 			}
@@ -133,7 +133,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 
 		string error_code = data?.SafeGetString("errorCode");
 
-		Debug.Log($"[AdvertisingIdAuthProvider] {error_code}");
+		DebugLogger.Log($"[AdvertisingIdAuthProvider] {error_code}");
 
 		if (error_code == ERROR_OK)
 		{
@@ -159,7 +159,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 	{
 		void advertising_id_callback(string advertising_id, bool tracking_enabled, string error)
 		{
-			Debug.Log($"[AdvertisingIdAuthProvider] CheckAuthExists - advertising_id : {advertising_id} , error : {error}");
+			DebugLogger.Log($"[AdvertisingIdAuthProvider] CheckAuthExists - advertising_id : {advertising_id} , error : {error}");
 
 			AdvertisingId = advertising_id;
 
@@ -169,7 +169,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 			}
 			else
 			{
-				Debug.Log("[AdvertisingIdAuthProvider] CheckAuthExists - advertising_id is invalid");
+				DebugLogger.Log("[AdvertisingIdAuthProvider] CheckAuthExists - advertising_id is invalid");
 
 				if (callback != null)
 					callback.Invoke(this, false, false);

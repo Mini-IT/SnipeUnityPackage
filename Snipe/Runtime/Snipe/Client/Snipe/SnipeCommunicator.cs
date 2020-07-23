@@ -90,7 +90,7 @@ namespace MiniIT.Snipe
 
 		private void Authorize()
 		{
-			Debug.Log("[SnipeCommunicator] Authorize");
+			DebugLogger.Log("[SnipeCommunicator] Authorize");
 
 			SnipeAuthCommunicator.Authorize(OnAuthSucceeded, OnAuthFailed);
 		}
@@ -102,7 +102,7 @@ namespace MiniIT.Snipe
 
 		protected void OnAuthFailed()
 		{
-			Debug.Log("[SnipeCommunicator] OnAuthFailed");
+			DebugLogger.Log("[SnipeCommunicator] OnAuthFailed");
 
 			if (ConnectionFailed != null)
 				ConnectionFailed.Invoke(false);
@@ -117,7 +117,7 @@ namespace MiniIT.Snipe
 		{
 			if (LoggedIn)
 			{
-				Debug.LogWarning("[SnipeCommunicator] InitClient - already logged in");
+				DebugLogger.LogWarning("[SnipeCommunicator] InitClient - already logged in");
 				return;
 			}
 			
@@ -150,7 +150,7 @@ namespace MiniIT.Snipe
 
 		public virtual void Disconnect()
 		{
-			Debug.Log($"[SnipeCommunicator] {this.name} Disconnect");
+			DebugLogger.Log($"[SnipeCommunicator] {this.name} Disconnect");
 
 			mDisconnecting = true;
 			LoginName = "";
@@ -161,7 +161,7 @@ namespace MiniIT.Snipe
 
 		protected virtual void OnDestroy()
 		{
-			Debug.Log("[SnipeCommunicator] OnDestroy");
+			DebugLogger.Log("[SnipeCommunicator] OnDestroy");
 
 			try
 			{
@@ -182,7 +182,7 @@ namespace MiniIT.Snipe
 
 		protected virtual void OnConnectionSucceeded(ExpandoObject data)
 		{
-			Debug.Log($"[SnipeCommunicator] {this.name} Connection succeeded");
+			DebugLogger.Log($"[SnipeCommunicator] {this.name} Connection succeeded");
 
 			mRestoreConnectionAttempt = 0;
 			mDisconnecting = false;
@@ -197,7 +197,7 @@ namespace MiniIT.Snipe
 
 		protected virtual void OnConnectionFailed(ExpandoObject data = null)
 		{
-			Debug.Log($"[SnipeCommunicator] {this.name} [{Client?.ConnectionId}] Game Connection failed. Reason: {Client?.DisconnectReason}");
+			DebugLogger.Log($"[SnipeCommunicator] {this.name} [{Client?.ConnectionId}] Game Connection failed. Reason: {Client?.DisconnectReason}");
 
 			if (Client != null)
 				Client.MessageReceived -= OnSnipeResponse;
@@ -207,7 +207,7 @@ namespace MiniIT.Snipe
 				ConnectionFailed?.Invoke(true);
 				
 				mRestoreConnectionAttempt++;
-				Debug.Log($"[SnipeCommunicator] Attempt to restore connection {mRestoreConnectionAttempt}");
+				DebugLogger.Log($"[SnipeCommunicator] Attempt to restore connection {mRestoreConnectionAttempt}");
 				StartCoroutine(WaitAndInitClient());
 			}
 			else
@@ -218,7 +218,7 @@ namespace MiniIT.Snipe
 		
 		internal void OnRoomConnectionFailed(ExpandoObject data = null)
 		{
-			Debug.Log($"[SnipeCommunicator] OnRoomConnectionFailed");
+			DebugLogger.Log($"[SnipeCommunicator] OnRoomConnectionFailed");
 			if (Connected)
 			{
 				Client.Disconnect();
@@ -228,7 +228,7 @@ namespace MiniIT.Snipe
 
 		private void OnSnipeResponse(ExpandoObject data)
 		{
-			Debug.Log($"{DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss")} [SnipeCommunicator] [{Client?.ConnectionId}] OnSnipeResponse " + (data != null ? data.ToJSONString() : "null"));
+			DebugLogger.Log($"[SnipeCommunicator] [{Client?.ConnectionId}] OnSnipeResponse " + (data != null ? data.ToJSONString() : "null"));
 
 			ProcessSnipeMessage(data, true);
 
@@ -251,7 +251,7 @@ namespace MiniIT.Snipe
 
 			if (SnipeConfig.Instance?.debug == true && !string.IsNullOrEmpty(error_code) && error_code != "ok")
 			{
-				Debug.LogError("[SnipeCommunicator] errorCode = " + error_code);
+				DebugLogger.LogError("[SnipeCommunicator] errorCode = " + error_code);
 			}
 
 			switch (message_type)

@@ -83,7 +83,7 @@ namespace MiniIT.Snipe
 		private void OnMessageReceived(ExpandoObject data)
 		{
 #if UNITY_EDITOR
-			Debug.Log("[SnipeServiceCommunicator] OnMessageReceived: " + data?.ToJSONString());
+			DebugLogger.Log("[SnipeServiceCommunicator] OnMessageReceived: " + data?.ToJSONString());
 #endif
 
 			if (mReceivedMessages != null)
@@ -125,7 +125,7 @@ namespace MiniIT.Snipe
 						}
 						catch (Exception ex)
 						{
-							Debug.Log("[SnipeServiceCommunicator] MessageReceived Invoke Error: " + ex.Message);
+							DebugLogger.Log("[SnipeServiceCommunicator] MessageReceived Invoke Error: " + ex.Message);
 						}
 
 					}

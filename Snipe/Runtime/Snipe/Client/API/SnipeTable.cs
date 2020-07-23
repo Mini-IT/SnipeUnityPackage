@@ -27,7 +27,7 @@ namespace MiniIT.Snipe
 			mLoadersCount++;
 
 			string url = string.Format("{0}/{1}.json.gz", SnipeConfig.Instance.GetTablesPath(), table_name);
-			UnityEngine.Debug.Log("[SnipeTable] Loading table " + url);
+			DebugLogger.Log("[SnipeTable] Loading table " + url);
 
 			this.LoadingFailed = false;
 
@@ -37,7 +37,7 @@ namespace MiniIT.Snipe
 				if (retry > 0)
 				{
 					yield return new WaitForSecondsRealtime(0.1f);
-					UnityEngine.Debug.Log($"[SnipeTable] Retry #{retry} to load table - {table_name}");
+					DebugLogger.Log($"[SnipeTable] Retry #{retry} to load table - {table_name}");
 				}
 
 				retry++;
@@ -49,16 +49,16 @@ namespace MiniIT.Snipe
 					yield return loader.SendWebRequest();
 					if (loader.isNetworkError || loader.isHttpError)
 					{
-						UnityEngine.Debug.Log($"[SnipeTable] Network error: Failed to load table - {table_name} - {loader.error}");
+						DebugLogger.Log($"[SnipeTable] Network error: Failed to load table - {table_name} - {loader.error}");
 					}
 					else
 					{
-						UnityEngine.Debug.Log("[SnipeTable] table file loaded - " + table_name);
+						DebugLogger.Log("[SnipeTable] table file loaded - " + table_name);
 						try
 						{
 							if (loader.downloadHandler.data == null || loader.downloadHandler.data.Length < 1)
 							{
-								UnityEngine.Debug.Log("[SnipeTable] Error: loaded data is null or empty. Table: " + table_name);
+								DebugLogger.Log("[SnipeTable] Error: loaded data is null or empty. Table: " + table_name);
 							}
 							else
 							{
@@ -77,7 +77,7 @@ namespace MiniIT.Snipe
 											}
 										}
 
-										UnityEngine.Debug.Log("[SnipeTable] table ready - " + table_name);
+										DebugLogger.Log("[SnipeTable] table ready - " + table_name);
 										this.Loaded = true;
 									}
 								}
@@ -85,7 +85,7 @@ namespace MiniIT.Snipe
 						}
 						catch (Exception)
 						{
-							UnityEngine.Debug.Log("[SnipeTable] failed to parse table - " + table_name);
+							DebugLogger.Log("[SnipeTable] failed to parse table - " + table_name);
 						}
 					}
 				}

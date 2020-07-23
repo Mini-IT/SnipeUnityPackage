@@ -104,7 +104,7 @@ namespace MiniIT.Snipe
 					if (pair.Value != null)
 						map.Add(MPack.From(pair.Key), MPack.From(pair.Value));
 					else
-						Debug.LogError($"[SnipeServiceClient] Value is null. Key = '{pair.Key}'. Null values are not supported. The parameter won't be added to the message.");
+						DebugLogger.LogError($"[SnipeServiceClient] Value is null. Key = '{pair.Key}'. Null values are not supported. The parameter won't be added to the message.");
 				}
 			}
 
@@ -155,7 +155,7 @@ namespace MiniIT.Snipe
 			string url = SnipeConfig.Instance.snipe_service_websocket;
 
 			//#if DEBUG
-			Debug.Log("[SnipeServiceClient] WebSocket Connect to " + url);
+			DebugLogger.Log("[SnipeServiceClient] WebSocket Connect to " + url);
 			//#endif
 
 			mWebSocket = new WebSocketWrapper();
@@ -168,7 +168,7 @@ namespace MiniIT.Snipe
 		private void OnWebSocketConnected()
 		{
 			//#if DEBUG
-			Debug.Log("[SnipeServiceClient] OnWebSocketConnected");
+			DebugLogger.Log("[SnipeServiceClient] OnWebSocketConnected");
 			//#endif
 
 			try
@@ -177,7 +177,7 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception e)
 			{
-				Debug.Log("[SnipeServiceClient] OnWebSocketConnected - ConnectionOpened invokation error: " + e.Message);
+				DebugLogger.Log("[SnipeServiceClient] OnWebSocketConnected - ConnectionOpened invokation error: " + e.Message);
 			}
 
 			RequestLogin();
@@ -185,7 +185,7 @@ namespace MiniIT.Snipe
 
 		protected void OnWebSocketClosed()
 		{
-			Debug.Log("[SnipeServiceClient] OnWebSocketClosed");
+			DebugLogger.Log("[SnipeServiceClient] OnWebSocketClosed");
 
 			Disconnect();
 
@@ -195,7 +195,7 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception e)
 			{
-				Debug.Log("[SnipeServiceClient] OnWebSocketClosed - ConnectionClosed invokation error: " + e.Message);
+				DebugLogger.Log("[SnipeServiceClient] OnWebSocketClosed - ConnectionClosed invokation error: " + e.Message);
 			}
 		}
 
@@ -220,7 +220,7 @@ namespace MiniIT.Snipe
 			if (!Connected || message == null)
 				return 0;
 
-			Debug.Log("[SnipeServiceClient] SendRequest - " + message["t"]);
+			DebugLogger.Log("[SnipeServiceClient] SendRequest - " + message["t"]);
 
 			message["id"] = ++mRequestId;
 
@@ -335,7 +335,7 @@ namespace MiniIT.Snipe
 					ResetHeartbeatTimer();
 
 					//#if DEBUG
-					Debug.Log("[SnipeServiceClient] Heartbeat ping");
+					DebugLogger.Log("[SnipeServiceClient] Heartbeat ping");
 					//#endif
 				}
 
