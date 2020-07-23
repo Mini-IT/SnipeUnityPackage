@@ -5,6 +5,8 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Ionic.Zlib;
 using MiniIT;
 using UnityEngine;
@@ -25,17 +27,25 @@ namespace MiniIT.Snipe
 		private const int CONNECTION_TIMEOUT = 1500;
 		private TcpClient mTcpClient = null;
 		
+		private CancellationTokenSource mConnectCancellation;
+		
 		public SnipeTCPClient()
 		{
 		}
 
-		public void Connect (string host, int port)
+		public void Connect(string host, int port)
 		{
 			Disconnect();
-
+			
 			Debug.Log($"[SnipeTCPClient] Connect to {host}:{port}");
-
-			bool connected;
+			
+			mConnectCancellation = new CancellationTokenSource();
+			_ = ConnectTask(host, port, mConnectCancellation.Token);
+		}
+		
+		private async Task ConnectTask(string host, int port, CancellationToken cancellation)
+		{
+			bool connected = false;
 
 			try
 			{
@@ -49,15 +59,14 @@ namespace MiniIT.Snipe
 				IPAddress[] host_address = Dns.GetHostAddresses(host);
 				//Start the async connect operation
 				IAsyncResult connection_result = mTcpClient.BeginConnect(host_address, port, new AsyncCallback(ConnectCallback), mTcpClient);
-
-				connected = connection_result.AsyncWaitHandle.WaitOne(CONNECTION_TIMEOUT);
+				
+				connected = await Task.Run(() => connection_result.AsyncWaitHandle.WaitOne(CONNECTION_TIMEOUT), cancellation);
 			}
 			catch (Exception e)
 			{
 				Debug.LogWarning("[SnipeTCPClient] TCP Client initialization failed: " + e.Message);
 
 				connected = false;
-				
 			}
 
 			if (!connected)
@@ -80,6 +89,12 @@ namespace MiniIT.Snipe
 
 		public override void Disconnect()
 		{
+			if (mConnectCancellation != null)
+			{
+				mConnectCancellation.Cancel();
+				mConnectCancellation = null;
+			}
+			
 			mConnected = false;
 			
 			DisposeBuffer();
