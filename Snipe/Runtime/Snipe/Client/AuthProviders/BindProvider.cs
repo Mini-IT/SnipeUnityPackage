@@ -51,7 +51,7 @@ namespace MiniIT.Snipe
 
 			mBindResultCallback = bind_callback;
 
-			InvokeBindResultCallback(ERROR_NOT_INITIALIZED);
+			InvokeBindResultCallback(IsBindDone ? ERROR_OK : ERROR_NOT_INITIALIZED);
 		}
 
 		public virtual string GetUserId()

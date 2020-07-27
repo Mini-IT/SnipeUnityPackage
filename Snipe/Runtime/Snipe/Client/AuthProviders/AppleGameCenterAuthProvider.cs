@@ -72,6 +72,12 @@ public class AppleGameCenterAuthProvider : BindProvider
 
 		mBindResultCallback = bind_callback;
 		
+		if (IsBindDone)
+		{
+			InvokeBindResultCallback(ERROR_OK);
+			return;
+		}
+		
 #if UNITY_IOS
 		if (PlayerPrefs.HasKey(SnipePrefs.AUTH_UID) && PlayerPrefs.HasKey(SnipePrefs.AUTH_KEY))
 		{

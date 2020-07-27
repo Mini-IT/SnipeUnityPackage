@@ -62,6 +62,12 @@ public class GooglePlayAuthProvider : BindProvider
 		DebugLogger.Log("[GooglePlayAuthProvider] RequestBind");
 
 		mBindResultCallback = bind_callback;
+		
+		if (IsBindDone)
+		{
+			InvokeBindResultCallback(ERROR_OK);
+			return;
+		}
 
 #if UNITY_ANDROID && !UNITY_EDITOR
 		if (PlayerPrefs.HasKey(SnipePrefs.AUTH_UID) && PlayerPrefs.HasKey(SnipePrefs.AUTH_KEY))

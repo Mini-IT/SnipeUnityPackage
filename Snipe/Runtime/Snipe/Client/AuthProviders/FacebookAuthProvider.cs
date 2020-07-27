@@ -44,6 +44,12 @@ public class FacebookAuthProvider : BindProvider
 		DebugLogger.Log("[FacebookAuthProvider] RequestBind");
 
 		mBindResultCallback = bind_callback;
+		
+		if (IsBindDone)
+		{
+			InvokeBindResultCallback(ERROR_OK);
+			return;
+		}
 
 		string auth_login = PlayerPrefs.GetString(SnipePrefs.AUTH_UID);
 		string auth_token = PlayerPrefs.GetString(SnipePrefs.AUTH_KEY);

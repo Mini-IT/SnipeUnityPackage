@@ -71,6 +71,12 @@ public class AdvertisingIdAuthProvider : BindProvider
 
 		//NeedToBind = false;
 		mBindResultCallback = bind_callback;
+		
+		if (IsBindDone)
+		{
+			InvokeBindResultCallback(ERROR_OK);
+			return;
+		}
 
 		void advertising_id_callback(string advertising_id, bool tracking_enabled, string error)
 		{
