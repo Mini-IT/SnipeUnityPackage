@@ -280,8 +280,11 @@ namespace MiniIT.Snipe
 						}
 					}
 				}
-
-				MessageReceived?.Invoke(ConvertToExpandoObject(message));
+				
+				var response = ConvertToExpandoObject(message);
+				DebugLogger.Log("[SnipeServiceClient] ProcessMessage - " + response?.ToJSONString());
+				
+				MessageReceived?.Invoke(response);
 
 				if (mHeartbeatEnabled)
 				{
