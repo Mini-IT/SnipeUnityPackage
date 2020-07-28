@@ -279,6 +279,18 @@ namespace MiniIT.Snipe
 		public static void ClearAuthDataAndSetCurrentProvider(AuthProvider provider)
 		{
 			PlayerPrefs.DeleteKey(SnipePrefs.LOGIN_USER_ID);
+			
+			if (mInstance != null)
+			{
+				foreach (BindProvider bind_provider in mInstance.mAuthProviders)
+				{
+					if (bind_provider != null)
+					{
+						bind_provider.IsBindDone = false;
+					}
+				}
+			}
+			
 			SnipeAuthCommunicator.ClearLoginToken();
 			SnipeAuthCommunicator.SetCurrentProvider(provider);
 		}

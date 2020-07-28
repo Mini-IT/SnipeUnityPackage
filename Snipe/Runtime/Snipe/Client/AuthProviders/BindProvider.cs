@@ -24,7 +24,7 @@ namespace MiniIT.Snipe
 			{
 				return PlayerPrefs.GetInt(BindDonePrefsKey, 0) == 1;
 			}
-			protected set
+			internal set
 			{
 				bool current_value = PlayerPrefs.GetInt(BindDonePrefsKey, 0) == 1;
 				if (value != current_value)
