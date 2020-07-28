@@ -25,7 +25,8 @@ public class AdvertisingIdAuthProvider : BindProvider
 
 		void advertising_id_callback(string advertising_id, bool tracking_enabled, string error)
 		{
-			DebugLogger.Log($"[AdvertisingIdAuthProvider] advertising_id : {advertising_id} , error : {error}");
+			var error_string = string.IsNullOrEmpty(error) ? "" : ", error: " + error;
+			DebugLogger.Log($"[AdvertisingIdAuthProvider] advertising_id : {advertising_id} {error_string}");
 
 			AdvertisingId = advertising_id;
 
