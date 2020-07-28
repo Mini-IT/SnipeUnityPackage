@@ -81,7 +81,6 @@ namespace MiniIT.Snipe
 					var mpack_list = new MPackArray();
 					foreach (var value_item in value_list)
 					{
-						MPack item = null;
 						if (value_item is IExpandoObjectConvertable value_obj)
 						{
 							mpack_list.Add(ConvertToMPackMap(value_obj.ConvertToExpandoObject()));
