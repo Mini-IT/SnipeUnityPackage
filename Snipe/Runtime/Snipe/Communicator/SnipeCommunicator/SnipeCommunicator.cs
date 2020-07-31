@@ -26,6 +26,8 @@ namespace MiniIT.Snipe
 
 		public int RestoreConnectionAttempts = 3;
 		private int mRestoreConnectionAttempt;
+		
+		public bool AllowRequestsToWaitForLogin = true;
 
 		protected bool mDebugEnabled = false;
 		public bool DebugEnabled
@@ -343,22 +345,18 @@ namespace MiniIT.Snipe
 		{
 			if (Client == null || !Client.LoggedIn)
 				return;
-
-			if (parameters == null)
-				parameters = new ExpandoObject();
-
-			parameters["messageType"] = "kit/action.self";
-			parameters["actionID"] = action_id;
-			Client.SendRequest(parameters);
+			
+			CreateKitActionSelfRequest(action_id, parameters).Request();
 		}
 
 		public void RequestKitAttrSet(string key, object value)
 		{
-			ExpandoObject parameters = new ExpandoObject();
-			parameters["messageType"] = "kit/attr.set";
-			parameters["key"] = key;
-			parameters["val"] = value;
-			Client.SendRequest(parameters);
+			ExpandoObject parameters = new ExpandoObject()
+			{
+				["key"] = key,
+				["val"] = value,
+			};
+			CreateRequest("kit/attr.set", parameters).Request();
 		}
 
 		public void RequestKitAttrGetAll()
@@ -368,7 +366,7 @@ namespace MiniIT.Snipe
 
 		public SnipeRequest CreateKitActionSelfRequest(string action_id, ExpandoObject parameters = null)
 		{
-			SnipeKitActionSelfRequest request = new SnipeKitActionSelfRequest(this.Client, action_id);
+			SnipeKitActionSelfRequest request = new SnipeKitActionSelfRequest(this, action_id);
 			request.Data = parameters;
 			return request;
 		}

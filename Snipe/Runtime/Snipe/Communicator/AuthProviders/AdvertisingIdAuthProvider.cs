@@ -16,7 +16,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 	/// Shoud the provider try to use <c>SystemInfo.deviceUniqueIdentifier</c>
 	/// if current platform doesn't support advertising id
 	/// </summary>
-	public static bool DeviceIdFallbackEnabled = false;
+	public static bool DeviceIdFallbackEnabled = true;
 
 	public override void RequestAuth(AuthSuccessCallback success_callback, AuthFailCallback fail_callback, bool reset_auth = false)
 	{

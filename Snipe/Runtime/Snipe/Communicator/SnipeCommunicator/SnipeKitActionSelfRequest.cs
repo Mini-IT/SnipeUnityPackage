@@ -3,11 +3,11 @@ using MiniIT;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeKitActionSelfRequest : SnipeRequest
+	public class SnipeKitActionSelfRequest : SnipeCommunicatorRequest
 	{
 		protected string mActionId;
 		
-		public SnipeKitActionSelfRequest(SnipeClient client, string action_id) : base (client, "kit/action.self")
+		public SnipeKitActionSelfRequest(SnipeCommunicator communicator, string action_id) : base (communicator, "kit/action.self")
 		{
 			mActionId = action_id;
 		}

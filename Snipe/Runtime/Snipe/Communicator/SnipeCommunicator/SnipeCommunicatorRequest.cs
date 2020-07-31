@@ -72,6 +72,13 @@ namespace MiniIT.Snipe
 				return;
 			}
 			
+			if (!mCommunicator.AllowRequestsToWaitForLogin)
+			{
+				mCallback?.Invoke(mCommunicator.Connected ? ErrorMessageNotLoggedIn : ErrorMessageNoConnection);
+				Dispose();
+				return;
+			}
+			
 			if (mCommunicator is SnipeRoomCommunicator room_communicator)
 			{
 				room_communicator.RoomJoined -= OnCommunicatorLoginSucceeded;
