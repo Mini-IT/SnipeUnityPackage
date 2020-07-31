@@ -28,6 +28,9 @@ namespace MiniIT.Snipe
 		private int mRestoreConnectionAttempt;
 		
 		public bool AllowRequestsToWaitForLogin = true;
+		public bool KeepOfflineRequests = false; // works only if AllowRequestsToWaitForLogin == false
+		
+		public readonly List<SnipeCommunicatorRequest> Requests = new List<SnipeCommunicatorRequest>();
 
 		protected bool mDebugEnabled = false;
 		public bool DebugEnabled
@@ -337,6 +340,17 @@ namespace MiniIT.Snipe
 			var request = new SnipeCommunicatorRequest(this, message_type);
 			request.Data = parameters;
 			return request;
+		}
+		
+		public void ResendOfflineRequests()
+		{
+			foreach (var request in Requests)
+			{
+				if (!request.Active)
+				{
+					request.ResendInactive();
+				}
+			}
 		}
 
 		#region Kit Requests

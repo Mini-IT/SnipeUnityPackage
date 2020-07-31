@@ -6,12 +6,26 @@ namespace MiniIT.Snipe
 {
 	public class SnipeCommunicatorRequest : SnipeRequest
 	{
+		public bool Active { get; protected set; } = true;
+		
 		protected SnipeCommunicator mCommunicator;
 		protected bool mSendRequestProcessed = false;
 		
 		public SnipeCommunicatorRequest(SnipeCommunicator communicator, string message_type = null) : base(communicator.Client, message_type)
 		{
 			mCommunicator = communicator;
+			mCommunicator.Requests.Add(this);
+		}
+		
+		protected void RemoveFromActiveRequests()
+		{
+			mCommunicator?.Requests?.Remove(this);
+		}
+		
+		protected override void InvokeCallback(Action<ExpandoObject> callback, ExpandoObject response_data)
+		{
+			RemoveFromActiveRequests();
+			base.InvokeCallback(callback, response_data);
 		}
 
 		public override void Request(Action<ExpandoObject> callback = null)
@@ -21,13 +35,22 @@ namespace MiniIT.Snipe
 			
 			if (!CheckMessageType())
 			{
-				if (callback != null)
-					callback.Invoke(ErrorMessageInvalidData);
+				InvokeCallback(callback, ErrorMessageInvalidData);
 				return;
 			}
 
 			SetCallback(callback);
 			SendRequest();
+		}
+		
+		internal void ResendInactive()
+		{
+			if (!Active)
+			{
+				Active = true;
+				mSendRequestProcessed = false;
+				SendRequest();
+			}
 		}
 
 		protected override void SendRequest()
@@ -38,13 +61,13 @@ namespace MiniIT.Snipe
 			
 			if (mCommunicator == null)
 			{
-				mCallback?.Invoke(ErrorMessageInvalidClient);
+				InvokeCallback(ErrorMessageInvalidClient);
 				return;
 			}
 
 			if (!CheckMessageType())
 			{
-				mCallback?.Invoke(ErrorMessageInvalidData);
+				InvokeCallback(ErrorMessageInvalidData);
 				return;
 			}
 			
@@ -67,14 +90,20 @@ namespace MiniIT.Snipe
 		{
 			if (mCommunicator == null)
 			{
-				mCallback?.Invoke(ErrorMessageInvalidClient);
+				InvokeCallback(ErrorMessageInvalidClient);
 				Dispose();
 				return;
 			}
 			
 			if (!mCommunicator.AllowRequestsToWaitForLogin)
 			{
-				mCallback?.Invoke(mCommunicator.Connected ? ErrorMessageNotLoggedIn : ErrorMessageNoConnection);
+				if (mCommunicator.KeepOfflineRequests)
+				{
+					Active = false;
+					return;
+				}
+				
+				InvokeCallback(mCommunicator.Connected ? ErrorMessageNotLoggedIn : ErrorMessageNoConnection);
 				Dispose();
 				return;
 			}
@@ -126,13 +155,15 @@ namespace MiniIT.Snipe
 			
 			if (mCallback != null)
 			{
-				mCallback.Invoke(ErrorMessageInvalidClient);
+				InvokeCallback(ErrorMessageInvalidClient);
 				mCallback = null;
 			}
 		}
 
 		public override void Dispose()
 		{
+			RemoveFromActiveRequests();
+			
 			base.Dispose();
 			
 			OnCommunicatorPreDestroy();

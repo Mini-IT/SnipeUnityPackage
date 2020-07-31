@@ -39,22 +39,19 @@ namespace MiniIT.Snipe
 		{
 			if (mClient == null)
 			{
-				if (callback != null)
-					callback.Invoke(ErrorMessageInvalidClient);
+				InvokeCallback(callback, ErrorMessageInvalidClient);
 				return;
 			}
 			
 			if (!mClient.Connected)
 			{
-				if (callback != null)
-					callback.Invoke(ErrorMessageNoConnection);
+				InvokeCallback(callback, ErrorMessageNoConnection);
 				return;
 			}
 
 			if (!mClient.LoggedIn)
 			{
-				if (callback != null)
-					callback.Invoke(ErrorMessageNotLoggedIn);
+				InvokeCallback(callback, ErrorMessageNotLoggedIn);
 				return;
 			}
 
@@ -63,8 +60,7 @@ namespace MiniIT.Snipe
 
 			if (!CheckMessageType())
 			{
-				if (callback != null)
-					callback.Invoke(ErrorMessageInvalidData);
+				InvokeCallback(callback, ErrorMessageInvalidData);
 				return;
 			}
 
@@ -91,6 +87,16 @@ namespace MiniIT.Snipe
 				mClient.MessageReceived += OnMessageReceived;
 			}
 		}
+		
+		protected virtual void InvokeCallback(Action<ExpandoObject> callback, ExpandoObject response_data)
+		{
+			callback?.Invoke(response_data);
+		}
+		
+		protected virtual void InvokeCallback(ExpandoObject response_data)
+		{
+			InvokeCallback(mCallback, response_data);
+		}
 
 		protected virtual void SendRequest()
 		{
@@ -101,7 +107,7 @@ namespace MiniIT.Snipe
 		{
 			if (mCallback != null)
 			{
-				mCallback.Invoke(ErrorMessageNoConnection);
+				InvokeCallback(ErrorMessageNoConnection);
 				mCallback = null;
 			}
 		}
@@ -110,8 +116,7 @@ namespace MiniIT.Snipe
 		{
 			if (CheckResponse(response_data))
 			{
-				if (mCallback != null)
-					mCallback.Invoke(response_data);
+				InvokeCallback(response_data);
 
 				Dispose();
 			}
