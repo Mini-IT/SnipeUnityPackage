@@ -348,7 +348,7 @@ namespace MiniIT.Snipe
 			
 			foreach (var request in Requests)
 			{
-				if (!request.Active)
+				if (request != null && !request.Active)
 				{
 					request.ResendInactive();
 				}
@@ -394,6 +394,11 @@ namespace MiniIT.Snipe
 		public virtual void Dispose()
 		{
 			Disconnect();
+			
+			foreach (var request in Requests)
+			{
+				request?.Dispose();
+			}
 
 			if (this.gameObject != null)
 			{
