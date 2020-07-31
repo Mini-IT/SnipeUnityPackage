@@ -344,6 +344,8 @@ namespace MiniIT.Snipe
 		
 		public void ResendOfflineRequests()
 		{
+			DebugLogger.LogError("[SnipeCommunicator] ResendOfflineRequests - begin");
+			
 			foreach (var request in Requests)
 			{
 				if (!request.Active)
@@ -351,6 +353,8 @@ namespace MiniIT.Snipe
 					request.ResendInactive();
 				}
 			}
+			
+			DebugLogger.LogError("[SnipeCommunicator] ResendOfflineRequests - done");
 		}
 
 		#region Kit Requests
