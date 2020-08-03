@@ -12,14 +12,19 @@ namespace MiniIT.Snipe
 			this.Communicator = communicator;
 		}
 
-		public SnipeRequest CreateRequest(ExpandoObject data)
+		public SnipeCommunicatorRequest CreateRequest(ExpandoObject data)
 		{
-			if (Communicator == null || !Communicator.LoggedIn)
+			if (Communicator == null)
 				return null;
-
-			SnipeRequest request = Communicator.CreateRequest();
-			request.Data = data;
-			return request;
+			
+			if (Communicator.LoggedIn || Communicator.AllowRequestsToWaitForLogin || Communicator.KeepOfflineRequests)
+			{
+				var request = Communicator.CreateRequest();
+				request.Data = data;
+				return request;
+			}
+			
+			return null;
 		}
 
 		public SnipeServiceRequest CreateServiceRequest(ExpandoObject data)
