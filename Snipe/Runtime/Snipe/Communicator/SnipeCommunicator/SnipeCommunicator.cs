@@ -317,14 +317,11 @@ namespace MiniIT.Snipe
 		{
 			Client.SendRequest("kit/user.logout");
 		}
-
+		
+		// [Obsolete("Use CreateRequest instead.", false)]
 		public void Request(string message_type, ExpandoObject parameters = null)
 		{
-			if (Client == null || !Client.LoggedIn)
-				return;
-
-			Client.SendRequest(message_type, parameters);
-			// else add to queue???
+			CreateRequest(message_type, parameters).Request();
 		}
 
 		internal int Request(SnipeCommunicatorRequest request)
@@ -355,6 +352,21 @@ namespace MiniIT.Snipe
 			}
 			
 			DebugLogger.LogError("[SnipeCommunicator] ResendOfflineRequests - done");
+		}
+		
+		public void DisposeOfflineRequests()
+		{
+			DebugLogger.LogError("[SnipeCommunicator] DisposeOfflineRequests - begin");
+			
+			foreach (var request in Requests)
+			{
+				if (request != null && !request.Active)
+				{
+					request.Dispose();
+				}
+			}
+			
+			DebugLogger.LogError("[SnipeCommunicator] DisposeOfflineRequests - done");
 		}
 
 		#region Kit Requests
