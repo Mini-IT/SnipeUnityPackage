@@ -32,22 +32,6 @@ namespace MiniIT.Snipe
 		
 		public readonly List<SnipeCommunicatorRequest> Requests = new List<SnipeCommunicatorRequest>();
 
-		protected bool mDebugEnabled = false;
-		public bool DebugEnabled
-		{
-			get
-			{
-				return mDebugEnabled;
-			}
-			set
-			{
-				mDebugEnabled = value;
-
-				if (Client != null)
-					Client.DebugEnabled = value;
-			}
-		}
-
 		public bool Connected
 		{
 			get
@@ -134,7 +118,6 @@ namespace MiniIT.Snipe
 				Client.ConnectionSucceeded += OnConnectionSucceeded;
 				Client.ConnectionFailed += OnConnectionFailed;
 				Client.ConnectionLost += OnConnectionFailed;
-				Client.DebugEnabled = this.DebugEnabled;
 			}
 
 			mDisconnecting = false;

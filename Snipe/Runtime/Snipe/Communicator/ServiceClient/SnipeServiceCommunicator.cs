@@ -61,6 +61,8 @@ namespace MiniIT.Snipe
 
 		private void OnLoginSucceeded()
 		{
+			DebugLogger.Log("[SnipeServiceCommunicator] OnLoginSucceeded");
+			
 			Client.LoginSucceeded -= OnLoginSucceeded;
 			Client.LoginFailed -= OnLoginFailed;
 			Client.MessageReceived += OnMessageReceived;
@@ -69,6 +71,8 @@ namespace MiniIT.Snipe
 
 		private void OnLoginFailed(string obj)
 		{
+			DebugLogger.Log("[SnipeServiceCommunicator] OnLoginFailed");
+			
 			Client.LoginSucceeded -= OnLoginSucceeded;
 			Client.LoginFailed -= OnLoginFailed;
 

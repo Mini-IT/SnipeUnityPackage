@@ -6,7 +6,14 @@ using MiniIT;
 
 public class SnipeConfig
 {
-	public static SnipeConfig Instance { get; private set; }
+	private static readonly SnipeConfig mInstance = new SnipeConfig();
+	public static SnipeConfig Instance
+	{
+		get
+		{
+			return mInstance;
+		}
+	}
 
 	public bool debug = false;
 
@@ -25,7 +32,6 @@ public class SnipeConfig
 
 	public static void Init(ExpandoObject data)
 	{
-		Instance = new SnipeConfig();
 		Instance.snipe_client_key = data.SafeGetString("snipe_client_key");
 		Instance.snipe_service_websocket = data.SafeGetString("snipe_service_websocket", Instance.snipe_service_websocket);
 		Instance.server = new SnipeServerConfig(data.SafeGetValue<ExpandoObject>("server"));
@@ -35,6 +41,7 @@ public class SnipeConfig
 			Instance.tables_path = new List<string>();
 		else
 			Instance.tables_path.Clear();
+		
 		if (data["tables_path"] is IList list)
 		{
 			foreach(string path in list)

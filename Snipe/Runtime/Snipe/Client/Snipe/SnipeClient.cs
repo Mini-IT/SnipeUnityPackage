@@ -52,8 +52,6 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		public bool DebugEnabled = false;
-
 		public string ConnectionId { get; private set; }
 
 		protected bool mConnected = false;
@@ -317,8 +315,7 @@ namespace MiniIT.Snipe
 		
 		public void DisconnectAndDispatch(Action<ExpandoObject> event_to_dispatch)
 		{
-			if (DebugEnabled)
-				DebugLogger.LogWarning("[SnipeClient] DisconnectAndDispatch. " + DisconnectReason);
+			DebugLogger.LogWarning("[SnipeClient] DisconnectAndDispatch. " + DisconnectReason);
 			
 			if (mTCPClient != null)
 			{
@@ -361,12 +358,7 @@ namespace MiniIT.Snipe
 
 			parameters["_requestID"] = ++mRequestId;
 
-			if (DebugEnabled)
-			{
-//#if DEBUG
-				DebugLogger.Log($"[SnipeClient] [{ConnectionId}] SendRequest " + parameters.ToJSONString());
-//#endif
-			}
+			DebugLogger.Log($"[SnipeClient] [{ConnectionId}] SendRequest " + parameters.ToJSONString());
 
 			// mTcpClient.Connected property gets the connection state of the Socket as of the LAST I/O operation (not current state!)
 			// (http://msdn.microsoft.com/en-us/library/system.net.sockets.socket.connected.aspx)
@@ -544,16 +536,13 @@ namespace MiniIT.Snipe
 
 		private void StartCheckConnection(bool send_request = true)
 		{
-			if (DebugEnabled)
-				DebugLogger.Log("[SnipeClient] StartCheckConnection");
-
 			if (!mLoggedIn)
 			{
-				if (DebugEnabled)
-					DebugLogger.Log("[SnipeClient] Not logged in yet");
-
+				// DebugLogger.Log("[SnipeClient] StartCheckConnection - not logged in yet.");
 				return;
 			}
+
+			DebugLogger.Log("[SnipeClient] StartCheckConnection");
 
 			mCheckConnectionCancellation?.Cancel();
 
@@ -568,8 +557,7 @@ namespace MiniIT.Snipe
 				mCheckConnectionCancellation.Cancel();
 				mCheckConnectionCancellation = null;
 
-				if (DebugEnabled)
-					DebugLogger.Log("[SnipeClient] StopCheckConnection");
+				DebugLogger.Log("[SnipeClient] StopCheckConnection");
 			}
 		}
 
@@ -583,8 +571,7 @@ namespace MiniIT.Snipe
 			// if the connection is ok then this task should already be cancelled
 
 			// Disconnect detected
-			if (DebugEnabled)
-				DebugLogger.Log("[SnipeClient] CheckConnectionTask - Disconnect detected");
+			DebugLogger.Log("[SnipeClient] CheckConnectionTask - Disconnect detected");
 
 			mConnected = false;
 			DisconnectReason = "CheckConnectionTask - Disconnect detected";

@@ -153,10 +153,8 @@ namespace MiniIT.Snipe
 
 			string url = SnipeConfig.Instance.snipe_service_websocket;
 
-			//#if DEBUG
 			DebugLogger.Log("[SnipeServiceClient] WebSocket Connect to " + url);
-			//#endif
-
+			
 			mWebSocket = new WebSocketWrapper();
 			mWebSocket.OnConnectionOpened += OnWebSocketConnected;
 			mWebSocket.OnConnectionClosed += OnWebSocketClosed;
@@ -166,10 +164,8 @@ namespace MiniIT.Snipe
 
 		private void OnWebSocketConnected()
 		{
-			//#if DEBUG
 			DebugLogger.Log("[SnipeServiceClient] OnWebSocketConnected");
-			//#endif
-
+			
 			try
 			{
 				ConnectionOpened?.Invoke();

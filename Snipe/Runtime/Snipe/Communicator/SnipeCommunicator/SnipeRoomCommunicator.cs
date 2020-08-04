@@ -22,7 +22,6 @@ namespace MiniIT.Snipe
 		public static T Create<T>(string room_type, int room_id, SnipeCommunicator game_communicator, string host, int port, string websocket_url) where T : SnipeRoomCommunicator
 		{
 			var communicator = new GameObject("SnipeRoomCommunicator").AddComponent<T>();
-			//communicator.mServer = mServer;
 			communicator.mRoomType = room_type;
 			communicator.mRoomId = room_id;
 			communicator.mHost = host;

@@ -27,9 +27,7 @@ namespace MiniIT.Snipe
 		{
 			Disconnect();
 
-//#if DEBUG
 			DebugLogger.Log("[SnipeWebSocketClient] WebSocket Connect to " + url);
-//#endif
 
 			mWebSocketClient = new WebSocketWrapper();
 			mWebSocketClient.OnConnectionOpened = OnWebSocketConnected;
@@ -40,9 +38,7 @@ namespace MiniIT.Snipe
 
 		protected void OnWebSocketConnected()
 		{
-//#if DEBUG
 			DebugLogger.Log("[SnipeWebSocketClient] OnWebSocketConnected");
-//#endif
 			
 			mConnected = true;
 
@@ -114,9 +110,7 @@ namespace MiniIT.Snipe
 							byte[] decompressed_buffer = ZlibStream.UncompressBuffer(compressed_buffer);
 							mMessageString = UTF8Encoding.UTF8.GetString( decompressed_buffer );
 
-//#if DEBUG
 //							DebugLogger.Log("[SnipeWebSocketClient] decompressed mMessageString = " + mMessageString);
-//#endif
 						}
 						else
 						{
@@ -124,16 +118,13 @@ namespace MiniIT.Snipe
 							buf_stream.Read(str_buf, 0, mMessageLength);
 							mMessageString = UTF8Encoding.UTF8.GetString(str_buf);
 
-//#if DEBUG
 //							DebugLogger.Log("[SnipeWebSocketClient] mMessageString = " + mMessageString);
-//#endif
 						}
 					}
 					catch(Exception)
 					{
-//#if DEBUG
 						//DebugLogger.Log("[SnipeWebSocketClient] OnWebSocketMessage ProcessData error: " + ex.Message);
-//#endif
+						
 						//CheckConnectionLost();
 					}
 

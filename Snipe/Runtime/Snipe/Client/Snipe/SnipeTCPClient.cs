@@ -70,9 +70,7 @@ namespace MiniIT.Snipe
 
 			if (!connected)
 			{
-//#if DEBUG
 				DebugLogger.LogWarning("[SnipeTCPClient] TCP Client connection failed");
-//#endif
 
 				if (mTcpClient == null)
 				{
@@ -186,9 +184,8 @@ namespace MiniIT.Snipe
 			catch (Exception e)
 #pragma warning restore CS0168
 			{
-//#if DEBUG
 				DebugLogger.LogWarning("[SnipeTCPClient] ReadCallback stream.EndRead error: " + e.Message);
-//#endif
+				
 				Disconnect();
 				if (OnConnectionLost != null)
 					OnConnectionLost.Invoke();
@@ -205,9 +202,7 @@ namespace MiniIT.Snipe
 					}
 					catch(Exception ex)
 					{
-//#if DEBUG
 						DebugLogger.LogWarning("[SnipeTCPClient] ProcessData error: " + ex.Message);
-//#endif
 					}
 				}
 			}
@@ -218,9 +213,8 @@ namespace MiniIT.Snipe
 
 		protected void ProcessData(MemoryStream buf_stream)
 		{
-//#if DEBUG
-			//DebugLogger.Log("[SnipeTCPClient] portion", buf_stream.Length.ToString());
-//#endif
+			// DebugLogger.Log("[SnipeTCPClient] portion", buf_stream.Length.ToString());
+			
 			if (mBufferSream == null)
 				return;
 
@@ -247,9 +241,7 @@ namespace MiniIT.Snipe
 					       marker[2] == MESSAGE_MARKER[2] &&
 					       marker[3] == MESSAGE_MARKER[3]) )
 					{
-//#if DEBUG
 						//DebugLogger.Log("[SnipeTCPClient] Message marker not found");
-//#endif
 
 //						if (OnError != null)
 //							OnError(new HapiEventArgs(HapiEventArgs.ERROR, "Message marker not found"));
@@ -300,10 +292,8 @@ namespace MiniIT.Snipe
 					}
 					catch (Exception error)
 					{
-//#if DEBUG
 						DebugLogger.LogWarning("[SnipeTCPClient] Deserialization error: " + error.Message);
 						DebugLogger.Log("mMessageString = " + mMessageString);
-//#endif
 						
 //						if (OnError != null)
 //							OnError(new HapiEventArgs(HapiEventArgs.ERROR, "Deserialization error: " + error.Message));
