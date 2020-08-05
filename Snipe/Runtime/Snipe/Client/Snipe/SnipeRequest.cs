@@ -124,7 +124,8 @@ namespace MiniIT.Snipe
 
 		protected virtual bool CheckResponse(ExpandoObject response_data)
 		{
-			return (response_data.SafeGetValue<int>("_requestID") == mRequestId);
+			int request_id = response_data.SafeGetValue<int>("_requestID");
+			return (request_id > 0 ? request_id == mRequestId : response_data.SafeGetString("messageType") == MessageType);
 		}
 
 		public virtual void Dispose()
