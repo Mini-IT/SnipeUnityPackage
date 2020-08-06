@@ -150,6 +150,8 @@ namespace MiniIT.Snipe
 		protected virtual void OnDestroy()
 		{
 			DebugLogger.Log("[SnipeCommunicator] OnDestroy");
+			
+			DisposeRequests();
 
 			try
 			{
@@ -341,11 +343,22 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.LogError("[SnipeCommunicator] DisposeOfflineRequests - begin");
 			
+			List<SnipeCommunicatorRequest> inactive_requests = null;
 			foreach (var request in Requests)
 			{
 				if (request != null && !request.Active)
 				{
-					request.Dispose();
+					if (inactive_requests == null)
+						inactive_requests = new List<SnipeCommunicatorRequest>();
+					
+					inactive_requests.Add(request);
+				}
+			}
+			if (inactive_requests != null)
+			{
+				foreach (var request in inactive_requests)
+				{
+					request?.Dispose();
 				}
 			}
 			
@@ -388,17 +401,26 @@ namespace MiniIT.Snipe
 
 		public virtual void Dispose()
 		{
-			Disconnect();
+			DebugLogger.Log("[SnipeCommunicator] Dispose");
 			
-			foreach (var request in Requests)
-			{
-				request?.Dispose();
-			}
+			Disconnect();
+			DisposeRequests();
 
 			if (this.gameObject != null)
 			{
 				GameObject.DestroyImmediate(this.gameObject);
 			}
+		}
+		
+		private void DisposeRequests()
+		{
+			DebugLogger.Log("[SnipeCommunicator] DisposeRequests");
+			
+			foreach (var request in Requests)
+			{
+				request?.Dispose(false);
+			}
+			Requests.Clear();
 		}
 	}
 }

@@ -162,7 +162,15 @@ namespace MiniIT.Snipe
 
 		public override void Dispose()
 		{
-			RemoveFromActiveRequests();
+			Dispose(true);
+		}
+		
+		internal void Dispose(bool remove_from_list)
+		{
+			if (remove_from_list)
+			{
+				RemoveFromActiveRequests();
+			}
 			
 			base.Dispose();
 			
