@@ -77,16 +77,16 @@ namespace MiniIT.Snipe
 			}
 			else
 			{
-				AddOnLoginSucceededListener();
+				AddLoginSucceededListener();
 			}
 		}
 		
 		protected override void OnConnectionLost(ExpandoObject data)
 		{
-			AddOnLoginSucceededListener();
+			AddLoginSucceededListener();
 		}
 		
-		private void AddOnLoginSucceededListener()
+		private void AddLoginSucceededListener()
 		{
 			if (mCommunicator == null)
 			{
