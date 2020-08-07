@@ -17,14 +17,14 @@ namespace MiniIT.Snipe
 			mCommunicator.Requests.Add(this);
 		}
 		
-		protected void RemoveFromActiveRequests()
+		protected void RemoveFromRequestsList()
 		{
 			mCommunicator?.Requests?.Remove(this);
 		}
 		
 		protected override void InvokeCallback(Action<ExpandoObject> callback, ExpandoObject response_data)
 		{
-			RemoveFromActiveRequests();
+			RemoveFromRequestsList();
 			base.InvokeCallback(callback, response_data);
 		}
 
@@ -169,7 +169,7 @@ namespace MiniIT.Snipe
 		{
 			if (remove_from_list)
 			{
-				RemoveFromActiveRequests();
+				RemoveFromRequestsList();
 			}
 			
 			base.Dispose();
