@@ -63,6 +63,9 @@ namespace MiniIT.Snipe
 		private string mConnectionWebSocketURL;
 
 		private int mRequestId = 0;
+		
+		private bool mProcessingReceivedMessage = false;
+		private Queue<ExpandoObject> mRequestsQueue;
 
 		public static SnipeClient CreateInstance(string client_key, string name = "SnipeClient", bool heartbeat_enabled = true)
 		{
@@ -269,7 +272,17 @@ namespace MiniIT.Snipe
 			if (data != null && data.ContainsKey("_connectionID"))
 				ConnectionId = data.SafeGetString("_connectionID");
 
+			mProcessingReceivedMessage = true;
 			DispatchEvent(MessageReceived, data);
+			mProcessingReceivedMessage = false;
+			
+			if (mRequestsQueue != null)
+			{
+				while (mRequestsQueue.Count > 0)
+				{
+					SendRequest(mRequestsQueue.Dequeue());
+				}
+			}
 		}
 		
 		private void OnWebSocketConnectionSucceeded()
@@ -331,6 +344,7 @@ namespace MiniIT.Snipe
 			
 			mConnected = false;
 			mLoggedIn = false;
+			mProcessingReceivedMessage = false;
 			
 			StopHeartbeat();
 			StopCheckConnection();
@@ -354,9 +368,20 @@ namespace MiniIT.Snipe
 		public int SendRequest(ExpandoObject parameters)
 		{
 			if (parameters == null)
-				parameters = new ExpandoObject();
-
-			parameters["_requestID"] = ++mRequestId;
+				return 0;
+			
+			if (!parameters.ContainsKey("_requestID"))
+			{
+				parameters["_requestID"] = ++mRequestId;
+			}
+			
+			if (mProcessingReceivedMessage)
+			{
+				if (mRequestsQueue == null)
+					mRequestsQueue = new Queue<ExpandoObject>();
+				mRequestsQueue.Enqueue(parameters);
+				return mRequestId;
+			}
 
 			DebugLogger.Log($"[SnipeClient] [{ConnectionId}] SendRequest " + parameters.ToJSONString());
 
@@ -379,17 +404,19 @@ namespace MiniIT.Snipe
 
 				if (mTCPClient != null)
 				{
+					string message = HaxeSerializer.Run(parameters);
+					
 					lock (mTCPClient)
 					{
-						string message = HaxeSerializer.Run(parameters);
 						mTCPClient.SendRequest(message);
 					}
 				}
 				else if (mWebSocketClient != null)
 				{
+					string message = HaxeSerializer.Run(parameters);
+					
 					lock (mWebSocketClient)
 					{
-						string message = HaxeSerializer.Run(parameters);
 						mWebSocketClient.SendRequest(message);
 					}
 				}
