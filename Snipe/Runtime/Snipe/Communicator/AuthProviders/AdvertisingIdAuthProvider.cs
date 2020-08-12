@@ -20,6 +20,8 @@ public class AdvertisingIdAuthProvider : BindProvider
 
 	public override void RequestAuth(AuthSuccessCallback success_callback, AuthFailCallback fail_callback, bool reset_auth = false)
 	{
+		DebugLogger.Log("[AdvertisingIdAuthProvider] RequestAuth");
+		
 		mAuthSuccessCallback = success_callback;
 		mAuthFailCallback = fail_callback;
 
@@ -36,22 +38,34 @@ public class AdvertisingIdAuthProvider : BindProvider
 			}
 			else
 			{
-				DebugLogger.Log("[AdvertisingIdAuthProvider] advertising_id is invalid");
-
-				InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
+				DebugLogger.Log("[AdvertisingIdAuthProvider] advertising id is invalid");
+				
+				if (DeviceIdFallbackEnabled && SystemInfo.unsupportedIdentifier != SystemInfo.deviceUniqueIdentifier)
+				{
+					DebugLogger.Log("[AdvertisingIdAuthProvider] fallback to Device Unique Identifier");
+					
+					AdvertisingId = SystemInfo.deviceUniqueIdentifier;
+					RequestLogin(ProviderId, AdvertisingId, "", reset_auth);
+				}
+				else
+				{
+					InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
+				}
 			}
 		}
 
 		if (!Application.RequestAdvertisingIdentifierAsync(advertising_id_callback))
 		{
+			DebugLogger.Log("[AdvertisingIdAuthProvider] advertising id is not supported on this platform");
+			
 			if (DeviceIdFallbackEnabled && SystemInfo.unsupportedIdentifier != SystemInfo.deviceUniqueIdentifier)
 			{
+				DebugLogger.Log("[AdvertisingIdAuthProvider] fallback to Device Unique Identifier");
+				
 				advertising_id_callback(SystemInfo.deviceUniqueIdentifier, false, "");
 			}
 			else
 			{
-				DebugLogger.Log("[AdvertisingIdAuthProvider] advertising id is not supported on this platform");
-
 				InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
 			}
 		}
