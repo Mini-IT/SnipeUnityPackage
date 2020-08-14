@@ -22,10 +22,13 @@ namespace MiniIT.Snipe
 
 		public ExpandoObject Data { get; set; }
 
-		public SnipeServiceRequest(SnipeServiceCommunicator client, string message_type = null)
+		public SnipeServiceRequest(SnipeServiceCommunicator communicator, string message_type = null)
 		{
-			mCommunicator = client;
+			mCommunicator = communicator;
 			mMessageType = message_type;
+			
+			if (mCommunicator != null && mCommunicator.Requests != null)
+				mCommunicator.Requests.Add(this);
 		}
 
 		public void Request(ExpandoObject data, Action<ExpandoObject> callback = null)
@@ -42,7 +45,7 @@ namespace MiniIT.Snipe
 					callback.Invoke(new ExpandoObject() { { "errorCode", ERROR_NOT_READY } });
 				return;
 			}
-
+			
 			if (string.IsNullOrEmpty(mMessageType))
 				mMessageType = Data?.SafeGetString("t");
 
@@ -52,22 +55,36 @@ namespace MiniIT.Snipe
 					callback.Invoke(new ExpandoObject() { { "errorCode", ERROR_INVALIND_DATA } });
 				return;
 			}
-
+			
 			mCallback = callback;
+			
+			if (mCommunicator.Ready)
+			{
+				OnCommunicatorReady();
+			}
+			else
+			{
+				mCommunicator.AddReadyCallback(OnCommunicatorReady);
+			}
+		}
+		
+		private void OnCommunicatorReady()
+		{
 			if (mCallback != null)
 			{
-				//mCommunicator.ConnectionLost += OnConnectionLost;
+				mCommunicator.ConnectionClosed -= OnConnectionClosed;
+				mCommunicator.ConnectionClosed += OnConnectionClosed;
 				mCommunicator.MessageReceived -= OnMessageReceived;
 				mCommunicator.MessageReceived += OnMessageReceived;
 			}
 			mRequestId = mCommunicator.Client.SendRequest(mMessageType, Data);
 		}
 
-		//private void OnConnectionLost(ExpandoObject data)
-		//{
-		//	if (mCallback != null)
-		//		mCallback.Invoke(new ExpandoObject() { { "errorCode", ERROR_NO_CONNECTION } });
-		//}
+		private void OnConnectionClosed()
+		{
+			if (mCommunicator != null)
+				mCommunicator.AddReadyCallback(OnCommunicatorReady);
+		}
 
 		protected void OnMessageReceived(ExpandoObject response_data)
 		{
@@ -100,12 +117,22 @@ namespace MiniIT.Snipe
 
 		public void Dispose()
 		{
+			Dispose(true);
+		}
+		
+		public void Dispose(bool remove_from_list)
+		{
 			if (mCommunicator != null)
 			{
-				//mCommunicator.ConnectionLost -= OnConnectionLost;
+				if (mCommunicator.Requests != null && mCommunicator.Requests.Contains(this))
+					mCommunicator.Requests.Remove(this);
+				
+				mCommunicator.ConnectionClosed -= OnConnectionClosed;
 				mCommunicator.MessageReceived -= OnMessageReceived;
 				mCommunicator = null;
 			}
+			
+			mCallback = null;
 		}
 	}
 }
