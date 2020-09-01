@@ -62,21 +62,6 @@ namespace MiniIT
 			GC.SuppressFinalize(this);
 		}
 		
-		/// 
-		/// When user accesses something, return the value if we have it
-		///       
-		// public new bool TryGetValue(string field_name, out object result)
-		// {
-			// if (this.ContainsKey(field_name))
-			// {
-				// result = this[field_name];
-				// return true;
-			// }
-
-			// result = null;
-			// return false;
-		// }
-
 		public bool TryGetValue<T>(string field_name, ref T result)
 		{
 			object res;
