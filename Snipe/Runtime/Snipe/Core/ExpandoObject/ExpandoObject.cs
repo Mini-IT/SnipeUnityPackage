@@ -14,6 +14,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using System.Linq;
 
 namespace MiniIT
 {
@@ -60,40 +61,27 @@ namespace MiniIT
 			Clear();
 			GC.SuppressFinalize(this);
 		}
-
-		/// 
-		/// When a new property is set, add the property name and value to the dictionary
-		///      
-		//public bool TrySetValue(string field_name, object value)
-		//{
-		//	if (!this.ContainsKey(field_name))
-		//		this.Add(field_name, value);
-		//	else
-		//		this[field_name] = value;
-			
-		//	return true;
-		//}
 		
 		/// 
 		/// When user accesses something, return the value if we have it
 		///       
-		public new bool TryGetValue(string field_name, out object result)
-		{
-			if (this.ContainsKey(field_name))
-			{
-				result = this[field_name];
-				return true;
-			}
+		// public new bool TryGetValue(string field_name, out object result)
+		// {
+			// if (this.ContainsKey(field_name))
+			// {
+				// result = this[field_name];
+				// return true;
+			// }
 
-			result = null;
-			return false;
-		}
+			// result = null;
+			// return false;
+		// }
 
 		public bool TryGetValue<T>(string field_name, ref T result)
 		{
 			object res;
 			if (TryGetValue(field_name, out res))
-		   {
+			{
 				try
 				{
 					result = (T)res;
@@ -136,41 +124,6 @@ namespace MiniIT
 				return Convert.ToString(value);
 			return default_value;
 		}
-		
-		/// 
-		/// If a property value is a delegate, invoke it
-		///      
-//		public bool TryInvokeMember(string field_name, object[] args, out object result)
-//		{
-//			if (mMembers.ContainsKey(field_name))
-//			{
-//				object field = mMembers[field_name];
-//				if (field is Delegate)
-//				{
-//					result = (field as Delegate).DynamicInvoke(args);
-//					return true;
-//				}
-//			}
-//
-//			return false;
-//		}
-		
-		
-		/// 
-		/// Return all dynamic member names
-		/// 
-		/// 
-		//[ObsoleteAttribute("Use Keys instead", false)]
-		//public IEnumerable<string> GetDynamicMemberNames()
-		//{
-		//	return this.Keys;
-		//}
-
-		//[ObsoleteAttribute("Use ContainsKey instead", false)]
-		//public bool ContainsKey(string name)
-		//{
-		//	return this.ContainsKey(name);
-		//}
 
 		public new object this[string key]
 		{
@@ -192,6 +145,20 @@ namespace MiniIT
 			return "[ExpandoObject]"; // string.Format ("[ExpandoObject]");
 		}
 		*/
+		
+		public static bool ContentEquals(Dictionary<string, object> first, Dictionary<string, object> second)
+        {
+			// based on https://stackoverflow.com/a/31590664
+			
+			if (first == second)
+				return true;
+			if (first == null || second == null)
+				return false;
+			if (first.Count == second.Count)
+				return false;
+			
+            return second.OrderBy(kvp => kvp.Key).SequenceEqual(first.OrderBy(kvp => kvp.Key));
+        }
 
 		#region JSON
 

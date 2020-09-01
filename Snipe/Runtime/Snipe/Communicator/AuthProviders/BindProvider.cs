@@ -26,16 +26,7 @@ namespace MiniIT.Snipe
 			}
 			internal set
 			{
-				bool current_value = PlayerPrefs.GetInt(BindDonePrefsKey, 0) == 1;
-				if (value != current_value)
-				{
-					DebugLogger.Log($"[BindProvider] ({ProviderId}) Set bind done flag to {value}");
-
-					PlayerPrefs.SetInt(BindDonePrefsKey, value ? 1 : 0);
-
-					if (value)
-						OnBindDone();
-				}
+				SetBindDoneFlag(value, true);
 			}
 		}
 
@@ -146,6 +137,20 @@ namespace MiniIT.Snipe
 				mBindResultCallback.Invoke(this, error_code);
 
 			mBindResultCallback = null;
+		}
+		
+		protected void SetBindDoneFlag(bool value, bool invoke_callback)
+		{
+			bool current_value = PlayerPrefs.GetInt(BindDonePrefsKey, 0) == 1;
+			if (value != current_value)
+			{
+				DebugLogger.Log($"[BindProvider] ({ProviderId}) Set bind done flag to {value}");
+
+				PlayerPrefs.SetInt(BindDonePrefsKey, value ? 1 : 0);
+
+				if (value && invoke_callback)
+					OnBindDone();
+			}
 		}
 
 		protected virtual void OnBindDone()

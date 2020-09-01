@@ -11,12 +11,8 @@ public class AdvertisingIdAuthProvider : BindProvider
 	public override string ProviderId { get { return PROVIDER_ID; } }
 
 	public static string AdvertisingId { get; private set; }
-
-	/// <summary>
-	/// Shoud the provider try to use <c>SystemInfo.deviceUniqueIdentifier</c>
-	/// if current platform doesn't support advertising id
-	/// </summary>
-	public static bool DeviceIdFallbackEnabled = true;
+	
+	private ExpandoObject mBindRequestData = null;
 
 	public override void RequestAuth(AuthSuccessCallback success_callback, AuthFailCallback fail_callback, bool reset_auth = false)
 	{
@@ -40,17 +36,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 			{
 				DebugLogger.Log("[AdvertisingIdAuthProvider] advertising id is invalid");
 				
-				if (DeviceIdFallbackEnabled && SystemInfo.unsupportedIdentifier != SystemInfo.deviceUniqueIdentifier)
-				{
-					DebugLogger.Log("[AdvertisingIdAuthProvider] fallback to Device Unique Identifier");
-					
-					AdvertisingId = SystemInfo.deviceUniqueIdentifier;
-					RequestLogin(ProviderId, AdvertisingId, "", reset_auth);
-				}
-				else
-				{
-					InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
-				}
+				InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
 			}
 		}
 
@@ -58,16 +44,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 		{
 			DebugLogger.Log("[AdvertisingIdAuthProvider] advertising id is not supported on this platform");
 			
-			if (DeviceIdFallbackEnabled && SystemInfo.unsupportedIdentifier != SystemInfo.deviceUniqueIdentifier)
-			{
-				DebugLogger.Log("[AdvertisingIdAuthProvider] fallback to Device Unique Identifier");
-				
-				advertising_id_callback(SystemInfo.deviceUniqueIdentifier, false, "");
-			}
-			else
-			{
-				InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
-			}
+			InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
 		}
 	}
 
@@ -83,6 +60,11 @@ public class AdvertisingIdAuthProvider : BindProvider
 	public override void RequestBind(BindResultCallback bind_callback = null)
 	{
 		DebugLogger.Log("[AdvertisingIdAuthProvider] RequestBind");
+		
+		if (mBindResultCallback != null && mBindResultCallback != bind_callback)
+		{
+			DebugLogger.LogWarning("[AdvertisingIdAuthProvider] Bind callback is not null. Previous callback will not be called.");
+		}
 
 		//NeedToBind = false;
 		mBindResultCallback = bind_callback;
@@ -120,9 +102,18 @@ public class AdvertisingIdAuthProvider : BindProvider
 						["loginInt"] = auth_login,
 						["authInt"] = auth_token,
 					};
+					
+					if (mBindRequestData != null && ExpandoObject.ContentEquals(mBindRequestData, data))
+					{
+						DebugLogger.LogWarning("[AdvertisingIdAuthProvider] Bind is already requested. This request will not be performed.");
+					}
+					else
+					{
+						mBindRequestData = data;
 
-					DebugLogger.Log("[AdvertisingIdAuthProvider] send user.bind " + data.ToJSONString());
-					SingleRequestClient.Request(SnipeConfig.Instance.auth, data, OnBindResponse);
+						DebugLogger.Log("[AdvertisingIdAuthProvider] send user.bind " + data.ToJSONString());
+						SingleRequestClient.Request(SnipeConfig.Instance.auth, data, OnBindResponse);
+					}
 				}
 				else
 				{
@@ -135,16 +126,9 @@ public class AdvertisingIdAuthProvider : BindProvider
 
 		if (!Application.RequestAdvertisingIdentifierAsync(advertising_id_callback))
 		{
-			if (DeviceIdFallbackEnabled && SystemInfo.unsupportedIdentifier != SystemInfo.deviceUniqueIdentifier)
-			{
-				advertising_id_callback(SystemInfo.deviceUniqueIdentifier, false, "");
-			}
-			else
-			{
-				DebugLogger.Log("[AdvertisingIdAuthProvider] advertising id is not supported on this platform");
+			DebugLogger.Log("[AdvertisingIdAuthProvider] advertising id is not supported on this platform");
 
-				InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
-			}
+			InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
 		}
 	}
 
@@ -169,6 +153,13 @@ public class AdvertisingIdAuthProvider : BindProvider
 		{
 			InvokeAuthFailCallback(error_code);
 		}
+	}
+	
+	protected override void OnBindResponse(ExpandoObject data)
+	{
+		mBindRequestData = null;
+		
+		base.OnBindResponse(data);
 	}
 
 	public override string GetUserId()
@@ -197,17 +188,6 @@ public class AdvertisingIdAuthProvider : BindProvider
 			}
 		}
 
-		if (!Application.RequestAdvertisingIdentifierAsync(advertising_id_callback))
-		{
-			if (DeviceIdFallbackEnabled && SystemInfo.unsupportedIdentifier != SystemInfo.deviceUniqueIdentifier)
-			{
-				advertising_id_callback(SystemInfo.deviceUniqueIdentifier, false, "");
-				return true;
-			}
-
-			return false;
-		}
-
-		return true;
+		return Application.RequestAdvertisingIdentifierAsync(advertising_id_callback);
 	}
 }
