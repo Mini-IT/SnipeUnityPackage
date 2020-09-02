@@ -85,7 +85,7 @@ namespace MiniIT.Snipe
 		
 		protected override void OnConnectionLost(ExpandoObject data)
 		{
-			if (MessageType !== MESSAGE_TYPE_USER_LOGIN)
+			if (MessageType != MESSAGE_TYPE_USER_LOGIN)
 			{
 				AddLoginSucceededListener();
 			}
