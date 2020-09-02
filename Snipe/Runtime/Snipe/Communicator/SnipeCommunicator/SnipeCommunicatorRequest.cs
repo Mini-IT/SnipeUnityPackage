@@ -6,6 +6,8 @@ namespace MiniIT.Snipe
 {
 	public class SnipeCommunicatorRequest : SnipeRequest
 	{
+		private const string MESSAGE_TYPE_USER_LOGIN == "user.login";
+		
 		public bool Active { get; protected set; } = true;
 		
 		protected SnipeCommunicator mCommunicator;
@@ -71,7 +73,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 			
-			if (mCommunicator.LoggedIn || MessageType == "user.login")
+			if (mCommunicator.LoggedIn || MessageType == MESSAGE_TYPE_USER_LOGIN)
 			{
 				mRequestId = mCommunicator.Request(this);
 			}
@@ -83,7 +85,10 @@ namespace MiniIT.Snipe
 		
 		protected override void OnConnectionLost(ExpandoObject data)
 		{
-			AddLoginSucceededListener();
+			if (MessageType !== MESSAGE_TYPE_USER_LOGIN)
+			{
+				AddLoginSucceededListener();
+			}
 		}
 		
 		private void AddLoginSucceededListener()
@@ -137,6 +142,8 @@ namespace MiniIT.Snipe
 				// update client instance and event listeners
 				mClient = mCommunicator.Client;
 				SetCallback(mCallback);
+				
+				Data?.Remove("_requestID");
 				
 				mRequestId = mCommunicator.Request(this);
 			}

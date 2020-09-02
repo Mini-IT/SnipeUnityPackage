@@ -116,9 +116,15 @@ namespace MiniIT.Snipe
 		{
 			if (CheckResponse(response_data))
 			{
-				InvokeCallback(response_data);
-
-				Dispose();
+				try
+				{
+					InvokeCallback(response_data);
+				}
+				catch (Exception) { } // Ignore any exception
+				finally
+				{
+					Dispose();
+				}
 			}
 		}
 
