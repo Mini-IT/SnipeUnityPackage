@@ -6,7 +6,7 @@ namespace MiniIT.Snipe
 {
 	public class SnipeCommunicatorRequest : SnipeRequest
 	{
-		private const string MESSAGE_TYPE_USER_LOGIN == "user.login";
+		private const string MESSAGE_TYPE_USER_LOGIN = "user.login";
 		
 		public bool Active { get; protected set; } = true;
 		
