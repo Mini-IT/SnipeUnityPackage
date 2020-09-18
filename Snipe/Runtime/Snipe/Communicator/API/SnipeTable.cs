@@ -41,8 +41,6 @@ namespace MiniIT.Snipe
 
 		private async Task LoadTask(string table_name, CancellationToken cancellation)
 		{
-			DebugLogger.Log($"[SnipeTable] LoadTask {table_name}  mLoadersCount = {mLoadersCount}");
-			
 			while (mLoadersCount >= MAX_LOADERS_COUNT)
 				await Task.Delay(20, cancellation);
 			mLoadersCount++;
