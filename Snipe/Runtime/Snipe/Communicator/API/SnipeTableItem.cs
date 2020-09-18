@@ -8,7 +8,11 @@ namespace MiniIT.Snipe
 
 		public int id { get; protected set; } = 0;
 
-		public SnipeTableItem(ExpandoObject data)
+		public SnipeTableItem()
+		{
+		}
+		
+		public virtual void SetData(ExpandoObject data)
 		{
 			this.raw = data;
 			this.id = data.SafeGetValue<int>("id");
