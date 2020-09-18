@@ -14,7 +14,7 @@ namespace MiniIT.Snipe
 	public class SnipeTable
 	{
 		protected const int MAX_LOADERS_COUNT = 5;
-		protected static int mLoadersCount = 0;
+		protected static List<string> mLoadingTables;
 	}
 	
 	public class SnipeTable<ItemType> : SnipeTable where ItemType : SnipeTableItem, new()
@@ -29,21 +29,28 @@ namespace MiniIT.Snipe
 		
 		private CancellationTokenSource mLoadingCancellation;
 		
-		public void Load(string table_name)
+		public async void Load(string table_name)
 		{
 			mLoadingCancellation?.Cancel();
 			
 			Items = new Dictionary<int, ItemType>();
 			
+			if (mLoadingTables == null)
+				mLoadingTables = new List<string>(MAX_LOADERS_COUNT);
+			
 			mLoadingCancellation = new CancellationTokenSource();
-			_ = LoadTask(table_name, mLoadingCancellation.Token);
+			await LoadTask(table_name, mLoadingCancellation.Token);
+			mLoadingTables.Remove(table_name);
 		}
 
 		private async Task LoadTask(string table_name, CancellationToken cancellation)
 		{
-			while (mLoadersCount >= MAX_LOADERS_COUNT)
+			mLoadingTables.Remove(table_name);
+			
+			while (mLoadingTables.Count >= MAX_LOADERS_COUNT)
 				await Task.Delay(20, cancellation);
-			mLoadersCount++;
+			
+			mLoadingTables.Add(table_name);
 
 			string url = string.Format("{0}/{1}.json.gz", SnipeConfig.Instance.GetTablesPath(), table_name);
 			DebugLogger.Log("[SnipeTable] Loading table " + url);
@@ -113,8 +120,6 @@ namespace MiniIT.Snipe
 					DebugLogger.Log("[SnipeTable] Failed to parse table - " + table_name);
 				}
 			}
-
-			mLoadersCount--;
 
 			this.LoadingFailed = !this.Loaded;
 			LoadingFinished?.Invoke(this.Loaded);
