@@ -33,6 +33,7 @@ namespace MiniIT.Snipe
 		{
 			mLoadingCancellation?.Cancel();
 			
+			Loaded = false;
 			Items = new Dictionary<int, ItemType>();
 			
 			if (mLoadingTables == null)
@@ -50,6 +51,12 @@ namespace MiniIT.Snipe
 			while (mLoadingTables.Count >= MAX_LOADERS_COUNT)
 				await Task.Delay(20, cancellation);
 			
+			if (cancellation.IsCancellationRequested)
+			{
+				DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (task canceled)");
+				return;
+			}
+			
 			mLoadingTables.Add(table_name);
 
 			string url = string.Format("{0}/{1}.json.gz", SnipeConfig.Instance.GetTablesPath(), table_name);
@@ -60,6 +67,12 @@ namespace MiniIT.Snipe
 			int retry = 0;
 			while (!this.Loaded && retry <= 2)
 			{
+				if (cancellation.IsCancellationRequested)
+				{
+					DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (task canceled)");
+					return;
+				}
+				
 				if (retry > 0)
 				{
 					await Task.Delay(100, cancellation);
