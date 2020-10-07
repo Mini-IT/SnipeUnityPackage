@@ -1,6 +1,7 @@
 ﻿using System;
 using UnityEngine;
 using MiniIT;
+using System.Dynamic;
 
 namespace MiniIT.Snipe
 {
@@ -38,7 +39,14 @@ namespace MiniIT.Snipe
 
 		private void OnConnectionSucceeded(ExpandoObject data)
 		{
-			DebugLogger.Log($"[SingleRequestClient] ({mRequestData?.SafeGetString("messageType")}) Connection succeeded");
+			string request_message_type = mRequestData?.SafeGetString(SnipeClient.KEY_MESSAGE_TYPE);
+			DebugLogger.Log($"[SingleRequestClient] ({request_message_type}) Connection succeeded");
+
+			Analytics.TrackEvent(Analytics.EVENT_SINGLE_REQUEST_CLIENT_CONNECTED, new ExpandoObject()
+			{
+				["message_type"] = request_message_type,
+				["connection_type"] = mClient.ConnectedViaWebSocket ? "websocket" : "tcp",
+			});
 
 			mClient.MessageReceived += OnResponse;
 			mClient.SendRequest(mRequestData);
@@ -46,7 +54,13 @@ namespace MiniIT.Snipe
 
 		private void OnConnectionFailed(ExpandoObject data)
 		{
-			DebugLogger.Log($"[SingleRequestClient] ({mRequestData?.SafeGetString("messageType")}) Connection failed");
+			string request_message_type = mRequestData?.SafeGetString(SnipeClient.KEY_MESSAGE_TYPE);
+			DebugLogger.Log($"[SingleRequestClient] ({request_message_type}) Connection failed");
+
+			Analytics.TrackEvent(Analytics.EVENT_SINGLE_REQUEST_CLIENT_DISCONNECTED, new ExpandoObject()
+			{
+				["message_type"] = request_message_type,
+			});
 
 			mClient.MessageReceived -= OnResponse;
 
@@ -56,9 +70,19 @@ namespace MiniIT.Snipe
 
 		private void OnResponse(ExpandoObject data)
 		{
-			DebugLogger.Log($"[SingleRequestClient] ({mRequestData?.SafeGetString("messageType")}) OnResponse {data?.ToJSONString()}");
+			string request_message_type = mRequestData?.SafeGetString(SnipeClient.KEY_MESSAGE_TYPE);
+			string response_message_type = data.SafeGetString("type");
+			DebugLogger.Log($"[SingleRequestClient] ({request_message_type}) OnResponse {data?.ToJSONString()}");
 
-			if (data.SafeGetString("type") == mRequestData?.SafeGetString("messageType"))
+			Analytics.TrackEvent(Analytics.EVENT_SINGLE_REQUEST_RESPONSE, new ExpandoObject()
+			{
+				["message_type"] = request_message_type,
+				["response_message_type"] = response_message_type,
+				["error_code"] = data.SafeGetString("errorCode"),
+				["connection_id"] = data.SafeGetString(SnipeClient.KEY_CONNECTION_ID),
+			});
+
+			if (response_message_type == request_message_type)
 			{
 				InvokeCallback(data);
 				DisposeClient();
@@ -75,7 +99,7 @@ namespace MiniIT.Snipe
 
 		private void DisposeClient()
 		{
-			DebugLogger.Log($"[SingleRequestClient] ({mRequestData?.SafeGetString("messageType")}) DisposeClient");
+			DebugLogger.Log($"[SingleRequestClient] ({mRequestData?.SafeGetString(SnipeClient.KEY_MESSAGE_TYPE)}) DisposeClient");
 
 			mCallback = null;
 			mRequestData = null;

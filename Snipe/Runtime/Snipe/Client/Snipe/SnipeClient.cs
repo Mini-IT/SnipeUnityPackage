@@ -18,10 +18,18 @@ namespace MiniIT.Snipe
 {
 	public class SnipeClient : MonoBehaviour, IDisposable
 	{
+		public const string KEY_MESSAGE_TYPE = "messageType";
+		public const string KEY_REQUEST_ID = "_requestID";
+		public const string KEY_CONNECTION_ID = "_connectionID";
+		
+		private const string MESSAGE_TYPE_USER_LOGIN = "user.login";
+		private const string MESSAGE_TYPE_AUTH_LOGIN = "auth/user.login";
+		private const string MESSAGE_TYPE_PING = "kit/user.ping";
+		
 		private const double HEARTBEAT_INTERVAL = 30;      // seconds
 		private const int CHECK_CONNECTION_TIMEOUT = 2000; // milliseconds
 		
-		private static readonly ExpandoObject PING_MESSAGE_DATA = new ExpandoObject() { ["messageType"] = "kit/user.ping" };
+		private static readonly ExpandoObject PING_MESSAGE_DATA = new ExpandoObject() { [KEY_MESSAGE_TYPE] = MESSAGE_TYPE_PING };
 
 		private string mClientKey;
 		public string ClientKey
@@ -262,15 +270,41 @@ namespace MiniIT.Snipe
 		private void OnMessageReceived(ExpandoObject data)
 		{
 			StopCheckConnection();
+			
+			if (data != null && data.ContainsKey(KEY_CONNECTION_ID))
+				ConnectionId = data.SafeGetString(KEY_CONNECTION_ID);
 
-			if (!mLoggedIn && data != null && data.SafeGetString("type") == "user.login" && data.SafeGetString("errorCode") == "ok")
+			if (!mLoggedIn && data != null)
 			{
-				mLoggedIn = true;
-				StartHeartbeat();
+				string message_type = data.SafeGetString("type");
+				if (message_type == MESSAGE_TYPE_USER_LOGIN)
+				{
+					string error_code = data.SafeGetString("errorCode");
+					if (error_code == "ok")
+					{
+						mLoggedIn = true;
+						StartHeartbeat();
+					}
+					
+					Analytics.TrackEvent(Analytics.EVENT_LOGIN_RESPONSE_RECEIVED, new ExpandoObject()
+					{
+						["connection_id"] = ConnectionId,
+						["request_id"] = data.SafeGetString(KEY_REQUEST_ID),
+						["error_code"] = error_code,
+					});
+				}
+				else if (message_type == MESSAGE_TYPE_AUTH_LOGIN)
+				{
+					string error_code = data.SafeGetString("errorCode");
+					
+					Analytics.TrackEvent(Analytics.EVENT_AUTH_LOGIN_RESPONSE_RECEIVED, new ExpandoObject()
+					{
+						["connection_id"] = ConnectionId,
+						["request_id"] = data.SafeGetString(KEY_REQUEST_ID),
+						["error_code"] = error_code,
+					});
+				}
 			}
-
-			if (data != null && data.ContainsKey("_connectionID"))
-				ConnectionId = data.SafeGetString("_connectionID");
 
 			mProcessingReceivedMessage = true;
 			DispatchEvent(MessageReceived, data);
@@ -360,7 +394,7 @@ namespace MiniIT.Snipe
 			if (parameters == null)
 				parameters = new ExpandoObject();
 			
-			parameters["messageType"] = message_type;
+			parameters[KEY_MESSAGE_TYPE] = message_type;
 
 			return SendRequest(parameters);
 		}
@@ -370,9 +404,9 @@ namespace MiniIT.Snipe
 			if (parameters == null)
 				return 0;
 			
-			if (!parameters.ContainsKey("_requestID"))
+			if (!parameters.ContainsKey(KEY_REQUEST_ID))
 			{
-				parameters["_requestID"] = ++mRequestId;
+				parameters[KEY_REQUEST_ID] = ++mRequestId;
 			}
 			
 			if (mProcessingReceivedMessage)
@@ -418,6 +452,26 @@ namespace MiniIT.Snipe
 					lock (mWebSocketClient)
 					{
 						mWebSocketClient.SendRequest(message);
+					}
+				}
+				
+				if (!mLoggedIn)
+				{
+					if (parameters.SafeGetString(KEY_MESSAGE_TYPE) == MESSAGE_TYPE_USER_LOGIN)
+					{
+						Analytics.TrackEvent(Analytics.EVENT_LOGIN_REQUEST_SENT, new ExpandoObject()
+						{
+							["connection_id"] = ConnectionId,
+							["request_id"] = parameters[KEY_REQUEST_ID],
+						});
+					}
+					else if (parameters.SafeGetString(KEY_MESSAGE_TYPE) == MESSAGE_TYPE_AUTH_LOGIN)
+					{
+						Analytics.TrackEvent(Analytics.EVENT_AUTH_LOGIN_REQUEST_SENT, new ExpandoObject()
+						{
+							["connection_id"] = ConnectionId,
+							["request_id"] = parameters[KEY_REQUEST_ID],
+						});
 					}
 				}
 				

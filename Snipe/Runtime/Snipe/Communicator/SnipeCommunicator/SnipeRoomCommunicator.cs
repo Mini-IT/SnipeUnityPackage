@@ -175,5 +175,44 @@ namespace MiniIT.Snipe
 		{
 
 		}
+		
+		#region Analytics
+		
+		protected override void AnalyticsTrackConnectionSucceeded()
+		{
+			ExpandoObject data;
+			
+			if (Client.ConnectedViaWebSocket)
+			{
+				data = new ExpandoObject()
+				{
+					["connection_type"] = "websocket",
+					["websocket_url"] = mWebSocketUrl,
+				};
+			}
+			else
+			{
+				data = new ExpandoObject()
+				{
+					["connection_type"] = "tcp",
+					["host"] = mHost,
+					["port"] = mPort,
+				};
+			}
+			
+			Analytics.TrackEvent(Analytics.EVENT_ROOM_COMMUNICATOR_CONNECTED, data);
+		}
+		
+		protected override void AnalyticsTrackConnectionFailed()
+		{
+			Analytics.TrackEvent(Analytics.EVENT_ROOM_COMMUNICATOR_DISCONNECTED, new ExpandoObject()
+			{
+				["communicator"] = this.name,
+				["connection_id"] = Client?.ConnectionId,
+				["disconnect_reason"] = Client?.DisconnectReason,
+			});
+		}
+		
+		#endregion Analytics
 	}
 }

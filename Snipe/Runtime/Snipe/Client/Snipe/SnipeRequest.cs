@@ -56,7 +56,7 @@ namespace MiniIT.Snipe
 			}
 
 			if (string.IsNullOrEmpty(MessageType))
-				MessageType = Data?.SafeGetString("messageType");
+				MessageType = Data?.SafeGetString(SnipeClient.KEY_MESSAGE_TYPE);
 
 			if (!CheckMessageType())
 			{
@@ -71,7 +71,7 @@ namespace MiniIT.Snipe
 		protected bool CheckMessageType()
 		{
 			if (string.IsNullOrEmpty(MessageType))
-				MessageType = Data?.SafeGetString("messageType");
+				MessageType = Data?.SafeGetString(SnipeClient.KEY_MESSAGE_TYPE);
 
 			return !string.IsNullOrEmpty(MessageType);
 		}
@@ -130,7 +130,9 @@ namespace MiniIT.Snipe
 
 		protected virtual bool CheckResponse(ExpandoObject response_data)
 		{
-			return (response_data.ContainsKey("_requestID") ? response_data.SafeGetValue<int>("_requestID") == mRequestId : response_data.SafeGetString("messageType") == MessageType);
+			return (response_data.ContainsKey(SnipeClient.KEY_REQUEST_ID) ?
+				response_data.SafeGetValue<int>(SnipeClient.KEY_REQUEST_ID) == mRequestId :
+				response_data.SafeGetString(SnipeClient.KEY_MESSAGE_TYPE) == MessageType);
 		}
 
 		public virtual void Dispose()

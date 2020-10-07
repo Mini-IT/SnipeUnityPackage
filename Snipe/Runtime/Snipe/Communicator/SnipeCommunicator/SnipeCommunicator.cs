@@ -115,9 +115,9 @@ namespace MiniIT.Snipe
 				Client = SnipeClient.CreateInstance(SnipeConfig.Instance.snipe_client_key, this.gameObject);
 				Client.AppInfo = SnipeConfig.Instance.snipe_app_info;
 				Client.Init(tcp_host, tcp_port, web_socket_url);
-				Client.ConnectionSucceeded += OnConnectionSucceeded;
-				Client.ConnectionFailed += OnConnectionFailed;
-				Client.ConnectionLost += OnConnectionFailed;
+				Client.ConnectionSucceeded += OnClientConnectionSucceeded;
+				Client.ConnectionFailed += OnClientConnectionFailed;
+				Client.ConnectionLost += OnClientConnectionFailed;
 			}
 
 			mDisconnecting = false;
@@ -161,19 +161,35 @@ namespace MiniIT.Snipe
 
 			if (Client != null)
 			{
-				Client.ConnectionSucceeded -= OnConnectionSucceeded;
-				Client.ConnectionFailed -= OnConnectionFailed;
-				Client.ConnectionLost -= OnConnectionFailed;
+				Client.ConnectionSucceeded -= OnClientConnectionSucceeded;
+				Client.ConnectionFailed -= OnClientConnectionFailed;
+				Client.ConnectionLost -= OnClientConnectionFailed;
 				Client.MessageReceived -= OnSnipeResponse;
 				Client.Disconnect();
 				Client = null;
 			}
 		}
-
-		protected virtual void OnConnectionSucceeded(ExpandoObject data)
+		
+		private void OnClientConnectionSucceeded(ExpandoObject data)
 		{
 			DebugLogger.Log($"[SnipeCommunicator] {this.name} Connection succeeded");
-
+			
+			AnalyticsTrackConnectionSucceeded();
+			
+			OnConnectionSucceeded(data);
+		}
+		
+		private void OnClientConnectionFailed(ExpandoObject data = null)
+		{
+			DebugLogger.Log($"[SnipeCommunicator] {this.name} [{Client?.ConnectionId}] Game Connection failed. Reason: {Client?.DisconnectReason}");
+			
+			AnalyticsTrackConnectionFailed();
+			
+			OnConnectionFailed(data);
+		}
+		
+		protected virtual void OnConnectionSucceeded(ExpandoObject data)
+		{
 			mRestoreConnectionAttempt = 0;
 			mDisconnecting = false;
 
@@ -187,8 +203,6 @@ namespace MiniIT.Snipe
 
 		protected virtual void OnConnectionFailed(ExpandoObject data = null)
 		{
-			DebugLogger.Log($"[SnipeCommunicator] {this.name} [{Client?.ConnectionId}] Game Connection failed. Reason: {Client?.DisconnectReason}");
-
 			if (Client != null)
 				Client.MessageReceived -= OnSnipeResponse;
 
@@ -422,5 +436,27 @@ namespace MiniIT.Snipe
 			}
 			Requests.Clear();
 		}
+		
+		#region Analytics
+		
+		protected virtual void AnalyticsTrackConnectionSucceeded()
+		{
+			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_CONNECTED, new ExpandoObject()
+			{
+				["connection_type"] = Client.ConnectedViaWebSocket ? "websocket" : "tcp",
+			});
+		}
+		
+		protected virtual void AnalyticsTrackConnectionFailed()
+		{
+			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_DISCONNECTED, new ExpandoObject()
+			{
+				["communicator"] = this.name,
+				["connection_id"] = Client?.ConnectionId,
+				["disconnect_reason"] = Client?.DisconnectReason,
+			});
+		}
+		
+		#endregion Analytics
 	}
 }
