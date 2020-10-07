@@ -12,14 +12,29 @@ namespace MiniIT.Snipe
 		
 		private static IAnalyticsTracker mTracker;
 		
+		private static string mUserId = null;
+		
 		public static void SetTracker(IAnalyticsTracker tracker)
 		{
 			mTracker = tracker;
+			
+			if (!string.IsNullOrEmpty(mUserId))
+			{
+				CheckReady();
+			}
 		}
 		
 		private static bool CheckReady()
 		{
-			return mTracker != null && mTracker.IsInitialized && IsEnabled;
+			bool ready = mTracker != null && mTracker.IsInitialized && IsEnabled;
+			
+			if (ready && !string.IsNullOrEmpty(mUserId))
+			{
+				mTracker.SetUserId(mUserId);
+				mUserId = null;
+			}
+			
+			return ready;
 		}
 		
 		public static void SetUserId(string uid)
@@ -27,6 +42,11 @@ namespace MiniIT.Snipe
 			if (CheckReady())
 			{
 				mTracker.SetUserId(uid);
+				mUserId = null;
+			}
+			else
+			{
+				mUserId = uid;
 			}
 		}
 

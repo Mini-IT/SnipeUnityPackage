@@ -39,6 +39,8 @@ namespace MiniIT.Snipe
 				if (mUserID <= 0)
 				{
 					mUserID = Convert.ToInt32(PlayerPrefs.GetString(SnipePrefs.LOGIN_USER_ID, "0"));
+					
+					Analytics.SetUserId(mUserID.ToString());
 				}
 				return mUserID;
 			}
@@ -46,6 +48,8 @@ namespace MiniIT.Snipe
 			{
 				mUserID = value;
 				PlayerPrefs.SetString(SnipePrefs.LOGIN_USER_ID, mUserID.ToString());
+				
+				Analytics.SetUserId(mUserID.ToString());
 			}
 		}
 		public static string LoginToken { get; private set; }
