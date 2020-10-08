@@ -650,6 +650,8 @@ namespace MiniIT.Snipe
 			await Task.Delay(CHECK_CONNECTION_TIMEOUT, cancellation);
 
 			// if the connection is ok then this task should already be cancelled
+			if (cancellation.IsCancellationRequested)
+				return;
 
 			// Disconnect detected
 			DebugLogger.Log("[SnipeClient] CheckConnectionTask - Disconnect detected");
