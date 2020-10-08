@@ -455,9 +455,11 @@ namespace MiniIT.Snipe
 					}
 				}
 				
+				string message_type = parameters.SafeGetString(KEY_MESSAGE_TYPE);
+				
 				if (!mLoggedIn)
 				{
-					if (parameters.SafeGetString(KEY_MESSAGE_TYPE) == MESSAGE_TYPE_USER_LOGIN)
+					if (message_type == MESSAGE_TYPE_USER_LOGIN)
 					{
 						Analytics.TrackEvent(Analytics.EVENT_LOGIN_REQUEST_SENT, new ExpandoObject()
 						{
@@ -465,7 +467,7 @@ namespace MiniIT.Snipe
 							["request_id"] = parameters[KEY_REQUEST_ID],
 						});
 					}
-					else if (parameters.SafeGetString(KEY_MESSAGE_TYPE) == MESSAGE_TYPE_AUTH_LOGIN)
+					else if (message_type == MESSAGE_TYPE_AUTH_LOGIN)
 					{
 						Analytics.TrackEvent(Analytics.EVENT_AUTH_LOGIN_REQUEST_SENT, new ExpandoObject()
 						{
@@ -475,7 +477,7 @@ namespace MiniIT.Snipe
 					}
 				}
 				
-				StartCheckConnection(false);
+				StartCheckConnection(message_type);
 			}
 			else
 			{
@@ -572,6 +574,9 @@ namespace MiniIT.Snipe
 
 		private CancellationTokenSource mHeartbeatCancellation;
 		private CancellationTokenSource mCheckConnectionCancellation;
+		
+		// DEBUG
+		private string mCheckConnectionMessageType;
 
 		private void StartHeartbeat()
 		{
@@ -615,20 +620,22 @@ namespace MiniIT.Snipe
 			mHeartbeatTriggerTicks = DateTime.Now.AddSeconds(HEARTBEAT_INTERVAL).Ticks;
 		}
 
-		private void StartCheckConnection(bool send_request = true)
+		private void StartCheckConnection(string message_type)
 		{
 			if (!mLoggedIn)
 			{
 				// DebugLogger.Log("[SnipeClient] StartCheckConnection - not logged in yet.");
 				return;
 			}
-
+			
+			mCheckConnectionMessageType = message_type;
+			
 			DebugLogger.Log("[SnipeClient] StartCheckConnection");
 
 			mCheckConnectionCancellation?.Cancel();
 
 			mCheckConnectionCancellation = new CancellationTokenSource();
-			_ = CheckConnectionTask(mCheckConnectionCancellation.Token, send_request);
+			_ = CheckConnectionTask(mCheckConnectionCancellation.Token);
 		}
 
 		private void StopCheckConnection()
@@ -642,11 +649,8 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async Task CheckConnectionTask(CancellationToken cancellation, bool send_request = true)
+		private async Task CheckConnectionTask(CancellationToken cancellation)
 		{
-			if (send_request)
-				SendPingRequest();
-
 			await Task.Delay(CHECK_CONNECTION_TIMEOUT, cancellation);
 
 			// if the connection is ok then this task should already be cancelled
@@ -657,7 +661,7 @@ namespace MiniIT.Snipe
 			DebugLogger.Log("[SnipeClient] CheckConnectionTask - Disconnect detected");
 
 			mConnected = false;
-			DisconnectReason = "CheckConnectionTask - Disconnect detected";
+			DisconnectReason = "CheckConnectionTask - Disconnect detected - " + mCheckConnectionMessageType;
 			DisconnectAndDispatch(ConnectionLost);
 		}
 
