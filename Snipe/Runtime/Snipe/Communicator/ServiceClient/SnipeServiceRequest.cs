@@ -124,8 +124,10 @@ namespace MiniIT.Snipe
 		{
 			if (mCommunicator != null)
 			{
-				if (mCommunicator.Requests != null && mCommunicator.Requests.Contains(this))
+				if (remove_from_list && mCommunicator.Requests != null && mCommunicator.Requests.Contains(this))
+				{
 					mCommunicator.Requests.Remove(this);
+				}
 				
 				mCommunicator.ConnectionClosed -= OnConnectionClosed;
 				mCommunicator.MessageReceived -= OnMessageReceived;

@@ -146,9 +146,9 @@ namespace MiniIT.Snipe
 
 		protected void OnDestroy()
 		{
-			foreach (var request in Requests)
+			for (int i = Requests.Count - 1; i >= 0; i--)
 			{
-				request?.Dispose(false);
+				Requests[i]?.Dispose(false);
 			}
 			Requests.Clear();
 			
