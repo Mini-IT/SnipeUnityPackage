@@ -482,6 +482,11 @@ namespace MiniIT.Snipe
 					PlayerPrefs.SetString(SnipePrefs.AUTH_KEY, auth_token);
 
 					user_id = response.SafeGetValue<int>("id");
+					
+					Analytics.TrackEvent(Analytics.EVENT_ACCOUNT_REGISTERED, new ExpandoObject()
+					{
+						["user_id"] = user_id,
+					});
 
 					SwitchToDefaultAuthProvider();
 					mCurrentProvider.RequestAuth(OnCurrentProviderAuthSuccess, OnCurrentProviderAuthFail);
@@ -490,6 +495,11 @@ namespace MiniIT.Snipe
 				}
 				else
 				{
+					Analytics.TrackEvent(Analytics.EVENT_ACCOUNT_REGISTERATION_FAILED, new ExpandoObject()
+					{
+						["error_code"] = error_code,
+					});
+					
 					InvokeAuthFailCallback();
 				}
 

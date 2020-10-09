@@ -134,7 +134,8 @@ namespace MiniIT.Snipe
 		public const string EVENT_COMMUNICATOR_DISCONNECTED = "Snipe - Communicator Disconnected";
 		public const string EVENT_ROOM_COMMUNICATOR_CONNECTED = "Snipe - Room Communicator Connected";
 		public const string EVENT_ROOM_COMMUNICATOR_DISCONNECTED = "Snipe - Room Communicator Disconnected";
-		public const string EVENT_ACCOUNT_REGISTERED = "Snipe - auth/user.register";
+		public const string EVENT_ACCOUNT_REGISTERED = "Snipe - Account registered";
+		public const string EVENT_ACCOUNT_REGISTERATION_FAILED = "Snipe - Account registeration failed";
 		public const string EVENT_LOGIN_REQUEST_SENT = "Snipe - Login request sent";
 		public const string EVENT_LOGIN_RESPONSE_RECEIVED = "Snipe - Login response received";
 		public const string EVENT_AUTH_LOGIN_REQUEST_SENT = "Snipe - Auth Login request sent";
@@ -144,15 +145,5 @@ namespace MiniIT.Snipe
 		public const string EVENT_SINGLE_REQUEST_RESPONSE = "Snipe - SingleRequestClient Response";
 		
 		#endregion Constants
-		
-		
-		// public static void OnSnipeAccountReister(string error_code, int user_id = 0)
-		// {
-			// TrackEvent(EVENT_ACCOUNT_REGISTERED, new ExpandoObject()
-			// {
-				// ["error_code"] = error_code,
-				// ["user_id"] = user_id,
-			// });
-		// }
 	}
 }
