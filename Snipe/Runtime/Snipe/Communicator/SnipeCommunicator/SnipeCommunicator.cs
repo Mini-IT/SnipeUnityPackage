@@ -454,6 +454,7 @@ namespace MiniIT.Snipe
 				["communicator"] = this.name,
 				["connection_id"] = Client?.ConnectionId,
 				["disconnect_reason"] = Client?.DisconnectReason,
+				["check_connection_message"] = Client?.CheckConnectionMessageType,
 			});
 		}
 		

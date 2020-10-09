@@ -130,6 +130,7 @@ namespace MiniIT.Snipe
 
 		// DEBUG
 		public string DisconnectReason { get; private set; }
+		public string CheckConnectionMessageType  { get; private set; }
 
 		public SnipeClient()
 		{
@@ -575,9 +576,6 @@ namespace MiniIT.Snipe
 		private CancellationTokenSource mHeartbeatCancellation;
 		private CancellationTokenSource mCheckConnectionCancellation;
 		
-		// DEBUG
-		private string mCheckConnectionMessageType;
-
 		private void StartHeartbeat()
 		{
 			mHeartbeatCancellation?.Cancel();
@@ -628,7 +626,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 			
-			mCheckConnectionMessageType = message_type;
+			CheckConnectionMessageType = message_type;
 			
 			DebugLogger.Log("[SnipeClient] StartCheckConnection");
 
@@ -661,7 +659,7 @@ namespace MiniIT.Snipe
 			DebugLogger.Log("[SnipeClient] CheckConnectionTask - Disconnect detected");
 
 			mConnected = false;
-			DisconnectReason = "CheckConnectionTask - Disconnect detected - " + mCheckConnectionMessageType;
+			DisconnectReason = "CheckConnectionTask - Disconnect detected";
 			DisconnectAndDispatch(ConnectionLost);
 		}
 
