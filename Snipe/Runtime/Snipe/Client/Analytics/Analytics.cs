@@ -1,10 +1,11 @@
 using System.Collections;
 using System.Collections.Generic;
 using MiniIT;
+using UnityEngine;
 
 namespace MiniIT.Snipe
 {
-	public static class Analytics
+	public class Analytics : MonoBehaviour
 	{
 		public static bool IsEnabled = true;
 		
@@ -102,9 +103,14 @@ namespace MiniIT.Snipe
 
 		public static void TrackEvent(string name, IDictionary<string, object> properties = null)
 		{
+			DebugLogger.Log("[Analytics] TrackEvent " + name);
+			
 			if (CheckReady())
 			{
-				mTracker.TrackEvent(name, properties);
+				// Some trackers (for example Amplitude) may crash if used not in the main Unity thread.
+				// We'll put events into a queue and call mTracker.TrackEvent in MonoBehaviour.Update method.
+				
+				GetInstance().EnqueueEvent(name, properties);
 			}
 		}
 		public static void TrackEvent(string name, string property_name, object property_value)
@@ -145,5 +151,71 @@ namespace MiniIT.Snipe
 		public const string EVENT_SINGLE_REQUEST_RESPONSE = "Snipe - SingleRequestClient Response";
 		
 		#endregion Constants
+		
+		#region MonoBehaviour
+		
+		private static Analytics mInstance;
+		private static Analytics GetInstance()
+		{
+			DebugLogger.Log("[Analytics] GetInstance");
+			
+			if (mInstance == null)
+			{
+				mInstance = new GameObject("SnipeAnalyticsTracker").AddComponent<Analytics>();
+			}
+			return mInstance;
+		}
+		
+		private void Awake()
+		{
+			if (mInstance != null && mInstance != this)
+			{
+				Destroy(this.gameObject);
+				return;
+			}
+			
+			DontDestroyOnLoad(this.gameObject);
+		}
+		
+		#region EventsQueue
+		
+		class EventsQueueItem
+		{
+			internal string name;
+			internal IDictionary<string, object> properties;
+		}
+		
+		private List<EventsQueueItem> mEventsQueue;
+		
+		private void EnqueueEvent(string name, IDictionary<string, object> properties = null)
+		{
+			DebugLogger.Log("[Analytics] EnqueueEvent - " + name);
+			
+			if (mEventsQueue == null)
+				mEventsQueue = new List<EventsQueueItem>();
+			lock (mEventsQueue)
+			{
+				mEventsQueue.Add(new EventsQueueItem() { name = name, properties = properties });
+			}
+		}
+		
+		private void Update()
+		{
+			if (mEventsQueue != null && mEventsQueue.Count > 0)
+			{
+				lock (mEventsQueue)
+				{
+					foreach (var item in mEventsQueue)
+					{
+						mTracker.TrackEvent(item.name, item.properties);
+					}
+					mEventsQueue.Clear();
+				}
+			}
+		}
+		
+		#endregion EventsQueue
+		
+		#endregion MonoBehaviour
 	}
 }
