@@ -107,6 +107,10 @@ namespace MiniIT.Snipe
 		
 		public void Dispose()
 		{
+			this.OnConnectionOpened = null;
+			this.OnConnectionClosed = null;
+			this.ProcessMessage = null;
+			
 			Disconnect();
 		}
 		

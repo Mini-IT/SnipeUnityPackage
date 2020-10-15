@@ -42,8 +42,7 @@ namespace MiniIT.Snipe
 			
 			mConnected = true;
 
-			if (OnConnectionSucceeded != null)
-				OnConnectionSucceeded.Invoke();
+			OnConnectionSucceeded?.Invoke();
 		}
 		
 		protected void OnWebSocketClose()
@@ -53,16 +52,21 @@ namespace MiniIT.Snipe
 			if (this.mConnected)
 			{
 				Disconnect();
+				
 				if (OnConnectionLost != null)
-					OnConnectionLost.Invoke();
-				else if (OnConnectionFailed != null)
-					OnConnectionFailed.Invoke();
+				{
+					OnConnectionLost?.Invoke();
+				}
+				else
+				{
+					OnConnectionFailed?.Invoke();
+				}
 			}
 			else
 			{
 				Disconnect();
-				if (OnConnectionFailed != null)
-					OnConnectionFailed.Invoke();
+				
+				OnConnectionFailed?.Invoke();
 			}
 		}
 
@@ -82,7 +86,13 @@ namespace MiniIT.Snipe
 
 			if (mWebSocketClient != null)
 			{
-				mWebSocketClient.Dispose();
+				lock (mWebSocketClient)
+				{
+					mWebSocketClient.OnConnectionOpened = null;
+					mWebSocketClient.OnConnectionClosed = null;
+					mWebSocketClient.ProcessMessage = null;
+					mWebSocketClient.Dispose();
+				}
 				mWebSocketClient = null;
 			}
 		}
@@ -121,7 +131,7 @@ namespace MiniIT.Snipe
 //							DebugLogger.Log("[SnipeWebSocketClient] mMessageString = " + mMessageString);
 						}
 					}
-					catch(Exception)
+					catch (Exception)
 					{
 						//DebugLogger.Log("[SnipeWebSocketClient] OnWebSocketMessage ProcessData error: " + ex.Message);
 						
@@ -138,8 +148,14 @@ namespace MiniIT.Snipe
 
 						if (response != null)
 						{
-							if (OnMessageReceived != null)
-								OnMessageReceived.Invoke(response);
+							try
+							{
+								OnMessageReceived?.Invoke(response);
+							}
+							catch (Exception e)
+							{
+								DebugLogger.Log($"[SnipeWebSocketClient] ProcessData - OnMessageReceived invokation failed: {e.Message}");
+							}
 						}
 					}
 #if DEBUG
