@@ -18,6 +18,8 @@ namespace MiniIT.Snipe
 		public event Action<string> LoginFailed;
 
 		internal const string MESSAGE_TYPE_USER_LOGIN = "user.login";
+		private const string MESSAGE_TYPE_PING = "user.ping";
+		
 		internal const string ERROR_CODE_OK = "ok";
 
 		private const double HEARTBEAT_INTERVAL = 30; // seconds
@@ -262,7 +264,14 @@ namespace MiniIT.Snipe
 						{
 							mLoggedIn = true;
 
-							LoginSucceeded?.Invoke();
+							try
+							{
+								LoginSucceeded?.Invoke();
+							}
+							catch (Exception e)
+							{
+								DebugLogger.Log("[SnipeServiceClient] ProcessMessage - LoginSucceeded invokation error: " + e.Message);
+							}
 
 							if (mHeartbeatEnabled)
 							{
@@ -271,7 +280,14 @@ namespace MiniIT.Snipe
 						}
 						else
 						{
-							LoginFailed?.Invoke(error_code);
+							try
+							{
+								LoginFailed?.Invoke(error_code);
+							}
+							catch (Exception e)
+							{
+								DebugLogger.Log("[SnipeServiceClient] ProcessMessage - LoginFailed invokation error: " + e.Message);
+							}
 						}
 					}
 				}
@@ -279,7 +295,14 @@ namespace MiniIT.Snipe
 				var response = ConvertToExpandoObject(message);
 				DebugLogger.Log("[SnipeServiceClient] ProcessMessage - " + response?.ToJSONString());
 				
-				MessageReceived?.Invoke(response);
+				try
+				{
+					MessageReceived?.Invoke(response);
+				}
+				catch (Exception e)
+				{
+					DebugLogger.Log("[SnipeServiceClient] ProcessMessage - MessageReceived invokation error: " + e.Message);
+				}
 
 				if (mHeartbeatEnabled)
 				{
@@ -315,7 +338,7 @@ namespace MiniIT.Snipe
 
 		private async Task HeartbeatTask(CancellationToken cancellation)
 		{
-			var message = new MPackMap() { ["t"] = "user.ping" };
+			var message = new MPackMap() { ["t"] = MESSAGE_TYPE_PING };
 			var bytes = message.EncodeToBytes();
 
 			ResetHeartbeatTimer();
@@ -332,9 +355,7 @@ namespace MiniIT.Snipe
 					}
 					ResetHeartbeatTimer();
 
-					//#if DEBUG
 					DebugLogger.Log("[SnipeServiceClient] Heartbeat ping");
-					//#endif
 				}
 
 				await Task.Delay(5000, cancellation);

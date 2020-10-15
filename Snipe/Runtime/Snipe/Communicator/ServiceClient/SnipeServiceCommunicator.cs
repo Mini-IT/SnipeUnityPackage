@@ -14,7 +14,7 @@ namespace MiniIT.Snipe
 
 		public bool Ready { get { return Client != null && Client.LoggedIn; } }
 
-		public SnipeServiceClient Client { get; private set; }
+		internal SnipeServiceClient Client { get; private set; }
 		
 		internal readonly List<SnipeServiceRequest> Requests = new List<SnipeServiceRequest>();
 		
@@ -40,9 +40,12 @@ namespace MiniIT.Snipe
 			{
 				if (mReadyCallbacks == null)
 					mReadyCallbacks = new List<Action>();
-
-				if (!mReadyCallbacks.Contains(ready_callback))
-					mReadyCallbacks.Add(ready_callback);
+				
+				lock (mReadyCallbacks)
+				{
+					if (!mReadyCallbacks.Contains(ready_callback))
+						mReadyCallbacks.Add(ready_callback);
+				}
 			}
 		}
 		
@@ -53,13 +56,16 @@ namespace MiniIT.Snipe
 				Client = new SnipeServiceClient();
 			}
 			
-			if (!Client.Connected)
+			lock (Client)
 			{
-				Client.LoginSucceeded -= OnLoginSucceeded;
-				Client.LoginFailed -= OnLoginFailed;
-				Client.LoginSucceeded += OnLoginSucceeded;
-				Client.LoginFailed += OnLoginFailed;
-				Client.Connect();
+				if (!Client.Connected)
+				{
+					Client.LoginSucceeded -= OnLoginSucceeded;
+					Client.LoginFailed -= OnLoginFailed;
+					Client.LoginSucceeded += OnLoginSucceeded;
+					Client.LoginFailed += OnLoginFailed;
+					Client.Connect();
+				}
 			}
 		}
 
@@ -112,7 +118,14 @@ namespace MiniIT.Snipe
 			Client.MessageReceived -= OnMessageReceived;
 			Client.ConnectionClosed -= OnConnectionClosed;
 			
-			ConnectionClosed?.Invoke();
+			try
+			{
+				ConnectionClosed?.Invoke();
+			}
+			catch (Exception e)
+			{
+				DebugLogger.Log("[SnipeServiceCommunicator] OnConnectionClosed - ConnectionClosed invokation error: " + e.Message);
+			}
 			
 			Reconnect();
 		}
@@ -174,15 +187,18 @@ namespace MiniIT.Snipe
 		{
 			if (Ready && mReadyCallbacks != null)
 			{
-				for (int i = 0; i < mReadyCallbacks.Count; i++)
+				lock (mReadyCallbacks)
 				{
-					try
+					for (int i = 0; i < mReadyCallbacks.Count; i++)
 					{
-						mReadyCallbacks[i]?.Invoke();
-					}
-					catch (Exception)
-					{
-						// ignore
+						try
+						{
+							mReadyCallbacks[i]?.Invoke();
+						}
+						catch (Exception e)
+						{
+							DebugLogger.Log("[SnipeServiceCommunicator] ReadyCallback Invoke Error: " + e.Message);
+						}
 					}
 				}
 				mReadyCallbacks = null;
