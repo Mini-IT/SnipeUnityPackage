@@ -18,6 +18,8 @@ namespace MiniIT.Snipe
 {
 	public class SnipeClient : MonoBehaviour, IDisposable
 	{
+		private readonly int INSTANCE_ID = new System.Random().Next();
+		
 		public const string KEY_MESSAGE_TYPE = "messageType";
 		public const string KEY_REQUEST_ID = "_requestID";
 		public const string KEY_CONNECTION_ID = "_connectionID";
@@ -30,7 +32,7 @@ namespace MiniIT.Snipe
 		private const int CHECK_CONNECTION_TIMEOUT = 2000; // milliseconds
 		
 		private static readonly ExpandoObject PING_MESSAGE_DATA = new ExpandoObject() { [KEY_MESSAGE_TYPE] = MESSAGE_TYPE_PING };
-
+		
 		private string mClientKey;
 		public string ClientKey
 		{
@@ -159,8 +161,8 @@ namespace MiniIT.Snipe
 				}
 				catch (Exception e)
 				{
-					DebugLogger.Log("[SnipeClient] DispatchEvent error: " + e.ToString() + e.Message);
-					DebugLogger.Log("[SnipeClient] ErrorData: " + (data != null ? data.ToJSONString() : "null"));
+					DebugLogger.Log($"[SnipeClient] ({INSTANCE_ID}) DispatchEvent error: " + e.ToString() + e.Message);
+					DebugLogger.Log($"[SnipeClient] ({INSTANCE_ID}) ErrorData: " + (data != null ? data.ToJSONString() : "null"));
 				}
 			}
 		}
@@ -183,7 +185,7 @@ namespace MiniIT.Snipe
 
 		public void Connect()
 		{
-			DebugLogger.Log($"[SnipeClient] Connect - {mConnectionHost} : {mConnectionPort} ws: {mConnectionWebSocketURL}");
+			DebugLogger.Log($"[SnipeClient] ({INSTANCE_ID}) Connect - {mConnectionHost} : {mConnectionPort} ws: {mConnectionWebSocketURL}");
 
 			if (!string.IsNullOrEmpty(mConnectionHost) && mConnectionPort > 0)
 			{
@@ -363,7 +365,7 @@ namespace MiniIT.Snipe
 		
 		public void DisconnectAndDispatch(Action<ExpandoObject> event_to_dispatch)
 		{
-			DebugLogger.LogWarning("[SnipeClient] DisconnectAndDispatch. " + DisconnectReason);
+			DebugLogger.LogWarning($"[SnipeClient] ({INSTANCE_ID}) DisconnectAndDispatch. " + DisconnectReason);
 			
 			if (mTCPClient != null)
 			{
@@ -418,7 +420,7 @@ namespace MiniIT.Snipe
 				return mRequestId;
 			}
 
-			DebugLogger.Log($"[SnipeClient] [{ConnectionId}] SendRequest " + parameters.ToJSONString());
+			DebugLogger.Log($"[SnipeClient] ({INSTANCE_ID}) [{ConnectionId}] SendRequest " + parameters.ToJSONString());
 
 			// mTcpClient.Connected property gets the connection state of the Socket as of the LAST I/O operation (not current state!)
 			// (http://msdn.microsoft.com/en-us/library/system.net.sockets.socket.connected.aspx)
@@ -557,7 +559,7 @@ namespace MiniIT.Snipe
 
 		private void OnApplicationFocus(bool focus)
 		{
-			DebugLogger.Log($"[SnipeClient] OnApplicationFocus focus = {focus}");
+			DebugLogger.Log($"[SnipeClient] ({INSTANCE_ID}) OnApplicationFocus focus = {focus}");
 
 			if (focus)
 			{
@@ -606,7 +608,7 @@ namespace MiniIT.Snipe
 					SendPingRequest();
 					ResetHeartbeatTimer();
 
-					DebugLogger.Log("[SnipeClient] Heartbeat ping");
+					DebugLogger.Log($"[SnipeClient] ({INSTANCE_ID}) Heartbeat ping");
 				}
 
 				await Task.Delay(5000, cancellation);
@@ -622,13 +624,13 @@ namespace MiniIT.Snipe
 		{
 			if (!mLoggedIn)
 			{
-				// DebugLogger.Log("[SnipeClient] StartCheckConnection - not logged in yet.");
+				// DebugLogger.Log($"[SnipeClient] ({INSTANCE_ID}) StartCheckConnection - not logged in yet.");
 				return;
 			}
 			
 			CheckConnectionMessageType = message_type;
 			
-			DebugLogger.Log("[SnipeClient] StartCheckConnection");
+			DebugLogger.Log($"[SnipeClient] ({INSTANCE_ID}) StartCheckConnection");
 
 			mCheckConnectionCancellation?.Cancel();
 
@@ -643,7 +645,7 @@ namespace MiniIT.Snipe
 				mCheckConnectionCancellation.Cancel();
 				mCheckConnectionCancellation = null;
 
-				DebugLogger.Log("[SnipeClient] StopCheckConnection");
+				DebugLogger.Log($"[SnipeClient] ({INSTANCE_ID}) StopCheckConnection");
 			}
 		}
 
@@ -656,7 +658,7 @@ namespace MiniIT.Snipe
 				return;
 
 			// Disconnect detected
-			DebugLogger.Log("[SnipeClient] CheckConnectionTask - Disconnect detected");
+			DebugLogger.Log($"[SnipeClient] ({INSTANCE_ID}) CheckConnectionTask - Disconnect detected");
 
 			mConnected = false;
 			DisconnectReason = "CheckConnectionTask - Disconnect detected";
