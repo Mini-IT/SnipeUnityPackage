@@ -36,7 +36,7 @@ public class AppleGameCenterAuthProvider : BindProvider
 					if (reset_auth)
 						data["resetInternalAuth"] = reset_auth;
 					
-					SingleRequestClient.Request(SnipeConfig.Instance.auth, data, OnAuthLoginResponse);
+					SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, data, OnAuthLoginResponse);
 				};
 				generateIdentityVerificationSignature(VerificationSignatureGeneratorCallback);
 				return;

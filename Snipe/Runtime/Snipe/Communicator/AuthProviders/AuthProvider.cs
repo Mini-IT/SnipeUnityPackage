@@ -51,7 +51,7 @@ namespace MiniIT.Snipe
 			if (reset_auth)
 				data["resetInternalAuth"] = reset_auth;
 
-			SingleRequestClient.Request(SnipeConfig.Instance.auth, data, OnAuthLoginResponse);
+			SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, data, OnAuthLoginResponse);
 		}
 
 		protected virtual void OnAuthLoginResponse(ExpandoObject data)

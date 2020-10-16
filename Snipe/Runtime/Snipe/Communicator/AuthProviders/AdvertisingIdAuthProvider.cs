@@ -112,7 +112,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 						mBindRequestData = data;
 
 						DebugLogger.Log("[AdvertisingIdAuthProvider] send user.bind " + data.ToJSONString());
-						SingleRequestClient.Request(SnipeConfig.Instance.auth, data, OnBindResponse);
+						SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, data, OnBindResponse);
 					}
 				}
 				else

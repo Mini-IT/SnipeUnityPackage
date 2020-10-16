@@ -58,7 +58,7 @@ namespace MiniIT.Snipe
 				["t"] = MESSAGE_TYPE_USER_LOGIN,
 				["data"] = new MPackMap()
 				{
-					["ckey"] = SnipeConfig.Instance.snipe_client_key,
+					["ckey"] = SnipeConfig.Instance.ClientKey,
 					["id"] = SnipeAuthCommunicator.UserID,
 					["token"] = SnipeAuthCommunicator.LoginToken
 				}
@@ -153,7 +153,7 @@ namespace MiniIT.Snipe
 
 			Disconnect(); // clean up
 
-			string url = SnipeConfig.Instance.snipe_service_websocket;
+			string url = SnipeConfig.Instance.ServiceWebsocketURL;
 
 			DebugLogger.Log("[SnipeServiceClient] WebSocket Connect to " + url);
 			

@@ -81,7 +81,7 @@ namespace MiniIT.Snipe
 			if (!string.IsNullOrEmpty(login_id))
 				data["id"] = Convert.ToInt32(login_id);
 
-			SingleRequestClient.Request(SnipeConfig.Instance.auth, data, OnCheckAuthExistsResponse);
+			SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, data, OnCheckAuthExistsResponse);
 		}
 
 		protected virtual void OnBindResponse(ExpandoObject data)

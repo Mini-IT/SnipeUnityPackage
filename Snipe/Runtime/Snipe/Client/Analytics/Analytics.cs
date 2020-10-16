@@ -157,8 +157,6 @@ namespace MiniIT.Snipe
 		private static Analytics mInstance;
 		private static Analytics GetInstance()
 		{
-			DebugLogger.Log("[Analytics] GetInstance");
-			
 			if (mInstance == null)
 			{
 				mInstance = new GameObject("SnipeAnalyticsTracker").AddComponent<Analytics>();

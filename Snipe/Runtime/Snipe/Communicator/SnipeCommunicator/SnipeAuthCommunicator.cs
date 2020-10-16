@@ -313,7 +313,7 @@ namespace MiniIT.Snipe
 			if (mInstance == null)
 				return;
 
-			SingleRequestClient.Request(SnipeConfig.Instance.auth, 
+			SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, 
 				new ExpandoObject()
 				{
 					["messageType"] = REQUEST_CLAIM_RESTORE_TOKEN,
@@ -466,7 +466,7 @@ namespace MiniIT.Snipe
 			if (SystemInfo.unsupportedIdentifier != SystemInfo.deviceUniqueIdentifier)
 				data["name"] = SystemInfo.deviceUniqueIdentifier; // optional
 
-			SingleRequestClient.Request(SnipeConfig.Instance.auth, data, (response) =>
+			SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, data, (response) =>
 			{
 				int user_id = 0;
 

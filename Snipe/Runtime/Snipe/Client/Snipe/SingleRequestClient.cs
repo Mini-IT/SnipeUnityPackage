@@ -16,21 +16,21 @@ namespace MiniIT.Snipe
 		{
 		}
 
-		public static void Request(SnipeServerConfig config, ExpandoObject request, Action<ExpandoObject> callback)
+		public static void Request(string web_socket_url, ExpandoObject request, Action<ExpandoObject> callback)
 		{
-			SnipeClient client = SnipeClient.CreateInstance(SnipeConfig.Instance.snipe_client_key, "SnipeSingleRequestClient", false);
-			client.AppInfo = SnipeConfig.Instance.snipe_app_info;
+			SnipeClient client = SnipeClient.CreateInstance(SnipeConfig.Instance.ClientKey, "SnipeSingleRequestClient", false);
+			client.AppInfo = SnipeConfig.Instance.AppInfo;
 			SingleRequestClient instance = client.gameObject.AddComponent<SingleRequestClient>();
-			instance.InitClient(client, config, request, callback);
+			instance.InitClient(client, web_socket_url, request, callback);
 		}
 
-		private void InitClient(SnipeClient client, SnipeServerConfig config, ExpandoObject request, Action<ExpandoObject> callback)
+		private void InitClient(SnipeClient client, string web_socket_url, ExpandoObject request, Action<ExpandoObject> callback)
 		{
 			mRequestData = request;
 			mCallback = callback;
 
 			mClient = client;
-			mClient.Init(config.host, config.port, config.websocket);
+			mClient.Init(web_socket_url);
 			mClient.ConnectionSucceeded += OnConnectionSucceeded;
 			mClient.ConnectionFailed += OnConnectionFailed;
 			mClient.ConnectionLost += OnConnectionFailed;
@@ -45,7 +45,7 @@ namespace MiniIT.Snipe
 			Analytics.TrackEvent(Analytics.EVENT_SINGLE_REQUEST_CLIENT_CONNECTED, new ExpandoObject()
 			{
 				["message_type"] = request_message_type,
-				["connection_type"] = mClient.ConnectedViaWebSocket ? "websocket" : "tcp",
+				["connection_type"] = "websocket",
 			});
 
 			mClient.MessageReceived += OnResponse;

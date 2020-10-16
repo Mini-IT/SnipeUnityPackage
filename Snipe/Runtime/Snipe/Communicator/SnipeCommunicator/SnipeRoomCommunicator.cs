@@ -15,20 +15,14 @@ namespace MiniIT.Snipe
 		protected string mRoomType;
 		protected int mRoomId;
 
-		protected string mHost;
-		protected int mPort;
 		protected string mWebSocketUrl;
 
-		public static T Create<T>(string room_type, int room_id, SnipeCommunicator game_communicator, string host, int port, string websocket_url) where T : SnipeRoomCommunicator
+		public static T Create<T>(string room_type, int room_id, SnipeCommunicator game_communicator, string websocket_url) where T : SnipeRoomCommunicator
 		{
 			var communicator = new GameObject("SnipeRoomCommunicator").AddComponent<T>();
 			communicator.mRoomType = room_type;
 			communicator.mRoomId = room_id;
-			communicator.mHost = host;
-			communicator.mPort = port;
 			communicator.mWebSocketUrl = websocket_url;
-			if (string.IsNullOrEmpty(communicator.mWebSocketUrl) && !string.IsNullOrEmpty(SnipeConfig.Instance?.server.websocket))
-				communicator.mWebSocketUrl = Regex.Replace(SnipeConfig.Instance.server.websocket, @"wss_\d*", $"wss_{port}");
 			communicator.SetGameCommunicator(game_communicator);
 			return communicator;
 		}
@@ -40,7 +34,7 @@ namespace MiniIT.Snipe
 
 		protected override void InitClient()
 		{
-			InitClient(mHost, mPort, mWebSocketUrl);
+			InitClient(mWebSocketUrl);
 		}
 
 		private void SetGameCommunicator(SnipeCommunicator communicator)
@@ -90,10 +84,7 @@ namespace MiniIT.Snipe
 		{
 			base.ProcessSnipeMessage(data, original);
 
-			if (SnipeConfig.Instance?.debug == true)
-			{
-				DebugLogger.Log("[SnipeRoomCommunicator] OnRoomResponse: " + (data != null ? data.ToJSONString() : "null"));
-			}
+			DebugLogger.Log("[SnipeRoomCommunicator] OnRoomResponse: " + (data != null ? data.ToJSONString() : "null"));
 
 			string message_type = data.SafeGetString("type");
 			string error_code = data.SafeGetString("errorCode");
@@ -180,27 +171,11 @@ namespace MiniIT.Snipe
 		
 		protected override void AnalyticsTrackConnectionSucceeded()
 		{
-			ExpandoObject data;
-			
-			if (Client.ConnectedViaWebSocket)
+			Analytics.TrackEvent(Analytics.EVENT_ROOM_COMMUNICATOR_CONNECTED, new ExpandoObject()
 			{
-				data = new ExpandoObject()
-				{
-					["connection_type"] = "websocket",
-					["websocket_url"] = mWebSocketUrl,
-				};
-			}
-			else
-			{
-				data = new ExpandoObject()
-				{
-					["connection_type"] = "tcp",
-					["host"] = mHost,
-					["port"] = mPort,
-				};
-			}
-			
-			Analytics.TrackEvent(Analytics.EVENT_ROOM_COMMUNICATOR_CONNECTED, data);
+				["connection_type"] = "websocket",
+				["websocket_url"] = mWebSocketUrl,
+			});
 		}
 		
 		protected override void AnalyticsTrackConnectionFailed()

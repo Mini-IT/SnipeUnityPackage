@@ -11,9 +11,6 @@ using System.Threading.Tasks;
 // https://github.com/Mini-IT/SnipeWiki/wiki
 
 
-// Docs on how to use TCP Client:
-// http://sunildube.blogspot.ru/2011/12/asynchronous-tcp-client-easy-example.html
-
 namespace MiniIT.Snipe
 {
 	public class SnipeClient : MonoBehaviour, IDisposable
@@ -68,8 +65,6 @@ namespace MiniIT.Snipe
 		protected bool mHeartbeatEnabled = true;
 		protected bool mLoggedIn = false;
 
-		private string mConnectionHost;
-		private int mConnectionPort;
 		private string mConnectionWebSocketURL;
 
 		private int mRequestId = 0;
@@ -127,7 +122,6 @@ namespace MiniIT.Snipe
 
 		#pragma warning restore 0067
 
-		private SnipeTCPClient mTCPClient = null;
 		private SnipeWebSocketClient mWebSocketClient = null;
 
 		// DEBUG
@@ -138,10 +132,8 @@ namespace MiniIT.Snipe
 		{
 		}
 
-		public void Init(string tcp_host, int tcp_port, string web_socket_url = "")
+		public void Init(string web_socket_url = "")
 		{
-			mConnectionHost = tcp_host;
-			mConnectionPort = tcp_port;
 			mConnectionWebSocketURL = web_socket_url;
 		}
 
@@ -178,36 +170,19 @@ namespace MiniIT.Snipe
 				DoDispatchEvent(item.handler, item.data);
 
 				// item.handler could have called Dispose
-				if (!ClientIsValid)
+				if (mWebSocketClient == null)
 					return;
 			}
 		}
 
 		public void Connect()
 		{
-			DebugLogger.Log($"[SnipeClient] ({INSTANCE_ID}) Connect - {mConnectionHost} : {mConnectionPort} ws: {mConnectionWebSocketURL}");
+			DebugLogger.Log($"[SnipeClient] ({INSTANCE_ID}) Connect {mConnectionWebSocketURL}");
 
-			if (!string.IsNullOrEmpty(mConnectionHost) && mConnectionPort > 0)
-			{
-				ConnectTCP();
-			}
-			else if (!string.IsNullOrEmpty(mConnectionWebSocketURL))
+			if (!string.IsNullOrEmpty(mConnectionWebSocketURL))
 			{
 				ConnectWebSocket();
 			}
-		}
-		
-		private void ConnectTCP()
-		{
-			if (mTCPClient == null)
-			{
-				mTCPClient = new SnipeTCPClient();
-				mTCPClient.OnConnectionSucceeded = OnTCPConnectionSucceeded;
-				mTCPClient.OnConnectionFailed = OnTCPConnectionFailed;
-				mTCPClient.OnConnectionLost = OnConnectionLost;
-				mTCPClient.OnMessageReceived = OnMessageReceived;
-			}
-			mTCPClient.Connect(mConnectionHost, mConnectionPort);
 		}
 		
 		public void ConnectWebSocket()
@@ -223,41 +198,6 @@ namespace MiniIT.Snipe
 				mWebSocketClient.OnMessageReceived = OnMessageReceived;
 			}
 			mWebSocketClient.Connect(mConnectionWebSocketURL);
-		}
-		
-		private void OnTCPConnectionSucceeded()
-		{
-			if (mWebSocketClient != null)
-			{
-				mWebSocketClient.Dispose();
-				mWebSocketClient = null;
-			}
-			
-			mConnected = true;
-			mClientKeySent = false;
-			mLoggedIn = false;
-
-			StopCheckConnection();
-
-			DispatchEvent(ConnectionSucceeded);
-		}
-		
-		private void OnTCPConnectionFailed()
-		{
-			mConnected = false;
-			mLoggedIn = false;
-
-			if (!string.IsNullOrEmpty(mConnectionWebSocketURL))
-			{
-				ConnectWebSocket();
-			}
-			else
-			{
-				DisconnectReason = "OnTCPConnectionFailed";
-				DispatchEvent(ConnectionFailed);
-
-				ConnectionId = "";
-			}
 		}
 		
 		private void OnConnectionLost()
@@ -324,12 +264,6 @@ namespace MiniIT.Snipe
 		
 		private void OnWebSocketConnectionSucceeded()
 		{
-			if (mTCPClient != null)
-			{
-				mTCPClient.Dispose();
-				mTCPClient = null;
-			}
-			
 			mConnected = true;
 			mClientKeySent = false;
 			mLoggedIn = false;
@@ -366,12 +300,6 @@ namespace MiniIT.Snipe
 		public void DisconnectAndDispatch(Action<ExpandoObject> event_to_dispatch)
 		{
 			DebugLogger.LogWarning($"[SnipeClient] ({INSTANCE_ID}) DisconnectAndDispatch. " + DisconnectReason);
-			
-			if (mTCPClient != null)
-			{
-				mTCPClient.Dispose();
-				mTCPClient = null;
-			}
 			
 			if (mWebSocketClient != null)
 			{
@@ -422,10 +350,6 @@ namespace MiniIT.Snipe
 
 			DebugLogger.Log($"[SnipeClient] ({INSTANCE_ID}) [{ConnectionId}] SendRequest " + parameters.ToJSONString());
 
-			// mTcpClient.Connected property gets the connection state of the Socket as of the LAST I/O operation (not current state!)
-			// (http://msdn.microsoft.com/en-us/library/system.net.sockets.socket.connected.aspx)
-			// So we need to check the connection availability manually, and here is where we can do it
-
 			if (this.Connected)
 			{
 				if (!mClientKeySent && !string.IsNullOrEmpty(ClientKey))
@@ -439,16 +363,7 @@ namespace MiniIT.Snipe
 
 				ResetHeartbeatTimer();
 
-				if (mTCPClient != null)
-				{
-					string message = HaxeSerializer.Run(parameters);
-					
-					lock (mTCPClient)
-					{
-						mTCPClient.SendRequest(message);
-					}
-				}
-				else if (mWebSocketClient != null)
+				if (mWebSocketClient != null)
 				{
 					string message = HaxeSerializer.Run(parameters);
 					
@@ -511,19 +426,11 @@ namespace MiniIT.Snipe
 			return false;
 		}
 
-		private bool ClientIsValid
-		{
-			get
-			{
-				return mTCPClient != null || mWebSocketClient != null;
-			}
-		}
-
 		public bool Connected
 		{
 			get
 			{
-				return mConnected && ((mTCPClient != null && mTCPClient.Connected) || (mWebSocketClient != null && mWebSocketClient.Connected));
+				return mConnected && mWebSocketClient != null && mWebSocketClient.Connected;
 			}
 		}
 
@@ -532,14 +439,6 @@ namespace MiniIT.Snipe
 			get
 			{
 				return Connected && mLoggedIn;
-			}
-		}
-
-		public bool ConnectedViaWebSocket
-		{
-			get
-			{
-				return mWebSocketClient != null && mWebSocketClient.Connected;
 			}
 		}
 

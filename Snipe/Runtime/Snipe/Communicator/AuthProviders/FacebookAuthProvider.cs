@@ -69,7 +69,7 @@ public class FacebookAuthProvider : BindProvider
 				};
 
 				DebugLogger.Log("[FacebookAuthProvider] send user.bind " + data.ToJSONString());
-				SingleRequestClient.Request(SnipeConfig.Instance.auth, data, OnBindResponse);
+				SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, data, OnBindResponse);
 
 				return;
 			}

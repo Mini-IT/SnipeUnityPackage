@@ -63,7 +63,7 @@ public class DeviceIdAuthProvider : BindProvider
 				};
 
 				DebugLogger.Log("[DeviceIdAuthProvider] send user.bind " + data.ToJSONString());
-				SingleRequestClient.Request(SnipeConfig.Instance.auth, data, OnBindResponse);
+				SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, data, OnBindResponse);
 			}
 		}
 		else

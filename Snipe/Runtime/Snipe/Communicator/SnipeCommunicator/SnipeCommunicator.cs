@@ -102,10 +102,10 @@ namespace MiniIT.Snipe
 
 		protected virtual void InitClient()
 		{
-			InitClient(SnipeConfig.Instance.server.host, SnipeConfig.Instance.server.port, SnipeConfig.Instance.server.websocket);
+			InitClient(SnipeConfig.Instance.ServerWebsocketURL);
 		}
 
-		protected virtual void InitClient(string tcp_host, int tcp_port, string web_socket_url = "")
+		protected virtual void InitClient(string web_socket_url)
 		{
 			if (LoggedIn)
 			{
@@ -115,9 +115,9 @@ namespace MiniIT.Snipe
 			
 			if (Client == null)
 			{
-				Client = SnipeClient.CreateInstance(SnipeConfig.Instance.snipe_client_key, this.gameObject);
-				Client.AppInfo = SnipeConfig.Instance.snipe_app_info;
-				Client.Init(tcp_host, tcp_port, web_socket_url);
+				Client = SnipeClient.CreateInstance(SnipeConfig.Instance.ClientKey, this.gameObject);
+				Client.AppInfo = SnipeConfig.Instance.AppInfo;
+				Client.Init(web_socket_url);
 				Client.ConnectionSucceeded += OnClientConnectionSucceeded;
 				Client.ConnectionFailed += OnClientConnectionFailed;
 				Client.ConnectionLost += OnClientConnectionFailed;
@@ -256,7 +256,7 @@ namespace MiniIT.Snipe
 			string message_type = data.SafeGetString("type");
 			string error_code = data.SafeGetString("errorCode");
 
-			if (SnipeConfig.Instance?.debug == true && !string.IsNullOrEmpty(error_code) && error_code != "ok")
+			if (!string.IsNullOrEmpty(error_code) && error_code != "ok")
 			{
 				DebugLogger.LogError($"[SnipeCommunicator] ({INSTANCE_ID}) errorCode = " + error_code);
 			}
@@ -446,7 +446,7 @@ namespace MiniIT.Snipe
 		{
 			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_CONNECTED, new ExpandoObject()
 			{
-				["connection_type"] = Client.ConnectedViaWebSocket ? "websocket" : "tcp",
+				["connection_type"] = "websocket",
 			});
 		}
 		
