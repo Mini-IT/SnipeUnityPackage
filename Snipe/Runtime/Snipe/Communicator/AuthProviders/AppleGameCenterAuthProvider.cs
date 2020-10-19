@@ -108,7 +108,7 @@ public class AppleGameCenterAuthProvider : BindProvider
 						data["authInt"] = auth_token;
 
 						DebugLogger.Log("[AppleGameCenterAuthProvider] send user.bind " + data.ToJSONString());
-						SingleRequestClient.Request(SnipeConfig.Instance.auth, data, OnBindResponse);
+						SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, data, OnBindResponse);
 					};
 					generateIdentityVerificationSignature(VerificationSignatureGeneratorCallback);
 					return;
