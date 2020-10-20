@@ -258,7 +258,7 @@ namespace MiniIT.Snipe
 
 			if (!string.IsNullOrEmpty(error_code) && error_code != "ok")
 			{
-				DebugLogger.LogError($"[SnipeCommunicator] ({INSTANCE_ID}) errorCode = " + error_code);
+				DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) errorCode = " + error_code);
 			}
 
 			switch (message_type)

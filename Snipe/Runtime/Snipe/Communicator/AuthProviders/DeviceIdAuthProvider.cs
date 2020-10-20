@@ -31,7 +31,6 @@ public class DeviceIdAuthProvider : BindProvider
 	{
 		DebugLogger.Log("[DeviceIdAuthProvider] RequestBind");
 
-		//NeedToBind = false;
 		mBindResultCallback = bind_callback;
 		
 		if (IsBindDone)

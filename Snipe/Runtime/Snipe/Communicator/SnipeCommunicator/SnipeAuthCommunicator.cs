@@ -91,23 +91,14 @@ namespace MiniIT.Snipe
 			if (mInstance == null)
 				InitInstance();
 
-			if (mInstance.mAuthProviders == null)
-				mInstance.mAuthProviders = new List<AuthProvider>();
-
-			ProviderType auth_provider = null;
-			foreach (AuthProvider provider in mInstance.mAuthProviders)
-			{
-				//var provider_type = provider.GetType();
-				//if (provider_type.Equals(typeof(ProviderType)) || provider_type.IsSubclassOf(typeof(ProviderType)))
-				if (provider is ProviderType)
-				{
-					auth_provider = provider as ProviderType;
-					break;
-				}
-			}
+			ProviderType auth_provider = GetAuthProvider<ProviderType>();
 			if (auth_provider == null)
 			{
 				auth_provider = new ProviderType();
+				
+				if (mInstance.mAuthProviders == null)
+					mInstance.mAuthProviders = new List<AuthProvider>();
+				
 				mInstance.mAuthProviders.Add(auth_provider);
 			}
 

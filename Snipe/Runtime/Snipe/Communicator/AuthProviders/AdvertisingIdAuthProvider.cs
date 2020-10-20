@@ -66,7 +66,6 @@ public class AdvertisingIdAuthProvider : BindProvider
 			DebugLogger.LogWarning("[AdvertisingIdAuthProvider] Bind callback is not null. Previous callback will not be called.");
 		}
 
-		//NeedToBind = false;
 		mBindResultCallback = bind_callback;
 		
 		if (IsBindDone)
@@ -79,6 +78,12 @@ public class AdvertisingIdAuthProvider : BindProvider
 		{
 			DebugLogger.Log($"[AdvertisingIdAuthProvider] advertising_id : {advertising_id} , {error}");
 
+			if (AdvertisingId == advertising_id && IsBindDone)
+			{
+				InvokeBindResultCallback(ERROR_OK);
+				return;
+			}
+			
 			AdvertisingId = advertising_id;
 
 			string auth_login = PlayerPrefs.GetString(SnipePrefs.AUTH_UID);
@@ -123,8 +128,13 @@ public class AdvertisingIdAuthProvider : BindProvider
 				}
 			}
 		}
-
-		if (!Application.RequestAdvertisingIdentifierAsync(advertising_id_callback))
+		
+		if (CheckAdvertisingId(AdvertisingId))
+		{
+			DebugLogger.Log("[AdvertisingIdAuthProvider] advertising id is already known");
+			advertising_id_callback(AdvertisingId, false, "");
+		}
+		else if (!Application.RequestAdvertisingIdentifierAsync(advertising_id_callback))
 		{
 			DebugLogger.Log("[AdvertisingIdAuthProvider] advertising id is not supported on this platform");
 

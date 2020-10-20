@@ -9,6 +9,14 @@ public class FacebookAuthProvider : BindProvider
 {
 	public const string PROVIDER_ID = "fb";
 	public override string ProviderId { get { return PROVIDER_ID; } }
+	
+	public FacebookAuthProvider() : base()
+	{
+		if (!IsBindDone && !FacebookProvider.InstanceInitialized)
+		{
+			FacebookProvider.InstanceInitializationComplete += OnFacebookProviderInitializationComplete;
+		}
+	}
 
 	public override void RequestAuth(AuthSuccessCallback success_callback, AuthFailCallback fail_callback, bool reset_auth = false)
 	{
@@ -20,9 +28,12 @@ public class FacebookAuthProvider : BindProvider
 			RequestLogin(ProviderId, AccessToken.CurrentAccessToken.UserId, AccessToken.CurrentAccessToken.TokenString, reset_auth);
 			return;
 		}
-
-		FacebookProvider.InstanceInitializationComplete -= OnFacebookProviderInitializationComplete;
-		FacebookProvider.InstanceInitializationComplete += OnFacebookProviderInitializationComplete;
+		
+		if (!FacebookProvider.InstanceInitialized)
+		{
+			FacebookProvider.InstanceInitializationComplete -= OnFacebookProviderInitializationComplete;
+			FacebookProvider.InstanceInitializationComplete += OnFacebookProviderInitializationComplete;
+		}
 
 		InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
 	}
@@ -33,7 +44,7 @@ public class FacebookAuthProvider : BindProvider
 
 		FacebookProvider.InstanceInitializationComplete -= OnFacebookProviderInitializationComplete;
 
-		if (!string.IsNullOrEmpty(SnipeAuthCommunicator.LoginToken))
+		if (!string.IsNullOrEmpty(SnipeAuthCommunicator.LoginToken) && !AccountExists.HasValue)
 		{
 			CheckAuthExists(null);
 		}
@@ -75,8 +86,11 @@ public class FacebookAuthProvider : BindProvider
 			}
 		}
 
-		FacebookProvider.InstanceInitializationComplete -= OnFacebookProviderInitializationComplete;
-		FacebookProvider.InstanceInitializationComplete += OnFacebookProviderInitializationComplete;
+		if (!FacebookProvider.InstanceInitialized)
+		{
+			FacebookProvider.InstanceInitializationComplete -= OnFacebookProviderInitializationComplete;
+			FacebookProvider.InstanceInitializationComplete += OnFacebookProviderInitializationComplete;
+		}
 
 		InvokeBindResultCallback(ERROR_NOT_INITIALIZED);
 	}
