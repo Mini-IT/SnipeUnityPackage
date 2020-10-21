@@ -97,7 +97,7 @@ namespace MiniIT.Social
 
 		private void OnInitComplete()
 		{
-			DebugLogger.Log("[FacebookProvider] FB.Init completed: Is user logged in? " + FB.IsLoggedIn);
+			DebugLogger.Log("[FacebookProvider] FB.Init completed. User logged in = " + FB.IsLoggedIn);
 			if (FB.IsLoggedIn)
 			{
 				GetPlayerProfile();
@@ -110,8 +110,7 @@ namespace MiniIT.Social
 
 		private void CallInitializationCompleteCallback()
 		{
-			if (mInitializationCompleteCallback != null)
-				mInitializationCompleteCallback.Invoke();
+			mInitializationCompleteCallback?.Invoke();
 
 			mInitializationCompleteCallback = null;
 			mInitializationFailedCallback = null;
@@ -123,15 +122,16 @@ namespace MiniIT.Social
 
 		private void OnLogin(ILoginResult result)
 		{
-			if (!FB.IsLoggedIn || result.Error != null)
+			if (!FB.IsLoggedIn || !string.IsNullOrEmpty(result.Error))
 			{
-				DebugLogger.Log("[FacebookProvider] Login failed. Error Response:\n" + result.Error);
+				DebugLogger.Log("[FacebookProvider] Login failed. Error: " + result.Error);
 
-				if (mInitializationFailedCallback != null)
-					mInitializationFailedCallback.Invoke();
-
+				mInitializationFailedCallback?.Invoke();
+				
 				mInitializationCompleteCallback = null;
 				mInitializationFailedCallback = null;
+				
+				DispatchEventInitializationFailed();
 			}
 			else
 			{
