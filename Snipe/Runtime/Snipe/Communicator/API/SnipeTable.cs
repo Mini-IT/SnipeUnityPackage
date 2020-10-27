@@ -88,13 +88,7 @@ namespace MiniIT.Snipe
 					var loader_cancellation = new CancellationTokenSource();
 					var loader_task = loader.GetAsync(url, loader_cancellation.Token);
 
-					if (await Task.WhenAny(loader_task, Task.Delay(5000, cancellation)) != loader_task)
-					{
-						DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (timeout)");
-
-						loader_cancellation.Cancel();
-						continue;
-					}
+					await loader_task;
 
 					if (cancellation.IsCancellationRequested)
 					{
