@@ -27,6 +27,7 @@ namespace MiniIT.Snipe
 		
 		private const double HEARTBEAT_INTERVAL = 30;      // seconds
 		private const int CHECK_CONNECTION_TIMEOUT = 2000; // milliseconds
+		private const int CHECK_CONNECTION_ATTEMPTS = 4;
 		
 		private static readonly ExpandoObject PING_MESSAGE_DATA = new ExpandoObject() { [KEY_MESSAGE_TYPE] = MESSAGE_TYPE_PING };
 		
@@ -550,11 +551,16 @@ namespace MiniIT.Snipe
 
 		private async Task CheckConnectionTask(CancellationToken cancellation)
 		{
-			await Task.Delay(CHECK_CONNECTION_TIMEOUT, cancellation);
+			for (int i = 0; i < CHECK_CONNECTION_ATTEMPTS; i++)
+			{
+				await Task.Delay(CHECK_CONNECTION_TIMEOUT, cancellation);
 
-			// if the connection is ok then this task should already be cancelled
-			if (cancellation.IsCancellationRequested)
-				return;
+				// if the connection is ok then this task should already be cancelled
+				if (cancellation.IsCancellationRequested)
+					return;
+				
+				DebugLogger.Log($"[SnipeClient] ({INSTANCE_ID}) CheckConnectionTask - Attempt #{i} finished");
+			}
 
 			// Disconnect detected
 			DebugLogger.Log($"[SnipeClient] ({INSTANCE_ID}) CheckConnectionTask - Disconnect detected");
