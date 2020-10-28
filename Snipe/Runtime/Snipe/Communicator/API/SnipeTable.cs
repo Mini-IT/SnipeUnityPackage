@@ -40,8 +40,18 @@ namespace MiniIT.Snipe
 				mLoadingTables = new List<string>(MAX_LOADERS_COUNT);
 			
 			mLoadingCancellation = new CancellationTokenSource();
-			await LoadTask(table_name, mLoadingCancellation.Token);
-			mLoadingTables.Remove(table_name);
+			try
+			{
+				await LoadTask(table_name, mLoadingCancellation.Token);
+			}
+			catch (TaskCanceledException)
+			{
+				DebugLogger.Log("[SnipeTable] Load - TaskCanceled - " + table_name);
+			}
+			finally
+			{
+				mLoadingTables.Remove(table_name);
+			}
 		}
 
 		private async Task LoadTask(string table_name, CancellationToken cancellation)
