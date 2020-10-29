@@ -154,16 +154,11 @@ namespace MiniIT.Snipe
 							}
 						}
 					}
-#if DEBUG
 					catch (Exception error)
 					{
-						DebugLogger.Log($"[SnipeWebSocketClient] Deserialization error: {error.Message}");
-#else
-					catch (Exception)
-					{
-#endif
-						// if (OnError != null)
-						//		OnError(new HapiEventArgs(HapiEventArgs.ERROR, "Deserialization error: " + error.Message));
+						DebugLogger.Log($"[SnipeWebSocketClient] Deserialization error: {error.Message}\nMessage:\n{mMessageString}");
+						
+						// OnError?.Invoke(error.Message);
 
 						// TODO: handle the error !!!!
 						// ...
