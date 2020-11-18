@@ -139,28 +139,31 @@ namespace MiniIT.Snipe
 
 				case 97:  // 'a'
 				case 108:  // 'l'
-					List<object> a = new List<object>();
-					this.mCache.Add(a);
+					List<object> list = new List<object>();
+					this.mCache.Add(list);
 					while(true)
 					{
 						int c2 = mString[mPosition];
-						if (c2 == 104)
+						if (c2 == 104)  // 'h'
 						{
 							mPosition++;
 							break;
 						}
-						if (c2 == 117)
+						if (c2 == 117)  // 'u'
 						{
 							mPosition++;
 							int n = ReadDigits();
-							a[a.Count + n - 1] = null;
+							for (int i = 0; i < n; i++)
+							{
+								list.Add(null);
+							}
 						}
 						else
 						{
-							a.Add(Unserialize());
+							list.Add(Unserialize());
 						}
 					}
-					return a;
+					return list;
 					//break;
 
 				case 111:  // 'o'
