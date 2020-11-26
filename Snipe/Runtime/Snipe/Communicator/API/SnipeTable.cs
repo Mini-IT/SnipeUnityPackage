@@ -15,6 +15,52 @@ namespace MiniIT.Snipe
 	{
 		protected const int MAX_LOADERS_COUNT = 5;
 		protected static List<string> mLoadingTables;
+		
+		protected static string mVersion = null;
+		protected static bool mVersionRequested = false;
+		protected static bool mVersionLoadingFailed = false;
+		
+		protected async Task LoadVersion(CancellationToken cancellation)
+		{
+			mVersionRequested = true;
+			
+			string url = $"{SnipeConfig.Instance.GetTablesPath()}/version.txt";
+			
+			DebugLogger.Log("[SnipeTable] LoadVersion " + url);
+			
+			try
+			{
+				var loader = new HttpClient();
+
+				var loader_task = loader.GetAsync(url, cancellation);
+
+				await loader_task;
+
+				if (cancellation.IsCancellationRequested)
+				{
+					DebugLogger.Log("[SnipeTable] LoadVersion - Failed to load tables version - (task canceled)");
+					mVersionRequested = false;
+					return;
+				}
+
+				if (loader_task.IsFaulted || loader_task.IsCanceled)
+				{
+					DebugLogger.Log("[SnipeTable] LoadVersion - Failed to load tables version - (loader failed)");
+					mVersionLoadingFailed = true;
+					return;
+				}
+				
+				using (var reader = new StreamReader(await loader_task.Result.Content.ReadAsStreamAsync()))
+				{
+					mVersion = reader.ReadLine().Trim();
+				}
+			}
+			catch (Exception)
+			{
+				mVersionLoadingFailed = true;
+				DebugLogger.Log("[SnipeTable] LoadVersion - Failed to read tables version");
+			}
+		}
 	}
 	
 	public class SnipeTable<ItemType> : SnipeTable where ItemType : SnipeTableItem, new()
@@ -32,6 +78,19 @@ namespace MiniIT.Snipe
 		public async void Load(string table_name)
 		{
 			mLoadingCancellation?.Cancel();
+			mLoadingCancellation = new CancellationTokenSource();
+			
+			if (!mVersionRequested)
+			{
+				await LoadVersion(mLoadingCancellation.Token);
+			}
+			else
+			{
+				while (!mVersionLoadingFailed && string.IsNullOrEmpty(mVersion))
+				{
+					await Task.Delay(20, mLoadingCancellation.Token);
+				}
+			}
 			
 			Loaded = false;
 			Items = new Dictionary<int, ItemType>();
@@ -39,7 +98,6 @@ namespace MiniIT.Snipe
 			if (mLoadingTables == null)
 				mLoadingTables = new List<string>(MAX_LOADERS_COUNT);
 			
-			mLoadingCancellation = new CancellationTokenSource();
 			try
 			{
 				await LoadTask(table_name, mLoadingCancellation.Token);
@@ -53,13 +111,20 @@ namespace MiniIT.Snipe
 				mLoadingTables.Remove(table_name);
 			}
 		}
-
+		
+		protected string GetCachePath(string table_name)
+		{
+			return Path.Combine(UnityEngine.Application.persistentDataPath, $"{mVersion}_{table_name}.json.gz");
+		}
+		
 		private async Task LoadTask(string table_name, CancellationToken cancellation)
 		{
 			mLoadingTables.Remove(table_name);
 			
 			while (mLoadingTables.Count >= MAX_LOADERS_COUNT)
+			{
 				await Task.Delay(20, cancellation);
+			}
 			
 			if (cancellation.IsCancellationRequested)
 			{
@@ -68,78 +133,143 @@ namespace MiniIT.Snipe
 			}
 			
 			mLoadingTables.Add(table_name);
-
-			string url = string.Format("{0}/{1}.json.gz", SnipeConfig.Instance.GetTablesPath(), table_name);
-			DebugLogger.Log("[SnipeTable] Loading table " + url);
-
-			this.LoadingFailed = false;
-
-			int retry = 0;
-			while (!this.Loaded && retry <= 2)
+			
+			string cache_path = GetCachePath(table_name);
+			
+			// Try to load from cache
+			if (!string.IsNullOrEmpty(mVersion))
 			{
-				if (cancellation.IsCancellationRequested)
+				if (File.Exists(cache_path))
 				{
-					DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (task canceled)");
-					return;
+					using (FileStream cache_read_stream = new FileStream(cache_path, FileMode.Open))
+					{
+						try
+						{
+							ReadGZip(cache_read_stream);
+						}
+						catch (Exception)
+						{
+							DebugLogger.Log("[SnipeTable] Failed to read from cache - " + table_name);
+						}
+						
+						if (this.Loaded)
+						{
+							DebugLogger.Log("[SnipeTable] Table ready (from cache) - " + table_name);
+						}
+					}
 				}
-				
-				if (retry > 0)
+			}
+			
+			// If loading from cache failed
+			if (!this.Loaded)
+			{
+				string url = string.Format("{0}/{1}.json.gz", SnipeConfig.Instance.GetTablesPath(), table_name);
+				DebugLogger.Log("[SnipeTable] Loading table " + url);
+
+				this.LoadingFailed = false;
+
+				int retry = 0;
+				while (!this.Loaded && retry <= 2)
 				{
-					await Task.Delay(100, cancellation);
-					DebugLogger.Log($"[SnipeTable] Retry #{retry} to load table - {table_name}");
-				}
-
-				retry++;
-
-				try
-				{
-					var loader = new HttpClient();
-
-					var loader_cancellation = new CancellationTokenSource();
-					var loader_task = loader.GetAsync(url, loader_cancellation.Token);
-
-					await loader_task;
-
 					if (cancellation.IsCancellationRequested)
 					{
 						DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (task canceled)");
 						return;
 					}
-
-					if (loader_task.IsFaulted || loader_task.IsCanceled)
+					
+					if (retry > 0)
 					{
-						DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (loader failed)");
-						return;
+						await Task.Delay(100, cancellation);
+						DebugLogger.Log($"[SnipeTable] Retry #{retry} to load table - {table_name}");
 					}
 
-					using (GZipStream gzip = new GZipStream(loader_task.Result.Content.ReadAsStreamAsync().Result, CompressionMode.Decompress))
-					{
-						using (StreamReader reader = new StreamReader(gzip))
-						{
-							string json_string = reader.ReadToEnd();
-							ExpandoObject data = ExpandoObject.FromJSONString(json_string);
+					retry++;
 
-							if (data["list"] is List<object> list)
+					try
+					{
+						var loader = new HttpClient();
+						var loader_task = loader.GetAsync(url, cancellation);
+
+						await loader_task;
+
+						if (cancellation.IsCancellationRequested)
+						{
+							DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (task canceled)");
+							return;
+						}
+
+						if (loader_task.IsFaulted || loader_task.IsCanceled)
+						{
+							DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (loader failed)");
+							return;
+						}
+						
+						using (var file_content_stream = await loader_task.Result.Content.ReadAsStreamAsync())
+						{
+							ReadGZip(file_content_stream);
+						}
+							
+						if (this.Loaded)
+						{
+							// "using" block in ReadGZip closes the stream. We need to open it again
+							using (var file_content_stream = await loader_task.Result.Content.ReadAsStreamAsync())
 							{
-								foreach (ExpandoObject item_data in list)
+								DebugLogger.Log("[SnipeTable] Table ready - " + table_name);
+								
+								// Save to cache
+								try
 								{
-									AddTableItem(item_data);
+									DebugLogger.Log("[SnipeTable] Save to cache " + cache_path);
+									
+									if (File.Exists(cache_path))
+									{
+										File.Delete(cache_path);
+									}
+									
+									using (FileStream cache_write_stream = new FileStream(cache_path, FileMode.Create, FileAccess.Write))
+									{
+										file_content_stream.Position = 0;
+										file_content_stream.CopyTo(cache_write_stream);
+									}
+								}
+								catch (Exception ex)
+								{
+									DebugLogger.Log("[SnipeTable] Failed to save to cache - " + table_name + " - " + ex.Message);
 								}
 							}
-
-							DebugLogger.Log("[SnipeTable] Table ready - " + table_name);
-							this.Loaded = true;
 						}
 					}
-				}
-				catch (Exception)
-				{
-					DebugLogger.Log("[SnipeTable] Failed to parse table - " + table_name);
+					catch (Exception)
+					{
+						DebugLogger.Log("[SnipeTable] Failed to parse table - " + table_name);
+					}
 				}
 			}
 
 			this.LoadingFailed = !this.Loaded;
 			LoadingFinished?.Invoke(this.Loaded);
+		}
+		
+		private void ReadGZip(Stream stream)
+		{
+			using (GZipStream gzip = new GZipStream(stream, CompressionMode.Decompress))
+			{
+				using (StreamReader reader = new StreamReader(gzip))
+				{
+					string json_string = reader.ReadToEnd();
+					ExpandoObject data = ExpandoObject.FromJSONString(json_string);
+
+					if (data["list"] is List<object> list)
+					{
+						foreach (ExpandoObject item_data in list)
+						{
+							AddTableItem(item_data);
+						}
+					}
+
+					this.Loaded = true;
+				}
+			}
 		}
 		
 		protected void AddTableItem(ExpandoObject item_data)
