@@ -168,10 +168,10 @@ namespace MiniIT.Snipe
 			DisposeClient();
 		}
 
-		private void OnMessageReceived(ExpandoObject data)
+		private void OnMessageReceived(string message_type, string error_code, ExpandoObject data, int request_id)
 		{
 #if UNITY_EDITOR
-			DebugLogger.Log("[SnipeServiceCommunicator] OnMessageReceived: " + data?.ToJSONString());
+			DebugLogger.Log($"[SnipeServiceCommunicator] OnMessageReceived: {message_type}" + data?.ToJSONString());
 #endif
 
 			if (mReceivedMessages != null)

@@ -1,188 +1,146 @@
 ﻿using System;
+using System.Threading.Tasks;
 using MiniIT;
-using UnityEngine;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeCommunicatorRequest : SnipeRequest
+	public class SnipeCommunicatorRequest : IDisposable
 	{
-		private const string MESSAGE_TYPE_USER_LOGIN = "user.login";
-		
-		public bool Active { get; protected set; } = true;
-		
+		public const string ERROR_NOT_READY = "notReady";
+		public const string ERROR_INVALIND_DATA = "invalidData";
+		public const string ERROR_SERVICE_OFFLINE = "serviceOffline";
+
+		private const int RETRIES_COUNT = 3;
+		private const int RETRY_DELAY = 1000; // milliseconds
+
+		public delegate void ResponseHandler(string error_code, ExpandoObject data = null);
+
 		protected SnipeCommunicator mCommunicator;
-		protected bool mSendRequestProcessed = false;
-		
-		public SnipeCommunicatorRequest(SnipeCommunicator communicator, string message_type = null) : base(communicator.Client, message_type)
+		protected ResponseHandler mCallback;
+		protected string mMessageType;
+
+		protected int mRequestId;
+		protected int mRetriesLeft = RETRIES_COUNT;
+
+		public ExpandoObject Data { get; set; }
+
+		public SnipeCommunicatorRequest(SnipeCommunicator communicator, string message_type = null)
 		{
 			mCommunicator = communicator;
-			mCommunicator.Requests.Add(this);
-		}
-		
-		protected void RemoveFromRequestsList()
-		{
-			mCommunicator?.Requests?.Remove(this);
-		}
-		
-		protected override void InvokeCallback(Action<ExpandoObject> callback, ExpandoObject response_data)
-		{
-			RemoveFromRequestsList();
-			base.InvokeCallback(callback, response_data);
-		}
-
-		public override void Request(Action<ExpandoObject> callback = null)
-		{
-			if (mSendRequestProcessed)
-				return;
+			mMessageType = message_type;
 			
-			if (!CheckMessageType())
-			{
-				InvokeCallback(callback, ErrorMessageInvalidData);
-				return;
-			}
-
-			SetCallback(callback);
-			SendRequest();
-		}
-		
-		internal void ResendInactive()
-		{
-			if (!Active)
-			{
-				Active = true;
-				mSendRequestProcessed = false;
-				SendRequest();
-			}
+			if (mCommunicator != null && mCommunicator.Requests != null)
+				mCommunicator.Requests.Add(this);
 		}
 
-		protected override void SendRequest()
+		public void Request(ExpandoObject data, ResponseHandler callback = null)
 		{
-			if (mSendRequestProcessed)
-				return;
-			mSendRequestProcessed = true;
-			
-			if (mCommunicator == null)
-			{
-				InvokeCallback(ErrorMessageInvalidClient);
-				return;
-			}
+			Data = data;
+			Request(callback);
+		}
 
-			if (!CheckMessageType())
+		public virtual void Request(ResponseHandler callback = null)
+		{
+			if (mCommunicator == null || !mCommunicator.Connected)
 			{
-				InvokeCallback(ErrorMessageInvalidData);
+				callback?.Invoke(ERROR_NOT_READY);
 				return;
 			}
 			
-			if (mCommunicator.LoggedIn || MessageType == MESSAGE_TYPE_USER_LOGIN)
+			if (string.IsNullOrEmpty(mMessageType))
+				mMessageType = Data?.SafeGetString("t");
+
+			if (string.IsNullOrEmpty(mMessageType))
 			{
-				mRequestId = mCommunicator.Request(this);
+				callback?.Invoke(ERROR_INVALIND_DATA);
+				return;
+			}
+			
+			mCallback = callback;
+
+			if (mCommunicator.LoggedIn)
+			{
+				OnCommunicatorReady();
 			}
 			else
 			{
-				AddLoginSucceededListener();
+				mCommunicator.LoginSucceeded -= OnCommunicatorReady;
+				mCommunicator.LoginSucceeded += OnCommunicatorReady;
 			}
 		}
-		
-		protected override void OnConnectionLost(ExpandoObject data)
+
+		private async void OnCommunicatorReady()
 		{
-			if (MessageType != MESSAGE_TYPE_USER_LOGIN)
+			//-----
+			// !!!!!!!!!!!!!!!
+			// TEMP DEBUG
+			await Task.Delay(new System.Random().Next(50, 600));
+			// !!!!!!!!!!!!!!!
+
+			if (mCommunicator?.Client == null)
 			{
-				AddLoginSucceededListener();
-			}
-		}
-		
-		private void AddLoginSucceededListener()
-		{
-			if (mCommunicator == null)
-			{
-				InvokeCallback(ErrorMessageInvalidClient);
-				Dispose();
+				mCallback?.Invoke(ERROR_NOT_READY);
 				return;
 			}
-			
-			if (!mCommunicator.AllowRequestsToWaitForLogin)
-			{
-				if (mCommunicator.KeepOfflineRequests)
-				{
-					Active = false;
-					return;
-				}
-				
-				InvokeCallback(mCommunicator.Connected ? ErrorMessageNotLoggedIn : ErrorMessageNoConnection);
-				Dispose();
-				return;
-			}
-			
-			if (mCommunicator is SnipeRoomCommunicator room_communicator)
-			{
-				room_communicator.RoomJoined -= OnCommunicatorLoginSucceeded;
-				room_communicator.RoomJoined += OnCommunicatorLoginSucceeded;
-			}
-			else
-			{
-				mCommunicator.LoginSucceeded -= OnCommunicatorLoginSucceeded;
-				mCommunicator.LoginSucceeded += OnCommunicatorLoginSucceeded;
-			}
 
-			mCommunicator.PreDestroy -= OnCommunicatorPreDestroy;
-			mCommunicator.PreDestroy += OnCommunicatorPreDestroy;
-		}
-
-		private void OnCommunicatorLoginSucceeded()
-		{
-			if (mCommunicator != null)
-			{
-				if (mCommunicator is SnipeRoomCommunicator room_communicator)
-				{
-					room_communicator.RoomJoined -= OnCommunicatorLoginSucceeded;
-				}
-
-				mCommunicator.LoginSucceeded -= OnCommunicatorLoginSucceeded;
-				
-				// update client instance and event listeners
-				mClient = mCommunicator.Client;
-				SetCallback(mCallback);
-				
-				Data?.Remove("_requestID");
-				
-				mRequestId = mCommunicator.Request(this);
-			}
-		}
-
-		private void OnCommunicatorPreDestroy()
-		{
-			if (mCommunicator != null)
-			{
-				if (mCommunicator is SnipeRoomCommunicator room_communicator)
-					room_communicator.RoomJoined -= OnCommunicatorLoginSucceeded;
-
-				mCommunicator.LoginSucceeded -= OnCommunicatorLoginSucceeded;
-				mCommunicator.PreDestroy -= OnCommunicatorPreDestroy;
-			}
-			
 			if (mCallback != null)
 			{
-				InvokeCallback(ErrorMessageInvalidClient);
-				mCallback = null;
+				mCommunicator.ConnectionFailed -= OnConnectionClosed;
+				mCommunicator.ConnectionFailed += OnConnectionClosed;
+				mCommunicator.MessageReceived -= OnMessageReceived;
+				mCommunicator.MessageReceived += OnMessageReceived;
+			}
+
+			mRequestId = mCommunicator.Client.SendRequest(mMessageType, Data);
+		}
+
+		private void OnConnectionClosed(bool will_rety = false)
+		{
+			//if (mCommunicator != null)
+			//	mCommunicator.AddReadyCallback(OnCommunicatorReady);
+		}
+
+		protected async void OnMessageReceived(string message_type, string error_code, ExpandoObject response_data, int request_id)
+		{
+			if ((request_id == 0 || request_id == mRequestId) && message_type == mMessageType)
+			{
+				if (error_code == ERROR_SERVICE_OFFLINE && mRetriesLeft > 0)
+				{
+					mRetriesLeft--;
+
+					await Task.Delay(RETRY_DELAY);
+
+					Request(mCallback);
+
+					return;
+				}
+
+				mCallback?.Invoke(error_code, response_data);
+
+				Dispose();
 			}
 		}
 
-		public override void Dispose()
+		public void Dispose()
 		{
 			Dispose(true);
 		}
 		
-		internal void Dispose(bool remove_from_list)
+		public void Dispose(bool remove_from_list)
 		{
-			if (remove_from_list)
+			if (mCommunicator != null)
 			{
-				RemoveFromRequestsList();
+				if (remove_from_list && mCommunicator.Requests != null && mCommunicator.Requests.Contains(this))
+				{
+					mCommunicator.Requests.Remove(this);
+				}
+				
+				mCommunicator.ConnectionFailed -= OnConnectionClosed;
+				mCommunicator.MessageReceived -= OnMessageReceived;
+				mCommunicator = null;
 			}
 			
-			base.Dispose();
-			
-			OnCommunicatorPreDestroy();
-			mCommunicator = null;
+			mCallback = null;
 		}
 	}
 }

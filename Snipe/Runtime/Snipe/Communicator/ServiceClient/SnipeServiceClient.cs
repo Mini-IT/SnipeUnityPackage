@@ -11,7 +11,8 @@ namespace MiniIT.Snipe
 {
 	public class SnipeServiceClient
 	{
-		public event Action<ExpandoObject> MessageReceived;
+		public delegate void MessageReceivedHandler(string message_type, string error_code, ExpandoObject data, int request_id);
+		public event MessageReceivedHandler MessageReceived;
 		public event Action ConnectionOpened;
 		public event Action ConnectionClosed;
 		public event Action LoginSucceeded;
@@ -28,6 +29,8 @@ namespace MiniIT.Snipe
 
 		public bool Connected { get { return (mWebSocket != null && mWebSocket.Connected); } }
 		public bool LoggedIn { get { return mLoggedIn && Connected; } }
+
+		public string ConnectionId { get; private set; }
 
 		protected bool mHeartbeatEnabled = true;
 		public bool HeartbeatEnabled
@@ -60,7 +63,8 @@ namespace MiniIT.Snipe
 				{
 					["ckey"] = SnipeConfig.Instance.ClientKey,
 					["id"] = SnipeAuthCommunicator.UserID,
-					["token"] = SnipeAuthCommunicator.LoginToken
+					["token"] = SnipeAuthCommunicator.LoginToken,
+					["loginGame"] = true, // Snipe V5
 				}
 			});
 		}
@@ -199,6 +203,7 @@ namespace MiniIT.Snipe
 		public void Disconnect()
 		{
 			mLoggedIn = false;
+			ConnectionId = "";
 
 			StopHeartbeat();
 
@@ -242,11 +247,21 @@ namespace MiniIT.Snipe
 
 		public int SendRequest(string message_type, Dictionary<string, object> data)
 		{
-			return SendRequest(new MPackMap()
+			if (data == null)
 			{
-				["t"] = message_type,
-				["data"] = ConvertToMPackMap(data)
-			});
+				return SendRequest(new MPackMap()
+				{
+					["t"] = message_type,
+				});
+			}
+			else
+			{
+				return SendRequest(new MPackMap()
+				{
+					["t"] = message_type,
+					["data"] = ConvertToMPackMap(data)
+				});
+			}
 		}
 
 		protected void ProcessMessage(byte[] raw_data_buffer)
@@ -255,14 +270,25 @@ namespace MiniIT.Snipe
 
 			if (message != null)
 			{
+				string message_type = Convert.ToString(message["t"]);
+				string error_code = (message.TryGetValue("errorCode", out var message_value_error_code)) ? Convert.ToString(message_value_error_code) : "";
+				int request_id = (message.TryGetValue("id", out var message_value_id)) ? Convert.ToInt32(message_value_id) : 0;
+
+				MPackMap response_data = null;
+
 				if (!mLoggedIn)
 				{
-					if (message["t"] == MESSAGE_TYPE_USER_LOGIN)
-					{
-						string error_code = Convert.ToString(message["errorCode"]);
+					if (message_type == MESSAGE_TYPE_USER_LOGIN)
+					{	
 						if (error_code == ERROR_CODE_OK)
 						{
 							mLoggedIn = true;
+
+							response_data = message["data"] as MPackMap;
+							if (response_data != null)
+							{
+								this.ConnectionId = Convert.ToString(response_data["connectionID"]);
+							}
 
 							try
 							{
@@ -291,17 +317,21 @@ namespace MiniIT.Snipe
 						}
 					}
 				}
-				
-				var response = ConvertToExpandoObject(message);
-				DebugLogger.Log("[SnipeServiceClient] ProcessMessage - " + response?.ToJSONString());
-				
+
+				//var response = ConvertToExpandoObject(message);
+				//DebugLogger.Log("[SnipeServiceClient] ProcessMessage - " + response?.ToJSONString());
+
 				try
 				{
-					MessageReceived?.Invoke(response);
+					if (response_data == null)
+					{
+						response_data = message["data"] as MPackMap;
+					}
+					MessageReceived?.Invoke(message_type, error_code, (response_data != null) ? ConvertToExpandoObject(response_data) : null, request_id);
 				}
 				catch (Exception e)
 				{
-					DebugLogger.Log("[SnipeServiceClient] ProcessMessage - MessageReceived invokation error: " + e.Message);
+					DebugLogger.Log("[SnipeServiceClient] ProcessMessage - MessageReceived invokation error: " + e.Message + "\n" + e.StackTrace);
 				}
 
 				if (mHeartbeatEnabled)

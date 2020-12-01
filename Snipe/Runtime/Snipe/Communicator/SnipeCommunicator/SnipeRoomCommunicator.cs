@@ -51,18 +51,18 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		protected override void OnConnectionFailed(ExpandoObject data = null)
+		protected override void OnConnectionFailed()
 		{
 			DebugLogger.Log($"[SnipeRoomCommunicator] Game Connection failed");
-			base.OnConnectionFailed(data);
+			//base.OnConnectionFailed(data);
 
-			if (RestoreConnectionAttempts < 1 && !mDisconnecting)
-			{
-				if (mGameCommunicator != null && mGameCommunicator.Connected)
-				{
-					mGameCommunicator.OnRoomConnectionFailed(data);
-				}
-			}
+			//if (RestoreConnectionAttempts < 1 && !mDisconnecting)
+			//{
+			//	if (mGameCommunicator != null && mGameCommunicator.Connected)
+			//	{
+			//		mGameCommunicator.OnRoomConnectionFailed(data);
+			//	}
+			//}
 		}
 
 		private void OnGameLogin()
@@ -80,14 +80,14 @@ namespace MiniIT.Snipe
 			base.Dispose();
 		}
 
-		protected override void ProcessSnipeMessage(ExpandoObject data, bool original = false)
+		protected override void ProcessSnipeMessage(string message_type, string error_code, ExpandoObject data)
 		{
-			base.ProcessSnipeMessage(data, original);
+			base.ProcessSnipeMessage(message_type, error_code, data);
 
 			DebugLogger.Log("[SnipeRoomCommunicator] OnRoomResponse: " + (data != null ? data.ToJSONString() : "null"));
 
-			string message_type = data.SafeGetString("type");
-			string error_code = data.SafeGetString("errorCode");
+			//string message_type = data.SafeGetString("type");
+			//string error_code = data.SafeGetString("errorCode");
 
 			switch (message_type)
 			{
@@ -98,29 +98,29 @@ namespace MiniIT.Snipe
 						ExpandoObject request_data = new ExpandoObject();
 						request_data["typeID"] = mRoomType;
 						request_data["roomID"] = mRoomId;
-						Request("kit/room.join", request_data);
+						//Request("room.join", request_data);
 					}
 					//else if (data.errorCode == "userAlreadyLogin")
 					break;
 
-				case "kit/room.join":
-					OnRoomJoin(data);
+				case "room.join":
+					OnRoomJoin(error_code, data);
 					break;
 
-				case "kit/room.leave":
-				case "kit/user.logout":
+				case "room.leave":
+				case "user.logout":
 					OnRoomLeave(data);
 					break;
 
-				case "kit/room.left":
+				case "room.left":
 					OnRoomLeft(data);
 					break;
 
-				case "kit/room.dead":
+				case "room.dead":
 					OnRoomDead(data);
 					break;
 
-				case "kit/room.broadcast":
+				case "room.broadcast":
 					ExpandoObject broadcast_msg = null;
 					if (error_code == "ok" && data.ContainsKey("msg"))
 					{
@@ -138,9 +138,9 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		protected virtual void OnRoomJoin(ExpandoObject data)
+		protected virtual void OnRoomJoin(string error_code, ExpandoObject data)
 		{
-			if (RoomJoined != null && data.SafeGetString("errorCode") == "ok")
+			if (RoomJoined != null && error_code == "ok")
 				RoomJoined.Invoke();
 		}
 
@@ -183,8 +183,8 @@ namespace MiniIT.Snipe
 			Analytics.TrackEvent(Analytics.EVENT_ROOM_COMMUNICATOR_DISCONNECTED, new ExpandoObject()
 			{
 				["communicator"] = this.name,
-				["connection_id"] = Client?.ConnectionId,
-				["disconnect_reason"] = Client?.DisconnectReason,
+				//["connection_id"] = Client?.ConnectionId,
+				//["disconnect_reason"] = Client?.DisconnectReason,
 			});
 		}
 		

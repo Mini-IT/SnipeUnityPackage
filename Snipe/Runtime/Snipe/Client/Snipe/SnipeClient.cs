@@ -23,7 +23,7 @@ namespace MiniIT.Snipe
 		
 		private const string MESSAGE_TYPE_USER_LOGIN = "user.login";
 		private const string MESSAGE_TYPE_AUTH_LOGIN = "auth/user.login";
-		private const string MESSAGE_TYPE_PING = "kit/user.ping";
+		private const string MESSAGE_TYPE_PING = "user.ping";
 		
 		private const double HEARTBEAT_INTERVAL = 30;      // seconds
 		private const int CHECK_CONNECTION_TIMEOUT = 2000; // milliseconds

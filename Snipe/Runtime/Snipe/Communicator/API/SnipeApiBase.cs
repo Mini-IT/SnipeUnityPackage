@@ -12,29 +12,18 @@ namespace MiniIT.Snipe
 			this.Communicator = communicator;
 		}
 
-		public SnipeCommunicatorRequest CreateRequest(ExpandoObject data)
+		
+		public SnipeCommunicatorRequest CreateRequest(string message_type, ExpandoObject data)
 		{
 			if (Communicator == null)
 				return null;
 			
 			if (Communicator.LoggedIn || Communicator.AllowRequestsToWaitForLogin || Communicator.KeepOfflineRequests)
 			{
-				var request = Communicator.CreateRequest();
-				request.Data = data;
-				return request;
+				return Communicator.CreateRequest(message_type, data);
 			}
 			
 			return null;
-		}
-
-		public SnipeServiceRequest CreateServiceRequest(ExpandoObject data)
-		{
-			if (Communicator == null || Communicator.ServiceCommunicator == null || !Communicator.ServiceCommunicator.Ready)
-				return null;
-
-			var request = Communicator.ServiceCommunicator.CreateRequest();
-			request.Data = data;
-			return request;
 		}
 	}
 }
