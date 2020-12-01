@@ -23,12 +23,19 @@ public class SnipeConfig
 	public string ServiceWebsocketURL;
 	
 	public List<string> TablesURLs = new List<string>();
+	public string PersistentDataPath { get; private set; }
 
+	/// <summary>
+	/// Should be called from the main Unity thread
+	/// </summary>
 	public static void InitFromJSON(string json_string)
 	{
 		Init(ExpandoObject.FromJSONString(json_string));
 	}
 
+	/// <summary>
+	/// Should be called from the main Unity thread
+	/// </summary>
 	public static void Init(ExpandoObject data)
 	{
 		Instance.ClientKey = data.SafeGetString("client_key");
@@ -48,6 +55,8 @@ public class SnipeConfig
 				Instance.TablesURLs.Add(path);
 			}
 		}
+
+		Instance.PersistentDataPath = Application.persistentDataPath;
 
 		Instance.InitAppInfo();
 	}

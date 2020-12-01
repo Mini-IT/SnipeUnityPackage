@@ -104,7 +104,11 @@ namespace MiniIT.Snipe
 			}
 			catch (TaskCanceledException)
 			{
-				DebugLogger.Log("[SnipeTable] Load - TaskCanceled - " + table_name);
+				DebugLogger.Log($"[SnipeTable] Load {table_name} - TaskCanceled");
+			}
+			catch (Exception e)
+			{
+				DebugLogger.Log($"[SnipeTable] Load {table_name} - Exception: " + e.Message);
 			}
 			finally
 			{
@@ -114,7 +118,7 @@ namespace MiniIT.Snipe
 		
 		protected string GetCachePath(string table_name)
 		{
-			return Path.Combine(UnityEngine.Application.persistentDataPath, $"{mVersion}_{table_name}.json.gz");
+			return Path.Combine(SnipeConfig.Instance.PersistentDataPath, $"{mVersion}_{table_name}.json.gz");
 		}
 		
 		private async Task LoadTask(string table_name, CancellationToken cancellation)
