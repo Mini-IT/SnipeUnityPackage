@@ -71,12 +71,6 @@ namespace MiniIT.Snipe
 
 		private async void OnCommunicatorReady()
 		{
-			//-----
-			// !!!!!!!!!!!!!!!
-			// TEMP DEBUG
-			await Task.Delay(new System.Random().Next(50, 600));
-			// !!!!!!!!!!!!!!!
-
 			if (mCommunicator?.Client == null)
 			{
 				mCallback?.Invoke(ERROR_NOT_READY);
