@@ -200,7 +200,7 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception e)
 			{
-				DebugLogger.Log("[SnipeServiceClient] OnWebSocketClosed - ConnectionClosed invokation error: " + e.Message);
+				DebugLogger.Log($"[SnipeServiceClient] OnWebSocketClosed - ConnectionClosed invokation error: {e.Message}\n{e.StackTrace}");
 			}
 		}
 
