@@ -185,7 +185,7 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) OnDestroy");
 			
-			DisposeReceivedMessagesQueue();
+			ClearMainThreadActionsQueue();
 			
 			DisposeRequests();
 
@@ -217,10 +217,12 @@ namespace MiniIT.Snipe
 		private void OnClientConnectionFailed()
 		{
 			//DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) {this.name} [{Client?.ConnectionId}] Game Connection failed. Reason: {Client?.DisconnectReason}");
-			
-			AnalyticsTrackConnectionFailed();
-			
-			OnConnectionFailed();
+
+			InvokeInMainThread(() =>
+				{
+					AnalyticsTrackConnectionFailed();
+					OnConnectionFailed();
+				});
 		}
 		
 		protected virtual void OnConnectionSucceeded()
@@ -230,13 +232,10 @@ namespace MiniIT.Snipe
 
 			if (ConnectionSucceeded != null)
 			{
-				lock (mMainThreadActions)
-				{
-					mMainThreadActions.Add(() =>
+				InvokeInMainThread(() =>
 					{
 						ConnectionSucceeded?.Invoke();
 					});
-				}
 			}
 
 			Client.MessageReceived += OnSnipeResponse;
@@ -249,19 +248,16 @@ namespace MiniIT.Snipe
 			if (Client != null)
 				Client.MessageReceived -= OnSnipeResponse;
 			
-			//DisposeReceivedMessagesQueue();
+			//ClearMainThreadActionsQueue();
 
 			if (mRestoreConnectionAttempt < RestoreConnectionAttempts && !mDisconnecting)
 			{
 				if (ConnectionFailed != null)
 				{
-					lock (mMainThreadActions)
-					{
-						mMainThreadActions.Add(() =>
+					InvokeInMainThread(() =>
 						{
 							ConnectionFailed?.Invoke(true);
 						});
-					}
 				}
 				
 				mRestoreConnectionAttempt++;
@@ -270,13 +266,10 @@ namespace MiniIT.Snipe
 			}
 			else if (ConnectionFailed != null)
 			{
-				lock (mMainThreadActions)
-				{
-					mMainThreadActions.Add(() =>
+				InvokeInMainThread(() =>
 					{
 						ConnectionFailed?.Invoke(true);
 					});
-				}
 			}
 		}
 		
@@ -294,14 +287,11 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) [{Client?.ConnectionId}] OnSnipeResponse {request_id} {message_type} {error_code} " + (data != null ? data.ToJSONString() : "null"));
 
-			lock (mMainThreadActions)
-			{
-				mMainThreadActions.Add(() =>
+			InvokeInMainThread(() =>
 				{
 					ProcessSnipeMessage(message_type, error_code, data);
 					MessageReceived?.Invoke(message_type, error_code, data, request_id);
 				});
-			}
 		}
 
 		protected virtual void ProcessSnipeMessage(string message_type, string error_code, ExpandoObject data)
@@ -320,13 +310,10 @@ namespace MiniIT.Snipe
 
 						if (LoginSucceeded != null)
 						{
-							lock (mMainThreadActions)
-							{
-								mMainThreadActions.Add(() =>
+							InvokeInMainThread(() =>
 								{
 									LoginSucceeded?.Invoke();
 								});
-							}
 						}
 					}
 					else if (error_code == "wrongToken" || error_code == "userNotFound")
@@ -346,8 +333,24 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		#region ReceivedMessagesQueue
+		#region Main Thread
 		
+		protected void InvokeInMainThread(Action action)
+		{
+			lock (mMainThreadActions)
+			{
+				mMainThreadActions.Add(action);
+			}
+		}
+
+		protected void ClearMainThreadActionsQueue()
+		{
+			lock (mMainThreadActions)
+			{
+				mMainThreadActions.Clear();
+			}
+		}
+
 		protected IEnumerator MainThreadCoroutine()
 		{
 			while (true)
@@ -376,16 +379,8 @@ namespace MiniIT.Snipe
 				yield return null;
 			}
 		}
-		
-		protected void DisposeReceivedMessagesQueue()
-		{
-			lock (mMainThreadActions)
-			{
-				mMainThreadActions.Clear();
-			}
-		}
-		
-		#endregion // ReceivedMessagesQueue
+
+		#endregion // Main Thread
 
 		private IEnumerator WaitAndInitClient()
 		{
@@ -578,8 +573,8 @@ namespace MiniIT.Snipe
 		{
 			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_DISCONNECTED, new ExpandoObject()
 			{
-				["communicator"] = this.name,
-				//["connection_id"] = Client?.ConnectionId,
+				//["communicator"] = this.name,
+				["connection_id"] = Client?.ConnectionId,
 				//["disconnect_reason"] = Client?.DisconnectReason,
 				//["check_connection_message"] = Client?.CheckConnectionMessageType,
 			});
