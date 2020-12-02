@@ -108,11 +108,14 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception e)
 			{
-				DebugLogger.Log($"[SnipeTable] Load {table_name} - Exception: " + e.Message);
+				DebugLogger.Log($"[SnipeTable] Load {table_name} - Exception: {e.Message}\n{e.StackTrace}" );
 			}
 			finally
 			{
-				mLoadingTables.Remove(table_name);
+				lock (mLoadingTables)
+				{
+					mLoadingTables.Remove(table_name);
+				}
 			}
 		}
 		
@@ -123,11 +126,21 @@ namespace MiniIT.Snipe
 		
 		private async Task LoadTask(string table_name, CancellationToken cancellation)
 		{
-			mLoadingTables.Remove(table_name);
+			int loading_tables_count = 0;
+			lock (mLoadingTables)
+			{
+				mLoadingTables.Remove(table_name);
+				loading_tables_count = mLoadingTables.Count;
+			}
 			
-			while (mLoadingTables.Count >= MAX_LOADERS_COUNT)
+			while (loading_tables_count >= MAX_LOADERS_COUNT)
 			{
 				await Task.Delay(20, cancellation);
+
+				lock (mLoadingTables)
+				{
+					loading_tables_count = mLoadingTables.Count;
+				}
 			}
 			
 			if (cancellation.IsCancellationRequested)
@@ -135,8 +148,11 @@ namespace MiniIT.Snipe
 				DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (task canceled)");
 				return;
 			}
-			
-			mLoadingTables.Add(table_name);
+
+			lock (mLoadingTables)
+			{
+				mLoadingTables.Add(table_name);
+			}
 			
 			string cache_path = GetCachePath(table_name);
 			
