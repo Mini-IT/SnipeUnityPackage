@@ -23,7 +23,7 @@ namespace MiniIT.Snipe
 
 		public string LoginName { get; private set; }
 
-		public SnipeServiceClient Client { get; protected set; }
+		internal SnipeServiceClient Client { get; private set; }
 
 		public int RestoreConnectionAttempts = 3;
 		private int mRestoreConnectionAttempt;
@@ -364,11 +364,9 @@ namespace MiniIT.Snipe
 		//	Client.SendRequest("user.login", data);
 		//}
 		
-		// [Obsolete("Use CreateRequest instead.", false)]
 		public void Request(string message_type, ExpandoObject parameters = null)
 		{
-			//	CreateRequest(message_type, parameters).Request();
-			Client.SendRequest(message_type, parameters);
+			CreateRequest(message_type, parameters).Request();
 		}
 
 		//internal int Request(SnipeCommunicatorRequest request)
@@ -427,7 +425,7 @@ namespace MiniIT.Snipe
 		//	DebugLogger.LogError($"[SnipeCommunicator] ({INSTANCE_ID}) DisposeOfflineRequests - done");
 		//}
 
-		#region Kit Requests
+		#region ActionRun Requests
 		
 		public void RequestActionRun(string action_id, ExpandoObject parameters = null)
 		{
@@ -447,7 +445,7 @@ namespace MiniIT.Snipe
 			return CreateRequest("action.run", parameters);
 		}
 		
-		#endregion // Kit Requests
+		#endregion // ActionRun Requests
 		
 		public virtual void Dispose()
 		{
