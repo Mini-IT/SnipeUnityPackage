@@ -115,7 +115,7 @@ namespace MiniIT.Snipe
 
 		protected virtual void InitClient()
 		{
-			InitClient(SnipeConfig.Instance.ServerWebsocketURL);
+			InitClient(SnipeConfig.Instance.ServiceWebsocketURL);
 		}
 
 		protected virtual void InitClient(string web_socket_url)
