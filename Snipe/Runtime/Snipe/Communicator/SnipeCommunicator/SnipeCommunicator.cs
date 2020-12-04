@@ -115,11 +115,6 @@ namespace MiniIT.Snipe
 
 		protected virtual void InitClient()
 		{
-			InitClient(SnipeConfig.Instance.ServiceWebsocketURL);
-		}
-
-		protected virtual void InitClient(string web_socket_url)
-		{
 			if (LoggedIn)
 			{
 				DebugLogger.LogWarning($"[SnipeCommunicator] ({INSTANCE_ID}) InitClient - already logged in");
@@ -135,42 +130,16 @@ namespace MiniIT.Snipe
 			{
 				if (!Client.Connected)
 				{
+					mDisconnecting = false;
+					
 					Client.ConnectionOpened -= OnClientConnectionSucceeded;
 					Client.ConnectionClosed -= OnClientConnectionFailed;
 					Client.ConnectionOpened += OnClientConnectionSucceeded;
 					Client.ConnectionClosed += OnClientConnectionFailed;
-					
-					//Client.LoginSucceeded += OnLoginSucceeded;
-					//Client.LoginFailed += OnLoginFailed;
 					Client.Connect();
 				}
 			}
-
-			//if (Client == null)
-			//{
-			//	Client = SnipeClient.CreateInstance(SnipeConfig.Instance.ClientKey, this.gameObject);
-			//	Client.AppInfo = SnipeConfig.Instance.AppInfo;
-			//	Client.Init(web_socket_url);
-			//	Client.ConnectionSucceeded += OnClientConnectionSucceeded;
-			//	Client.ConnectionFailed += OnClientConnectionFailed;
-			//	Client.ConnectionLost += OnClientConnectionFailed;
-			//}
-
-			mDisconnecting = false;
-
-			//if (Client.Connected)
-			//	RequestLogin();
-			//else
-			//	Client.Connect();
 		}
-
-		//public virtual void Reconnect()
-		//{
-		//	if (Client == null)
-		//		return;
-
-		//	Client.Reconnect();
-		//}
 
 		public virtual void Disconnect()
 		{
@@ -209,7 +178,7 @@ namespace MiniIT.Snipe
 		
 		private void OnClientConnectionSucceeded()
 		{
-			//DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) {this.name} Connection succeeded");
+			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Connection succeeded");
 			
 			AnalyticsTrackConnectionSucceeded();
 			
@@ -218,13 +187,13 @@ namespace MiniIT.Snipe
 		
 		private void OnClientConnectionFailed()
 		{
-			//DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) {this.name} [{Client?.ConnectionId}] Game Connection failed. Reason: {Client?.DisconnectReason}");
+			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) [{Client?.ConnectionId}] Game Connection failed");
 
 			InvokeInMainThread(() =>
-				{
-					AnalyticsTrackConnectionFailed();
-					OnConnectionFailed();
-				});
+			{
+				AnalyticsTrackConnectionFailed();
+				OnConnectionFailed();
+			});
 		}
 		
 		protected virtual void OnConnectionSucceeded()
@@ -235,15 +204,13 @@ namespace MiniIT.Snipe
 			if (ConnectionSucceeded != null)
 			{
 				InvokeInMainThread(() =>
-					{
-						ConnectionSucceeded?.Invoke();
-					});
+				{
+					ConnectionSucceeded?.Invoke();
+				});
 			}
 			
 			Client.MessageReceived -= OnSnipeResponse;
 			Client.MessageReceived += OnSnipeResponse;
-			
-			//RequestLogin();
 		}
 
 		protected virtual void OnConnectionFailed()
@@ -258,9 +225,9 @@ namespace MiniIT.Snipe
 				if (ConnectionFailed != null)
 				{
 					InvokeInMainThread(() =>
-						{
-							ConnectionFailed?.Invoke(true);
-						});
+					{
+						ConnectionFailed?.Invoke(true);
+					});
 				}
 				
 				mRestoreConnectionAttempt++;
@@ -270,31 +237,21 @@ namespace MiniIT.Snipe
 			else if (ConnectionFailed != null)
 			{
 				InvokeInMainThread(() =>
-					{
-						ConnectionFailed?.Invoke(true);
-					});
+				{
+					ConnectionFailed?.Invoke(true);
+				});
 			}
 		}
-		
-		//internal void OnRoomConnectionFailed(ExpandoObject data = null)
-		//{
-		//	DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) OnRoomConnectionFailed");
-		//	if (Connected)
-		//	{
-		//		Client.Disconnect();
-		//		OnConnectionFailed();
-		//	}
-		//}
 
 		private void OnSnipeResponse(string message_type, string error_code, ExpandoObject data, int request_id)
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) [{Client?.ConnectionId}] OnSnipeResponse {request_id} {message_type} {error_code} " + (data != null ? data.ToJSONString() : "null"));
 
 			InvokeInMainThread(() =>
-				{
-					ProcessSnipeMessage(message_type, error_code, data);
-					MessageReceived?.Invoke(message_type, error_code, data, request_id);
-				});
+			{
+				ProcessSnipeMessage(message_type, error_code, data);
+				MessageReceived?.Invoke(message_type, error_code, data, request_id);
+			});
 		}
 
 		protected virtual void ProcessSnipeMessage(string message_type, string error_code, ExpandoObject data)
@@ -314,9 +271,9 @@ namespace MiniIT.Snipe
 						if (LoginSucceeded != null)
 						{
 							InvokeInMainThread(() =>
-								{
-									LoginSucceeded?.Invoke();
-								});
+							{
+								LoginSucceeded?.Invoke();
+							});
 						}
 					}
 					else if (error_code == "wrongToken" || error_code == "userNotFound")
@@ -406,11 +363,6 @@ namespace MiniIT.Snipe
 
 		//	Client.SendRequest("user.login", data);
 		//}
-
-		//protected void RequestLogout()
-		//{
-		//	Client.SendRequest("user.logout");
-		//}
 		
 		// [Obsolete("Use CreateRequest instead.", false)]
 		public void Request(string message_type, ExpandoObject parameters = null)
@@ -476,50 +428,12 @@ namespace MiniIT.Snipe
 		//}
 
 		#region Kit Requests
-		/*
-		public void RequestKitActionSelf(string action_id, ExpandoObject parameters = null)
-		{
-			if (Client == null || !Client.LoggedIn)
-				return;
-			
-			CreateKitActionSelfRequest(action_id, parameters).Request();
-		}
-
-		public void RequestKitAttrSet(string key, object value)
-		{
-			ExpandoObject parameters = new ExpandoObject()
-			{
-				["key"] = key,
-				["val"] = value,
-			};
-			CreateRequest("attr.set", parameters).Request();
-		}
-
-		public void RequestKitAttrGetAll()
-		{
-			Client.SendRequest("attr.getAll");
-		}
-
-		public SnipeRequest CreateKitActionSelfRequest(string action_id, ExpandoObject parameters = null)
-		{
-			SnipeKitActionSelfRequest request = new SnipeKitActionSelfRequest(this, action_id);
-			request.Data = parameters;
-			return request;
-		}
-		*/
 		
 		public void RequestActionRun(string action_id, ExpandoObject parameters = null)
 		{
 			if (Client == null || !Client.LoggedIn)
 				return;
-			/*
-			if (parameters == null)
-				parameters = new ExpandoObject() { ["actionID"] = action_id };
-			else
-				parameters["actionID"] = action_id;
 			
-			Request("action.run", parameters);
-			*/
 			CreateActionRunRequest(action_id, parameters).Request();
 		}
 		
