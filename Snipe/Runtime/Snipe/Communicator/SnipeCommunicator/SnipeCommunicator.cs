@@ -135,6 +135,8 @@ namespace MiniIT.Snipe
 			{
 				if (!Client.Connected)
 				{
+					Client.ConnectionOpened -= OnClientConnectionSucceeded;
+					Client.ConnectionClosed -= OnClientConnectionFailed;
 					Client.ConnectionOpened += OnClientConnectionSucceeded;
 					Client.ConnectionClosed += OnClientConnectionFailed;
 					
@@ -237,7 +239,8 @@ namespace MiniIT.Snipe
 						ConnectionSucceeded?.Invoke();
 					});
 			}
-
+			
+			Client.MessageReceived -= OnSnipeResponse;
 			Client.MessageReceived += OnSnipeResponse;
 			
 			//RequestLogin();
