@@ -90,8 +90,15 @@ namespace MiniIT.Snipe
 
 		private void OnConnectionClosed(bool will_rety = false)
 		{
-			//if (mCommunicator != null)
-			//	mCommunicator.AddReadyCallback(OnCommunicatorReady);
+			if (will_rety)
+			{
+				mCommunicator.LoginSucceeded -= OnCommunicatorReady;
+				mCommunicator.LoginSucceeded += OnCommunicatorReady;
+			}
+			else
+			{
+				Dispose(true);
+			}
 		}
 
 		protected async void OnMessageReceived(string message_type, string error_code, ExpandoObject response_data, int request_id)
@@ -129,6 +136,7 @@ namespace MiniIT.Snipe
 					mCommunicator.Requests.Remove(this);
 				}
 				
+				mCommunicator.LoginSucceeded -= OnCommunicatorReady;
 				mCommunicator.ConnectionFailed -= OnConnectionClosed;
 				mCommunicator.MessageReceived -= OnMessageReceived;
 				mCommunicator = null;
