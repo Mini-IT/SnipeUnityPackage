@@ -69,7 +69,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async void OnCommunicatorReady()
+		private void OnCommunicatorReady()
 		{
 			if (mCommunicator?.Client == null)
 			{
