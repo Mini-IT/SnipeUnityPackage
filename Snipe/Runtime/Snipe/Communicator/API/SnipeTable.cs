@@ -75,6 +75,8 @@ namespace MiniIT.Snipe
 		
 		private CancellationTokenSource mLoadingCancellation;
 		
+		private static readonly object mCacheIOLocker = new object();
+		
 		public async void Load(string table_name)
 		{
 			mLoadingCancellation?.Cancel();
@@ -159,22 +161,25 @@ namespace MiniIT.Snipe
 			// Try to load from cache
 			if (!string.IsNullOrEmpty(mVersion))
 			{
-				if (File.Exists(cache_path))
+				lock (mCacheIOLocker)
 				{
-					using (FileStream cache_read_stream = new FileStream(cache_path, FileMode.Open))
+					if (File.Exists(cache_path))
 					{
-						try
+						using (FileStream cache_read_stream = new FileStream(cache_path, FileMode.Open))
 						{
-							ReadGZip(cache_read_stream);
-						}
-						catch (Exception)
-						{
-							DebugLogger.Log("[SnipeTable] Failed to read from cache - " + table_name);
-						}
-						
-						if (this.Loaded)
-						{
-							DebugLogger.Log("[SnipeTable] Table ready (from cache) - " + table_name);
+							try
+							{
+								ReadGZip(cache_read_stream);
+							}
+							catch (Exception)
+							{
+								DebugLogger.Log("[SnipeTable] Failed to read from cache - " + table_name);
+							}
+							
+							if (this.Loaded)
+							{
+								DebugLogger.Log("[SnipeTable] Table ready (from cache) - " + table_name);
+							}
 						}
 					}
 				}
@@ -234,27 +239,30 @@ namespace MiniIT.Snipe
 							// "using" block in ReadGZip closes the stream. We need to open it again
 							using (var file_content_stream = await loader_task.Result.Content.ReadAsStreamAsync())
 							{
-								DebugLogger.Log("[SnipeTable] Table ready - " + table_name);
-								
-								// Save to cache
-								try
+								lock (mCacheIOLocker)
 								{
-									DebugLogger.Log("[SnipeTable] Save to cache " + cache_path);
+									DebugLogger.Log("[SnipeTable] Table ready - " + table_name);
 									
-									if (File.Exists(cache_path))
+									// Save to cache
+									try
 									{
-										File.Delete(cache_path);
+										DebugLogger.Log("[SnipeTable] Save to cache " + cache_path);
+										
+										if (File.Exists(cache_path))
+										{
+											File.Delete(cache_path);
+										}
+										
+										using (FileStream cache_write_stream = new FileStream(cache_path, FileMode.Create, FileAccess.Write))
+										{
+											file_content_stream.Position = 0;
+											file_content_stream.CopyTo(cache_write_stream);
+										}
 									}
-									
-									using (FileStream cache_write_stream = new FileStream(cache_path, FileMode.Create, FileAccess.Write))
+									catch (Exception ex)
 									{
-										file_content_stream.Position = 0;
-										file_content_stream.CopyTo(cache_write_stream);
+										DebugLogger.Log("[SnipeTable] Failed to save to cache - " + table_name + " - " + ex.Message);
 									}
-								}
-								catch (Exception ex)
-								{
-									DebugLogger.Log("[SnipeTable] Failed to save to cache - " + table_name + " - " + ex.Message);
 								}
 							}
 						}
