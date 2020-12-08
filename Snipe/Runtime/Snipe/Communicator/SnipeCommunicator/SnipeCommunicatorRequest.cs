@@ -12,8 +12,10 @@ namespace MiniIT.Snipe
 
 		private const int RETRIES_COUNT = 3;
 		private const int RETRY_DELAY = 1000; // milliseconds
+		
+		private static readonly ExpandoObject EMPTY_DATA = new ExpandoObject();
 
-		public delegate void ResponseHandler(string error_code, ExpandoObject data = null);
+		public delegate void ResponseHandler(string error_code, ExpandoObject data);
 
 		protected SnipeCommunicator mCommunicator;
 		protected ResponseHandler mCallback;
@@ -43,7 +45,7 @@ namespace MiniIT.Snipe
 		{
 			if (mCommunicator == null || !mCommunicator.Connected)
 			{
-				callback?.Invoke(ERROR_NOT_READY);
+				callback?.Invoke(ERROR_NOT_READY, EMPTY_DATA);
 				return;
 			}
 			
@@ -52,7 +54,7 @@ namespace MiniIT.Snipe
 
 			if (string.IsNullOrEmpty(mMessageType))
 			{
-				callback?.Invoke(ERROR_INVALIND_DATA);
+				callback?.Invoke(ERROR_INVALIND_DATA, EMPTY_DATA);
 				return;
 			}
 			
@@ -73,7 +75,7 @@ namespace MiniIT.Snipe
 		{
 			if (mCommunicator?.Client == null)
 			{
-				mCallback?.Invoke(ERROR_NOT_READY);
+				mCallback?.Invoke(ERROR_NOT_READY, EMPTY_DATA);
 				return;
 			}
 
