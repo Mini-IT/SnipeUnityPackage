@@ -12,19 +12,19 @@ Allow it to add external package manager registries. (It's optional but it helps
 <li> <a href="https://docs.unity3d.com/Manual/upm-ui-giturl.html">Add</a> <b>Snipe Tools</b> package to Unity Package Manager - https://github.com/Mini-IT/SnipeToolsUnityPackage.git <br />
 After package import is done in Unity editor "Snipe" menu should appear.
 <li> Click <b>"Snipe/Initialize Assembly Definitions"</b> menu item. MiniIT.GooglePlay.XXXX.asmdef files should appear in GooglePlayGames and GooglePlayGames/Editor directories.
-<li> Click <b>"Snipe/Force Update Package"</b> menu item
+<li> Click <b>"Snipe/Install Snipe Package"</b> menu item
 </ul>
 
 ## Updating
 
 <p>
-Unity Package Manager doesn't support auto updates for git-based packages. But there are some ways to initiate an update manually. We made a helper script. To run it click <b>"Snipe/Force Update Package"</b> menu item.
+Unity Package Manager doesn't support auto updates for git-based packages. We recommend to use <a href="https://github.com/mob-sakai/UpmGitExtension">UPM Git Extension</a>.
 </p><p>
-If it doesn't work try one of other methods:
+Alternatively there are some other methods:
 </p>
 <ul>
 <li> You may add the same package again using git URL. Package manager will update an existing one.
-<li> Alternatively you may manually edit your project's Packages/manifest.json. Just remove "com.miniit.snipe.client" inside "lock" section.
+<li> Or you may manually edit your project's Packages/packages-lock.json. Just remove "com.miniit.snipe.client" section.
 </ul>
 
 ## Third-party libraries used
