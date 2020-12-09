@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace MiniIT.Snipe
@@ -170,7 +171,7 @@ namespace MiniIT.Snipe
 			{
 				Client.ConnectionOpened -= OnClientConnectionSucceeded;
 				Client.ConnectionClosed -= OnClientConnectionFailed;
-				Client.MessageReceived -= OnSnipeResponse;
+				Client.MessageReceived -= OnMessageReceived;
 				Client.Disconnect();
 				Client = null;
 			}
@@ -209,14 +210,14 @@ namespace MiniIT.Snipe
 				});
 			}
 			
-			Client.MessageReceived -= OnSnipeResponse;
-			Client.MessageReceived += OnSnipeResponse;
+			Client.MessageReceived -= OnMessageReceived;
+			Client.MessageReceived += OnMessageReceived;
 		}
 
 		protected virtual void OnConnectionFailed()
 		{
 			if (Client != null)
-				Client.MessageReceived -= OnSnipeResponse;
+				Client.MessageReceived -= OnMessageReceived;
 			
 			//ClearMainThreadActionsQueue();
 
@@ -232,7 +233,8 @@ namespace MiniIT.Snipe
 				
 				mRestoreConnectionAttempt++;
 				DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Attempt to restore connection {mRestoreConnectionAttempt}");
-				StartCoroutine(WaitAndInitClient());
+				
+				WaitAndInitClient();
 			}
 			else if (ConnectionFailed != null)
 			{
@@ -243,9 +245,9 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void OnSnipeResponse(string message_type, string error_code, ExpandoObject data, int request_id)
+		private void OnMessageReceived(string message_type, string error_code, ExpandoObject data, int request_id)
 		{
-			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) [{Client?.ConnectionId}] OnSnipeResponse {request_id} {message_type} {error_code} " + (data != null ? data.ToJSONString() : "null"));
+			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) [{Client?.ConnectionId}] OnMessageReceived {request_id} {message_type} {error_code} " + (data != null ? data.ToJSONString() : "null"));
 
 			InvokeInMainThread(() =>
 			{
@@ -268,13 +270,7 @@ namespace MiniIT.Snipe
 					{
 						LoginName = data.SafeGetString("name");
 
-						if (LoginSucceeded != null)
-						{
-							InvokeInMainThread(() =>
-							{
-								LoginSucceeded?.Invoke();
-							});
-						}
+						LoginSucceeded?.Invoke();
 					}
 					else if (error_code == "wrongToken" || error_code == "userNotFound")
 					{
@@ -342,9 +338,9 @@ namespace MiniIT.Snipe
 
 		#endregion // Main Thread
 
-		private IEnumerator WaitAndInitClient()
+		private async void WaitAndInitClient()
 		{
-			yield return new WaitForSeconds(0.5f);
+			await Task.Delay(500);
 			InitClient();
 		}
 
