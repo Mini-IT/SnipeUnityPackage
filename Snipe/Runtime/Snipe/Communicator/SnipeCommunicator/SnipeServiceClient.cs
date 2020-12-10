@@ -226,9 +226,9 @@ namespace MiniIT.Snipe
 			if (!Connected || message == null)
 				return 0;
 
-			DebugLogger.Log("[SnipeServiceClient] SendRequest - " + message["t"]);
-
 			message["id"] = ++mRequestId;
+			
+			DebugLogger.Log($"[SnipeServiceClient] SendRequest {mRequestId} - " + message["t"]);
 
 			var bytes = message.EncodeToBytes();
 			lock (mWebSocket)
