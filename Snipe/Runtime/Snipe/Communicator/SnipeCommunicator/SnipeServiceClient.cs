@@ -277,6 +277,8 @@ namespace MiniIT.Snipe
 				string message_type = Convert.ToString(message["t"]);
 				string error_code = (message.TryGetValue("errorCode", out var message_value_error_code)) ? Convert.ToString(message_value_error_code) : "";
 				int request_id = (message.TryGetValue("id", out var message_value_id)) ? Convert.ToInt32(message_value_id) : 0;
+				
+				DebugLogger.Log($"[SnipeServiceClient] ProcessMessage {request_id} {message_type} {error_code}");
 
 				MPackMap response_data = null;
 
@@ -286,6 +288,8 @@ namespace MiniIT.Snipe
 					{	
 						if (error_code == ERROR_CODE_OK)
 						{
+							DebugLogger.Log("[SnipeServiceClient] ProcessMessage - Login Succeeded");
+							
 							mLoggedIn = true;
 
 							response_data = message["data"] as MPackMap;
@@ -310,6 +314,8 @@ namespace MiniIT.Snipe
 						}
 						else
 						{
+							DebugLogger.Log("[SnipeServiceClient] ProcessMessage - Login Failed");
+							
 							try
 							{
 								LoginFailed?.Invoke(error_code);
@@ -322,20 +328,27 @@ namespace MiniIT.Snipe
 					}
 				}
 
-				//var response = ConvertToExpandoObject(message);
-				//DebugLogger.Log("[SnipeServiceClient] ProcessMessage - " + response?.ToJSONString());
-
-				try
+				DebugLogger.Log("[SnipeServiceClient] ProcessMessage ++++");
+				
+				if (MessageReceived != null)
 				{
-					if (response_data == null)
+					try
 					{
-						response_data = message["data"] as MPackMap;
+						if (response_data == null)
+						{
+							response_data = message["data"] as MPackMap;
+						}
+						DebugLogger.Log("[SnipeServiceClient] ProcessMessage - Invoke MessageReceived " + message_type);
+						MessageReceived.Invoke(message_type, error_code, (response_data != null) ? ConvertToExpandoObject(response_data) : null, request_id);
 					}
-					MessageReceived?.Invoke(message_type, error_code, (response_data != null) ? ConvertToExpandoObject(response_data) : null, request_id);
+					catch (Exception e)
+					{
+						DebugLogger.Log("[SnipeServiceClient] ProcessMessage - MessageReceived invokation error: " + e.Message + "\n" + e.StackTrace);
+					}
 				}
-				catch (Exception e)
+				else
 				{
-					DebugLogger.Log("[SnipeServiceClient] ProcessMessage - MessageReceived invokation error: " + e.Message + "\n" + e.StackTrace);
+					DebugLogger.Log("[SnipeServiceClient] ProcessMessage - no MessageReceived listeners");
 				}
 
 				if (mHeartbeatEnabled)

@@ -14,25 +14,30 @@ namespace MiniIT.Snipe
 		private const int RETRY_DELAY = 1000; // milliseconds
 		
 		private static readonly ExpandoObject EMPTY_DATA = new ExpandoObject();
-
+		
+		public bool Active { get; private set; } = true;
+		public string MessageType { get; private set; }
+		public ExpandoObject Data { get; set; }
+		
 		public delegate void ResponseHandler(string error_code, ExpandoObject data);
 
-		protected SnipeCommunicator mCommunicator;
-		protected ResponseHandler mCallback;
-		protected string mMessageType;
+		private SnipeCommunicator mCommunicator;
+		private ResponseHandler mCallback;
 
-		protected int mRequestId;
-		protected int mRetriesLeft = RETRIES_COUNT;
-
-		public ExpandoObject Data { get; set; }
+		private int mRequestId;
+		private int mRetriesLeft = RETRIES_COUNT;
+		
+		private bool mSent = false;
 
 		public SnipeCommunicatorRequest(SnipeCommunicator communicator, string message_type = null)
 		{
 			mCommunicator = communicator;
-			mMessageType = message_type;
+			MessageType = message_type;
 			
-			if (mCommunicator != null && mCommunicator.Requests != null)
+			if (mCommunicator != null)
+			{	
 				mCommunicator.Requests.Add(this);
+			}
 		}
 
 		public void Request(ExpandoObject data, ResponseHandler callback = null)
@@ -43,42 +48,54 @@ namespace MiniIT.Snipe
 
 		public virtual void Request(ResponseHandler callback = null)
 		{
-			if (mCommunicator == null || !mCommunicator.Connected)
-			{
-				callback?.Invoke(ERROR_NOT_READY, EMPTY_DATA);
+			if (mSent)
 				return;
-			}
-			
-			if (string.IsNullOrEmpty(mMessageType))
-				mMessageType = Data?.SafeGetString("t");
-
-			if (string.IsNullOrEmpty(mMessageType))
-			{
-				callback?.Invoke(ERROR_INVALIND_DATA, EMPTY_DATA);
-				return;
-			}
-			
+				
 			mCallback = callback;
+			SendRequest();
+		}
+		
+		internal void ResendInactive()
+		{
+			if (!Active)
+			{
+				Active = true;
+				mSent = false;
+				SendRequest();
+			}
+		}
+		
+		private void SendRequest()
+		{
+			mSent = true;
+			
+			if (mCommunicator == null) // || !mCommunicator.Connected)
+			{
+				InvokeCallback(ERROR_NOT_READY, EMPTY_DATA);
+				return;
+			}
+			
+			if (string.IsNullOrEmpty(MessageType))
+				MessageType = Data?.SafeGetString("t");
 
+			if (string.IsNullOrEmpty(MessageType))
+			{
+				InvokeCallback(ERROR_INVALIND_DATA, EMPTY_DATA);
+				return;
+			}
+			
 			if (mCommunicator.LoggedIn)
 			{
 				OnCommunicatorReady();
 			}
 			else
 			{
-				mCommunicator.LoginSucceeded -= OnCommunicatorReady;
-				mCommunicator.LoginSucceeded += OnCommunicatorReady;
+				OnConnectionClosed(true);
 			}
 		}
 
 		private void OnCommunicatorReady()
 		{
-			if (mCommunicator?.Client == null)
-			{
-				mCallback?.Invoke(ERROR_NOT_READY, EMPTY_DATA);
-				return;
-			}
-
 			if (mCallback != null)
 			{
 				mCommunicator.ConnectionFailed -= OnConnectionClosed;
@@ -86,26 +103,42 @@ namespace MiniIT.Snipe
 				mCommunicator.MessageReceived -= OnMessageReceived;
 				mCommunicator.MessageReceived += OnMessageReceived;
 			}
-
-			mRequestId = mCommunicator.Client.SendRequest(mMessageType, Data);
+			
+			mRequestId = mCommunicator.Request(this);
+			
+			if (mRequestId == 0)
+			{
+				InvokeCallback(ERROR_NOT_READY, EMPTY_DATA);
+			}
 		}
 
 		private void OnConnectionClosed(bool will_rety = false)
 		{
 			if (will_rety)
 			{
-				mCommunicator.LoginSucceeded -= OnCommunicatorReady;
-				mCommunicator.LoginSucceeded += OnCommunicatorReady;
+				if (mCommunicator.AllowRequestsToWaitForLogin)
+				{
+					mCommunicator.LoginSucceeded -= OnCommunicatorReady;
+					mCommunicator.LoginSucceeded += OnCommunicatorReady;
+				}
+				else if (mCommunicator.KeepOfflineRequests)
+				{
+					Active = false;
+				}
+				else
+				{
+					InvokeCallback(ERROR_NOT_READY, EMPTY_DATA);
+				}
 			}
 			else
 			{
-				Dispose(true);
+				Dispose();
 			}
 		}
 
-		protected async void OnMessageReceived(string message_type, string error_code, ExpandoObject response_data, int request_id)
+		private async void OnMessageReceived(string message_type, string error_code, ExpandoObject response_data, int request_id)
 		{
-			if ((request_id == 0 || request_id == mRequestId) && message_type == mMessageType)
+			if ((request_id == 0 || request_id == mRequestId) && message_type == MessageType)
 			{
 				if (error_code == ERROR_SERVICE_OFFLINE && mRetriesLeft > 0)
 				{
@@ -118,22 +151,21 @@ namespace MiniIT.Snipe
 					return;
 				}
 
-				mCallback?.Invoke(error_code, response_data);
-
-				Dispose();
+				InvokeCallback(error_code, response_data);
 			}
+		}
+		
+		private void InvokeCallback(string error_code, ExpandoObject response_data)
+		{
+			mCallback?.Invoke(error_code, response_data);
+			Dispose();
 		}
 
 		public void Dispose()
 		{
-			Dispose(true);
-		}
-		
-		public void Dispose(bool remove_from_list)
-		{
 			if (mCommunicator != null)
 			{
-				if (remove_from_list && mCommunicator.Requests != null && mCommunicator.Requests.Contains(this))
+				if (mCommunicator.Requests != null)
 				{
 					mCommunicator.Requests.Remove(this);
 				}
