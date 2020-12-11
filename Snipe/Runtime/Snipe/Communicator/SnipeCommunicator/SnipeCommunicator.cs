@@ -22,7 +22,7 @@ namespace MiniIT.Snipe
 		public event MessageReceivedHandler MessageReceived;
 		public event PreDestroyHandler PreDestroy;
 
-		public string LoginName { get; private set; }
+		public string UserName { get; private set; }
 
 		internal SnipeServiceClient Client { get; private set; }
 
@@ -147,7 +147,7 @@ namespace MiniIT.Snipe
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) {this.name} Disconnect");
 
 			mDisconnecting = true;
-			LoginName = "";
+			UserName = "";
 
 			if (Client != null)
 				Client.Disconnect();
@@ -268,7 +268,7 @@ namespace MiniIT.Snipe
 				case "user.login":
 					if (error_code == "ok")
 					{
-						LoginName = data.SafeGetString("name");
+						UserName = data.SafeGetString("name");
 
 						LoginSucceeded?.Invoke();
 					}
