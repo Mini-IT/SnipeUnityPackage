@@ -262,7 +262,7 @@ namespace MiniIT
 			}
 			log += "\n";
 
-			return $"<i>{System.DateTime.UtcNow.ToString("dd.MM.yyyy HH:mm:ss")}</i> {log}";
+			return $"<i>{System.DateTime.UtcNow.ToString("dd.MM.yyyy HH:mm:ss")} UTC</i> {log}";
 		}
 	}
 }
