@@ -292,10 +292,17 @@ namespace MiniIT.Snipe
 							
 							mLoggedIn = true;
 
-							response_data = message["data"] as MPackMap;
-							if (response_data != null)
+							try
 							{
-								this.ConnectionId = Convert.ToString(response_data["connectionID"]);
+								response_data = message["data"] as MPackMap;
+								if (response_data != null)
+								{
+									this.ConnectionId = Convert.ToString(response_data["connectionID"]);
+								}
+							}
+							catch (Exception)
+							{
+								this.ConnectionId = "";
 							}
 
 							try
@@ -328,15 +335,20 @@ namespace MiniIT.Snipe
 					}
 				}
 
-				DebugLogger.Log("[SnipeServiceClient] ProcessMessage ++++");
-				
 				if (MessageReceived != null)
 				{
 					try
 					{
 						if (response_data == null)
 						{
-							response_data = message["data"] as MPackMap;
+							try
+							{
+								response_data = message["data"] as MPackMap;
+							}
+							catch(Exception)
+							{
+								response_data = null;
+							}
 						}
 						DebugLogger.Log("[SnipeServiceClient] ProcessMessage - Invoke MessageReceived " + message_type);
 						MessageReceived.Invoke(message_type, error_code, (response_data != null) ? ConvertToExpandoObject(response_data) : null, request_id);
