@@ -263,29 +263,18 @@ namespace MiniIT.Snipe
 				DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) errorCode = " + error_code);
 			}
 
-			switch (message_type)
+			if (message_type == "user.login")
 			{
-				case "user.login":
-					if (error_code == "ok")
-					{
-						UserName = data.SafeGetString("name");
+				if (error_code == "ok")
+				{
+					UserName = data.SafeGetString("name");
 
-						LoginSucceeded?.Invoke();
-					}
-					else if (error_code == "wrongToken" || error_code == "userNotFound")
-					{
-						Authorize();
-					}
-					else if (error_code == "userDisconnecting")
-					{
-						//StartCoroutine(WaitAndRequestLogin());
-					}
-					else if (error_code == "userOnline")
-					{
-						//RequestLogout();
-						//StartCoroutine(WaitAndRequestLogin());
-					}
-					break;
+					LoginSucceeded?.Invoke();
+				}
+				else if (error_code == "wrongToken" || error_code == "userNotFound")
+				{
+					Authorize();
+				}
 			}
 		}
 		
@@ -345,22 +334,6 @@ namespace MiniIT.Snipe
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) WaitAndInitClient - delay finished");
 			InitClient();
 		}
-
-		//private IEnumerator WaitAndRequestLogin()
-		//{
-		//	yield return new WaitForSeconds(1.0f);
-		//	RequestLogin();
-		//}
-
-		//protected void RequestLogin()
-		//{
-		//	ExpandoObject data = new ExpandoObject();
-		//	data["id"] = SnipeAuthCommunicator.UserID;
-		//	data["token"] = SnipeAuthCommunicator.LoginToken;
-		//	//data["lang"] = "ru";
-
-		//	mClient.SendRequest("user.login", data);
-		//}
 		
 		public void Request(string message_type, ExpandoObject parameters = null)
 		{
@@ -382,46 +355,46 @@ namespace MiniIT.Snipe
 			return request;
 		}
 		
-		//public void ResendOfflineRequests()
-		//{
-		//	DebugLogger.LogError($"[SnipeCommunicator] ({INSTANCE_ID}) ResendOfflineRequests - begin");
+		public void ResendOfflineRequests()
+		{
+			DebugLogger.LogError($"[SnipeCommunicator] ({INSTANCE_ID}) ResendOfflineRequests - begin");
 			
-		//	foreach (var request in Requests)
-		//	{
-		//		if (request != null && !request.Active)
-		//		{
-		//			request.ResendInactive();
-		//		}
-		//	}
+			foreach (var request in Requests)
+			{
+				if (request != null && !request.Active)
+				{
+					request.ResendInactive();
+				}
+			}
 			
-		//	DebugLogger.LogError($"[SnipeCommunicator] ({INSTANCE_ID}) ResendOfflineRequests - done");
-		//}
+			DebugLogger.LogError($"[SnipeCommunicator] ({INSTANCE_ID}) ResendOfflineRequests - done");
+		}
 		
-		//public void DisposeOfflineRequests()
-		//{
-		//	DebugLogger.LogError($"[SnipeCommunicator] ({INSTANCE_ID}) DisposeOfflineRequests - begin");
+		public void DisposeOfflineRequests()
+		{
+			DebugLogger.LogError($"[SnipeCommunicator] ({INSTANCE_ID}) DisposeOfflineRequests - begin");
 			
-		//	List<SnipeCommunicatorRequest> inactive_requests = null;
-		//	foreach (var request in Requests)
-		//	{
-		//		if (request != null && !request.Active)
-		//		{
-		//			if (inactive_requests == null)
-		//				inactive_requests = new List<SnipeCommunicatorRequest>();
+			List<SnipeCommunicatorRequest> inactive_requests = null;
+			foreach (var request in Requests)
+			{
+				if (request != null && !request.Active)
+				{
+					if (inactive_requests == null)
+						inactive_requests = new List<SnipeCommunicatorRequest>();
 					
-		//			inactive_requests.Add(request);
-		//		}
-		//	}
-		//	if (inactive_requests != null)
-		//	{
-		//		foreach (var request in inactive_requests)
-		//		{
-		//			request?.Dispose();
-		//		}
-		//	}
+					inactive_requests.Add(request);
+				}
+			}
+			if (inactive_requests != null)
+			{
+				foreach (var request in inactive_requests)
+				{
+					request?.Dispose();
+				}
+			}
 			
-		//	DebugLogger.LogError($"[SnipeCommunicator] ({INSTANCE_ID}) DisposeOfflineRequests - done");
-		//}
+			DebugLogger.LogError($"[SnipeCommunicator] ({INSTANCE_ID}) DisposeOfflineRequests - done");
+		}
 
 		#region ActionRun Requests
 		
