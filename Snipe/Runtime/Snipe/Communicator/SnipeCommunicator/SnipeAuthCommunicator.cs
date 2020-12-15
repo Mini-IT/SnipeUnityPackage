@@ -12,6 +12,7 @@ namespace MiniIT.Snipe
 		protected const string REQUEST_USER_REGISTER = "auth/user.register";
 		protected const string REQUEST_USER_EXISTS = "auth/user.exists";
 		protected const string REQUEST_CLAIM_RESTORE_TOKEN = "auth/user.claimRestoreToken";
+		protected const string REQUEST_GET_ATTRIBUTE = "auth/attr.get";
 
 		private const float LOGING_TOKEN_REFRESH_TIMEOUT = 1800.0f; // = 30 min
 
@@ -20,6 +21,8 @@ namespace MiniIT.Snipe
 
 		public delegate void AccountBindingCollisionHandler(BindProvider provider, string user_name = null);
 		public static event AccountBindingCollisionHandler AccountBindingCollision;
+		
+		public delegate void GetUserAttributeCallback(string error_code, string user_name, string key, object value);
 
 		private static SnipeAuthCommunicator mInstance;
 		private static void InitInstance()
@@ -326,6 +329,35 @@ namespace MiniIT.Snipe
 					else
 					{
 						callback?.Invoke(false);
+					}
+				});
+		}
+		
+		public static void GetUserAttribute(string provider_id, string user_id, string key, GetUserAttributeCallback callback)
+		{
+			if (mInstance == null)
+				return;
+
+			SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, 
+				new ExpandoObject()
+				{
+					["messageType"] = REQUEST_GET_ATTRIBUTE,
+					["provider"] = provider_id,
+					["login"] = user_id,
+					["key"] = key,
+				},
+				(response) =>
+				{
+					if (callback != null)
+					{
+						if (response != null)
+						{
+							callback.Invoke(response?.SafeGetString("errorCode"), response?.SafeGetString("name"), response?.SafeGetString("key"), response?["val"]);
+						}
+						else
+						{
+							callback.Invoke("error", "", key, null);
+						}
 					}
 				});
 		}
