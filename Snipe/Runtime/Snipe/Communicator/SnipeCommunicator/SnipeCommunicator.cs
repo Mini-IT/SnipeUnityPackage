@@ -345,7 +345,7 @@ namespace MiniIT.Snipe
 		
 		public void ResendOfflineRequests()
 		{
-			DebugLogger.LogError($"[SnipeCommunicator] ({INSTANCE_ID}) ResendOfflineRequests - begin");
+			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) ResendOfflineRequests - begin");
 			
 			foreach (var request in Requests)
 			{
@@ -355,12 +355,12 @@ namespace MiniIT.Snipe
 				}
 			}
 			
-			DebugLogger.LogError($"[SnipeCommunicator] ({INSTANCE_ID}) ResendOfflineRequests - done");
+			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) ResendOfflineRequests - done");
 		}
 		
 		public void DisposeOfflineRequests()
 		{
-			DebugLogger.LogError($"[SnipeCommunicator] ({INSTANCE_ID}) DisposeOfflineRequests - begin");
+			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) DisposeOfflineRequests - begin");
 			
 			List<SnipeCommunicatorRequest> inactive_requests = null;
 			foreach (var request in Requests)
@@ -381,7 +381,7 @@ namespace MiniIT.Snipe
 				}
 			}
 			
-			DebugLogger.LogError($"[SnipeCommunicator] ({INSTANCE_ID}) DisposeOfflineRequests - done");
+			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) DisposeOfflineRequests - done");
 		}
 
 		#region ActionRun Requests
