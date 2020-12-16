@@ -318,7 +318,7 @@ namespace MiniIT.Snipe
 		private IEnumerator WaitAndInitClient()
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) WaitAndInitClient - start delay");
-			yield return new WaitForSeconds(0.5f);
+			yield return new WaitForSecondsRealtime(0.5f);
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) WaitAndInitClient - delay finished");
 			InitClient();
 		}
