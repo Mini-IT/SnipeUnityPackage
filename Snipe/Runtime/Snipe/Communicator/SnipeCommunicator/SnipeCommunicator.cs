@@ -54,6 +54,12 @@ namespace MiniIT.Snipe
 		{
 			get { return mClient != null && mClient.LoggedIn; }
 		}
+		
+		private int mRoomId = 0;
+		public bool RoomJoined
+		{
+			get { return mRoomId != 0 && mClient != null && mClient.LoggedIn; }
+		}
 
 		protected bool mDisconnecting = false;
 		
@@ -151,6 +157,7 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) {this.name} Disconnect");
 
+			mRoomId = 0;
 			mDisconnecting = true;
 			UserName = "";
 
@@ -161,6 +168,8 @@ namespace MiniIT.Snipe
 		protected virtual void OnDestroy()
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) OnDestroy");
+			
+			mRoomId = 0;
 			
 			ClearMainThreadActionsQueue();
 			
@@ -196,6 +205,8 @@ namespace MiniIT.Snipe
 		private void OnClientConnectionFailed()
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) [{mClient?.ConnectionId}] Game Connection failed");
+			
+			mRoomId = 0;
 
 			InvokeInMainThread(() =>
 			{
@@ -237,32 +248,49 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) [{mClient?.ConnectionId}] OnMessageReceived {request_id} {message_type} {error_code} " + (data != null ? data.ToJSONString() : "null"));
 
-			InvokeInMainThread(() =>
-			{
-				ProcessSnipeMessage(message_type, error_code, data);
-				MessageReceived?.Invoke(message_type, error_code, data, request_id);
-			});
-		}
-
-		protected virtual void ProcessSnipeMessage(string message_type, string error_code, ExpandoObject data)
-		{
-			if (!string.IsNullOrEmpty(error_code) && error_code != "ok")
-			{
-				DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) errorCode = " + error_code);
-			}
-
 			if (message_type == "user.login")
 			{
 				if (error_code == "ok")
 				{
 					UserName = data.SafeGetString("name");
 
-					LoginSucceeded?.Invoke();
+					if (LoginSucceeded != null)
+					{
+						InvokeInMainThread(() =>
+						{
+							LoginSucceeded?.Invoke();
+						});
+					}
 				}
 				else if (error_code == "wrongToken" || error_code == "userNotFound")
 				{
 					Authorize();
 				}
+			}
+			else if (message_type == "room.join")
+			{
+				if (error_code == "ok")
+				{
+					mRoomId = data?.SafeGetValue<int>("roomID") ?? 0;
+				}
+				else
+				{
+					mRoomId = 0;
+					DisposeRoomRequests();
+				}
+			}
+			else if (mRoomId != 0 && message_type == "room.dead" || (message_type == "room.logout" && error_code == "ok"))
+			{
+				mRoomId = 0;
+				DisposeRoomRequests();
+			}
+			
+			if (MessageReceived != null)
+			{
+				InvokeInMainThread(() =>
+				{
+					MessageReceived?.Invoke(message_type, error_code, data, request_id);
+				});
 			}
 		}
 		
@@ -382,6 +410,32 @@ namespace MiniIT.Snipe
 			}
 			
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) DisposeOfflineRequests - done");
+		}
+		
+		private void DisposeRoomRequests()
+		{
+			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) DisposeRoomRequests - begin");
+			
+			List<SnipeCommunicatorRequest> room_requests = null;
+			foreach (var request in Requests)
+			{
+				if (request != null && request.WaitingForRoomJoined)
+				{
+					if (room_requests == null)
+						room_requests = new List<SnipeCommunicatorRequest>();
+					
+					room_requests.Add(request);
+				}
+			}
+			if (room_requests != null)
+			{
+				foreach (var request in room_requests)
+				{
+					request?.Dispose();
+				}
+			}
+			
+			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) DisposeRoomRequests - done");
 		}
 
 		#region ActionRun Requests

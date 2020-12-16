@@ -19,6 +19,8 @@ namespace MiniIT.Snipe
 		public string MessageType { get; private set; }
 		public ExpandoObject Data { get; set; }
 		
+		public bool WaitingForRoomJoined { get; private set; } = false;
+		
 		public delegate void ResponseHandler(string error_code, ExpandoObject data);
 
 		private SnipeCommunicator mCommunicator;
@@ -96,7 +98,12 @@ namespace MiniIT.Snipe
 
 		private void OnCommunicatorReady()
 		{
-			if (mCallback != null)
+			if (MessageType.StartsWith("room.") && !mCommunicator.RoomJoined && MessageType != "room.join")
+			{
+				WaitingForRoomJoined = true;
+			}
+			
+			if (mCallback != null || WaitingForRoomJoined)
 			{
 				mCommunicator.ConnectionFailed -= OnConnectionClosed;
 				mCommunicator.ConnectionFailed += OnConnectionClosed;
@@ -104,6 +111,14 @@ namespace MiniIT.Snipe
 				mCommunicator.MessageReceived += OnMessageReceived;
 			}
 			
+			if (!WaitingForRoomJoined)
+			{
+				DoSendRequest();
+			}
+		}
+		
+		private void DoSendRequest()
+		{
 			mRequestId = mCommunicator.Request(this);
 			
 			if (mRequestId == 0)
@@ -138,6 +153,13 @@ namespace MiniIT.Snipe
 
 		private async void OnMessageReceived(string message_type, string error_code, ExpandoObject response_data, int request_id)
 		{
+			if (WaitingForRoomJoined && mCommunicator.RoomJoined)
+			{
+				WaitingForRoomJoined = false;
+				DoSendRequest();
+				return;
+			}
+			
 			if ((request_id == 0 || request_id == mRequestId) && message_type == MessageType)
 			{
 				if (error_code == ERROR_SERVICE_OFFLINE && mRetriesLeft > 0)
