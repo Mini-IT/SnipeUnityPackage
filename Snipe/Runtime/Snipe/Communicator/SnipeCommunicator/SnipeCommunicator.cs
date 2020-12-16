@@ -186,9 +186,11 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Connection succeeded");
 			
-			AnalyticsTrackConnectionSucceeded();
-			
-			OnConnectionSucceeded();
+			InvokeInMainThread(() =>
+			{
+				AnalyticsTrackConnectionSucceeded();
+				OnConnectionSucceeded();
+			});
 		}
 		
 		private void OnClientConnectionFailed()
@@ -202,18 +204,13 @@ namespace MiniIT.Snipe
 			});
 		}
 		
+		// Main thread
 		protected virtual void OnConnectionSucceeded()
 		{
 			mRestoreConnectionAttempt = 0;
 			mDisconnecting = false;
 
-			if (ConnectionSucceeded != null)
-			{
-				InvokeInMainThread(() =>
-				{
-					ConnectionSucceeded?.Invoke();
-				});
-			}
+			ConnectionSucceeded?.Invoke();
 		}
 		
 		// Main thread
@@ -223,13 +220,7 @@ namespace MiniIT.Snipe
 
 			if (mRestoreConnectionAttempt < RestoreConnectionAttempts && !mDisconnecting)
 			{
-				// if (ConnectionFailed != null)
-				// {
-					// InvokeInMainThread(() =>
-					// {
-						ConnectionFailed?.Invoke(true);
-					// });
-				// }
+				ConnectionFailed?.Invoke(true);
 				
 				mRestoreConnectionAttempt++;
 				DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Attempt to restore connection {mRestoreConnectionAttempt}");
@@ -238,10 +229,7 @@ namespace MiniIT.Snipe
 			}
 			else if (ConnectionFailed != null)
 			{
-				// InvokeInMainThread(() =>
-				// {
-					ConnectionFailed?.Invoke(true);
-				//});
+				ConnectionFailed?.Invoke(false);
 			}
 		}
 
