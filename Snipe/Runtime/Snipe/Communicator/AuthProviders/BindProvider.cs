@@ -42,7 +42,7 @@ namespace MiniIT.Snipe
 
 			mBindResultCallback = bind_callback;
 
-			InvokeBindResultCallback(IsBindDone ? ERROR_OK : ERROR_NOT_INITIALIZED);
+			InvokeBindResultCallback(IsBindDone ? SnipeErrorCodes.OK : SnipeErrorCodes.NOT_INITIALIZED);
 		}
 
 		public virtual string GetUserId()
@@ -57,7 +57,7 @@ namespace MiniIT.Snipe
 
 			string error_code = data?.SafeGetString("errorCode");
 			if (!string.IsNullOrEmpty(error_code))
-				AccountExists = (error_code == ERROR_OK);
+				AccountExists = (error_code == SnipeErrorCodes.OK);
 		}
 
 		public virtual bool CheckAuthExists(CheckAuthExistsCallback callback = null)
@@ -73,7 +73,7 @@ namespace MiniIT.Snipe
 			DebugLogger.Log($"[BindProvider] ({ProviderId}) CheckAuthExists {user_id}");
 
 			ExpandoObject data = new ExpandoObject();
-			data["messageType"] = REQUEST_USER_EXISTS;
+			data["messageType"] = SnipeMessageTypes.AUTH_USER_EXISTS;
 			data["provider"] = ProviderId;
 			data["login"] = user_id;
 
@@ -103,7 +103,7 @@ namespace MiniIT.Snipe
 		{
 			string error_code = data?.SafeGetString("errorCode");
 			if (!string.IsNullOrEmpty(error_code))
-				AccountExists = (error_code == ERROR_OK);
+				AccountExists = (error_code == SnipeErrorCodes.OK);
 			
 			bool is_me = data.SafeGetValue("isSame", false);
 			if (AccountExists == true && is_me)

@@ -9,11 +9,6 @@ namespace MiniIT.Snipe
 {
 	public class SnipeAuthCommunicator : MonoBehaviour
 	{
-		protected const string REQUEST_USER_REGISTER = "auth/user.register";
-		protected const string REQUEST_USER_EXISTS = "auth/user.exists";
-		protected const string REQUEST_CLAIM_RESTORE_TOKEN = "auth/user.claimRestoreToken";
-		protected const string REQUEST_GET_ATTRIBUTE = "auth/attr.get";
-
 		private const float LOGING_TOKEN_REFRESH_TIMEOUT = 1800.0f; // = 30 min
 
 		public delegate void AccountRegisterRespondedHandler(string error_code, int user_id = 0);
@@ -310,7 +305,7 @@ namespace MiniIT.Snipe
 			SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, 
 				new ExpandoObject()
 				{
-					["messageType"] = REQUEST_CLAIM_RESTORE_TOKEN,
+					["messageType"] = SnipeMessageTypes.AUTH_CLAIM_RESTORE_TOKEN,
 					["token"] = token,
 				},
 				(response) =>
@@ -341,7 +336,7 @@ namespace MiniIT.Snipe
 			SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, 
 				new ExpandoObject()
 				{
-					["messageType"] = REQUEST_GET_ATTRIBUTE,
+					["messageType"] = SnipeMessageTypes.AUTH_ATTR_GET,
 					["provider"] = provider_id,
 					["login"] = user_id,
 					["key"] = key,
@@ -440,7 +435,7 @@ namespace MiniIT.Snipe
 
 			if (mCurrentProvider is DefaultAuthProvider)
 			{
-				if (error_code == AuthProvider.ERROR_NOT_INITIALIZED || error_code == AuthProvider.ERROR_NO_SUCH_USER)
+				if (error_code == SnipeErrorCodes.NOT_INITIALIZED || error_code == SnipeErrorCodes.NO_SUCH_USER)
 				{
 					RequestRegister();
 				}
@@ -484,7 +479,7 @@ namespace MiniIT.Snipe
 		private void RequestRegister()
 		{
 			ExpandoObject data = new ExpandoObject();
-			data["messageType"] = REQUEST_USER_REGISTER;
+			data["messageType"] = SnipeMessageTypes.AUTH_USER_REGISTER;
 
 			if (SystemInfo.unsupportedIdentifier != SystemInfo.deviceUniqueIdentifier)
 				data["name"] = SystemInfo.deviceUniqueIdentifier; // optional

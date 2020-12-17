@@ -6,10 +6,6 @@ namespace MiniIT.Snipe
 {
 	public class SnipeCommunicatorRequest : IDisposable
 	{
-		public const string ERROR_NOT_READY = "notReady";
-		public const string ERROR_INVALIND_DATA = "invalidData";
-		public const string ERROR_SERVICE_OFFLINE = "serviceOffline";
-
 		private const int RETRIES_COUNT = 3;
 		private const int RETRY_DELAY = 1000; // milliseconds
 		
@@ -73,7 +69,7 @@ namespace MiniIT.Snipe
 			
 			if (mCommunicator == null) // || !mCommunicator.Connected)
 			{
-				InvokeCallback(ERROR_NOT_READY, EMPTY_DATA);
+				InvokeCallback(SnipeErrorCodes.NOT_READY, EMPTY_DATA);
 				return;
 			}
 			
@@ -82,7 +78,7 @@ namespace MiniIT.Snipe
 
 			if (string.IsNullOrEmpty(MessageType))
 			{
-				InvokeCallback(ERROR_INVALIND_DATA, EMPTY_DATA);
+				InvokeCallback(SnipeErrorCodes.INVALIND_DATA, EMPTY_DATA);
 				return;
 			}
 			
@@ -98,7 +94,9 @@ namespace MiniIT.Snipe
 
 		private void OnCommunicatorReady()
 		{
-			if (MessageType.StartsWith("room.") && !mCommunicator.RoomJoined && MessageType != "room.join")
+			if (MessageType.StartsWith(SnipeMessageTypes.PREFIX_ROOM) &&
+				!mCommunicator.RoomJoined &&
+				MessageType != SnipeMessageTypes.ROOM_JOIN)
 			{
 				WaitingForRoomJoined = true;
 			}
@@ -123,7 +121,7 @@ namespace MiniIT.Snipe
 			
 			if (mRequestId == 0)
 			{
-				InvokeCallback(ERROR_NOT_READY, EMPTY_DATA);
+				InvokeCallback(SnipeErrorCodes.NOT_READY, EMPTY_DATA);
 			}
 		}
 
@@ -142,7 +140,7 @@ namespace MiniIT.Snipe
 				}
 				else
 				{
-					InvokeCallback(ERROR_NOT_READY, EMPTY_DATA);
+					InvokeCallback(SnipeErrorCodes.NOT_READY, EMPTY_DATA);
 				}
 			}
 			else
@@ -162,7 +160,7 @@ namespace MiniIT.Snipe
 			
 			if ((request_id == 0 || request_id == mRequestId) && message_type == MessageType)
 			{
-				if (error_code == ERROR_SERVICE_OFFLINE && mRetriesLeft > 0)
+				if (error_code == SnipeErrorCodes.SERVICE_OFFLINE && mRetriesLeft > 0)
 				{
 					mRetriesLeft--;
 

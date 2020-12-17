@@ -17,13 +17,9 @@ namespace MiniIT.Snipe
 		public event Action ConnectionClosed;
 		public event Action LoginSucceeded;
 		public event Action<string> LoginFailed;
-
-		internal const string MESSAGE_TYPE_USER_LOGIN = "user.login";
-		private const string MESSAGE_TYPE_PING = "user.ping";
 		
-		internal const string ERROR_CODE_OK = "ok";
-
 		private const double HEARTBEAT_INTERVAL = 30; // seconds
+		private const int HEARTBEAT_TASK_DELAY = 5000; // ms
 
 		protected bool mLoggedIn = false;
 
@@ -58,7 +54,7 @@ namespace MiniIT.Snipe
 
 			SendRequest(new MPackMap()
 			{
-				["t"] = MESSAGE_TYPE_USER_LOGIN,
+				["t"] = SnipeMessageTypes.USER_LOGIN,
 				["data"] = new MPackMap()
 				{
 					["ckey"] = SnipeConfig.Instance.ClientKey,
@@ -284,9 +280,9 @@ namespace MiniIT.Snipe
 
 				if (!mLoggedIn)
 				{
-					if (message_type == MESSAGE_TYPE_USER_LOGIN)
+					if (message_type == SnipeMessageTypes.USER_LOGIN)
 					{	
-						if (error_code == ERROR_CODE_OK)
+						if (error_code == SnipeErrorCodes.OK)
 						{
 							DebugLogger.Log("[SnipeServiceClient] ProcessMessage - Login Succeeded");
 							
@@ -397,12 +393,9 @@ namespace MiniIT.Snipe
 
 		private async Task HeartbeatTask(CancellationToken cancellation)
 		{
-			var message = new MPackMap() { ["t"] = MESSAGE_TYPE_PING };
-			var bytes = message.EncodeToBytes();
-
 			ResetHeartbeatTimer();
 
-			await Task.Delay(5000, cancellation);
+			await Task.Delay(HEARTBEAT_TASK_DELAY, cancellation);
 
 			while (!cancellation.IsCancellationRequested && Connected)
 			{
@@ -417,7 +410,7 @@ namespace MiniIT.Snipe
 					DebugLogger.Log("[SnipeServiceClient] Heartbeat ping");
 				}
 
-				await Task.Delay(5000, cancellation);
+				await Task.Delay(HEARTBEAT_TASK_DELAY, cancellation);
 			}
 		}
 

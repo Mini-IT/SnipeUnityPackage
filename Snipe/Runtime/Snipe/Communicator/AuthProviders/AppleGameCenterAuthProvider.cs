@@ -31,7 +31,7 @@ public class AppleGameCenterAuthProvider : BindProvider
 				{
 					DebugLogger.Log("[AppleGameCenterAuthProvider] RequestAuth - LoginSignatureCallback");
 					
-					data["messageType"] = REQUEST_USER_LOGIN;
+					data["messageType"] = SnipeMessageTypes.AUTH_USER_LOGIN;
 					data["login"] = gc_login;
 					if (reset_auth)
 						data["resetInternalAuth"] = reset_auth;
@@ -49,7 +49,7 @@ public class AppleGameCenterAuthProvider : BindProvider
 		}
 #endif
 
-		InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
+		InvokeAuthFailCallback(SnipeErrorCodes.NOT_INITIALIZED);
 	}
 
 #if UNITY_IOS
@@ -74,7 +74,7 @@ public class AppleGameCenterAuthProvider : BindProvider
 		
 		if (IsBindDone)
 		{
-			InvokeBindResultCallback(ERROR_OK);
+			InvokeBindResultCallback(SnipeErrorCodes.OK);
 			return;
 		}
 		
@@ -96,11 +96,11 @@ public class AppleGameCenterAuthProvider : BindProvider
 						if (string.IsNullOrEmpty(auth_login) || string.IsNullOrEmpty(auth_token))
 						{
 							DebugLogger.Log("[AppleGameCenterAuthProvider] internal uid or token is invalid");
-							InvokeBindResultCallback(AuthProvider.ERROR_PARAMS_WRONG);
+							InvokeBindResultCallback(SnipeErrorCodes.PARAMS_WRONG);
 							return;
 						}
 
-						data["messageType"] = REQUEST_USER_BIND;
+						data["messageType"] = SnipeMessageTypes.AUTH_USER_BIND;
 						data["provider"] = ProviderId;
 						data["login"] = gc_login;
 						//data["auth"] = login_token;
@@ -122,7 +122,7 @@ public class AppleGameCenterAuthProvider : BindProvider
 		AppleGameCenterProvider.InstanceInitializationComplete += OnAppleGameCenterProviderInitializationComplete;
 #endif
 
-		InvokeBindResultCallback(ERROR_NOT_INITIALIZED);
+		InvokeBindResultCallback(SnipeErrorCodes.NOT_INITIALIZED);
 	}
 
 	protected override void OnAuthLoginResponse(ExpandoObject data)
@@ -131,7 +131,7 @@ public class AppleGameCenterAuthProvider : BindProvider
 
 		string error_code = data?.SafeGetString("errorCode");
 
-		if (error_code == ERROR_OK)
+		if (error_code == SnipeErrorCodes.OK)
 		{
 			int user_id = data.SafeGetValue<int>("id");
 			string login_token = data.SafeGetString("token");

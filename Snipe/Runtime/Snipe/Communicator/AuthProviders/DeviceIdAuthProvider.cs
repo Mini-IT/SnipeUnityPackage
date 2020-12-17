@@ -23,7 +23,7 @@ public class DeviceIdAuthProvider : BindProvider
 		}
 		else
 		{
-			InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
+			InvokeAuthFailCallback(SnipeErrorCodes.NOT_INITIALIZED);
 		}
 	}
 
@@ -35,7 +35,7 @@ public class DeviceIdAuthProvider : BindProvider
 		
 		if (IsBindDone)
 		{
-			InvokeBindResultCallback(ERROR_OK);
+			InvokeBindResultCallback(SnipeErrorCodes.OK);
 			return;
 		}
 		
@@ -48,13 +48,13 @@ public class DeviceIdAuthProvider : BindProvider
 			{
 				DebugLogger.Log("[DeviceIdAuthProvider] internal uid or token is invalid");
 
-				InvokeBindResultCallback(AuthProvider.ERROR_PARAMS_WRONG);
+				InvokeBindResultCallback(SnipeErrorCodes.PARAMS_WRONG);
 			}
 			else
 			{
 				ExpandoObject data = new ExpandoObject()
 				{
-					["messageType"] = REQUEST_USER_BIND,
+					["messageType"] = SnipeMessageTypes.AUTH_USER_BIND,
 					["provider"] = ProviderId,
 					["login"] = GetUserId(),
 					["loginInt"] = auth_login,
@@ -67,7 +67,7 @@ public class DeviceIdAuthProvider : BindProvider
 		}
 		else
 		{
-			InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
+			InvokeAuthFailCallback(SnipeErrorCodes.NOT_INITIALIZED);
 		}
 	}
 
@@ -79,7 +79,7 @@ public class DeviceIdAuthProvider : BindProvider
 
 		DebugLogger.Log($"[DeviceIdAuthProvider] {error_code}");
 
-		if (error_code == ERROR_OK)
+		if (error_code == SnipeErrorCodes.OK)
 		{
 			int user_id = data.SafeGetValue<int>("id");
 			string login_token = data.SafeGetString("token");

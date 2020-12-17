@@ -9,6 +9,8 @@ namespace MiniIT.Snipe
 	{
 		protected readonly int INSTANCE_ID = new System.Random().Next();
 		
+		private const float RETRY_INIT_CLIENT_DELAY = 0.5f; // seconds
+		
 		public delegate void MessageReceivedHandler(string message_type, string error_code, ExpandoObject data, int request_id);
 		public delegate void ConnectionSucceededHandler();
 		public delegate void ConnectionFailedHandler(bool will_restore = false);
@@ -248,9 +250,9 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) [{mClient?.ConnectionId}] OnMessageReceived {request_id} {message_type} {error_code} " + (data != null ? data.ToJSONString() : "null"));
 
-			if (message_type == "user.login")
+			if (message_type == SnipeMessageTypes.USER_LOGIN)
 			{
-				if (error_code == "ok")
+				if (error_code == SnipeErrorCodes.OK)
 				{
 					UserName = data.SafeGetString("name");
 
@@ -262,14 +264,14 @@ namespace MiniIT.Snipe
 						});
 					}
 				}
-				else if (error_code == "wrongToken" || error_code == "userNotFound")
+				else if (error_code == SnipeErrorCodes.WRONG_TOKEN || error_code == SnipeErrorCodes.USER_NOT_FOUND)
 				{
 					Authorize();
 				}
 			}
-			else if (message_type == "room.join")
+			else if (message_type == SnipeMessageTypes.ROOM_JOIN)
 			{
-				if (error_code == "ok")
+				if (error_code == SnipeErrorCodes.OK)
 				{
 					mRoomId = data?.SafeGetValue<int>("roomID") ?? 0;
 				}
@@ -279,7 +281,7 @@ namespace MiniIT.Snipe
 					DisposeRoomRequests();
 				}
 			}
-			else if (mRoomId != 0 && message_type == "room.dead" || (message_type == "room.logout" && error_code == "ok"))
+			else if (mRoomId != 0 && message_type == SnipeMessageTypes.ROOM_DEAD || (message_type == SnipeMessageTypes.ROOM_LOGOUT && error_code == SnipeErrorCodes.OK))
 			{
 				mRoomId = 0;
 				DisposeRoomRequests();
@@ -346,7 +348,7 @@ namespace MiniIT.Snipe
 		private IEnumerator WaitAndInitClient()
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) WaitAndInitClient - start delay");
-			yield return new WaitForSecondsRealtime(0.5f);
+			yield return new WaitForSecondsRealtime(RETRY_INIT_CLIENT_DELAY);
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) WaitAndInitClient - delay finished");
 			InitClient();
 		}
@@ -455,7 +457,7 @@ namespace MiniIT.Snipe
 			else
 				parameters["actionID"] = action_id;
 			
-			return CreateRequest("action.run", parameters);
+			return CreateRequest(SnipeMessageTypes.ACTION_RUN, parameters);
 		}
 		
 		#endregion // ActionRun Requests

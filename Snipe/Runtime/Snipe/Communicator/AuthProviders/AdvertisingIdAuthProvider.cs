@@ -36,7 +36,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 			{
 				DebugLogger.Log("[AdvertisingIdAuthProvider] advertising id is invalid");
 				
-				InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
+				InvokeAuthFailCallback(SnipeErrorCodes.NOT_INITIALIZED);
 			}
 		}
 
@@ -44,7 +44,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 		{
 			DebugLogger.Log("[AdvertisingIdAuthProvider] advertising id is not supported on this platform");
 			
-			InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
+			InvokeAuthFailCallback(SnipeErrorCodes.NOT_INITIALIZED);
 		}
 	}
 
@@ -70,7 +70,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 		
 		if (IsBindDone)
 		{
-			InvokeBindResultCallback(ERROR_OK);
+			InvokeBindResultCallback(SnipeErrorCodes.OK);
 			return;
 		}
 
@@ -80,7 +80,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 
 			if (AdvertisingId == advertising_id && IsBindDone)
 			{
-				InvokeBindResultCallback(ERROR_OK);
+				InvokeBindResultCallback(SnipeErrorCodes.OK);
 				return;
 			}
 			
@@ -93,7 +93,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 			{
 				DebugLogger.Log("[AdvertisingIdAuthProvider] internal uid or token is invalid");
 
-				InvokeBindResultCallback(AuthProvider.ERROR_PARAMS_WRONG);
+				InvokeBindResultCallback(SnipeErrorCodes.PARAMS_WRONG);
 			}
 			else
 			{
@@ -101,7 +101,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 				{
 					ExpandoObject data = new ExpandoObject()
 					{
-						["messageType"] = REQUEST_USER_BIND,
+						["messageType"] = SnipeMessageTypes.AUTH_USER_BIND,
 						["provider"] = ProviderId,
 						["login"] = advertising_id,
 						["loginInt"] = auth_login,
@@ -124,7 +124,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 				{
 					DebugLogger.Log("[AdvertisingIdAuthProvider] advertising_id is invalid");
 
-					InvokeBindResultCallback(AuthProvider.ERROR_NOT_INITIALIZED);
+					InvokeBindResultCallback(SnipeErrorCodes.NOT_INITIALIZED);
 				}
 			}
 		}
@@ -138,7 +138,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 		{
 			DebugLogger.Log("[AdvertisingIdAuthProvider] advertising id is not supported on this platform");
 
-			InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
+			InvokeAuthFailCallback(SnipeErrorCodes.NOT_INITIALIZED);
 		}
 	}
 
@@ -150,7 +150,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 
 		DebugLogger.Log($"[AdvertisingIdAuthProvider] {error_code}");
 
-		if (error_code == ERROR_OK)
+		if (error_code == SnipeErrorCodes.OK)
 		{
 			int user_id = data.SafeGetValue<int>("id");
 			string login_token = data.SafeGetString("token");

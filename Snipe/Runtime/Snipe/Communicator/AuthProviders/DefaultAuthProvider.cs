@@ -23,7 +23,7 @@ namespace MiniIT.Snipe
 			}
 			else
 			{
-				InvokeAuthFailCallback(ERROR_NOT_INITIALIZED);
+				InvokeAuthFailCallback(SnipeErrorCodes.NOT_INITIALIZED);
 			}
 		}
 
@@ -36,7 +36,7 @@ namespace MiniIT.Snipe
 
 			string error_code = data?.SafeGetString("errorCode");
 
-			if (error_code == ERROR_OK)
+			if (error_code == SnipeErrorCodes.OK)
 			{
 				int user_id = data.SafeGetValue<int>("id");
 				string login_token = data.SafeGetString("token");
@@ -45,7 +45,7 @@ namespace MiniIT.Snipe
 			}
 			else
 			{
-				if (error_code == ERROR_NO_SUCH_USER)
+				if (error_code == SnipeErrorCodes.NO_SUCH_USER)
 				{
 					PlayerPrefs.DeleteKey(SnipePrefs.AUTH_UID);
 					PlayerPrefs.DeleteKey(SnipePrefs.AUTH_KEY);

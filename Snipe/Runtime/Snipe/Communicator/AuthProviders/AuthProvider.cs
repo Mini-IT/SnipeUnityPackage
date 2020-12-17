@@ -5,16 +5,6 @@ namespace MiniIT.Snipe
 {
 	public class AuthProvider : IDisposable
 	{
-		public const string ERROR_OK = "ok";
-		public const string ERROR_NOT_INITIALIZED = "notInitialized";
-		public const string ERROR_NO_SUCH_USER = "noSuchUser";
-		public const string ERROR_NO_SUCH_AUTH = "noSuchAuth";
-		public const string ERROR_PARAMS_WRONG = "paramsWrong";
-
-		protected const string REQUEST_USER_LOGIN = "auth/user.login";
-		protected const string REQUEST_USER_BIND = "auth/user.bind";
-		protected const string REQUEST_USER_EXISTS = "auth/user.exists";
-
 		public virtual string ProviderId { get { return "__"; } }
 
 		public delegate void AuthSuccessCallback(int user_id, string login_token);
@@ -36,14 +26,14 @@ namespace MiniIT.Snipe
 			//mAuthSuccessCallback = success_callback;
 			//mAuthFailCallback = fail_callback;
 
-			InvokeAuthFailCallback(ERROR_NOT_INITIALIZED);
+			InvokeAuthFailCallback(SnipeErrorCodes.NOT_INITIALIZED);
 		}
 
 		protected void RequestLogin(string provider, string login, string token, bool reset_auth = false)
 		{
 			ExpandoObject data = new ExpandoObject()
 			{
-				["messageType"] = REQUEST_USER_LOGIN,
+				["messageType"] = SnipeMessageTypes.AUTH_USER_LOGIN,
 				["provider"] = provider,
 				["login"] = login,
 				["auth"] = token,
@@ -56,7 +46,7 @@ namespace MiniIT.Snipe
 
 		protected virtual void OnAuthLoginResponse(ExpandoObject data)
 		{
-			if (data?.SafeGetString("errorCode") == ERROR_OK)
+			if (data?.SafeGetString("errorCode") == SnipeErrorCodes.OK)
 			{
 				//LoggedIn = true;
 
