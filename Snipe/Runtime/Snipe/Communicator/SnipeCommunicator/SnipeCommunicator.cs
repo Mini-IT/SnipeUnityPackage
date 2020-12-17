@@ -281,7 +281,7 @@ namespace MiniIT.Snipe
 					DisposeRoomRequests();
 				}
 			}
-			else if (mRoomId != 0 && message_type == SnipeMessageTypes.ROOM_DEAD || (message_type == SnipeMessageTypes.ROOM_LOGOUT && error_code == SnipeErrorCodes.OK))
+			else if (message_type == SnipeMessageTypes.ROOM_DEAD || (message_type == SnipeMessageTypes.ROOM_LOGOUT && error_code == SnipeErrorCodes.OK))
 			{
 				mRoomId = 0;
 				DisposeRoomRequests();
@@ -414,7 +414,7 @@ namespace MiniIT.Snipe
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) DisposeOfflineRequests - done");
 		}
 		
-		private void DisposeRoomRequests()
+		public void DisposeRoomRequests()
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) DisposeRoomRequests - begin");
 			
