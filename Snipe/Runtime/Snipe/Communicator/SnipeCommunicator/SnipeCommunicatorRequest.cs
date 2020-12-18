@@ -94,9 +94,10 @@ namespace MiniIT.Snipe
 
 		private void OnCommunicatorReady()
 		{
-			if (MessageType.StartsWith(SnipeMessageTypes.PREFIX_ROOM) &&
-				!mCommunicator.RoomJoined &&
-				MessageType != SnipeMessageTypes.ROOM_JOIN)
+			if (!mCommunicator.RoomJoined &&
+				MessageType.StartsWith(SnipeMessageTypes.PREFIX_ROOM) &&
+				MessageType != SnipeMessageTypes.ROOM_JOIN &&
+				MessageType != SnipeMessageTypes.ROOM_LEAVE)
 			{
 				WaitingForRoomJoined = true;
 			}

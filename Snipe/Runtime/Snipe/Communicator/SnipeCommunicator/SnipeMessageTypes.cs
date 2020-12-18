@@ -17,6 +17,6 @@ namespace MiniIT.Snipe
 		public const string PREFIX_ROOM = "room.";
 		public const string ROOM_JOIN = "room.join";
 		public const string ROOM_DEAD = "room.dead";
-		public const string ROOM_LOGOUT = "room.logout";
+		public const string ROOM_LEAVE = "room.leave";
 	}
 }

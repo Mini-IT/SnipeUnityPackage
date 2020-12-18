@@ -129,9 +129,9 @@ namespace MiniIT.Snipe
 		public string DisconnectReason { get; private set; }
 		public string CheckConnectionMessageType  { get; private set; }
 
-		public SnipeClient()
-		{
-		}
+		// public SnipeClient()
+		// {
+		// }
 
 		public void Init(string web_socket_url = "")
 		{

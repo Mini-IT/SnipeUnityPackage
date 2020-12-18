@@ -5,9 +5,9 @@ using UnityEngine;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeCommunicator : MonoBehaviour, IDisposable
+	public sealed class SnipeCommunicator : MonoBehaviour, IDisposable
 	{
-		protected readonly int INSTANCE_ID = new System.Random().Next();
+		private readonly int INSTANCE_ID = new System.Random().Next();
 		
 		private const float RETRY_INIT_CLIENT_DELAY = 0.5f; // seconds
 		
@@ -63,18 +63,52 @@ namespace MiniIT.Snipe
 			get { return mRoomId != 0 && mClient != null && mClient.LoggedIn; }
 		}
 
-		protected bool mDisconnecting = false;
+		private bool mDisconnecting = false;
 		
 		private readonly List<Action> mMainThreadActions = new List<Action>();
-		private Coroutine mMainThreadCoroutine;
+		private bool mHasMainThreadActions = false; // To prevent the use of the lock keyword every frame
+		
+		private static SnipeCommunicator mInstance;
+		public static SnipeCommunicator Instance
+		{
+			get
+			{
+				if (mInstance == null)
+				{
+					var game_object = new GameObject("[SnipeCommunicator]");
+					//game_object.hideFlags = HideFlags.HideAndDontSave;
+					mInstance = game_object.AddComponent<SnipeCommunicator>();
+					DontDestroyOnLoad(game_object);
+				}
+				return mInstance;
+			}
+		}
+		
+		public static void DestroyInstance()
+		{
+			if (mInstance != null)
+			{
+				if (mInstance.gameObject != null)
+					GameObject.DestroyImmediate(mInstance.gameObject);
+				mInstance = null;
+			}
+		}
+		
+		private void Awake()
+		{
+			if (mInstance != null && mInstance != this)
+			{
+				GameObject.DestroyImmediate(this.gameObject);
+				return;
+			}
+			DontDestroyOnLoad(this.gameObject);
+		}
 		
 		/// <summary>
 		/// Should be called from the main Unity thread
 		/// </summary>
-		public virtual void StartCommunicator()
+		public void StartCommunicator()
 		{
-			DontDestroyOnLoad(this.gameObject);
-			
 			if (CheckLoginParams())
 			{
 				InitClient();
@@ -82,11 +116,6 @@ namespace MiniIT.Snipe
 			else
 			{
 				Authorize();
-			}
-			
-			if (mMainThreadCoroutine == null)
-			{
-				mMainThreadCoroutine = StartCoroutine(MainThreadCoroutine());
 			}
 		}
 
@@ -108,28 +137,25 @@ namespace MiniIT.Snipe
 			SnipeAuthCommunicator.Authorize(OnAuthSucceeded, OnAuthFailed);
 		}
 
-		protected void OnAuthSucceeded()
+		private void OnAuthSucceeded()
 		{
 			InitClient();
 		}
 
-		protected void OnAuthFailed()
+		private void OnAuthFailed()
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) OnAuthFailed");
 
 			if (ConnectionFailed != null)
 			{
-				lock (mMainThreadActions)
+				InvokeInMainThread(() =>
 				{
-					mMainThreadActions.Add(() =>
-					{
-						ConnectionFailed?.Invoke(false);
-					});
-				}
+					ConnectionFailed?.Invoke(false);
+				});
 			}
 		}
 
-		protected virtual void InitClient()
+		private void InitClient()
 		{
 			if (LoggedIn)
 			{
@@ -155,7 +181,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		public virtual void Disconnect()
+		public void Disconnect()
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) {this.name} Disconnect");
 
@@ -167,7 +193,7 @@ namespace MiniIT.Snipe
 				mClient.Disconnect();
 		}
 
-		protected virtual void OnDestroy()
+		private void OnDestroy()
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) OnDestroy");
 			
@@ -196,11 +222,14 @@ namespace MiniIT.Snipe
 		private void OnClientConnectionSucceeded()
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Connection succeeded");
-			
+
+			mRestoreConnectionAttempt = 0;
+			mDisconnecting = false;
+
 			InvokeInMainThread(() =>
 			{
 				AnalyticsTrackConnectionSucceeded();
-				OnConnectionSucceeded();
+				ConnectionSucceeded?.Invoke();
 			});
 		}
 		
@@ -218,16 +247,7 @@ namespace MiniIT.Snipe
 		}
 		
 		// Main thread
-		protected virtual void OnConnectionSucceeded()
-		{
-			mRestoreConnectionAttempt = 0;
-			mDisconnecting = false;
-
-			ConnectionSucceeded?.Invoke();
-		}
-		
-		// Main thread
-		protected virtual void OnConnectionFailed()
+		private void OnConnectionFailed()
 		{	
 			//ClearMainThreadActionsQueue();
 
@@ -248,7 +268,7 @@ namespace MiniIT.Snipe
 
 		private void OnMessageReceived(string message_type, string error_code, ExpandoObject data, int request_id)
 		{
-			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) [{mClient?.ConnectionId}] OnMessageReceived {request_id} {message_type} {error_code} " + (data != null ? data.ToJSONString() : "null"));
+			// DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) [{mClient?.ConnectionId}] OnMessageReceived {request_id} {message_type} {error_code} " + (data != null ? data.ToJSONString() : "null"));
 
 			if (message_type == SnipeMessageTypes.USER_LOGIN)
 			{
@@ -281,7 +301,7 @@ namespace MiniIT.Snipe
 					DisposeRoomRequests();
 				}
 			}
-			else if (message_type == SnipeMessageTypes.ROOM_DEAD || (message_type == SnipeMessageTypes.ROOM_LOGOUT && error_code == SnipeErrorCodes.OK))
+			else if (message_type == SnipeMessageTypes.ROOM_DEAD)
 			{
 				mRoomId = 0;
 				DisposeRoomRequests();
@@ -298,15 +318,16 @@ namespace MiniIT.Snipe
 		
 		#region Main Thread
 		
-		protected void InvokeInMainThread(Action action)
+		private void InvokeInMainThread(Action action)
 		{
 			lock (mMainThreadActions)
 			{
 				mMainThreadActions.Add(action);
+				mHasMainThreadActions = true;
 			}
 		}
 
-		protected void ClearMainThreadActionsQueue()
+		private void ClearMainThreadActionsQueue()
 		{
 			lock (mMainThreadActions)
 			{
@@ -314,32 +335,31 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		protected IEnumerator MainThreadCoroutine()
+		private void Update()
 		{
-			while (true)
+			if (!mHasMainThreadActions)
+				return;
+				
+			lock (mMainThreadActions)
 			{
-				lock (mMainThreadActions)
+				for (int i = 0; i < mMainThreadActions.Count; i++)
 				{
-					for (int i = 0; i < mMainThreadActions.Count; i++)
-					{
-						var action = mMainThreadActions[i];
-						if (action == null)
-							continue;
-						
-						action.Invoke();
-
-						// the handler could have called Dispose
-						// if (!Connected)
-						// {
-							// mMainThreadCoroutine = null;
-							// yield break;
-						// }
-					}
+					var action = mMainThreadActions[i];
+					if (action == null)
+						continue;
 					
-					mMainThreadActions.Clear();
+					action.Invoke();
+
+					// the handler could have called Dispose
+					// if (!Connected)
+					// {
+						// mMainThreadCoroutine = null;
+						// yield break;
+					// }
 				}
 				
-				yield return null;
+				mMainThreadActions.Clear();
+				mHasMainThreadActions = false;
 			}
 		}
 
@@ -462,12 +482,12 @@ namespace MiniIT.Snipe
 		
 		#endregion // ActionRun Requests
 		
-		public virtual void Dispose()
+		public void Dispose()
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Dispose");
 			
 			StopAllCoroutines();
-			mMainThreadCoroutine = null;
+			mHasMainThreadActions = false;
 			
 			Disconnect();
 			DisposeRequests();
@@ -482,18 +502,21 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) DisposeRequests");
 			
-			var temp_requests = mRequests;
-			mRequests = null;
-			foreach (var request in temp_requests)
+			if (mRequests != null)
 			{
-				request?.Dispose();
+				var temp_requests = mRequests;
+				mRequests = null;
+				foreach (var request in temp_requests)
+				{
+					request?.Dispose();
+				}
+				//temp_requests.Clear();
 			}
-			//temp_requests.Clear();
 		}
 		
 		#region Analytics
 		
-		protected virtual void AnalyticsTrackConnectionSucceeded()
+		private void AnalyticsTrackConnectionSucceeded()
 		{
 			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_CONNECTED, new ExpandoObject()
 			{
@@ -501,7 +524,7 @@ namespace MiniIT.Snipe
 			});
 		}
 		
-		protected virtual void AnalyticsTrackConnectionFailed()
+		private void AnalyticsTrackConnectionFailed()
 		{
 			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_DISCONNECTED, new ExpandoObject()
 			{

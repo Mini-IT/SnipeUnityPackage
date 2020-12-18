@@ -103,8 +103,6 @@ namespace MiniIT.Snipe
 
 		public static void TrackEvent(string name, IDictionary<string, object> properties = null)
 		{
-			DebugLogger.Log("[Analytics] TrackEvent " + name);
-			
 			if (CheckReady())
 			{
 				// Some trackers (for example Amplitude) may crash if used not in the main Unity thread.
@@ -187,8 +185,6 @@ namespace MiniIT.Snipe
 		
 		private void EnqueueEvent(string name, IDictionary<string, object> properties = null)
 		{
-			DebugLogger.Log("[Analytics] EnqueueEvent - " + name);
-			
 			if (mEventsQueue == null)
 				mEventsQueue = new List<EventsQueueItem>();
 			lock (mEventsQueue)
