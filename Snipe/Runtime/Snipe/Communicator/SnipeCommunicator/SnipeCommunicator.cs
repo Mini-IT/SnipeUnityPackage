@@ -263,6 +263,7 @@ namespace MiniIT.Snipe
 			else if (ConnectionFailed != null)
 			{
 				ConnectionFailed?.Invoke(false);
+				DisposeRequests();
 			}
 		}
 
@@ -410,7 +411,7 @@ namespace MiniIT.Snipe
 		
 		public void DisposeOfflineRequests()
 		{
-			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) DisposeOfflineRequests - begin");
+			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) DisposeOfflineRequests");
 			
 			List<SnipeCommunicatorRequest> inactive_requests = null;
 			foreach (var request in Requests)
@@ -430,13 +431,11 @@ namespace MiniIT.Snipe
 					request?.Dispose();
 				}
 			}
-			
-			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) DisposeOfflineRequests - done");
 		}
 		
 		public void DisposeRoomRequests()
 		{
-			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) DisposeRoomRequests - begin");
+			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) DisposeRoomRequests");
 			
 			List<SnipeCommunicatorRequest> room_requests = null;
 			foreach (var request in Requests)
@@ -456,8 +455,6 @@ namespace MiniIT.Snipe
 					request?.Dispose();
 				}
 			}
-			
-			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) DisposeRoomRequests - done");
 		}
 
 		#region ActionRun Requests
