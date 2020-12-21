@@ -274,7 +274,7 @@ namespace MiniIT.Snipe
 				string error_code = (message.TryGetValue("errorCode", out var message_value_error_code)) ? Convert.ToString(message_value_error_code) : "";
 				int request_id = (message.TryGetValue("id", out var message_value_id)) ? Convert.ToInt32(message_value_id) : 0;
 				
-				DebugLogger.Log($"[SnipeServiceClient] ProcessMessage {request_id} {message_type} {error_code}");
+				DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] ProcessMessage {request_id} {message_type} {error_code}");
 
 				MPackMap response_data = null;
 
@@ -284,7 +284,7 @@ namespace MiniIT.Snipe
 					{	
 						if (error_code == SnipeErrorCodes.OK)
 						{
-							DebugLogger.Log("[SnipeServiceClient] ProcessMessage - Login Succeeded");
+							DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] ProcessMessage - Login Succeeded");
 							
 							mLoggedIn = true;
 
@@ -307,7 +307,7 @@ namespace MiniIT.Snipe
 							}
 							catch (Exception e)
 							{
-								DebugLogger.Log("[SnipeServiceClient] ProcessMessage - LoginSucceeded invokation error: " + e.Message);
+								DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] ProcessMessage - LoginSucceeded invokation error: " + e.Message);
 							}
 
 							if (mHeartbeatEnabled)
@@ -317,7 +317,7 @@ namespace MiniIT.Snipe
 						}
 						else
 						{
-							DebugLogger.Log("[SnipeServiceClient] ProcessMessage - Login Failed");
+							DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] ProcessMessage - Login Failed");
 							
 							try
 							{
@@ -325,7 +325,7 @@ namespace MiniIT.Snipe
 							}
 							catch (Exception e)
 							{
-								DebugLogger.Log("[SnipeServiceClient] ProcessMessage - LoginFailed invokation error: " + e.Message);
+								DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] ProcessMessage - LoginFailed invokation error: " + e.Message);
 							}
 						}
 					}
@@ -346,17 +346,17 @@ namespace MiniIT.Snipe
 								response_data = null;
 							}
 						}
-						DebugLogger.Log("[SnipeServiceClient] ProcessMessage - Invoke MessageReceived " + message_type);
+						DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] ProcessMessage - Invoke MessageReceived " + message_type);
 						MessageReceived.Invoke(message_type, error_code, (response_data != null) ? ConvertToExpandoObject(response_data) : null, request_id);
 					}
 					catch (Exception e)
 					{
-						DebugLogger.Log("[SnipeServiceClient] ProcessMessage - MessageReceived invokation error: " + e.Message + "\n" + e.StackTrace);
+						DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] ProcessMessage - MessageReceived invokation error: " + e.Message + "\n" + e.StackTrace);
 					}
 				}
 				else
 				{
-					DebugLogger.Log("[SnipeServiceClient] ProcessMessage - no MessageReceived listeners");
+					DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] ProcessMessage - no MessageReceived listeners");
 				}
 
 				if (mHeartbeatEnabled)
@@ -407,7 +407,7 @@ namespace MiniIT.Snipe
 					}
 					ResetHeartbeatTimer();
 
-					DebugLogger.Log("[SnipeServiceClient] Heartbeat ping");
+					DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] Heartbeat ping");
 				}
 
 				await Task.Delay(HEARTBEAT_TASK_DELAY, cancellation);
