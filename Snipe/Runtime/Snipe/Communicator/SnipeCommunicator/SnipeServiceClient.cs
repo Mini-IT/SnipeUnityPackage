@@ -346,7 +346,7 @@ namespace MiniIT.Snipe
 								response_data = null;
 							}
 						}
-						DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] ProcessMessage - Invoke MessageReceived " + message_type);
+						
 						MessageReceived.Invoke(message_type, error_code, (response_data != null) ? ConvertToExpandoObject(response_data) : null, request_id);
 					}
 					catch (Exception e)
