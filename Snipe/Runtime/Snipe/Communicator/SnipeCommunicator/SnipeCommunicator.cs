@@ -9,7 +9,7 @@ namespace MiniIT.Snipe
 	{
 		private readonly int INSTANCE_ID = new System.Random().Next();
 		
-		private const float RETRY_INIT_CLIENT_DELAY = 0.5f; // seconds
+		private const float RETRY_INIT_CLIENT_DELAY = 0.75f; // seconds
 		
 		public delegate void MessageReceivedHandler(string message_type, string error_code, ExpandoObject data, int request_id);
 		public delegate void ConnectionSucceededHandler();
@@ -25,9 +25,9 @@ namespace MiniIT.Snipe
 
 		public string UserName { get; private set; }
 
-		private SnipeServiceClient mClient;// { get; private set; }
+		private SnipeServiceClient mClient;
 
-		public int RestoreConnectionAttempts = 3;
+		public int RestoreConnectionAttempts = 10;
 		private int mRestoreConnectionAttempt;
 		
 		public bool AllowRequestsToWaitForLogin = true;
@@ -288,6 +288,10 @@ namespace MiniIT.Snipe
 				else if (error_code == SnipeErrorCodes.WRONG_TOKEN || error_code == SnipeErrorCodes.USER_NOT_FOUND)
 				{
 					Authorize();
+				}
+				else if (error_code == SnipeErrorCodes.GAME_SERVERS_OFFLINE)
+				{
+					OnConnectionFailed();
 				}
 			}
 			else if (message_type == SnipeMessageTypes.ROOM_JOIN)

@@ -18,5 +18,6 @@ namespace MiniIT.Snipe
 		public const string NOT_READY = "notReady";
 		public const string INVALIND_DATA = "invalidData";
 		public const string SERVICE_OFFLINE = "serviceOffline";
+		public const string GAME_SERVERS_OFFLINE = "gameServersOffline";
 	}
 }
