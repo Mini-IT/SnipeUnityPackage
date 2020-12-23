@@ -67,7 +67,7 @@ namespace MiniIT.Snipe
 		{
 			mSent = true;
 			
-			if (mCommunicator == null) // || !mCommunicator.Connected)
+			if (mCommunicator == null)
 			{
 				InvokeCallback(SnipeErrorCodes.NOT_READY, EMPTY_DATA);
 				return;
