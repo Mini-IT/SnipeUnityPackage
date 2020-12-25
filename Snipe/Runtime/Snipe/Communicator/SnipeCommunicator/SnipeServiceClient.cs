@@ -224,7 +224,7 @@ namespace MiniIT.Snipe
 
 			message["id"] = ++mRequestId;
 			
-			DebugLogger.Log($"[SnipeServiceClient] SendRequest {mRequestId} - " + message["t"]);
+			DebugLogger.Log($"[SnipeServiceClient] SendRequest - {mRequestId} - {message.ToString()}");
 
 			var bytes = message.EncodeToBytes();
 			lock (mWebSocket)
@@ -274,9 +274,21 @@ namespace MiniIT.Snipe
 				string error_code = (message.TryGetValue("errorCode", out var message_value_error_code)) ? Convert.ToString(message_value_error_code) : "";
 				int request_id = (message.TryGetValue("id", out var message_value_id)) ? Convert.ToInt32(message_value_id) : 0;
 				
-				DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] ProcessMessage {request_id} {message_type} {error_code}");
-
-				MPackMap response_data = null;
+				MPackMap response_mpack_data = null;
+				ExpandoObject response_data = null;
+				try
+				{
+					response_mpack_data = message["data"] as MPackMap;
+					if (response_mpack_data != null)
+						response_data = ConvertToExpandoObject(response_mpack_data);
+				}
+				catch(Exception)
+				{
+					response_mpack_data = null;
+					response_data = null;
+				}
+				
+				DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] ProcessMessage - {request_id} - {message_type} {error_code} {response_data?.ToJSONString()}");
 
 				if (!mLoggedIn)
 				{
@@ -288,17 +300,16 @@ namespace MiniIT.Snipe
 							
 							mLoggedIn = true;
 
-							try
+							if (response_mpack_data != null)
 							{
-								response_data = message["data"] as MPackMap;
-								if (response_data != null)
+								try
 								{
-									this.ConnectionId = Convert.ToString(response_data["connectionID"]);
+									this.ConnectionId = Convert.ToString(response_mpack_data["connectionID"]);
 								}
-							}
-							catch (Exception)
-							{
-								this.ConnectionId = "";
+								catch (Exception)
+								{
+									this.ConnectionId = "";
+								}
 							}
 
 							try
@@ -335,19 +346,7 @@ namespace MiniIT.Snipe
 				{
 					try
 					{
-						if (response_data == null)
-						{
-							try
-							{
-								response_data = message["data"] as MPackMap;
-							}
-							catch(Exception)
-							{
-								response_data = null;
-							}
-						}
-						
-						MessageReceived.Invoke(message_type, error_code, (response_data != null) ? ConvertToExpandoObject(response_data) : null, request_id);
+						MessageReceived.Invoke(message_type, error_code, response_data, request_id);
 					}
 					catch (Exception e)
 					{
