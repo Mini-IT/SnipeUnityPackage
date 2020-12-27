@@ -130,6 +130,18 @@ namespace MiniIT.Snipe
 			}
 		}
 		
+		public static void TrackErrorCodeNotOk(string message_type, string error_code, ExpandoObject data)
+		{
+			if (CheckReady() && mTracker.CheckErrorCodeTracking(message_type, error_code))
+			{
+				Dictionary<string, object> properties = new Dictionary<string, object>(1);
+				properties["message_type"] = message_type;
+				properties["error_code"] = error_code;
+				properties["data"] = data.ToJSONString();
+				TrackEvent(EVENT_ERROR_CODE_NOT_OK, properties);
+			}
+		}
+		
 		#endregion AnalyticsTracker
 		
 		#region Constants
@@ -147,6 +159,8 @@ namespace MiniIT.Snipe
 		public const string EVENT_SINGLE_REQUEST_CLIENT_CONNECTED = "Snipe - SingleRequestClient Connected";
 		public const string EVENT_SINGLE_REQUEST_CLIENT_DISCONNECTED = "Snipe - SingleRequestClient Disconnected";
 		public const string EVENT_SINGLE_REQUEST_RESPONSE = "Snipe - SingleRequestClient Response";
+		
+		private const string EVENT_ERROR_CODE_NOT_OK = "Snipe - ErrorCode not ok";
 		
 		#endregion Constants
 		

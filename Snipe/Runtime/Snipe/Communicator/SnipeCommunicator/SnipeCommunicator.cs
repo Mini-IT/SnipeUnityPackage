@@ -319,6 +319,11 @@ namespace MiniIT.Snipe
 					MessageReceived?.Invoke(message_type, error_code, data, request_id);
 				});
 			}
+			
+			if (error_code != SnipeErrorCodes.OK)
+			{
+				Analytics.TrackErrorCodeNotOk(message_type, error_code, data);
+			}
 		}
 		
 		#region Main Thread
