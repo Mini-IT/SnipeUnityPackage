@@ -9,6 +9,10 @@ namespace MiniIT.Snipe
 	{
 		protected readonly int INSTANCE_ID = new System.Random().Next();
 		
+		private const float RETRY_INIT_CLIENT_DELAY = 0.75f; // seconds
+		private const float RETRY_INIT_CLIENT_MAX_DELAY = 60.0f; // seconds
+		private const float RETRY_INIT_CLIENT_RANDOM_DELAY = 0.5f; // seconds
+		
 		public delegate void MessageReceivedHandler(ExpandoObject data, bool original = false);
 		public delegate void ConnectionSucceededHandler();
 		public delegate void ConnectionFailedHandler(bool will_restore = false);
@@ -292,7 +296,8 @@ namespace MiniIT.Snipe
 
 		private IEnumerator WaitAndInitClient()
 		{
-			yield return new WaitForSeconds(0.5f);
+			float delay = RETRY_INIT_CLIENT_DELAY * mRestoreConnectionAttempt + UnityEngine.Random.value * RETRY_INIT_CLIENT_RANDOM_DELAY;
+			yield return new WaitForSecondsRealtime(Mathf.Min(delay, RETRY_INIT_CLIENT_MAX_DELAY));
 			InitClient();
 		}
 
