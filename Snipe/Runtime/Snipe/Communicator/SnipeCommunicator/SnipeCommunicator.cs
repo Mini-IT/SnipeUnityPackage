@@ -81,6 +81,8 @@ namespace MiniIT.Snipe
 					//game_object.hideFlags = HideFlags.HideAndDontSave;
 					mInstance = game_object.AddComponent<SnipeCommunicator>();
 					DontDestroyOnLoad(game_object);
+					
+					DebugLogger.InitInstance();
 				}
 				return mInstance;
 			}

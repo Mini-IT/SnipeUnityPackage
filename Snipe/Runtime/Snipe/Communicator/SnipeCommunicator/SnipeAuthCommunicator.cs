@@ -26,6 +26,8 @@ namespace MiniIT.Snipe
 			{
 				mInstance = new GameObject("SnipeAuthCommunicator").AddComponent<SnipeAuthCommunicator>();
 				GameObject.DontDestroyOnLoad(mInstance.gameObject);
+				
+				DebugLogger.InitInstance();
 			}
 		}
 
@@ -142,9 +144,9 @@ namespace MiniIT.Snipe
 
 		public static bool SetCurrentProvider(AuthProvider provider)
 		{
-			DebugLogger.Log($"[SnipeAuthCommunicator] SetCurrentProvider - {provider?.ProviderId}");
-
 			InitInstance();
+			
+			DebugLogger.Log($"[SnipeAuthCommunicator] SetCurrentProvider - {provider?.ProviderId}");
 
 			if (provider == null)
 			{
