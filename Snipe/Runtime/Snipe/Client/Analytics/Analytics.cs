@@ -137,7 +137,7 @@ namespace MiniIT.Snipe
 				Dictionary<string, object> properties = new Dictionary<string, object>(1);
 				properties["message_type"] = message_type;
 				properties["error_code"] = error_code;
-				properties["data"] = data.ToJSONString();
+				properties["data"] = data?.ToJSONString();
 				TrackEvent(EVENT_ERROR_CODE_NOT_OK, properties);
 			}
 		}
