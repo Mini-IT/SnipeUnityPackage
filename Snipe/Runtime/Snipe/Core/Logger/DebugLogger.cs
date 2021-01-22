@@ -105,7 +105,7 @@ namespace MiniIT
 			{
 				if (mInstance != null && mInstance.mLogMessages != null)
 				{
-					mInstance.mLogMessages.Add(new LogMessage() { MessageType = LogMessageType.Log, Text = System.Convert.ToString(message) });
+					mInstance.mLogMessages.Add(new LogMessage() { MessageType = LogMessageType.Log, Text = ApplyStyle(message) });
 				}
 				else
 				{
@@ -120,7 +120,7 @@ namespace MiniIT
 			{
 				if (mInstance != null && mInstance.mLogMessages != null)
 				{
-					mInstance.mLogMessages.Add(new LogMessage() { MessageType = LogMessageType.Log, Text = string.Format(format, args) });
+					mInstance.mLogMessages.Add(new LogMessage() { MessageType = LogMessageType.Log, Text = ApplyStyle(string.Format(format, args)) });
 				}
 				else
 				{
@@ -135,7 +135,7 @@ namespace MiniIT
 			{
 				if (mInstance != null && mInstance.mLogMessages != null)
 				{
-					mInstance.mLogMessages.Add(new LogMessage() { MessageType = LogMessageType.Warning, Text = System.Convert.ToString(message) });
+					mInstance.mLogMessages.Add(new LogMessage() { MessageType = LogMessageType.Warning, Text = ApplyStyle(message) });
 				}
 				else
 				{
@@ -150,7 +150,7 @@ namespace MiniIT
 			{
 				if (mInstance != null && mInstance.mLogMessages != null)
 				{
-					mInstance.mLogMessages.Add(new LogMessage() { MessageType = LogMessageType.Error, Text = System.Convert.ToString(message) });
+					mInstance.mLogMessages.Add(new LogMessage() { MessageType = LogMessageType.Error, Text = ApplyStyle(message) });
 				}
 				else
 				{
