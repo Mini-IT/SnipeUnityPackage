@@ -326,7 +326,10 @@ namespace MiniIT.Snipe
 			
 			if (error_code != SnipeErrorCodes.OK)
 			{
-				Analytics.TrackErrorCodeNotOk(message_type, error_code, data);
+				InvokeInMainThread(() =>
+				{
+					Analytics.TrackErrorCodeNotOk(message_type, error_code, data);
+				});
 			}
 		}
 		
