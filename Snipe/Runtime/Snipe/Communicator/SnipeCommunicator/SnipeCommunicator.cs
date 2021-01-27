@@ -59,10 +59,10 @@ namespace MiniIT.Snipe
 			get { return mClient != null && mClient.LoggedIn; }
 		}
 		
-		private int mRoomId = 0;
+		private bool mRoomJoined = false;
 		public bool RoomJoined
 		{
-			get { return mRoomId != 0 && mClient != null && mClient.LoggedIn; }
+			get { return mRoomJoined && mClient != null && mClient.LoggedIn; }
 		}
 
 		private bool mDisconnecting = false;
@@ -195,7 +195,7 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) {this.name} Disconnect");
 
-			mRoomId = 0;
+			mRoomJoined = false;
 			mDisconnecting = true;
 			UserName = "";
 
@@ -207,7 +207,7 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) OnDestroy");
 			
-			mRoomId = 0;
+			mRoomJoined = false;
 			
 			if (MainThreadLoopCoroutine != null)
 			{
@@ -252,7 +252,7 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) [{mClient?.ConnectionId}] Game Connection failed");
 			
-			mRoomId = 0;
+			mRoomJoined = false;
 
 			InvokeInMainThread(() =>
 			{
@@ -313,17 +313,17 @@ namespace MiniIT.Snipe
 			{
 				if (error_code == SnipeErrorCodes.OK)
 				{
-					mRoomId = data?.SafeGetValue<int>("roomID") ?? 0;
+					mRoomJoined = true;
 				}
 				else
 				{
-					mRoomId = 0;
+					mRoomJoined = false;
 					DisposeRoomRequests();
 				}
 			}
 			else if (message_type == SnipeMessageTypes.ROOM_DEAD)
 			{
-				mRoomId = 0;
+				mRoomJoined = false;
 				DisposeRoomRequests();
 			}
 			
