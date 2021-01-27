@@ -398,7 +398,7 @@ namespace MiniIT.Snipe
 
 			while (!cancellation.IsCancellationRequested && Connected)
 			{
-				if (DateTime.Now.Ticks >= mHeartbeatTriggerTicks)
+				if (DateTime.UtcNow.Ticks >= mHeartbeatTriggerTicks)
 				{
 					lock (mWebSocket)
 					{
@@ -415,7 +415,7 @@ namespace MiniIT.Snipe
 
 		private void ResetHeartbeatTimer()
 		{
-			mHeartbeatTriggerTicks = DateTime.Now.AddSeconds(HEARTBEAT_INTERVAL).Ticks;
+			mHeartbeatTriggerTicks = DateTime.UtcNow.AddSeconds(HEARTBEAT_INTERVAL).Ticks;
 		}
 
 		#endregion
