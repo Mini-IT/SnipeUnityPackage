@@ -67,8 +67,9 @@ namespace MiniIT.Snipe
 
 		private bool mDisconnecting = false;
 		
-		private readonly List<Action> mMainThreadActions = new List<Action>();
+		private readonly Queue<Action> mMainThreadActions = new Queue<Action>();
 		private bool mHasMainThreadActions = false; // To prevent the use of the lock keyword every frame
+		private Coroutine MainThreadLoopCoroutine;
 		
 		private static SnipeCommunicator mInstance;
 		public static SnipeCommunicator Instance
@@ -113,6 +114,11 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public void StartCommunicator()
 		{
+			if (MainThreadLoopCoroutine == null)
+			{
+				MainThreadLoopCoroutine = StartCoroutine(MainThreadLoop());
+			}
+			
 			if (CheckLoginParams())
 			{
 				InitClient();
@@ -203,6 +209,11 @@ namespace MiniIT.Snipe
 			
 			mRoomId = 0;
 			
+			if (MainThreadLoopCoroutine != null)
+			{
+				StopCoroutine(MainThreadLoopCoroutine);
+				MainThreadLoopCoroutine = null;
+			}
 			ClearMainThreadActionsQueue();
 			
 			DisposeRequests();
@@ -339,7 +350,7 @@ namespace MiniIT.Snipe
 		{
 			lock (mMainThreadActions)
 			{
-				mMainThreadActions.Add(action);
+				mMainThreadActions.Enqueue(action);
 				mHasMainThreadActions = true;
 			}
 		}
@@ -352,31 +363,22 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void Update()
+		private IEnumerator MainThreadLoop()
 		{
-			if (!mHasMainThreadActions)
-				return;
-				
-			lock (mMainThreadActions)
+			while (true)
 			{
-				for (int i = 0; i < mMainThreadActions.Count; i++)
+				if (mHasMainThreadActions)
 				{
-					var action = mMainThreadActions[i];
-					if (action == null)
-						continue;
-					
-					action.Invoke();
-
-					// the handler could have called Dispose
-					// if (!Connected)
-					// {
-						// mMainThreadCoroutine = null;
-						// yield break;
-					// }
+					Action action;
+					lock (mMainThreadActions)
+					{
+						action = mMainThreadActions.Dequeue();
+						mHasMainThreadActions = (mMainThreadActions.Count > 0);
+					}
+					action?.Invoke();
 				}
 				
-				mMainThreadActions.Clear();
-				mHasMainThreadActions = false;
+				yield return null;
 			}
 		}
 
@@ -501,6 +503,7 @@ namespace MiniIT.Snipe
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Dispose");
 			
 			StopAllCoroutines();
+			MainThreadLoopCoroutine = null;
 			mHasMainThreadActions = false;
 			
 			Disconnect();
