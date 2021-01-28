@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using MiniIT;
 using UnityEngine;
 using CS;
@@ -46,24 +47,7 @@ namespace MiniIT.Snipe
 		}
 
 		private int mRequestId = 0;
-
-		protected void RequestLogin()
-		{
-			if (mLoggedIn || !Connected)
-				return;
-
-			SendRequest(new MPackMap()
-			{
-				["t"] = SnipeMessageTypes.USER_LOGIN,
-				["data"] = new MPackMap()
-				{
-					["ckey"] = SnipeConfig.Instance.ClientKey,
-					["id"] = SnipeAuthCommunicator.UserID,
-					["token"] = SnipeAuthCommunicator.LoginToken,
-					["loginGame"] = true, // Snipe V5
-				}
-			});
-		}
+		private ConcurrentQueue<MPackMap> mSendMessages;
 
 		protected MPackMap ConvertToMPackMap(Dictionary<string, object> dictionary)
 		{
@@ -204,7 +188,8 @@ namespace MiniIT.Snipe
 		{
 			mLoggedIn = false;
 			ConnectionId = "";
-
+			
+			StopSendTask();
 			StopHeartbeat();
 
 			if (mWebSocket != null)
@@ -221,25 +206,18 @@ namespace MiniIT.Snipe
 		{
 			if (!Connected || message == null)
 				return 0;
-
+				
 			message["id"] = ++mRequestId;
 			
-			DebugLogger.Log($"[SnipeServiceClient] SendRequest - {mRequestId} - {message.ToString()}");
-
-			var bytes = message.EncodeToBytes();
-			lock (mWebSocket)
+			if (mSendMessages == null)
 			{
-				mWebSocket.SendRequest(bytes);
+				StartSendTask();
 			}
-
-			if (mHeartbeatEnabled)
-			{
-				ResetHeartbeatTimer();
-			}
-
+			mSendMessages.Enqueue(message);
+			
 			return mRequestId;
 		}
-
+		
 		public int SendRequest(Dictionary<string, object> message)
 		{
 			return SendRequest(ConvertToMPackMap(message));
@@ -262,6 +240,43 @@ namespace MiniIT.Snipe
 					["data"] = ConvertToMPackMap(data)
 				});
 			}
+		}
+		
+		private void DoSendRequest(MPackMap message)
+		{
+			if (!Connected || message == null)
+				return;
+			
+			DebugLogger.Log($"[SnipeServiceClient] DoSendRequest - {mRequestId} - {message.ToString()}");
+
+			var bytes = message.EncodeToBytes();
+			lock (mWebSocket)
+			{
+				mWebSocket.SendRequest(bytes);
+			}
+
+			if (mHeartbeatEnabled)
+			{
+				ResetHeartbeatTimer();
+			}
+		}
+		
+		protected void RequestLogin()
+		{
+			if (mLoggedIn || !Connected)
+				return;
+
+			DoSendRequest(new MPackMap()
+			{
+				["t"] = SnipeMessageTypes.USER_LOGIN,
+				["data"] = new MPackMap()
+				{
+					["ckey"] = SnipeConfig.Instance.ClientKey,
+					["id"] = SnipeAuthCommunicator.UserID,
+					["token"] = SnipeAuthCommunicator.LoginToken,
+					["loginGame"] = true, // Snipe V5
+				}
+			});
 		}
 
 		protected void ProcessMessage(byte[] raw_data_buffer)
@@ -419,6 +434,47 @@ namespace MiniIT.Snipe
 		}
 
 		#endregion
+		
+		#region Send task
 
+		private CancellationTokenSource mSendTaskCancellation;
+
+		private void StartSendTask()
+		{
+			mSendTaskCancellation?.Cancel();
+			
+			mSendMessages = new ConcurrentQueue<MPackMap>();
+
+			mSendTaskCancellation = new CancellationTokenSource();
+			_ = SendTask(mHeartbeatCancellation.Token);
+		}
+
+		private void StopSendTask()
+		{
+			if (mSendTaskCancellation != null)
+			{
+				mSendTaskCancellation.Cancel();
+				mSendTaskCancellation = null;
+			}
+			
+			mSendMessages = null;
+		}
+
+		private async Task SendTask(CancellationToken cancellation)
+		{
+			while (!cancellation.IsCancellationRequested && Connected)
+			{
+				if (mSendMessages != null && !mSendMessages.IsEmpty && mSendMessages.TryDequeue(out var message))
+				{
+					DoSendRequest(message);
+				}
+
+				await Task.Yield();
+			}
+			
+			mSendMessages = null;
+		}
+
+		#endregion
 	}
 }
