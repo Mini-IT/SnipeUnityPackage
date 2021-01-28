@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using UnityEngine;
 
 namespace MiniIT.Snipe
@@ -67,8 +68,7 @@ namespace MiniIT.Snipe
 
 		private bool mDisconnecting = false;
 		
-		private readonly Queue<Action> mMainThreadActions = new Queue<Action>();
-		private bool mHasMainThreadActions = false; // To prevent the use of the lock keyword every frame
+		private /*readonly*/ ConcurrentQueue<Action> mMainThreadActions = new ConcurrentQueue<Action>();
 		private Coroutine MainThreadLoopCoroutine;
 		
 		private static SnipeCommunicator mInstance;
@@ -348,34 +348,26 @@ namespace MiniIT.Snipe
 		
 		private void InvokeInMainThread(Action action)
 		{
-			lock (mMainThreadActions)
-			{
-				mMainThreadActions.Enqueue(action);
-				mHasMainThreadActions = true;
-			}
+			mMainThreadActions.Enqueue(action);
 		}
 
 		private void ClearMainThreadActionsQueue()
 		{
-			lock (mMainThreadActions)
-			{
-				mMainThreadActions.Clear();
-			}
+			// mMainThreadActions.Clear(); // Requires .NET 5.0
+			mMainThreadActions = new ConcurrentQueue<Action>();
 		}
 
 		private IEnumerator MainThreadLoop()
 		{
 			while (true)
 			{
-				if (mHasMainThreadActions)
+				if (mMainThreadActions != null && !mMainThreadActions.IsEmpty)
 				{
-					Action action;
-					lock (mMainThreadActions)
+					// mMainThreadActions.Dequeue()?.Invoke(); // // Requires .NET 5.0
+					if (mMainThreadActions.TryDequeue(out var action))
 					{
-						action = mMainThreadActions.Dequeue();
-						mHasMainThreadActions = (mMainThreadActions.Count > 0);
+						action?.Invoke();
 					}
-					action?.Invoke();
 				}
 				
 				yield return null;
@@ -504,7 +496,6 @@ namespace MiniIT.Snipe
 			
 			StopAllCoroutines();
 			MainThreadLoopCoroutine = null;
-			mHasMainThreadActions = false;
 			
 			Disconnect();
 			DisposeRequests();
