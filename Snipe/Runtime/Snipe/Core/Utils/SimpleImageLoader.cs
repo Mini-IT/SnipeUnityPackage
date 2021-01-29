@@ -11,6 +11,7 @@ namespace MiniIT.Utils
 	{
 		private static GameObject mGameObject;
 		private static Dictionary<string, Texture2D> mCache;
+		private static Dictionary<string, Sprite> mSpritesCache;
 		private static Dictionary<string, SimpleImageLoader> mActiveLoaders;
 
 		private const int MAX_LOADERS_COUNT = 3;
@@ -37,8 +38,7 @@ namespace MiniIT.Utils
 			{
 				if (mCache != null)
 				{
-					Texture2D texture;
-					if (mCache.TryGetValue(url, out texture))
+					if (mCache.TryGetValue(url, out Texture2D texture))
 					{
 						callback?.Invoke(texture);
 						return null;
@@ -70,32 +70,77 @@ namespace MiniIT.Utils
 			return loader;
 		}
 		
-		public static SimpleImageLoader LoadSprite(string url, Action<Sprite> callback = null)
+		public static SimpleImageLoader LoadSprite(string url, Action<Sprite> callback = null, bool cache = false)
 		{
+			if (cache)
+			{
+				if (mSpritesCache != null)
+				{
+					if (mSpritesCache.TryGetValue(url, out Sprite sprite))
+					{
+						callback?.Invoke(sprite);
+						return null;
+					}
+				}
+			}
+			
 			return Load(url,
 				(texture) =>
 				{
-					callback?.Invoke(Sprite.Create(texture, new Rect(0.0f, 0.0f, texture.width, texture.height), SPRITE_PIVOT));
+					var sprite = Sprite.Create(texture, new Rect(0.0f, 0.0f, texture.width, texture.height), SPRITE_PIVOT);
+					
+					if (cache)
+					{
+						if (mSpritesCache == null)
+							mSpritesCache = new Dictionary<string, Sprite>();
+						mSpritesCache[url] = sprite;
+					}
+					
+					callback?.Invoke(sprite);
 				},
 				true
 			);
 		}
 		
-		public static SimpleImageLoader LoadSprite(string url, Image image, bool activate = true, GameObject preloader = null)
+		public static SimpleImageLoader LoadSprite(string url, Image image, bool activate = true, GameObject preloader = null, bool cache = false)
 		{
-			var loader = LoadSprite(url,
-				(sprite) =>
+			Action<Sprite> apply_sprite = (sprite) =>
+			{
+				if (image != null)
 				{
-					if (image != null)
+					image.sprite = sprite;
+					if (activate)
+						image.enabled = true;
+					if (preloader != null)
+						preloader.SetActive(false);
+				}
+			};
+			
+			Action<Sprite> on_sprite_loaded = (sprite) =>
+			{
+				apply_sprite(sprite);
+				
+				if (cache)
+				{
+					if (mSpritesCache == null)
+						mSpritesCache = new Dictionary<string, Sprite>();
+					mSpritesCache[url] = sprite;
+				}
+			};
+			
+			if (cache)
+			{
+				if (mSpritesCache != null)
+				{
+					if (mSpritesCache.TryGetValue(url, out Sprite sprite))
 					{
-						image.sprite = sprite;
-						if (activate)
-							image.enabled = true;
-						if (preloader != null)
-							preloader.SetActive(false);
+						apply_sprite(sprite);
+						return null;
 					}
 				}
-			);
+			}
+			
+			var loader = LoadSprite(url, on_sprite_loaded);
 			
 			if (preloader != null)
 				preloader.SetActive(loader != null);
