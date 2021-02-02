@@ -46,20 +46,6 @@ namespace MiniIT.Snipe
 		}
 		private bool mClientKeySent;
 
-		private string mAppInfo;
-		public string AppInfo
-		{
-			get { return mAppInfo; }
-			set
-			{
-				if (mAppInfo != value)
-				{
-					mAppInfo = value;
-					mClientKeySent = false;
-				}
-			}
-		}
-
 		public string ConnectionId { get; private set; }
 
 		protected bool mConnected = false;
@@ -357,9 +343,6 @@ namespace MiniIT.Snipe
 				{
 					parameters["clientKey"] = ClientKey;
 					mClientKeySent = true;
-
-					if (!string.IsNullOrEmpty(mAppInfo))
-						parameters["appInfo"] = mAppInfo;
 				}
 
 				ResetHeartbeatTimer();
