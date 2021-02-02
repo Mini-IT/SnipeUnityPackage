@@ -100,35 +100,35 @@ namespace MiniIT.Snipe
 			return map;
 		}
 
-		protected ExpandoObject ConvertToExpandoObject(MPackMap map)
-		{
-			var obj = new ExpandoObject();
-			foreach (string key in map.Keys)
-			{
-				var member = map[key];
-				if (member is MPackMap member_map)
-				{
-					obj[key] = ConvertToExpandoObject(member_map);
-				}
-				else if (member is MPackArray member_array)
-				{
-					var list = new List<object>();
-					foreach (var v in member_array)
-					{
-						if (v is MPackMap value_map)
-							list.Add(ConvertToExpandoObject(value_map));
-						else
-							list.Add(v.Value);
-					}
-					obj[key] = list;
-				}
-				else
-				{
-					obj[key] = member.Value;
-				}
-			}
-			return obj;
-		}
+		//protected ExpandoObject ConvertToExpandoObject(MPackMap map)
+		//{
+		//	var obj = new ExpandoObject();
+		//	foreach (string key in map.Keys)
+		//	{
+		//		var member = map[key];
+		//		if (member is MPackMap member_map)
+		//		{
+		//			obj[key] = ConvertToExpandoObject(member_map);
+		//		}
+		//		else if (member is MPackArray member_array)
+		//		{
+		//			var list = new List<object>();
+		//			foreach (var v in member_array)
+		//			{
+		//				if (v is MPackMap value_map)
+		//					list.Add(ConvertToExpandoObject(value_map));
+		//				else
+		//					list.Add(v.Value);
+		//			}
+		//			obj[key] = list;
+		//		}
+		//		else
+		//		{
+		//			obj[key] = member.Value;
+		//		}
+		//	}
+		//	return obj;
+		//}
 
 		#region Web Socket
 
@@ -247,7 +247,7 @@ namespace MiniIT.Snipe
 			if (!Connected || message == null)
 				return;
 			
-			DebugLogger.Log($"[SnipeServiceClient] DoSendRequest - {mRequestId} - {message.ToString()}");
+			DebugLogger.Log($"[SnipeServiceClient] DoSendRequest - {message.ToString()}");
 
 			var bytes = message.EncodeToBytes();
 			lock (mWebSocket)
@@ -282,27 +282,14 @@ namespace MiniIT.Snipe
 
 		protected void ProcessMessage(byte[] raw_data_buffer)
 		{
-			var message = MPack.ParseFromBytes(raw_data_buffer) as MPackMap;
+			var message = ExpandoObject.FromMessagePack(raw_data_buffer);
 
 			if (message != null)
 			{
-				string message_type = Convert.ToString(message["t"]);
-				string error_code = (message.TryGetValue("errorCode", out var message_value_error_code)) ? Convert.ToString(message_value_error_code) : "";
-				int request_id = (message.TryGetValue("id", out var message_value_id)) ? Convert.ToInt32(message_value_id) : 0;
-				
-				MPackMap response_mpack_data = null;
-				ExpandoObject response_data = null;
-				try
-				{
-					response_mpack_data = message["data"] as MPackMap;
-					if (response_mpack_data != null)
-						response_data = ConvertToExpandoObject(response_mpack_data);
-				}
-				catch(Exception)
-				{
-					response_mpack_data = null;
-					response_data = null;
-				}
+				string message_type = message.SafeGetString("t");
+				string error_code =  message.SafeGetString("errorCode");
+				int request_id = message.SafeGetValue<int>("id");
+				ExpandoObject response_data = message.SafeGetValue<ExpandoObject>("data");
 				
 				DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] ProcessMessage - {request_id} - {message_type} {error_code} {response_data?.ToJSONString()}");
 
@@ -316,16 +303,13 @@ namespace MiniIT.Snipe
 							
 							mLoggedIn = true;
 
-							if (response_mpack_data != null)
+							if (response_data != null)
 							{
-								try
-								{
-									this.ConnectionId = Convert.ToString(response_mpack_data["connectionID"]);
-								}
-								catch (Exception)
-								{
-									this.ConnectionId = "";
-								}
+								this.ConnectionId = response_data.SafeGetString("connectionID");
+							}
+							else
+							{
+								this.ConnectionId = "";
 							}
 
 							try
