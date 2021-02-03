@@ -8,38 +8,24 @@
 
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Text;
+using MiniIT;
 
-namespace MiniIT
+namespace MiniIT.MessagePack
 {
-	public partial class ExpandoObject
+	public static class MessagePackDeserializer
 	{
-		public static ExpandoObject FromMessagePack(byte[] array)
+		public static object Parse(byte[] array)
 		{
 			using (MemoryStream ms = new MemoryStream(array))
 			{
-				return FromMessagePack(ms);
+				return Parse(ms);
 			}
 		}
 
-		public static ExpandoObject FromMessagePack(Stream ms)
-		{
-			return MessagePackDeserializer.FromMessagePack(ms);
-		}
-	}
-
-	internal static class MessagePackDeserializer
-	{
-		internal static ExpandoObject FromMessagePack(Stream ms)
-		{
-			return ParseMessagePack(ms) as ExpandoObject;
-		}
-
-		private static object ParseMessagePack(Stream ms)
+		public static object Parse(Stream ms)
 		{
 			byte format_byte = (byte)ms.ReadByte();
 
@@ -210,7 +196,7 @@ namespace MiniIT
 			var data = new List<object>(len);
 			for (int i = 0; i < len; i++)
 			{
-				data.Add(ParseMessagePack(ms));
+				data.Add(Parse(ms));
 			}
 			return data;
 		}
@@ -221,7 +207,7 @@ namespace MiniIT
 			for (int i = 0; i < len; i++)
 			{
 				string key = ReadString(ms);
-				var value = ParseMessagePack(ms);
+				var value = Parse(ms);
 				data[key] = value;
 			}
 			return data;

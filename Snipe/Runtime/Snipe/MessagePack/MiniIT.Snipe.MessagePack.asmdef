@@ -1,15 +1,11 @@
 {
-    "name": "MiniIT.Snipe.Communicator",
+    "name": "MiniIT.Snipe.MessagePack",
     "references": [
-		"MiniIT.Snipe.Core",
-		"MiniIT.Snipe.Client",
-		"MiniIT.Snipe.Social.Runtime",
-		"MiniIT.GooglePlay.Runtime",
-		"MiniIT.Snipe.MessagePack"
+		"MiniIT.Snipe.Core"
     ],
     "optionalUnityReferences": [],
     "excludePlatforms": [],
-    "allowUnsafeCode": false,
+    "allowUnsafeCode": true,
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,

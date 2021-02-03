@@ -1,12 +1,8 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Collections;
-using System.Collections.Generic;
 using System.Collections.Concurrent;
-using MiniIT;
-using UnityEngine;
-using CS;
+using MiniIT.MessagePack;
 
 namespace MiniIT.Snipe
 {
@@ -47,88 +43,7 @@ namespace MiniIT.Snipe
 		}
 
 		private int mRequestId = 0;
-		private ConcurrentQueue<MPackMap> mSendMessages;
-
-		protected MPackMap ConvertToMPackMap(Dictionary<string, object> dictionary)
-		{
-			var map = new MPackMap();
-			foreach (var pair in dictionary)
-			{
-				if (pair.Value is MPack mpack_value)
-				{
-					map.Add(MPack.From(pair.Key), mpack_value);
-				}
-				else if (pair.Value is Dictionary<string, object> value_dictionary)
-				{
-					map.Add(MPack.From(pair.Key), ConvertToMPackMap(value_dictionary));
-				}
-				else if (pair.Value is IList value_list)
-				{
-					var mpack_list = new MPackArray();
-					foreach (var value_item in value_list)
-					{
-						if (value_item is Dictionary<string, object> value_item_dictionary)
-						{
-							mpack_list.Add(ConvertToMPackMap(value_item_dictionary));
-						}
-						else if (value_item is IExpandoObjectConvertable value_obj)
-						{
-							mpack_list.Add(ConvertToMPackMap(value_obj.ConvertToExpandoObject()));
-						}
-						else
-						{
-							try
-							{
-								mpack_list.Add(MPack.From(value_item));
-							}
-							catch (NotSupportedException)
-							{ }
-						}
-						
-					}
-					map.Add(MPack.From(pair.Key), mpack_list);
-				}
-				else
-				{
-					if (pair.Value != null)
-						map.Add(MPack.From(pair.Key), MPack.From(pair.Value));
-					else
-						DebugLogger.LogError($"[SnipeServiceClient] Value is null. Key = '{pair.Key}'. Null values are not supported. The parameter won't be added to the message.");
-				}
-			}
-
-			return map;
-		}
-
-		//protected ExpandoObject ConvertToExpandoObject(MPackMap map)
-		//{
-		//	var obj = new ExpandoObject();
-		//	foreach (string key in map.Keys)
-		//	{
-		//		var member = map[key];
-		//		if (member is MPackMap member_map)
-		//		{
-		//			obj[key] = ConvertToExpandoObject(member_map);
-		//		}
-		//		else if (member is MPackArray member_array)
-		//		{
-		//			var list = new List<object>();
-		//			foreach (var v in member_array)
-		//			{
-		//				if (v is MPackMap value_map)
-		//					list.Add(ConvertToExpandoObject(value_map));
-		//				else
-		//					list.Add(v.Value);
-		//			}
-		//			obj[key] = list;
-		//		}
-		//		else
-		//		{
-		//			obj[key] = member.Value;
-		//		}
-		//	}
-		//	return obj;
-		//}
+		private ConcurrentQueue<ExpandoObject> mSendMessages;
 
 		#region Web Socket
 
@@ -202,7 +117,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		public int SendRequest(MPackMap message)
+		public int SendRequest(ExpandoObject message)
 		{
 			if (!Connected || message == null)
 				return 0;
@@ -217,39 +132,34 @@ namespace MiniIT.Snipe
 			
 			return mRequestId;
 		}
-		
-		public int SendRequest(Dictionary<string, object> message)
-		{
-			return SendRequest(ConvertToMPackMap(message));
-		}
 
-		public int SendRequest(string message_type, Dictionary<string, object> data)
+		public int SendRequest(string message_type, ExpandoObject data)
 		{
 			if (data == null)
 			{
-				return SendRequest(new MPackMap()
+				return SendRequest(new ExpandoObject()
 				{
 					["t"] = message_type,
 				});
 			}
 			else
 			{
-				return SendRequest(new MPackMap()
+				return SendRequest(new ExpandoObject()
 				{
 					["t"] = message_type,
-					["data"] = ConvertToMPackMap(data)
+					["data"] = data
 				});
 			}
 		}
 		
-		private void DoSendRequest(MPackMap message)
+		private void DoSendRequest(ExpandoObject message)
 		{
 			if (!Connected || message == null)
 				return;
 			
-			DebugLogger.Log($"[SnipeServiceClient] DoSendRequest - {message.ToString()}");
+			DebugLogger.Log($"[SnipeServiceClient] DoSendRequest - {message.ToJSONString()}");
 
-			var bytes = message.EncodeToBytes();
+			byte[] bytes = MessagePackSerializer.Serialize(message);
 			lock (mWebSocket)
 			{
 				mWebSocket.SendRequest(bytes);
@@ -266,10 +176,10 @@ namespace MiniIT.Snipe
 			if (mLoggedIn || !Connected)
 				return;
 
-			DoSendRequest(new MPackMap()
+			DoSendRequest(new ExpandoObject()
 			{
 				["t"] = SnipeMessageTypes.USER_LOGIN,
-				["data"] = new MPackMap()
+				["data"] = new ExpandoObject()
 				{
 					["ckey"] = SnipeConfig.Instance.ClientKey,
 					["id"] = SnipeAuthCommunicator.UserID,
@@ -282,7 +192,7 @@ namespace MiniIT.Snipe
 
 		protected void ProcessMessage(byte[] raw_data_buffer)
 		{
-			var message = ExpandoObject.FromMessagePack(raw_data_buffer);
+			var message = MessagePackDeserializer.Parse(raw_data_buffer) as ExpandoObject;
 
 			if (message != null)
 			{
@@ -428,7 +338,7 @@ namespace MiniIT.Snipe
 		{
 			mSendTaskCancellation?.Cancel();
 			
-			mSendMessages = new ConcurrentQueue<MPackMap>();
+			mSendMessages = new ConcurrentQueue<ExpandoObject>();
 
 			mSendTaskCancellation = new CancellationTokenSource();
 			_ = SendTask(mHeartbeatCancellation.Token);
