@@ -92,7 +92,7 @@ namespace MiniIT.MessagePack
 
 			if (len <= 31)
 			{
-				ms.WriteByte((byte)(0xA0 | (byte)len));
+				ms.WriteByte((byte)(0xA0 | len));
 			}
 			else if (len <= 0xFF)
 			{
@@ -118,7 +118,7 @@ namespace MiniIT.MessagePack
 			int len = map.Count;
 			if (len <= 0x0F)
 			{
-				ms.WriteByte((byte)(0x80 | (byte)len));
+				ms.WriteByte((byte)(0x80 | len));
 			}
 			else if (len <= 0xFFFF)
 			{
@@ -143,7 +143,7 @@ namespace MiniIT.MessagePack
 			int len = list.Count;
 			if (len <= 0x0F)
 			{
-				ms.WriteByte((byte)(0x90 | (byte)len));
+				ms.WriteByte((byte)(0x90 | len));
 			}
 			else if (len <= 0xFFFF)
 			{
