@@ -36,6 +36,10 @@ namespace MiniIT.MessagePack
 			{
 				WriteString(ms, str);
 			}
+			else if (val is IExpandoObjectConvertable expando)
+			{
+				Serialize(ms, expando.ConvertToExpandoObject());
+			}
 			else if (val is IDictionary map)
 			{
 				WriteMap(ms, map);
