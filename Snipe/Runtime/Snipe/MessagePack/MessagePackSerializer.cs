@@ -36,10 +36,6 @@ namespace MiniIT.MessagePack
 			{
 				WriteString(ms, str);
 			}
-			else if (val is char)
-			{
-				WriteString(ms, Convert.ToString(val));
-			}
 			else if (val is IDictionary map)
 			{
 				WriteMap(ms, map);
@@ -67,6 +63,7 @@ namespace MiniIT.MessagePack
 					case TypeCode.Int16:
 					case TypeCode.Int32:
 					case TypeCode.Int64:
+					case TypeCode.Char:
 						WriteInteger(ms, Convert.ToInt64(val));
 						break;
 
