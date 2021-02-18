@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Diagnostics;
 using System.Collections.Concurrent;
 using MiniIT.MessagePack;
 
@@ -41,6 +42,9 @@ namespace MiniIT.Snipe
 				}
 			}
 		}
+		
+		private Stopwatch mServerReactionStopwatch;
+		public TimeSpan ServerReaction { get { return mServerReactionStopwatch?.Elapsed ?? new TimeSpan(0); } }
 
 		private int mRequestId = 0;
 		private ConcurrentQueue<ExpandoObject> mSendMessages;
@@ -164,6 +168,16 @@ namespace MiniIT.Snipe
 			{
 				mWebSocket.SendRequest(bytes);
 			}
+			
+			if (mServerReactionStopwatch != null)
+			{
+				mServerReactionStopwatch.Reset();
+				mServerReactionStopwatch.Start();
+			}
+			else
+			{
+				mServerReactionStopwatch = Stopwatch.StartNew();
+			}
 
 			if (mHeartbeatEnabled)
 			{
@@ -192,6 +206,11 @@ namespace MiniIT.Snipe
 
 		protected void ProcessMessage(byte[] raw_data_buffer)
 		{
+			if (mServerReactionStopwatch != null)
+			{
+				mServerReactionStopwatch.Stop();
+			}
+			
 			var message = MessagePackDeserializer.Parse(raw_data_buffer) as ExpandoObject;
 
 			if (message != null)

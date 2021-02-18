@@ -27,6 +27,7 @@ namespace MiniIT.Snipe
 		public event PreDestroyHandler PreDestroy;
 
 		public string UserName { get; private set; }
+		public TimeSpan ServerReaction { get { return mClient?.ServerReaction ?? new TimeSpan(0); } }
 
 		private SnipeServiceClient mClient;
 
