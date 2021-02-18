@@ -44,6 +44,7 @@ namespace MiniIT.Snipe
 		}
 		
 		private Stopwatch mServerReactionStopwatch;
+		public TimeSpan CurrentRequestElapsed { get { return mServerReactionStopwatch?.Elapsed ?? new TimeSpan(0); } }
 		public TimeSpan ServerReaction { get; private set; }
 
 		private int mRequestId = 0;

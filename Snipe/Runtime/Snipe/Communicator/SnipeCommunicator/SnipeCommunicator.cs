@@ -28,6 +28,7 @@ namespace MiniIT.Snipe
 
 		public string UserName { get; private set; }
 		public TimeSpan ServerReaction { get { return mClient?.ServerReaction ?? new TimeSpan(0); } }
+		public TimeSpan CurrentRequestElapsed { get { return mClient?.CurrentRequestElapsed ?? new TimeSpan(0); } }
 
 		private SnipeServiceClient mClient;
 
