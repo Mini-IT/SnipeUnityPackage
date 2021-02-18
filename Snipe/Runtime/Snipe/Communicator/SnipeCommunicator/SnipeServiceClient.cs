@@ -44,7 +44,7 @@ namespace MiniIT.Snipe
 		}
 		
 		private Stopwatch mServerReactionStopwatch;
-		public TimeSpan ServerReaction { get { return mServerReactionStopwatch?.Elapsed ?? new TimeSpan(0); } }
+		public TimeSpan ServerReaction { get; private set; }
 
 		private int mRequestId = 0;
 		private ConcurrentQueue<ExpandoObject> mSendMessages;
@@ -209,6 +209,7 @@ namespace MiniIT.Snipe
 			if (mServerReactionStopwatch != null)
 			{
 				mServerReactionStopwatch.Stop();
+				ServerReaction = mServerReactionStopwatch.Elapsed;
 			}
 			
 			var message = MessagePackDeserializer.Parse(raw_data_buffer) as ExpandoObject;
