@@ -3,24 +3,13 @@ using MiniIT;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeApiBase
+	public static class SnipeApiBase
 	{
-		public SnipeCommunicator Communicator { get; private set; }
-
-		public SnipeApiBase(SnipeCommunicator communicator)
+		public static SnipeCommunicatorRequest CreateRequest(string message_type, ExpandoObject data)
 		{
-			this.Communicator = communicator;
-		}
-
-		
-		public SnipeCommunicatorRequest CreateRequest(string message_type, ExpandoObject data)
-		{
-			if (Communicator == null)
-				return null;
-			
-			if (Communicator.LoggedIn || Communicator.AllowRequestsToWaitForLogin || Communicator.KeepOfflineRequests)
+			if (SnipeCommunicator.Instance.LoggedIn || SnipeCommunicator.Instance.AllowRequestsToWaitForLogin || SnipeCommunicator.Instance.KeepOfflineRequests)
 			{
-				return Communicator.CreateRequest(message_type, data);
+				return SnipeCommunicator.Instance.CreateRequest(message_type, data);
 			}
 			
 			return null;
