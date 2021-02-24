@@ -27,6 +27,7 @@ namespace MiniIT.Snipe
 		public event PreDestroyHandler PreDestroy;
 
 		public string UserName { get; private set; }
+		public string ConnectionId { get { return mClient?.ConnectionId; } }
 		public TimeSpan ServerReaction { get { return mClient?.ServerReaction ?? new TimeSpan(0); } }
 		public TimeSpan CurrentRequestElapsed { get { return mClient?.CurrentRequestElapsed ?? new TimeSpan(0); } }
 
