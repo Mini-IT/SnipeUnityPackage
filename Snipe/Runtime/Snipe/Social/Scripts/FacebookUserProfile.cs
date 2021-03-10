@@ -15,9 +15,9 @@ namespace MiniIT.Social
 		{
 		}
 
-		public override ExpandoObject ToObject(bool full = true)
+		public override SnipeObject ToObject(bool full = true)
 		{
-			ExpandoObject profile = new ExpandoObject();
+			SnipeObject profile = new SnipeObject();
 			profile["id"]   = this.Id;
 			profile["networktype"]  = this.NetworkType;
 			profile["first_name"]   = this.FirstName;

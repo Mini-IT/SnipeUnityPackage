@@ -263,10 +263,10 @@ namespace MiniIT.Social
 
 		private SocialUserProfile PrepareProfile(string data_string)
 		{
-			return PrepareProfile(ExpandoObject.FromJSONString(data_string));
+			return PrepareProfile(SnipeObject.FromJSONString(data_string));
 		}
 
-		private SocialUserProfile PrepareProfile(ExpandoObject data)
+		private SocialUserProfile PrepareProfile(SnipeObject data)
 		{
 			string profile_id = data.ContainsKey("uid") ? data.SafeGetString("uid") : data.SafeGetString("id");
 			SocialUserProfile profile = new FacebookUserProfile(profile_id, this.NetworkType);
@@ -291,9 +291,9 @@ namespace MiniIT.Social
 			{
 				DebugLogger.Log("[FacebookProvider] response error: " + response.Error);
 
-				//var error_data = new ExpandoObject();
+				//var error_data = new SnipeObject();
 				//error_data["error"] = response.Error;
-				//OnError(new ExpandoObject(error_data));
+				//OnError(new SnipeObject(error_data));
 
 				return false;
 			}

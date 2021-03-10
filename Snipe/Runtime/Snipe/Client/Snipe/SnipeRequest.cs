@@ -10,16 +10,16 @@ namespace MiniIT.Snipe
 		public const string ERROR_NOT_LOGGED_IN = "notLoggedIn";
 		public const string ERROR_INVALIND_DATA = "invalidData";
 		
-		protected static readonly ExpandoObject ErrorMessageInvalidClient = new ExpandoObject() { { "errorCode", ERROR_INVALIND_CLIENT } };
-		protected static readonly ExpandoObject ErrorMessageNoConnection = new ExpandoObject() { { "errorCode", ERROR_NO_CONNECTION } };
-		protected static readonly ExpandoObject ErrorMessageNotLoggedIn = new ExpandoObject() { { "errorCode", ERROR_NOT_LOGGED_IN } };
-		protected static readonly ExpandoObject ErrorMessageInvalidData = new ExpandoObject() { { "errorCode", ERROR_INVALIND_DATA } };
+		protected static readonly SnipeObject ErrorMessageInvalidClient = new SnipeObject() { { "errorCode", ERROR_INVALIND_CLIENT } };
+		protected static readonly SnipeObject ErrorMessageNoConnection = new SnipeObject() { { "errorCode", ERROR_NO_CONNECTION } };
+		protected static readonly SnipeObject ErrorMessageNotLoggedIn = new SnipeObject() { { "errorCode", ERROR_NOT_LOGGED_IN } };
+		protected static readonly SnipeObject ErrorMessageInvalidData = new SnipeObject() { { "errorCode", ERROR_INVALIND_DATA } };
 
 		protected SnipeClient mClient;
-		protected Action<ExpandoObject> mCallback;
+		protected Action<SnipeObject> mCallback;
 
 		public string MessageType { get; protected set; }
-		public ExpandoObject Data { get; set; }
+		public SnipeObject Data { get; set; }
 
 		protected int mRequestId;
 
@@ -29,13 +29,13 @@ namespace MiniIT.Snipe
 			MessageType = message_type;
 		}
 
-		public void Request(ExpandoObject data, Action<ExpandoObject> callback = null)
+		public void Request(SnipeObject data, Action<SnipeObject> callback = null)
 		{
 			Data = data;
 			Request(callback);
 		}
 
-		public virtual void Request(Action<ExpandoObject> callback = null)
+		public virtual void Request(Action<SnipeObject> callback = null)
 		{
 			if (mClient == null)
 			{
@@ -76,7 +76,7 @@ namespace MiniIT.Snipe
 			return !string.IsNullOrEmpty(MessageType);
 		}
 
-		protected virtual void SetCallback(Action<ExpandoObject> callback)
+		protected virtual void SetCallback(Action<SnipeObject> callback)
 		{
 			mCallback = callback;
 			if (mClient != null)
@@ -88,12 +88,12 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		protected virtual void InvokeCallback(Action<ExpandoObject> callback, ExpandoObject response_data)
+		protected virtual void InvokeCallback(Action<SnipeObject> callback, SnipeObject response_data)
 		{
 			callback?.Invoke(response_data);
 		}
 		
-		protected virtual void InvokeCallback(ExpandoObject response_data)
+		protected virtual void InvokeCallback(SnipeObject response_data)
 		{
 			InvokeCallback(mCallback, response_data);
 		}
@@ -103,7 +103,7 @@ namespace MiniIT.Snipe
 			mRequestId = mClient.SendRequest(MessageType, Data);
 		}
 
-		protected virtual void OnConnectionLost(ExpandoObject data)
+		protected virtual void OnConnectionLost(SnipeObject data)
 		{
 			if (mCallback != null)
 			{
@@ -112,7 +112,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		protected void OnMessageReceived(ExpandoObject response_data)
+		protected void OnMessageReceived(SnipeObject response_data)
 		{
 			if (CheckResponse(response_data))
 			{
@@ -128,7 +128,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		protected virtual bool CheckResponse(ExpandoObject response_data)
+		protected virtual bool CheckResponse(SnipeObject response_data)
 		{
 			return (response_data.ContainsKey(SnipeClient.KEY_REQUEST_ID) ?
 				response_data.SafeGetValue<int>(SnipeClient.KEY_REQUEST_ID) == mRequestId :

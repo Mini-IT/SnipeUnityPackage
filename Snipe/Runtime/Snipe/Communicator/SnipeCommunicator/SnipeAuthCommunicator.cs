@@ -305,7 +305,7 @@ namespace MiniIT.Snipe
 				return;
 
 			SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, 
-				new ExpandoObject()
+				new SnipeObject()
 				{
 					["messageType"] = SnipeMessageTypes.AUTH_CLAIM_RESTORE_TOKEN,
 					["token"] = token,
@@ -336,7 +336,7 @@ namespace MiniIT.Snipe
 				return;
 
 			SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, 
-				new ExpandoObject()
+				new SnipeObject()
 				{
 					["messageType"] = SnipeMessageTypes.AUTH_ATTR_GET,
 					["provider"] = provider_id,
@@ -480,7 +480,7 @@ namespace MiniIT.Snipe
 
 		private void RequestRegister()
 		{
-			ExpandoObject data = new ExpandoObject();
+			SnipeObject data = new SnipeObject();
 			data["messageType"] = SnipeMessageTypes.AUTH_USER_REGISTER;
 
 			if (SystemInfo.unsupportedIdentifier != SystemInfo.deviceUniqueIdentifier)
@@ -503,7 +503,7 @@ namespace MiniIT.Snipe
 
 					user_id = response.SafeGetValue<int>("id");
 					
-					Analytics.TrackEvent(Analytics.EVENT_ACCOUNT_REGISTERED, new ExpandoObject()
+					Analytics.TrackEvent(Analytics.EVENT_ACCOUNT_REGISTERED, new SnipeObject()
 					{
 						["user_id"] = user_id,
 					});
@@ -515,7 +515,7 @@ namespace MiniIT.Snipe
 				}
 				else
 				{
-					Analytics.TrackEvent(Analytics.EVENT_ACCOUNT_REGISTERATION_FAILED, new ExpandoObject()
+					Analytics.TrackEvent(Analytics.EVENT_ACCOUNT_REGISTERATION_FAILED, new SnipeObject()
 					{
 						["error_code"] = error_code,
 					});

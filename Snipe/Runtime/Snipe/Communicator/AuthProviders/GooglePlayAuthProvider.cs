@@ -95,7 +95,7 @@ public class GooglePlayAuthProvider : BindProvider
 						return;
 					}
 
-					ExpandoObject data = new ExpandoObject();
+					SnipeObject data = new SnipeObject();
 					data["messageType"] = SnipeMessageTypes.AUTH_USER_BIND;
 					data["provider"] = ProviderId;
 					data["login"] = GooglePlayProvider.Instance.PlayerProfile.Id;
@@ -118,7 +118,7 @@ public class GooglePlayAuthProvider : BindProvider
 		InvokeBindResultCallback(SnipeErrorCodes.NOT_INITIALIZED);
 	}
 
-	protected override void OnAuthLoginResponse(ExpandoObject data)
+	protected override void OnAuthLoginResponse(SnipeObject data)
 	{
 		base.OnAuthLoginResponse(data);
 

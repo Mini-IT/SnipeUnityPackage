@@ -35,7 +35,7 @@ namespace MiniIT.Snipe
 			this.mStringsCache = new List<object>();
 		}
 		
-		protected void UnserializeObject(ref ExpandoObject o)
+		protected void UnserializeObject(ref SnipeObject o)
 		{
 			while(true)
 			{
@@ -167,7 +167,7 @@ namespace MiniIT.Snipe
 					//break;
 
 				case 111:  // 'o'
-					ExpandoObject o = new ExpandoObject();
+					SnipeObject o = new SnipeObject();
 					mCache.Add(o);
 					UnserializeObject(ref o);
 					return o;

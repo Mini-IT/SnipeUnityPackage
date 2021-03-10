@@ -27,7 +27,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		protected override void OnAuthLoginResponse(ExpandoObject data)
+		protected override void OnAuthLoginResponse(SnipeObject data)
 		{
 			base.OnAuthLoginResponse(data);
 

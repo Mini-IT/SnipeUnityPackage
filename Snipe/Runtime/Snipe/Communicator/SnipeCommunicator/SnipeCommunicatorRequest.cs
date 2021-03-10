@@ -9,15 +9,15 @@ namespace MiniIT.Snipe
 		private const int RETRIES_COUNT = 3;
 		private const int RETRY_DELAY = 1000; // milliseconds
 		
-		private static readonly ExpandoObject EMPTY_DATA = new ExpandoObject();
+		private static readonly SnipeObject EMPTY_DATA = new SnipeObject();
 		
 		public bool Active { get; private set; } = true;
 		public string MessageType { get; private set; }
-		public ExpandoObject Data { get; set; }
+		public SnipeObject Data { get; set; }
 		
 		public bool WaitingForRoomJoined { get; private set; } = false;
 		
-		public delegate void ResponseHandler(string error_code, ExpandoObject data);
+		public delegate void ResponseHandler(string error_code, SnipeObject data);
 
 		private SnipeCommunicator mCommunicator;
 		private ResponseHandler mCallback;
@@ -38,7 +38,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		public void Request(ExpandoObject data, ResponseHandler callback = null)
+		public void Request(SnipeObject data, ResponseHandler callback = null)
 		{
 			Data = data;
 			Request(callback);
@@ -150,7 +150,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async void OnMessageReceived(string message_type, string error_code, ExpandoObject response_data, int request_id)
+		private async void OnMessageReceived(string message_type, string error_code, SnipeObject response_data, int request_id)
 		{
 			if (WaitingForRoomJoined && mCommunicator.RoomJoined)
 			{
@@ -176,7 +176,7 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		private void InvokeCallback(string error_code, ExpandoObject response_data)
+		private void InvokeCallback(string error_code, SnipeObject response_data)
 		{
 			mCallback?.Invoke(error_code, response_data);
 			Dispose();

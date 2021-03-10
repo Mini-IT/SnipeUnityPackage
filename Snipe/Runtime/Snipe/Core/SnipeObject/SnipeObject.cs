@@ -1,14 +1,3 @@
-// Realization of core functionality of System.Dynamic.ExpandoObject (http://msdn.microsoft.com/en-us/library/system.dynamic.expandoobject.aspx)
-//
-// Based on
-// http://www.amazedsaint.com/2009/09/systemdynamicexpandoobject-similar.html
-//
-// see also
-// http://wiki.unity3d.com/index.php?title=ExpandoObject
-// http://stackoverflow.com/questions/1653046/what-are-the-true-benefits-of-expandoobject
-// http://www.codeproject.com/Articles/62839/Adventures-with-C-4-0-dynamic-ExpandoObject-Elasti
-//
-
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -18,33 +7,33 @@ using System.Linq;
 
 namespace MiniIT
 {
-	public partial class ExpandoObject : Dictionary<string, object>, IDisposable // ICloneable
+	public partial class SnipeObject : Dictionary<string, object>, IDisposable // ICloneable
 	{
-		public ExpandoObject() : base() { }
-		public ExpandoObject(IDictionary<string, object> dictionary) : base(dictionary) { }
+		public SnipeObject() : base() { }
+		public SnipeObject(IDictionary<string, object> dictionary) : base(dictionary) { }
 
 		// IClonable
-		public ExpandoObject Clone()
+		public SnipeObject Clone()
 		//public object Clone()
 		{
 			/*
-			ExpandoObject obj = new ExpandoObject();
+			SnipeObject obj = new SnipeObject();
 			obj.mMembers = new Dictionary <string, object>(mMembers);
 
-			// deep copy all member ExpandoObjects
+			// deep copy all member SnipeObjects
 			IEnumerable keys = new List<string>(obj.GetDynamicMemberNames());  // copy of keys list for "out of sync" exception workaround
 			foreach (string key in keys)
 			{
 				object member = this[key];
-				if (member is ExpandoObject)
-					obj[key] = (member as ExpandoObject).Clone();
+				if (member is SnipeObject)
+					obj[key] = (member as SnipeObject).Clone();
 				else if (member is ICloneable)
 					obj[key] = (member as ICloneable).Clone();
 			}
 
 			return obj;
 			*/
-			return new ExpandoObject(this);
+			return new SnipeObject(this);
 		}
 
 		// IDisposable
@@ -127,7 +116,7 @@ namespace MiniIT
 		/*
 		public override string ToString ()
 		{
-			return "[ExpandoObject]"; // string.Format ("[ExpandoObject]");
+			return "[SnipeObject]";
 		}
 		*/
 		

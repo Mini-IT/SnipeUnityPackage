@@ -12,7 +12,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 
 	public static string AdvertisingId { get; private set; }
 	
-	private ExpandoObject mBindRequestData = null;
+	private SnipeObject mBindRequestData = null;
 
 	public override void RequestAuth(AuthSuccessCallback success_callback, AuthFailCallback fail_callback, bool reset_auth = false)
 	{
@@ -99,7 +99,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 			{
 				if (CheckAdvertisingId(advertising_id))
 				{
-					ExpandoObject data = new ExpandoObject()
+					SnipeObject data = new SnipeObject()
 					{
 						["messageType"] = SnipeMessageTypes.AUTH_USER_BIND,
 						["provider"] = ProviderId,
@@ -108,7 +108,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 						["authInt"] = auth_token,
 					};
 					
-					if (mBindRequestData != null && ExpandoObject.ContentEquals(mBindRequestData, data))
+					if (mBindRequestData != null && SnipeObject.ContentEquals(mBindRequestData, data))
 					{
 						DebugLogger.LogWarning("[AdvertisingIdAuthProvider] Bind is already requested. This request will not be performed.");
 					}
@@ -142,7 +142,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 		}
 	}
 
-	protected override void OnAuthLoginResponse(ExpandoObject data)
+	protected override void OnAuthLoginResponse(SnipeObject data)
 	{
 		base.OnAuthLoginResponse(data);
 
@@ -165,7 +165,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 		}
 	}
 	
-	protected override void OnBindResponse(ExpandoObject data)
+	protected override void OnBindResponse(SnipeObject data)
 	{
 		mBindRequestData = null;
 		

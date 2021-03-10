@@ -14,7 +14,7 @@ namespace MiniIT.Snipe
 		private const float RETRY_INIT_CLIENT_MAX_DELAY = 60.0f; // seconds
 		private const float RETRY_INIT_CLIENT_RANDOM_DELAY = 0.5f; // seconds
 		
-		public delegate void MessageReceivedHandler(string message_type, string error_code, ExpandoObject data, int request_id);
+		public delegate void MessageReceivedHandler(string message_type, string error_code, SnipeObject data, int request_id);
 		public delegate void ConnectionSucceededHandler();
 		public delegate void ConnectionFailedHandler(bool will_restore = false);
 		public delegate void LoginSucceededHandler();
@@ -285,7 +285,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void OnMessageReceived(string message_type, string error_code, ExpandoObject data, int request_id)
+		private void OnMessageReceived(string message_type, string error_code, SnipeObject data, int request_id)
 		{
 			// DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) [{mClient?.ConnectionId}] OnMessageReceived {request_id} {message_type} {error_code} " + (data != null ? data.ToJSONString() : "null"));
 
@@ -388,7 +388,7 @@ namespace MiniIT.Snipe
 			InitClient();
 		}
 		
-		public void Request(string message_type, ExpandoObject parameters = null)
+		public void Request(string message_type, SnipeObject parameters = null)
 		{
 			CreateRequest(message_type, parameters).Request();
 		}
@@ -401,7 +401,7 @@ namespace MiniIT.Snipe
 			return mClient.SendRequest(request.MessageType, request.Data);
 		}
 
-		public SnipeCommunicatorRequest CreateRequest(string message_type = null, ExpandoObject parameters = null)
+		public SnipeCommunicatorRequest CreateRequest(string message_type = null, SnipeObject parameters = null)
 		{
 			var request = new SnipeCommunicatorRequest(this, message_type);
 			request.Data = parameters;
@@ -473,7 +473,7 @@ namespace MiniIT.Snipe
 
 		#region ActionRun Requests
 		
-		public void RequestActionRun(string action_id, ExpandoObject parameters = null)
+		public void RequestActionRun(string action_id, SnipeObject parameters = null)
 		{
 			if (mClient == null || !mClient.LoggedIn)
 				return;
@@ -481,10 +481,10 @@ namespace MiniIT.Snipe
 			CreateActionRunRequest(action_id, parameters).Request();
 		}
 		
-		public SnipeCommunicatorRequest CreateActionRunRequest(string action_id, ExpandoObject parameters = null)
+		public SnipeCommunicatorRequest CreateActionRunRequest(string action_id, SnipeObject parameters = null)
 		{
 			if (parameters == null)
-				parameters = new ExpandoObject() { ["actionID"] = action_id };
+				parameters = new SnipeObject() { ["actionID"] = action_id };
 			else
 				parameters["actionID"] = action_id;
 			
@@ -529,7 +529,7 @@ namespace MiniIT.Snipe
 		
 		private void AnalyticsTrackConnectionSucceeded()
 		{
-			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_CONNECTED, new ExpandoObject()
+			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_CONNECTED, new SnipeObject()
 			{
 				["connection_type"] = "websocket",
 			});
@@ -537,7 +537,7 @@ namespace MiniIT.Snipe
 		
 		private void AnalyticsTrackConnectionFailed()
 		{
-			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_DISCONNECTED, new ExpandoObject()
+			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_DISCONNECTED, new SnipeObject()
 			{
 				//["communicator"] = this.name,
 				["connection_id"] = mClient?.ConnectionId,

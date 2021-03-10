@@ -285,11 +285,11 @@ namespace MiniIT.Snipe
 				using (StreamReader reader = new StreamReader(gzip))
 				{
 					string json_string = reader.ReadToEnd();
-					ExpandoObject data = ExpandoObject.FromJSONString(json_string);
+					SnipeObject data = SnipeObject.FromJSONString(json_string);
 
 					if (data["list"] is List<object> list)
 					{
-						foreach (ExpandoObject item_data in list)
+						foreach (SnipeObject item_data in list)
 						{
 							AddTableItem(item_data);
 						}
@@ -300,7 +300,7 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		protected void AddTableItem(ExpandoObject item_data)
+		protected void AddTableItem(SnipeObject item_data)
 		{
 			var item = new ItemType();
 			item.SetData(item_data);

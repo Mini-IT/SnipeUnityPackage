@@ -31,7 +31,7 @@ namespace MiniIT.Snipe
 
 		protected void RequestLogin(string provider, string login, string token, bool reset_auth = false)
 		{
-			ExpandoObject data = new ExpandoObject()
+			SnipeObject data = new SnipeObject()
 			{
 				["messageType"] = SnipeMessageTypes.AUTH_USER_LOGIN,
 				["provider"] = provider,
@@ -44,7 +44,7 @@ namespace MiniIT.Snipe
 			SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, data, OnAuthLoginResponse);
 		}
 
-		protected virtual void OnAuthLoginResponse(ExpandoObject data)
+		protected virtual void OnAuthLoginResponse(SnipeObject data)
 		{
 			if (data?.SafeGetString("errorCode") == SnipeErrorCodes.OK)
 			{

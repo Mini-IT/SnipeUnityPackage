@@ -51,7 +51,7 @@ namespace MiniIT.Snipe
 			return "";
 		}
 
-		protected override void OnAuthLoginResponse(ExpandoObject data)
+		protected override void OnAuthLoginResponse(SnipeObject data)
 		{
 			base.OnAuthLoginResponse(data);
 
@@ -72,7 +72,7 @@ namespace MiniIT.Snipe
 
 			DebugLogger.Log($"[BindProvider] ({ProviderId}) CheckAuthExists {user_id}");
 
-			ExpandoObject data = new ExpandoObject();
+			SnipeObject data = new SnipeObject();
 			data["messageType"] = SnipeMessageTypes.AUTH_USER_EXISTS;
 			data["provider"] = ProviderId;
 			data["login"] = user_id;
@@ -84,7 +84,7 @@ namespace MiniIT.Snipe
 			SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, data, OnCheckAuthExistsResponse);
 		}
 
-		protected virtual void OnBindResponse(ExpandoObject data)
+		protected virtual void OnBindResponse(SnipeObject data)
 		{
 			string error_code = data?.SafeGetString("errorCode");
 
@@ -99,7 +99,7 @@ namespace MiniIT.Snipe
 			InvokeBindResultCallback(error_code);
 		}
 
-		protected void OnCheckAuthExistsResponse(ExpandoObject data)
+		protected void OnCheckAuthExistsResponse(SnipeObject data)
 		{
 			string error_code = data?.SafeGetString("errorCode");
 			if (!string.IsNullOrEmpty(error_code))

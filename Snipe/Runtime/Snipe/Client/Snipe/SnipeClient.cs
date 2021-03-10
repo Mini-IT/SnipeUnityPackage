@@ -29,7 +29,7 @@ namespace MiniIT.Snipe
 		private const int CHECK_CONNECTION_TIMEOUT = 2000; // milliseconds
 		private const int CHECK_CONNECTION_ATTEMPTS = 4;
 		
-		private static readonly ExpandoObject PING_MESSAGE_DATA = new ExpandoObject() { [KEY_MESSAGE_TYPE] = MESSAGE_TYPE_PING };
+		private static readonly SnipeObject PING_MESSAGE_DATA = new SnipeObject() { [KEY_MESSAGE_TYPE] = MESSAGE_TYPE_PING };
 		
 		private string mClientKey;
 		public string ClientKey
@@ -57,7 +57,7 @@ namespace MiniIT.Snipe
 		private int mRequestId = 0;
 		
 		private bool mProcessingReceivedMessage = false;
-		private Queue<ExpandoObject> mRequestsQueue;
+		private Queue<SnipeObject> mRequestsQueue;
 
 		public static SnipeClient CreateInstance(string client_key, string name = "SnipeClient", bool heartbeat_enabled = true)
 		{
@@ -88,10 +88,10 @@ namespace MiniIT.Snipe
 
 		internal class QueuedEvent
 		{
-			internal Action<ExpandoObject> handler;
-			internal ExpandoObject data;
+			internal Action<SnipeObject> handler;
+			internal SnipeObject data;
 
-			internal QueuedEvent(Action<ExpandoObject> handler, ExpandoObject data)
+			internal QueuedEvent(Action<SnipeObject> handler, SnipeObject data)
 			{
 				this.handler = handler;
 				this.data = data;
@@ -101,11 +101,11 @@ namespace MiniIT.Snipe
 
 		#pragma warning disable 0067
 
-		public event Action<ExpandoObject> ConnectionSucceeded;
-		public event Action<ExpandoObject> ConnectionFailed;
-		public event Action<ExpandoObject> ConnectionLost;
-		//public event Action<ExpandoObject> ErrorHappened;
-		public event Action<ExpandoObject> MessageReceived;
+		public event Action<SnipeObject> ConnectionSucceeded;
+		public event Action<SnipeObject> ConnectionFailed;
+		public event Action<SnipeObject> ConnectionLost;
+		//public event Action<SnipeObject> ErrorHappened;
+		public event Action<SnipeObject> MessageReceived;
 
 		#pragma warning restore 0067
 
@@ -124,14 +124,14 @@ namespace MiniIT.Snipe
 			mConnectionWebSocketURL = web_socket_url;
 		}
 
-		private void DispatchEvent(Action<ExpandoObject> handler, ExpandoObject data = null)
+		private void DispatchEvent(Action<SnipeObject> handler, SnipeObject data = null)
 		{
 			mDispatchEventQueue.Enqueue(new QueuedEvent(handler, data));
 		}
 
-		private void DoDispatchEvent(Action<ExpandoObject> handler, ExpandoObject data)
+		private void DoDispatchEvent(Action<SnipeObject> handler, SnipeObject data)
 		{
-			Action<ExpandoObject> event_handler = handler;  // local variable for thread safety
+			Action<SnipeObject> event_handler = handler;  // local variable for thread safety
 			if (event_handler != null)
 			{
 				try
@@ -197,7 +197,7 @@ namespace MiniIT.Snipe
 			ConnectionId = "";
 		}
 		
-		private void OnMessageReceived(ExpandoObject data)
+		private void OnMessageReceived(SnipeObject data)
 		{
 			StopCheckConnection();
 			
@@ -216,7 +216,7 @@ namespace MiniIT.Snipe
 						StartHeartbeat();
 					}
 					
-					Analytics.TrackEvent(Analytics.EVENT_LOGIN_RESPONSE_RECEIVED, new ExpandoObject()
+					Analytics.TrackEvent(Analytics.EVENT_LOGIN_RESPONSE_RECEIVED, new SnipeObject()
 					{
 						["connection_id"] = ConnectionId,
 						["request_id"] = data.SafeGetString(KEY_REQUEST_ID),
@@ -227,7 +227,7 @@ namespace MiniIT.Snipe
 				{
 					string error_code = data.SafeGetString("errorCode");
 					
-					Analytics.TrackEvent(Analytics.EVENT_AUTH_LOGIN_RESPONSE_RECEIVED, new ExpandoObject()
+					Analytics.TrackEvent(Analytics.EVENT_AUTH_LOGIN_RESPONSE_RECEIVED, new SnipeObject()
 					{
 						["connection_id"] = ConnectionId,
 						["request_id"] = data.SafeGetString(KEY_REQUEST_ID),
@@ -284,7 +284,7 @@ namespace MiniIT.Snipe
 			DisconnectAndDispatch(null);
 		}
 		
-		public void DisconnectAndDispatch(Action<ExpandoObject> event_to_dispatch)
+		public void DisconnectAndDispatch(Action<SnipeObject> event_to_dispatch)
 		{
 			DebugLogger.LogWarning($"[SnipeClient] ({INSTANCE_ID}) DisconnectAndDispatch. " + DisconnectReason);
 			
@@ -307,17 +307,17 @@ namespace MiniIT.Snipe
 			ConnectionId = "";
 		}
 
-		public int SendRequest(string message_type, ExpandoObject parameters = null)
+		public int SendRequest(string message_type, SnipeObject parameters = null)
 		{
 			if (parameters == null)
-				parameters = new ExpandoObject();
+				parameters = new SnipeObject();
 			
 			parameters[KEY_MESSAGE_TYPE] = message_type;
 
 			return SendRequest(parameters);
 		}
 
-		public int SendRequest(ExpandoObject parameters)
+		public int SendRequest(SnipeObject parameters)
 		{
 			if (parameters == null)
 				return 0;
@@ -330,7 +330,7 @@ namespace MiniIT.Snipe
 			if (mProcessingReceivedMessage)
 			{
 				if (mRequestsQueue == null)
-					mRequestsQueue = new Queue<ExpandoObject>();
+					mRequestsQueue = new Queue<SnipeObject>();
 				mRequestsQueue.Enqueue(parameters);
 				return mRequestId;
 			}
@@ -363,7 +363,7 @@ namespace MiniIT.Snipe
 				{
 					if (message_type == MESSAGE_TYPE_USER_LOGIN)
 					{
-						Analytics.TrackEvent(Analytics.EVENT_LOGIN_REQUEST_SENT, new ExpandoObject()
+						Analytics.TrackEvent(Analytics.EVENT_LOGIN_REQUEST_SENT, new SnipeObject()
 						{
 							["connection_id"] = ConnectionId,
 							["request_id"] = parameters[KEY_REQUEST_ID],
@@ -371,7 +371,7 @@ namespace MiniIT.Snipe
 					}
 					else if (message_type == MESSAGE_TYPE_AUTH_LOGIN)
 					{
-						Analytics.TrackEvent(Analytics.EVENT_AUTH_LOGIN_REQUEST_SENT, new ExpandoObject()
+						Analytics.TrackEvent(Analytics.EVENT_AUTH_LOGIN_REQUEST_SENT, new SnipeObject()
 						{
 							["connection_id"] = ConnectionId,
 							["request_id"] = parameters[KEY_REQUEST_ID],
