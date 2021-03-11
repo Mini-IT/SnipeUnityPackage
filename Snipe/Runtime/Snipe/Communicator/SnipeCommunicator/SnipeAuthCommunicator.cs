@@ -9,10 +9,6 @@ namespace MiniIT.Snipe
 {
 	public class SnipeAuthCommunicator : MonoBehaviour
 	{
-		protected const string REQUEST_USER_REGISTER = "auth/user.register";
-		protected const string REQUEST_USER_EXISTS = "auth/user.exists";
-		protected const string REQUEST_CLAIM_RESTORE_TOKEN = "auth/user.claimRestoreToken";
-
 		private const float LOGING_TOKEN_REFRESH_TIMEOUT = 1800.0f; // = 30 min
 
 		public delegate void AccountRegisterRespondedHandler(string error_code, int user_id = 0);
@@ -20,6 +16,8 @@ namespace MiniIT.Snipe
 
 		public delegate void AccountBindingCollisionHandler(BindProvider provider, string user_name = null);
 		public static event AccountBindingCollisionHandler AccountBindingCollision;
+		
+		public delegate void GetUserAttributeCallback(string error_code, string user_name, string key, object value);
 
 		private static SnipeAuthCommunicator mInstance;
 		private static void InitInstance()
@@ -28,6 +26,8 @@ namespace MiniIT.Snipe
 			{
 				mInstance = new GameObject("SnipeAuthCommunicator").AddComponent<SnipeAuthCommunicator>();
 				GameObject.DontDestroyOnLoad(mInstance.gameObject);
+				
+				DebugLogger.InitInstance();
 			}
 		}
 
@@ -144,9 +144,9 @@ namespace MiniIT.Snipe
 
 		public static bool SetCurrentProvider(AuthProvider provider)
 		{
-			DebugLogger.Log($"[SnipeAuthCommunicator] SetCurrentProvider - {provider?.ProviderId}");
-
 			InitInstance();
+			
+			DebugLogger.Log($"[SnipeAuthCommunicator] SetCurrentProvider - {provider?.ProviderId}");
 
 			if (provider == null)
 			{
@@ -307,7 +307,7 @@ namespace MiniIT.Snipe
 			SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, 
 				new ExpandoObject()
 				{
-					["messageType"] = REQUEST_CLAIM_RESTORE_TOKEN,
+					["messageType"] = SnipeMessageTypes.AUTH_CLAIM_RESTORE_TOKEN,
 					["token"] = token,
 				},
 				(response) =>
@@ -326,6 +326,35 @@ namespace MiniIT.Snipe
 					else
 					{
 						callback?.Invoke(false);
+					}
+				});
+		}
+		
+		public static void GetUserAttribute(string provider_id, string user_id, string key, GetUserAttributeCallback callback)
+		{
+			if (mInstance == null)
+				return;
+
+			SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, 
+				new ExpandoObject()
+				{
+					["messageType"] = SnipeMessageTypes.AUTH_ATTR_GET,
+					["provider"] = provider_id,
+					["login"] = user_id,
+					["key"] = key,
+				},
+				(response) =>
+				{
+					if (callback != null)
+					{
+						if (response != null)
+						{
+							callback.Invoke(response?.SafeGetString("errorCode"), response?.SafeGetString("name"), response?.SafeGetString("key"), response?["val"]);
+						}
+						else
+						{
+							callback.Invoke("error", "", key, null);
+						}
 					}
 				});
 		}
@@ -408,7 +437,7 @@ namespace MiniIT.Snipe
 
 			if (mCurrentProvider is DefaultAuthProvider)
 			{
-				if (error_code == AuthProvider.ERROR_NOT_INITIALIZED || error_code == AuthProvider.ERROR_NO_SUCH_USER)
+				if (error_code == SnipeErrorCodes.NOT_INITIALIZED || error_code == SnipeErrorCodes.NO_SUCH_USER)
 				{
 					RequestRegister();
 				}
@@ -452,7 +481,7 @@ namespace MiniIT.Snipe
 		private void RequestRegister()
 		{
 			ExpandoObject data = new ExpandoObject();
-			data["messageType"] = REQUEST_USER_REGISTER;
+			data["messageType"] = SnipeMessageTypes.AUTH_USER_REGISTER;
 
 			if (SystemInfo.unsupportedIdentifier != SystemInfo.deviceUniqueIdentifier)
 				data["name"] = SystemInfo.deviceUniqueIdentifier; // optional

@@ -23,7 +23,7 @@ namespace MiniIT.Snipe
 		
 		private const string MESSAGE_TYPE_USER_LOGIN = "user.login";
 		private const string MESSAGE_TYPE_AUTH_LOGIN = "auth/user.login";
-		private const string MESSAGE_TYPE_PING = "kit/user.ping";
+		private const string MESSAGE_TYPE_PING = "user.ping";
 		
 		private const double HEARTBEAT_INTERVAL = 30;      // seconds
 		private const int CHECK_CONNECTION_TIMEOUT = 2000; // milliseconds
@@ -45,20 +45,6 @@ namespace MiniIT.Snipe
 			}
 		}
 		private bool mClientKeySent;
-
-		private string mAppInfo;
-		public string AppInfo
-		{
-			get { return mAppInfo; }
-			set
-			{
-				if (mAppInfo != value)
-				{
-					mAppInfo = value;
-					mClientKeySent = false;
-				}
-			}
-		}
 
 		public string ConnectionId { get; private set; }
 
@@ -129,9 +115,9 @@ namespace MiniIT.Snipe
 		public string DisconnectReason { get; private set; }
 		public string CheckConnectionMessageType  { get; private set; }
 
-		public SnipeClient()
-		{
-		}
+		// public SnipeClient()
+		// {
+		// }
 
 		public void Init(string web_socket_url = "")
 		{
@@ -357,9 +343,6 @@ namespace MiniIT.Snipe
 				{
 					parameters["clientKey"] = ClientKey;
 					mClientKeySent = true;
-
-					if (!string.IsNullOrEmpty(mAppInfo))
-						parameters["appInfo"] = mAppInfo;
 				}
 
 				ResetHeartbeatTimer();

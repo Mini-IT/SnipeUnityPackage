@@ -103,12 +103,10 @@ namespace MiniIT.Snipe
 
 		public static void TrackEvent(string name, IDictionary<string, object> properties = null)
 		{
-			DebugLogger.Log("[Analytics] TrackEvent " + name);
-			
 			if (CheckReady())
 			{
 				// Some trackers (for example Amplitude) may crash if used not in the main Unity thread.
-				// We'll put events into a queue and call mTracker.TrackEvent in MonoBehaviour.Update method.
+				// We'll put events into a queue and call mTracker.TrackEvent in the MonoBehaviour's coroutine.
 				
 				GetInstance().EnqueueEvent(name, properties);
 			}
@@ -132,23 +130,38 @@ namespace MiniIT.Snipe
 			}
 		}
 		
+		public static void TrackErrorCodeNotOk(string message_type, string error_code, ExpandoObject data)
+		{
+			if (CheckReady() && mTracker.CheckErrorCodeTracking(message_type, error_code))
+			{
+				Dictionary<string, object> properties = new Dictionary<string, object>(1);
+				properties["message_type"] = message_type;
+				properties["error_code"] = error_code;
+				properties["data"] = data?.ToJSONString();
+				TrackEvent(EVENT_ERROR_CODE_NOT_OK, properties);
+			}
+		}
+		
 		#endregion AnalyticsTracker
 		
 		#region Constants
 		
-		public const string EVENT_COMMUNICATOR_CONNECTED = "Snipe - Communicator Connected";
-		public const string EVENT_COMMUNICATOR_DISCONNECTED = "Snipe - Communicator Disconnected";
-		public const string EVENT_ROOM_COMMUNICATOR_CONNECTED = "Snipe - Room Communicator Connected";
-		public const string EVENT_ROOM_COMMUNICATOR_DISCONNECTED = "Snipe - Room Communicator Disconnected";
-		public const string EVENT_ACCOUNT_REGISTERED = "Snipe - Account registered";
-		public const string EVENT_ACCOUNT_REGISTERATION_FAILED = "Snipe - Account registeration failed";
-		public const string EVENT_LOGIN_REQUEST_SENT = "Snipe - Login request sent";
-		public const string EVENT_LOGIN_RESPONSE_RECEIVED = "Snipe - Login response received";
-		public const string EVENT_AUTH_LOGIN_REQUEST_SENT = "Snipe - Auth Login request sent";
-		public const string EVENT_AUTH_LOGIN_RESPONSE_RECEIVED = "Snipe - Auth Login response received";
-		public const string EVENT_SINGLE_REQUEST_CLIENT_CONNECTED = "Snipe - SingleRequestClient Connected";
-		public const string EVENT_SINGLE_REQUEST_CLIENT_DISCONNECTED = "Snipe - SingleRequestClient Disconnected";
-		public const string EVENT_SINGLE_REQUEST_RESPONSE = "Snipe - SingleRequestClient Response";
+		private const string EVENT_NAME = "Snipe Event";
+		public const string EVENT_COMMUNICATOR_CONNECTED = "Communicator Connected";
+		public const string EVENT_COMMUNICATOR_DISCONNECTED = "Communicator Disconnected";
+		public const string EVENT_ROOM_COMMUNICATOR_CONNECTED = "Room Communicator Connected";
+		public const string EVENT_ROOM_COMMUNICATOR_DISCONNECTED = "Room Communicator Disconnected";
+		public const string EVENT_ACCOUNT_REGISTERED = "Account registered";
+		public const string EVENT_ACCOUNT_REGISTERATION_FAILED = "Account registeration failed";
+		public const string EVENT_LOGIN_REQUEST_SENT = "Login request sent";
+		public const string EVENT_LOGIN_RESPONSE_RECEIVED = "Login response received";
+		public const string EVENT_AUTH_LOGIN_REQUEST_SENT = "Auth Login request sent";
+		public const string EVENT_AUTH_LOGIN_RESPONSE_RECEIVED = "Auth Login response received";
+		public const string EVENT_SINGLE_REQUEST_CLIENT_CONNECTED = "SingleRequestClient Connected";
+		public const string EVENT_SINGLE_REQUEST_CLIENT_DISCONNECTED = "SingleRequestClient Disconnected";
+		public const string EVENT_SINGLE_REQUEST_RESPONSE = "SingleRequestClient Response";
+		
+		private const string EVENT_ERROR_CODE_NOT_OK = "ErrorCode not ok";
 		
 		#endregion Constants
 		
@@ -173,6 +186,7 @@ namespace MiniIT.Snipe
 			}
 			
 			DontDestroyOnLoad(this.gameObject);
+			StartCoroutine(ProcessEventsQueue());
 		}
 		
 		#region EventsQueue
@@ -187,8 +201,6 @@ namespace MiniIT.Snipe
 		
 		private void EnqueueEvent(string name, IDictionary<string, object> properties = null)
 		{
-			DebugLogger.Log("[Analytics] EnqueueEvent - " + name);
-			
 			if (mEventsQueue == null)
 				mEventsQueue = new List<EventsQueueItem>();
 			lock (mEventsQueue)
@@ -197,18 +209,29 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		private void Update()
+		private IEnumerator ProcessEventsQueue()
 		{
-			if (mEventsQueue != null && mEventsQueue.Count > 0)
+			while (true)
 			{
-				lock (mEventsQueue)
+				if (mEventsQueue != null && mEventsQueue.Count > 0)
 				{
-					foreach (var item in mEventsQueue)
+					lock (mEventsQueue)
 					{
-						mTracker.TrackEvent(item.name, item.properties);
+						foreach (var item in mEventsQueue)
+						{
+							var event_properties = item.properties;
+							if (event_properties == null)
+								event_properties = new Dictionary<string, object>() { ["event_type"] = item.name };
+							else
+								event_properties["event_type"] = item.name;
+							
+							mTracker.TrackEvent(EVENT_NAME, event_properties);
+						}
+						mEventsQueue.Clear();
 					}
-					mEventsQueue.Clear();
 				}
+				
+				yield return null;
 			}
 		}
 		

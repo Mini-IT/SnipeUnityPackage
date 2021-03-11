@@ -1,47 +1,55 @@
 ﻿using System;
+using System.Threading.Tasks;
 using MiniIT;
-using UnityEngine;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeCommunicatorRequest : SnipeRequest
+	public class SnipeCommunicatorRequest : IDisposable
 	{
-		private const string MESSAGE_TYPE_USER_LOGIN = "user.login";
+		private const int RETRIES_COUNT = 3;
+		private const int RETRY_DELAY = 1000; // milliseconds
 		
-		public bool Active { get; protected set; } = true;
+		private static readonly ExpandoObject EMPTY_DATA = new ExpandoObject();
 		
-		protected SnipeCommunicator mCommunicator;
-		protected bool mSendRequestProcessed = false;
+		public bool Active { get; private set; } = true;
+		public string MessageType { get; private set; }
+		public ExpandoObject Data { get; set; }
 		
-		public SnipeCommunicatorRequest(SnipeCommunicator communicator, string message_type = null) : base(communicator.Client, message_type)
+		public bool WaitingForRoomJoined { get; private set; } = false;
+		
+		public delegate void ResponseHandler(string error_code, ExpandoObject data);
+
+		private SnipeCommunicator mCommunicator;
+		private ResponseHandler mCallback;
+
+		private int mRequestId;
+		private int mRetriesLeft = RETRIES_COUNT;
+		
+		private bool mSent = false;
+
+		public SnipeCommunicatorRequest(SnipeCommunicator communicator, string message_type = null)
 		{
 			mCommunicator = communicator;
-			mCommunicator.Requests.Add(this);
-		}
-		
-		protected void RemoveFromRequestsList()
-		{
-			mCommunicator?.Requests?.Remove(this);
-		}
-		
-		protected override void InvokeCallback(Action<ExpandoObject> callback, ExpandoObject response_data)
-		{
-			RemoveFromRequestsList();
-			base.InvokeCallback(callback, response_data);
-		}
-
-		public override void Request(Action<ExpandoObject> callback = null)
-		{
-			if (mSendRequestProcessed)
-				return;
+			MessageType = message_type;
 			
-			if (!CheckMessageType())
-			{
-				InvokeCallback(callback, ErrorMessageInvalidData);
-				return;
+			if (mCommunicator != null)
+			{	
+				mCommunicator.Requests.Add(this);
 			}
+		}
 
-			SetCallback(callback);
+		public void Request(ExpandoObject data, ResponseHandler callback = null)
+		{
+			Data = data;
+			Request(callback);
+		}
+
+		public virtual void Request(ResponseHandler callback = null)
+		{
+			if (mSent)
+				return;
+				
+			mCallback = callback;
 			SendRequest();
 		}
 		
@@ -50,139 +58,146 @@ namespace MiniIT.Snipe
 			if (!Active)
 			{
 				Active = true;
-				mSendRequestProcessed = false;
+				mSent = false;
 				SendRequest();
 			}
 		}
-
-		protected override void SendRequest()
+		
+		private void SendRequest()
 		{
-			if (mSendRequestProcessed)
-				return;
-			mSendRequestProcessed = true;
+			mSent = true;
 			
 			if (mCommunicator == null)
 			{
-				InvokeCallback(ErrorMessageInvalidClient);
-				return;
-			}
-
-			if (!CheckMessageType())
-			{
-				InvokeCallback(ErrorMessageInvalidData);
+				InvokeCallback(SnipeErrorCodes.NOT_READY, EMPTY_DATA);
 				return;
 			}
 			
-			if (mCommunicator.LoggedIn || MessageType == MESSAGE_TYPE_USER_LOGIN)
+			if (string.IsNullOrEmpty(MessageType))
+				MessageType = Data?.SafeGetString("t");
+
+			if (string.IsNullOrEmpty(MessageType))
 			{
-				mRequestId = mCommunicator.Request(this);
+				InvokeCallback(SnipeErrorCodes.INVALIND_DATA, EMPTY_DATA);
+				return;
+			}
+			
+			if (mCommunicator.LoggedIn)
+			{
+				OnCommunicatorReady();
 			}
 			else
 			{
-				AddLoginSucceededListener();
+				OnConnectionClosed(true);
 			}
 		}
-		
-		protected override void OnConnectionLost(ExpandoObject data)
+
+		private void OnCommunicatorReady()
 		{
-			if (MessageType != MESSAGE_TYPE_USER_LOGIN)
+			if (!mCommunicator.RoomJoined &&
+				MessageType.StartsWith(SnipeMessageTypes.PREFIX_ROOM) &&
+				MessageType != SnipeMessageTypes.ROOM_JOIN &&
+				MessageType != SnipeMessageTypes.ROOM_LEAVE)
 			{
-				AddLoginSucceededListener();
-			}
-		}
-		
-		private void AddLoginSucceededListener()
-		{
-			if (mCommunicator == null)
-			{
-				InvokeCallback(ErrorMessageInvalidClient);
-				Dispose();
-				return;
+				WaitingForRoomJoined = true;
 			}
 			
-			if (!mCommunicator.AllowRequestsToWaitForLogin)
+			if (mCallback != null || WaitingForRoomJoined)
 			{
-				if (mCommunicator.KeepOfflineRequests)
+				mCommunicator.ConnectionFailed -= OnConnectionClosed;
+				mCommunicator.ConnectionFailed += OnConnectionClosed;
+				mCommunicator.MessageReceived -= OnMessageReceived;
+				mCommunicator.MessageReceived += OnMessageReceived;
+			}
+			
+			if (!WaitingForRoomJoined)
+			{
+				DoSendRequest();
+			}
+		}
+		
+		private void DoSendRequest()
+		{
+			mRequestId = mCommunicator.Request(this);
+			
+			if (mRequestId == 0)
+			{
+				InvokeCallback(SnipeErrorCodes.NOT_READY, EMPTY_DATA);
+			}
+		}
+
+		private void OnConnectionClosed(bool will_rety = false)
+		{
+			if (will_rety)
+			{
+				if (mCommunicator.AllowRequestsToWaitForLogin)
+				{
+					mCommunicator.LoginSucceeded -= OnCommunicatorReady;
+					mCommunicator.LoginSucceeded += OnCommunicatorReady;
+				}
+				else if (mCommunicator.KeepOfflineRequests)
 				{
 					Active = false;
-					return;
 				}
-				
-				InvokeCallback(mCommunicator.Connected ? ErrorMessageNotLoggedIn : ErrorMessageNoConnection);
-				Dispose();
-				return;
-			}
-			
-			if (mCommunicator is SnipeRoomCommunicator room_communicator)
-			{
-				room_communicator.RoomJoined -= OnCommunicatorLoginSucceeded;
-				room_communicator.RoomJoined += OnCommunicatorLoginSucceeded;
+				else
+				{
+					InvokeCallback(SnipeErrorCodes.NOT_READY, EMPTY_DATA);
+				}
 			}
 			else
 			{
-				mCommunicator.LoginSucceeded -= OnCommunicatorLoginSucceeded;
-				mCommunicator.LoginSucceeded += OnCommunicatorLoginSucceeded;
+				Dispose();
 			}
-
-			mCommunicator.PreDestroy -= OnCommunicatorPreDestroy;
-			mCommunicator.PreDestroy += OnCommunicatorPreDestroy;
 		}
 
-		private void OnCommunicatorLoginSucceeded()
+		private async void OnMessageReceived(string message_type, string error_code, ExpandoObject response_data, int request_id)
 		{
-			if (mCommunicator != null)
+			if (WaitingForRoomJoined && mCommunicator.RoomJoined)
 			{
-				if (mCommunicator is SnipeRoomCommunicator room_communicator)
+				WaitingForRoomJoined = false;
+				DoSendRequest();
+				return;
+			}
+			
+			if ((request_id == 0 || request_id == mRequestId) && message_type == MessageType)
+			{
+				if (error_code == SnipeErrorCodes.SERVICE_OFFLINE && mRetriesLeft > 0)
 				{
-					room_communicator.RoomJoined -= OnCommunicatorLoginSucceeded;
+					mRetriesLeft--;
+
+					await Task.Delay(RETRY_DELAY);
+
+					Request(mCallback);
+
+					return;
 				}
 
-				mCommunicator.LoginSucceeded -= OnCommunicatorLoginSucceeded;
-				
-				// update client instance and event listeners
-				mClient = mCommunicator.Client;
-				SetCallback(mCallback);
-				
-				Data?.Remove("_requestID");
-				
-				mRequestId = mCommunicator.Request(this);
+				InvokeCallback(error_code, response_data);
 			}
 		}
+		
+		private void InvokeCallback(string error_code, ExpandoObject response_data)
+		{
+			mCallback?.Invoke(error_code, response_data);
+			Dispose();
+		}
 
-		private void OnCommunicatorPreDestroy()
+		public void Dispose()
 		{
 			if (mCommunicator != null)
 			{
-				if (mCommunicator is SnipeRoomCommunicator room_communicator)
-					room_communicator.RoomJoined -= OnCommunicatorLoginSucceeded;
-
-				mCommunicator.LoginSucceeded -= OnCommunicatorLoginSucceeded;
-				mCommunicator.PreDestroy -= OnCommunicatorPreDestroy;
+				if (mCommunicator.Requests != null)
+				{
+					mCommunicator.Requests.Remove(this);
+				}
+				
+				mCommunicator.LoginSucceeded -= OnCommunicatorReady;
+				mCommunicator.ConnectionFailed -= OnConnectionClosed;
+				mCommunicator.MessageReceived -= OnMessageReceived;
+				mCommunicator = null;
 			}
 			
-			if (mCallback != null)
-			{
-				InvokeCallback(ErrorMessageInvalidClient);
-				mCallback = null;
-			}
-		}
-
-		public override void Dispose()
-		{
-			Dispose(true);
-		}
-		
-		internal void Dispose(bool remove_from_list)
-		{
-			if (remove_from_list)
-			{
-				RemoveFromRequestsList();
-			}
-			
-			base.Dispose();
-			
-			OnCommunicatorPreDestroy();
-			mCommunicator = null;
+			mCallback = null;
 		}
 	}
 }

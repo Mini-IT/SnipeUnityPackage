@@ -35,7 +35,7 @@ public class FacebookAuthProvider : BindProvider
 			FacebookProvider.InstanceInitializationComplete += OnFacebookProviderInitializationComplete;
 		}
 
-		InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
+		InvokeAuthFailCallback(SnipeErrorCodes.NOT_INITIALIZED);
 	}
 
 	private void OnFacebookProviderInitializationComplete()
@@ -58,7 +58,7 @@ public class FacebookAuthProvider : BindProvider
 		
 		if (IsBindDone)
 		{
-			InvokeBindResultCallback(ERROR_OK);
+			InvokeBindResultCallback(SnipeErrorCodes.OK);
 			return;
 		}
 
@@ -71,7 +71,7 @@ public class FacebookAuthProvider : BindProvider
 			{
 				ExpandoObject data = new ExpandoObject()
 				{
-					["messageType"] = REQUEST_USER_BIND,
+					["messageType"] = SnipeMessageTypes.AUTH_USER_BIND,
 					["provider"] = ProviderId,
 					["login"] = AccessToken.CurrentAccessToken.UserId,
 					["auth"] = AccessToken.CurrentAccessToken.TokenString,
@@ -92,7 +92,7 @@ public class FacebookAuthProvider : BindProvider
 			FacebookProvider.InstanceInitializationComplete += OnFacebookProviderInitializationComplete;
 		}
 
-		InvokeBindResultCallback(ERROR_NOT_INITIALIZED);
+		InvokeBindResultCallback(SnipeErrorCodes.NOT_INITIALIZED);
 	}
 
 	protected override void OnAuthLoginResponse(ExpandoObject data)
@@ -101,7 +101,7 @@ public class FacebookAuthProvider : BindProvider
 
 		string error_code = data?.SafeGetString("errorCode");
 
-		if (error_code == ERROR_OK)
+		if (error_code == SnipeErrorCodes.OK)
 		{
 			int user_id = data.SafeGetValue<int>("id");
 			string login_token = data.SafeGetString("token");

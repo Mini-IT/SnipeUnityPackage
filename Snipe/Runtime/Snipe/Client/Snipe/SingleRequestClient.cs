@@ -19,7 +19,6 @@ namespace MiniIT.Snipe
 		public static void Request(string web_socket_url, ExpandoObject request, Action<ExpandoObject> callback)
 		{
 			SnipeClient client = SnipeClient.CreateInstance(SnipeConfig.Instance.ClientKey, "SnipeSingleRequestClient", false);
-			client.AppInfo = SnipeConfig.Instance.AppInfo;
 			SingleRequestClient instance = client.gameObject.AddComponent<SingleRequestClient>();
 			instance.InitClient(client, web_socket_url, request, callback);
 		}

@@ -25,7 +25,7 @@ public class GooglePlayAuthProvider : BindProvider
 					DebugLogger.Log("[GooglePlayAuthProvider] google_token : " + (string.IsNullOrEmpty(google_token) ? "empty" : "ok"));
 
 					if (string.IsNullOrEmpty(google_token))
-						InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
+						InvokeAuthFailCallback(SnipeErrorCodes.NOT_INITIALIZED);
 					else
 						RequestLogin(ProviderId, google_login, google_token, reset_auth);
 				});
@@ -40,7 +40,7 @@ public class GooglePlayAuthProvider : BindProvider
 		}
 #endif
 
-		InvokeAuthFailCallback(AuthProvider.ERROR_NOT_INITIALIZED);
+		InvokeAuthFailCallback(SnipeErrorCodes.NOT_INITIALIZED);
 	}
 
 #if UNITY_ANDROID && !UNITY_EDITOR
@@ -65,7 +65,7 @@ public class GooglePlayAuthProvider : BindProvider
 		
 		if (IsBindDone)
 		{
-			InvokeBindResultCallback(ERROR_OK);
+			InvokeBindResultCallback(SnipeErrorCodes.OK);
 			return;
 		}
 
@@ -81,7 +81,7 @@ public class GooglePlayAuthProvider : BindProvider
 					if (string.IsNullOrEmpty(google_token))
 					{
 						DebugLogger.Log("[GooglePlayAuthProvider] google_token is empty");
-						InvokeBindResultCallback(AuthProvider.ERROR_NOT_INITIALIZED);
+						InvokeBindResultCallback(SnipeErrorCodes.NOT_INITIALIZED);
 						return;
 					}
 
@@ -91,12 +91,12 @@ public class GooglePlayAuthProvider : BindProvider
 					if (string.IsNullOrEmpty(auth_login) || string.IsNullOrEmpty(auth_token))
 					{
 						DebugLogger.Log("[GooglePlayAuthProvider] internal uid or token is invalid");
-						InvokeBindResultCallback(AuthProvider.ERROR_PARAMS_WRONG);
+						InvokeBindResultCallback(SnipeErrorCodes.PARAMS_WRONG);
 						return;
 					}
 
 					ExpandoObject data = new ExpandoObject();
-					data["messageType"] = REQUEST_USER_BIND;
+					data["messageType"] = SnipeMessageTypes.AUTH_USER_BIND;
 					data["provider"] = ProviderId;
 					data["login"] = GooglePlayProvider.Instance.PlayerProfile.Id;
 					data["auth"] = google_token;
@@ -115,7 +115,7 @@ public class GooglePlayAuthProvider : BindProvider
 		GooglePlayProvider.InstanceInitializationComplete += OnGooglePlayProviderInitializationComplete;
 #endif
 
-		InvokeBindResultCallback(ERROR_NOT_INITIALIZED);
+		InvokeBindResultCallback(SnipeErrorCodes.NOT_INITIALIZED);
 	}
 
 	protected override void OnAuthLoginResponse(ExpandoObject data)
@@ -124,7 +124,7 @@ public class GooglePlayAuthProvider : BindProvider
 
 		string error_code = data?.SafeGetString("errorCode");
 
-		if (error_code == ERROR_OK)
+		if (error_code == SnipeErrorCodes.OK)
 		{
 			int user_id = data.SafeGetValue<int>("id");
 			string login_token = data.SafeGetString("token");
