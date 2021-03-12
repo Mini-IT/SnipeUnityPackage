@@ -63,10 +63,10 @@ namespace MiniIT.Snipe
 			get { return mClient != null && mClient.LoggedIn; }
 		}
 		
-		private bool mRoomJoined = false;
-		public bool RoomJoined
+		private bool? mRoomJoined = null;
+		public bool? RoomJoined
 		{
-			get { return mRoomJoined && mClient != null && mClient.LoggedIn; }
+			get { return (mClient != null && mClient.LoggedIn) ? mRoomJoined : null; }
 		}
 
 		private bool mDisconnecting = false;
@@ -198,7 +198,7 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) {this.name} Disconnect");
 
-			mRoomJoined = false;
+			mRoomJoined = null;
 			mDisconnecting = true;
 			UserName = "";
 
@@ -210,7 +210,7 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) OnDestroy");
 			
-			mRoomJoined = false;
+			mRoomJoined = null;
 			
 			if (MainThreadLoopCoroutine != null)
 			{
@@ -255,7 +255,7 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) [{mClient?.ConnectionId}] Game Connection failed");
 			
-			mRoomJoined = false;
+			mRoomJoined = null;
 
 			InvokeInMainThread(() =>
 			{

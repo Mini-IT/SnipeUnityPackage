@@ -67,7 +67,7 @@ namespace MiniIT.Snipe
 		{
 			mSent = true;
 			
-			if (mCommunicator == null)
+			if (mCommunicator == null || mCommunicator.RoomJoined == false && MessageType == SnipeMessageTypes.ROOM_LEAVE)
 			{
 				InvokeCallback(SnipeErrorCodes.NOT_READY, EMPTY_DATA);
 				return;
@@ -94,7 +94,7 @@ namespace MiniIT.Snipe
 
 		private void OnCommunicatorReady()
 		{
-			if (!mCommunicator.RoomJoined &&
+			if (mCommunicator.RoomJoined != true &&
 				MessageType.StartsWith(SnipeMessageTypes.PREFIX_ROOM) &&
 				MessageType != SnipeMessageTypes.ROOM_JOIN &&
 				MessageType != SnipeMessageTypes.ROOM_LEAVE)
@@ -152,7 +152,7 @@ namespace MiniIT.Snipe
 
 		private async void OnMessageReceived(string message_type, string error_code, SnipeObject response_data, int request_id)
 		{
-			if (WaitingForRoomJoined && mCommunicator.RoomJoined)
+			if (WaitingForRoomJoined && mCommunicator.RoomJoined == true)
 			{
 				WaitingForRoomJoined = false;
 				DoSendRequest();
