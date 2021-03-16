@@ -201,9 +201,9 @@ namespace MiniIT.MessagePack
 			return data;
 		}
 
-		private static ExpandoObject ReadMap(Stream ms, int len)
+		private static SnipeObject ReadMap(Stream ms, int len)
 		{
-			var data = new ExpandoObject();
+			var data = new SnipeObject();
 			for (int i = 0; i < len; i++)
 			{
 				string key = ReadString(ms);

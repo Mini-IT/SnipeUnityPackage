@@ -52,7 +52,7 @@ public class DeviceIdAuthProvider : BindProvider
 			}
 			else
 			{
-				ExpandoObject data = new ExpandoObject()
+				SnipeObject data = new SnipeObject()
 				{
 					["messageType"] = SnipeMessageTypes.AUTH_USER_BIND,
 					["provider"] = ProviderId,
@@ -71,7 +71,7 @@ public class DeviceIdAuthProvider : BindProvider
 		}
 	}
 
-	protected override void OnAuthLoginResponse(ExpandoObject data)
+	protected override void OnAuthLoginResponse(SnipeObject data)
 	{
 		base.OnAuthLoginResponse(data);
 

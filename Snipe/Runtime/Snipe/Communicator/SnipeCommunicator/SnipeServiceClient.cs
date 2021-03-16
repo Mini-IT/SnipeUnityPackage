@@ -9,7 +9,7 @@ namespace MiniIT.Snipe
 {
 	public class SnipeServiceClient
 	{
-		public delegate void MessageReceivedHandler(string message_type, string error_code, ExpandoObject data, int request_id);
+		public delegate void MessageReceivedHandler(string message_type, string error_code, SnipeObject data, int request_id);
 		public event MessageReceivedHandler MessageReceived;
 		public event Action ConnectionOpened;
 		public event Action ConnectionClosed;
@@ -48,7 +48,7 @@ namespace MiniIT.Snipe
 		public TimeSpan ServerReaction { get; private set; }
 
 		private int mRequestId = 0;
-		private ConcurrentQueue<ExpandoObject> mSendMessages;
+		private ConcurrentQueue<SnipeObject> mSendMessages;
 
 		#region Web Socket
 
@@ -122,7 +122,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		public int SendRequest(ExpandoObject message)
+		public int SendRequest(SnipeObject message)
 		{
 			if (!Connected || message == null)
 				return 0;
@@ -138,18 +138,18 @@ namespace MiniIT.Snipe
 			return mRequestId;
 		}
 
-		public int SendRequest(string message_type, ExpandoObject data)
+		public int SendRequest(string message_type, SnipeObject data)
 		{
 			if (data == null)
 			{
-				return SendRequest(new ExpandoObject()
+				return SendRequest(new SnipeObject()
 				{
 					["t"] = message_type,
 				});
 			}
 			else
 			{
-				return SendRequest(new ExpandoObject()
+				return SendRequest(new SnipeObject()
 				{
 					["t"] = message_type,
 					["data"] = data
@@ -157,7 +157,7 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		private void DoSendRequest(ExpandoObject message)
+		private void DoSendRequest(SnipeObject message)
 		{
 			if (!Connected || message == null)
 				return;
@@ -191,10 +191,10 @@ namespace MiniIT.Snipe
 			if (mLoggedIn || !Connected)
 				return;
 
-			DoSendRequest(new ExpandoObject()
+			DoSendRequest(new SnipeObject()
 			{
 				["t"] = SnipeMessageTypes.USER_LOGIN,
-				["data"] = new ExpandoObject()
+				["data"] = new SnipeObject()
 				{
 					["ckey"] = SnipeConfig.Instance.ClientKey,
 					["id"] = SnipeAuthCommunicator.UserID,
@@ -213,14 +213,14 @@ namespace MiniIT.Snipe
 				ServerReaction = mServerReactionStopwatch.Elapsed;
 			}
 			
-			var message = MessagePackDeserializer.Parse(raw_data_buffer) as ExpandoObject;
+			var message = MessagePackDeserializer.Parse(raw_data_buffer) as SnipeObject;
 
 			if (message != null)
 			{
 				string message_type = message.SafeGetString("t");
 				string error_code =  message.SafeGetString("errorCode");
 				int request_id = message.SafeGetValue<int>("id");
-				ExpandoObject response_data = message.SafeGetValue<ExpandoObject>("data");
+				SnipeObject response_data = message.SafeGetValue<SnipeObject>("data");
 				
 				DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] ProcessMessage - {request_id} - {message_type} {error_code} {response_data?.ToJSONString()}");
 
@@ -359,7 +359,7 @@ namespace MiniIT.Snipe
 		{
 			mSendTaskCancellation?.Cancel();
 			
-			mSendMessages = new ConcurrentQueue<ExpandoObject>();
+			mSendMessages = new ConcurrentQueue<SnipeObject>();
 
 			mSendTaskCancellation = new CancellationTokenSource();
 			_ = SendTask(mHeartbeatCancellation.Token);

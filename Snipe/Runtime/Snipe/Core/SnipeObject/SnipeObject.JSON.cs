@@ -11,7 +11,7 @@ using System.Linq;
 
 namespace MiniIT
 {
-	public partial class ExpandoObject
+	public partial class SnipeObject
 	{
 		#region JSON
 
@@ -20,14 +20,14 @@ namespace MiniIT
 			return ConvertToJSONString(this);
 		}
 
-		public static ExpandoObject FromJSONString(string input_string)
+		public static SnipeObject FromJSONString(string input_string)
 		{
 			return FromJSONString(input_string, true);
 		}
 
-		public static ExpandoObject FromJSONString(string input_string, bool strict)
+		public static SnipeObject FromJSONString(string input_string, bool strict)
 		{
-			return (ExpandoObject)(new JSONDecoder(input_string, strict).getValue());
+			return (SnipeObject)(new JSONDecoder(input_string, strict).getValue());
 		}
 
 		public static string ConvertToJSONString(object obj)
@@ -41,7 +41,7 @@ namespace MiniIT
 		{
 			bool add_comma;
 
-			if (obj is ExpandoObject expando)
+			if (obj is SnipeObject expando)
 			{
 				string_builder.Append("{");
 
@@ -290,11 +290,11 @@ namespace MiniIT
 		/**
 		 * Attempt to parse an object
 		 */
-		private ExpandoObject parseObject()
+		private SnipeObject parseObject()
 		{
 			// create the object internally that we're going to
 			// attempt to parse from the tokenizer
-			ExpandoObject o = new ExpandoObject();
+			SnipeObject o = new SnipeObject();
 			// store the string part of an object member so
 			// that we can assign it a value in the object
 			string key;
@@ -474,7 +474,7 @@ namespace MiniIT
 	class JSONTokenizer
 	{
 		/** The object that will get parsed from the JSON string */
-		private ExpandoObject obj;
+		private SnipeObject obj;
 		/** The JSON string to be parsed */
 		private string jsonString;
 		/** The current parsing location in the JSON string */
@@ -1031,7 +1031,7 @@ namespace MiniIT
 		 */
 		public void parseError( string message )
 		{
-			throw new Exception( "ExpandoObjectJSONParserError : " + message + " at position: " + loc + " near \"" + jsonString+"\"" );
+			throw new Exception( "SnipeObjectJSONParserError : " + message + " at position: " + loc + " near \"" + jsonString+"\"" );
 		}
 	}
 

@@ -19,8 +19,21 @@ namespace MiniIT.Snipe
 		protected static string mVersion = null;
 		protected static bool mVersionRequested = false;
 		protected static bool mVersionLoadingFailed = false;
+		protected static WeakReference<CancellationTokenSource> mVersionLoadingCancellation;
 		
-		protected async Task LoadVersion(CancellationToken cancellation)
+		public static void ResetVersion()
+		{
+			if (mVersionLoadingCancellation != null && mVersionLoadingCancellation.TryGetTarget(out var cancellation))
+			{
+				cancellation.Cancel();
+				mVersionLoadingCancellation = null;
+			}
+			mVersion = null;
+			mVersionRequested = false;
+			mVersionLoadingFailed = false;
+		}
+		
+		protected async Task LoadVersion(CancellationTokenSource cancellation_source)
 		{
 			mVersionRequested = true;
 			
@@ -31,7 +44,9 @@ namespace MiniIT.Snipe
 			try
 			{
 				var loader = new HttpClient();
-
+				
+				mVersionLoadingCancellation = new WeakReference<CancellationTokenSource>(cancellation_source);
+				CancellationToken cancellation = cancellation_source.Token;
 				var loader_task = loader.GetAsync(url, cancellation);
 
 				await loader_task;
@@ -84,7 +99,7 @@ namespace MiniIT.Snipe
 			
 			if (!mVersionRequested)
 			{
-				await LoadVersion(mLoadingCancellation.Token);
+				await LoadVersion(mLoadingCancellation);
 			}
 			else
 			{
@@ -285,11 +300,11 @@ namespace MiniIT.Snipe
 				using (StreamReader reader = new StreamReader(gzip))
 				{
 					string json_string = reader.ReadToEnd();
-					ExpandoObject data = ExpandoObject.FromJSONString(json_string);
+					SnipeObject data = SnipeObject.FromJSONString(json_string);
 
 					if (data["list"] is List<object> list)
 					{
-						foreach (ExpandoObject item_data in list)
+						foreach (SnipeObject item_data in list)
 						{
 							AddTableItem(item_data);
 						}
@@ -300,7 +315,7 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		protected void AddTableItem(ExpandoObject item_data)
+		protected void AddTableItem(SnipeObject item_data)
 		{
 			var item = new ItemType();
 			item.SetData(item_data);

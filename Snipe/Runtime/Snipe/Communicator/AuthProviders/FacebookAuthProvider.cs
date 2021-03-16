@@ -69,7 +69,7 @@ public class FacebookAuthProvider : BindProvider
 		{
 			if (FB.IsLoggedIn && AccessToken.CurrentAccessToken != null)
 			{
-				ExpandoObject data = new ExpandoObject()
+				SnipeObject data = new SnipeObject()
 				{
 					["messageType"] = SnipeMessageTypes.AUTH_USER_BIND,
 					["provider"] = ProviderId,
@@ -95,7 +95,7 @@ public class FacebookAuthProvider : BindProvider
 		InvokeBindResultCallback(SnipeErrorCodes.NOT_INITIALIZED);
 	}
 
-	protected override void OnAuthLoginResponse(ExpandoObject data)
+	protected override void OnAuthLoginResponse(SnipeObject data)
 	{
 		base.OnAuthLoginResponse(data);
 

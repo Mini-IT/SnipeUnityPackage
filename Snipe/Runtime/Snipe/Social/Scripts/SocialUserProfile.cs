@@ -14,7 +14,7 @@ namespace MiniIT.Social
 		protected string mID;                  // id пользователя в соцсети
 		protected string mSocialNetworkType;
 
-		protected ExpandoObject mRawData;  // данные профиля в том виде, котором они получены от соцсети
+		protected SnipeObject mRawData;  // данные профиля в том виде, котором они получены от соцсети
 		
 		public string FirstName;          // имя пользователя
 		public string LastName;           // фамилия пользователя
@@ -94,9 +94,9 @@ namespace MiniIT.Social
 			return this.Equals(p.Id, p.NetworkType); //????
 		}
 		
-		public virtual ExpandoObject ToObject(bool full = true)
+		public virtual SnipeObject ToObject(bool full = true)
 		{
-			ExpandoObject profile = new ExpandoObject();
+			SnipeObject profile = new SnipeObject();
 			profile["id"]   = this.Id;
 			profile["networktype"]  = this.NetworkType;
 			profile["first_name"]   = this.FirstName;
@@ -134,7 +134,7 @@ namespace MiniIT.Social
 
 		public static SocialUserProfile FromJSON(string json)
 		{
-			return FromObject(ExpandoObject.FromJSONString(json));
+			return FromObject(SnipeObject.FromJSONString(json));
 		}
 
 		public static SocialUserProfile FromObject(object raw_data)
@@ -142,10 +142,10 @@ namespace MiniIT.Social
 			if (raw_data is SocialUserProfile)
 				return (raw_data as SocialUserProfile).Clone();
 			
-			if (!(raw_data is ExpandoObject))
+			if (!(raw_data is SnipeObject))
 				return new SocialUserProfile();
 			
-			ExpandoObject data = (ExpandoObject)raw_data;
+			SnipeObject data = (SnipeObject)raw_data;
 			
 			SocialUserProfile profile = new SocialUserProfile();
 			if (data.ContainsKey("id"))
@@ -218,13 +218,13 @@ namespace MiniIT.Social
 			return FirstName + separator + LastName;
 		}
 		
-		public ExpandoObject Raw
+		public SnipeObject Raw
 		{
 			get { return mRawData; }
 			internal set { mRawData = value; }
 		}
 		
-		internal void SetRawData(ExpandoObject data)
+		internal void SetRawData(SnipeObject data)
 		{
 			mRawData = data;
 		}

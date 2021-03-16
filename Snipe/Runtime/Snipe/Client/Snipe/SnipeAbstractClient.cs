@@ -23,7 +23,7 @@ namespace MiniIT.Snipe
 		internal Action OnConnectionSucceeded;
 		internal Action OnConnectionFailed;
 		internal Action OnConnectionLost;
-		internal Action<ExpandoObject> OnMessageReceived;
+		internal Action<SnipeObject> OnMessageReceived;
 		
 		protected bool mConnected = false;
 		

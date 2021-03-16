@@ -130,7 +130,7 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		public static void TrackErrorCodeNotOk(string message_type, string error_code, ExpandoObject data)
+		public static void TrackErrorCodeNotOk(string message_type, string error_code, SnipeObject data)
 		{
 			if (CheckReady() && mTracker.CheckErrorCodeTracking(message_type, error_code))
 			{

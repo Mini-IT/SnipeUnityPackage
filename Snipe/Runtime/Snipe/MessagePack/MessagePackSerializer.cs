@@ -36,9 +36,9 @@ namespace MiniIT.MessagePack
 			{
 				WriteString(ms, str);
 			}
-			else if (val is IExpandoObjectConvertable expando)
+			else if (val is ISnipeObjectConvertable expando)
 			{
-				Serialize(ms, expando.ConvertToExpandoObject());
+				Serialize(ms, expando.ConvertToSnipeObject());
 			}
 			else if (val is IDictionary map)
 			{

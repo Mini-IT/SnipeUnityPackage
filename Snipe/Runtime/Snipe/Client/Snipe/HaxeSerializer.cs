@@ -84,7 +84,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		protected void SerializeStruct(ExpandoObject obj)
+		protected void SerializeStruct(SnipeObject obj)
 		{
 			this.mResultStringBuilder.Append("o");
 
@@ -107,12 +107,12 @@ namespace MiniIT.Snipe
 			{
 				SerializeString((string)v);
 			}
-			else if (v is ExpandoObject)
+			else if (v is SnipeObject)
 			{
 				if (this.UseCache && SerializeRef(v))
 					return;
 
-				SerializeStruct((ExpandoObject)v);
+				SerializeStruct((SnipeObject)v);
 			}
 			else if (v is IList)
 			{

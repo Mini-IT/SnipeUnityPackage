@@ -4,7 +4,7 @@ namespace MiniIT.Snipe
 {
 	public class SnipeTableItem
 	{
-		public ExpandoObject raw { get; protected set; }
+		public SnipeObject raw { get; protected set; }
 
 		public int id { get; protected set; } = 0;
 
@@ -12,7 +12,7 @@ namespace MiniIT.Snipe
 		{
 		}
 		
-		public virtual void SetData(ExpandoObject data)
+		public virtual void SetData(SnipeObject data)
 		{
 			this.raw = data;
 			this.id = data.SafeGetValue<int>("id");

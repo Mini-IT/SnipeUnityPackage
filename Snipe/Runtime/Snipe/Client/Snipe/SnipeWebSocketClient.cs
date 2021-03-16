@@ -140,7 +140,7 @@ namespace MiniIT.Snipe
 
 					try
 					{
-						ExpandoObject response = (ExpandoObject)HaxeUnserializer.Run(mMessageString);
+						SnipeObject response = (SnipeObject)HaxeUnserializer.Run(mMessageString);
 
 						if (response != null)
 						{

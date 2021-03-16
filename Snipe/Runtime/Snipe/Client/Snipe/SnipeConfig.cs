@@ -19,7 +19,6 @@ public class SnipeConfig
 	public string AppInfo;
 
 	public string AuthWebsocketURL;
-	public string ServerWebsocketURL;
 	public string ServiceWebsocketURL;
 	
 	public List<string> TablesURLs = new List<string>();
@@ -30,17 +29,16 @@ public class SnipeConfig
 	/// </summary>
 	public static void InitFromJSON(string json_string)
 	{
-		Init(ExpandoObject.FromJSONString(json_string));
+		Init(SnipeObject.FromJSONString(json_string));
 	}
 
 	/// <summary>
 	/// Should be called from the main Unity thread
 	/// </summary>
-	public static void Init(ExpandoObject data)
+	public static void Init(SnipeObject data)
 	{
 		Instance.ClientKey = data.SafeGetString("client_key");
 		Instance.AuthWebsocketURL = data.SafeGetString("auth_websocket");
-		Instance.ServerWebsocketURL = data.SafeGetString("server_websocket");
 		Instance.ServiceWebsocketURL = data.SafeGetString("service_websocket");
 		
  		if (Instance.TablesURLs == null)
@@ -63,7 +61,7 @@ public class SnipeConfig
 	
 	private void InitAppInfo()
 	{
-		this.AppInfo = new ExpandoObject()
+		this.AppInfo = new SnipeObject()
 		{
 			["identifier"] = Application.identifier,
 			["version"] = Application.version,

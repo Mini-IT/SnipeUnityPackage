@@ -14,7 +14,7 @@ public class AppleGameCenterAuthProvider : BindProvider
 	public const string PROVIDER_ID = "appl";
 	public override string ProviderId { get { return PROVIDER_ID; } }
 
-	private static Action<ExpandoObject> mLoginSignatureCallback;
+	private static Action<SnipeObject> mLoginSignatureCallback;
 
 	public override void RequestAuth(AuthSuccessCallback success_callback, AuthFailCallback fail_callback, bool reset_auth = false)
 	{
@@ -125,7 +125,7 @@ public class AppleGameCenterAuthProvider : BindProvider
 		InvokeBindResultCallback(SnipeErrorCodes.NOT_INITIALIZED);
 	}
 
-	protected override void OnAuthLoginResponse(ExpandoObject data)
+	protected override void OnAuthLoginResponse(SnipeObject data)
 	{
 		base.OnAuthLoginResponse(data);
 
@@ -211,7 +211,7 @@ public class AppleGameCenterAuthProvider : BindProvider
 
 		if (mLoginSignatureCallback != null)
 		{
-			ExpandoObject data = new ExpandoObject();
+			SnipeObject data = new SnipeObject();
 			data["provider"] = PROVIDER_ID;
 			data["publicKeyUrl"] = publicKeyUrl;
 			data["signature"] = Convert.ToBase64String(signature);
