@@ -141,6 +141,11 @@ namespace MiniIT.Snipe
 			return Path.Combine(SnipeConfig.Instance.PersistentDataPath, $"{mVersion}_{table_name}.json.gz");
 		}
 		
+		protected string GetBuiltInPath(string table_name)
+		{
+			return Path.Combine(SnipeConfig.Instance.StreamingAssetsPath, $"{mVersion}_{table_name}.json.gz");
+		}
+		
 		private async Task LoadTask(string table_name, CancellationToken cancellation)
 		{
 			int loading_tables_count = 0;
@@ -176,27 +181,13 @@ namespace MiniIT.Snipe
 			// Try to load from cache
 			if (!string.IsNullOrEmpty(mVersion))
 			{
-				lock (mCacheIOLocker)
+				ReadFile(table_name, cache_path, "from cache");
+				
+				// If loading from cache failed
+				// try to load built-in file
+				if (!this.Loaded)
 				{
-					if (File.Exists(cache_path))
-					{
-						using (FileStream cache_read_stream = new FileStream(cache_path, FileMode.Open))
-						{
-							try
-							{
-								ReadGZip(cache_read_stream);
-							}
-							catch (Exception)
-							{
-								DebugLogger.Log("[SnipeTable] Failed to read from cache - " + table_name);
-							}
-							
-							if (this.Loaded)
-							{
-								DebugLogger.Log("[SnipeTable] Table ready (from cache) - " + table_name);
-							}
-						}
-					}
+					ReadFile(table_name, GetBuiltInPath(table_name), "built-in");
 				}
 			}
 			
@@ -261,17 +252,15 @@ namespace MiniIT.Snipe
 									// Save to cache
 									try
 									{
-										DebugLogger.Log("[SnipeTable] Save to cache " + cache_path);
-										
-										if (File.Exists(cache_path))
+										if (!File.Exists(cache_path))
 										{
-											File.Delete(cache_path);
-										}
-										
-										using (FileStream cache_write_stream = new FileStream(cache_path, FileMode.Create, FileAccess.Write))
-										{
-											file_content_stream.Position = 0;
-											file_content_stream.CopyTo(cache_write_stream);
+											DebugLogger.Log("[SnipeTable] Save to cache " + cache_path);
+											
+											using (FileStream cache_write_stream = new FileStream(cache_path, FileMode.Create, FileAccess.Write))
+											{
+												file_content_stream.Position = 0;
+												file_content_stream.CopyTo(cache_write_stream);
+											}
 										}
 									}
 									catch (Exception ex)
@@ -291,6 +280,32 @@ namespace MiniIT.Snipe
 
 			this.LoadingFailed = !this.Loaded;
 			LoadingFinished?.Invoke(this.Loaded);
+		}
+		
+		private void ReadFile(string table_name, string file_path, string log_marker)
+		{
+			lock (mCacheIOLocker)
+			{
+				if (File.Exists(file_path))
+				{
+					using (FileStream cache_read_stream = new FileStream(file_path, FileMode.Open))
+					{
+						try
+						{
+							ReadGZip(cache_read_stream);
+						}
+						catch (Exception)
+						{
+							DebugLogger.Log($"[SnipeTable] Failed to read {log_marker} - {table_name}");
+						}
+						
+						if (this.Loaded)
+						{
+							DebugLogger.Log($"[SnipeTable] Table ready ({log_marker}) - {table_name}");
+						}
+					}
+				}
+			}
 		}
 		
 		private void ReadGZip(Stream stream)

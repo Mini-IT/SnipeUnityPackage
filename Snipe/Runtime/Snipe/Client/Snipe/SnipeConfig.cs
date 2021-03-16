@@ -23,6 +23,7 @@ public class SnipeConfig
 	
 	public List<string> TablesURLs = new List<string>();
 	public string PersistentDataPath { get; private set; }
+	public string StreamingAssetsPath { get; private set; }
 
 	/// <summary>
 	/// Should be called from the main Unity thread
@@ -55,6 +56,7 @@ public class SnipeConfig
 		}
 
 		Instance.PersistentDataPath = Application.persistentDataPath;
+		Instance.StreamingAssetsPath = Application.streamingAssetsPath;
 
 		Instance.InitAppInfo();
 	}
