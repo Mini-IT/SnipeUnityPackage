@@ -91,7 +91,7 @@ namespace MiniIT.Snipe
 		private CancellationTokenSource mLoadingCancellation;
 		
 		private static readonly object mCacheIOLocker = new object();
-		
+
 		public async void Load(string table_name)
 		{
 			mLoadingCancellation?.Cancel();
@@ -114,28 +114,35 @@ namespace MiniIT.Snipe
 			
 			if (mLoadingTables == null)
 				mLoadingTables = new List<string>(MAX_LOADERS_COUNT);
-			
-			try
+
+#pragma warning disable 4014
+			DebugLogger.Log("[SnipeTable] Load - Run async " + table_name);
+			Task.Run(async () =>
 			{
-				await LoadTask(table_name, mLoadingCancellation.Token);
-			}
-			catch (TaskCanceledException)
-			{
-				DebugLogger.Log($"[SnipeTable] Load {table_name} - TaskCanceled");
-			}
-			catch (Exception e)
-			{
-				DebugLogger.Log($"[SnipeTable] Load {table_name} - Exception: {e.Message}\n{e.StackTrace}" );
-			}
-			finally
-			{
-				lock (mLoadingTables)
+				try
 				{
-					mLoadingTables.Remove(table_name);
+					await LoadTask(table_name, mLoadingCancellation.Token);
 				}
-			}
+				catch (TaskCanceledException)
+				{
+					DebugLogger.Log($"[SnipeTable] Load {table_name} - TaskCanceled");
+				}
+				catch (Exception e)
+				{
+					DebugLogger.Log($"[SnipeTable] Load {table_name} - Exception: {e.Message}\n{e.StackTrace}");
+				}
+				finally
+				{
+					lock (mLoadingTables)
+					{
+						mLoadingTables.Remove(table_name);
+					}
+				}
+			},
+			mLoadingCancellation.Token);
+#pragma warning restore 4014
 		}
-		
+
 		protected string GetCachePath(string table_name)
 		{
 			return Path.Combine(SnipeConfig.Instance.PersistentDataPath, $"{mVersion}_{table_name}.json.gz");
@@ -143,7 +150,11 @@ namespace MiniIT.Snipe
 		
 		protected string GetBuiltInPath(string table_name)
 		{
+#if !UNITY_EDITOR && UNITY_ANDROID
+			return SnipeConfig.Instance.StreamingAssetsPath + $"/{mVersion}_{table_name}.jsongz";
+#else
 			return Path.Combine(SnipeConfig.Instance.StreamingAssetsPath, $"{mVersion}_{table_name}.json.gz");
+#endif
 		}
 		
 		private async Task LoadTask(string table_name, CancellationToken cancellation)
@@ -187,7 +198,11 @@ namespace MiniIT.Snipe
 				// try to load built-in file
 				if (!this.Loaded)
 				{
+#if !UNITY_EDITOR && UNITY_ANDROID
+					await ReadFromStramingAssets(table_name, GetBuiltInPath(table_name), "built-in");
+#else
 					ReadFile(table_name, GetBuiltInPath(table_name), "built-in");
+#endif
 				}
 			}
 			
@@ -288,17 +303,17 @@ namespace MiniIT.Snipe
 			{
 				if (File.Exists(file_path))
 				{
-					using (FileStream cache_read_stream = new FileStream(file_path, FileMode.Open))
+					using (var read_stream = new FileStream(file_path, FileMode.Open))
 					{
 						try
 						{
-							ReadGZip(cache_read_stream);
+							ReadGZip(read_stream);
 						}
 						catch (Exception)
 						{
 							DebugLogger.Log($"[SnipeTable] Failed to read {log_marker} - {table_name}");
 						}
-						
+
 						if (this.Loaded)
 						{
 							DebugLogger.Log($"[SnipeTable] Table ready ({log_marker}) - {table_name}");
@@ -307,7 +322,39 @@ namespace MiniIT.Snipe
 				}
 			}
 		}
-		
+
+#if !UNITY_EDITOR && UNITY_ANDROID
+		private async Task ReadFromStramingAssets(string table_name, string file_path, string log_marker)
+		{
+			var loader = new HttpClient();
+			var loader_task = loader.GetAsync(file_path);
+			await loader_task;
+
+			if (loader_task.IsFaulted || loader_task.IsCanceled)
+			{
+				DebugLogger.Log("[SnipeTable] Failed to read build-in table - " + table_name + "   (loader failed)");
+				return;
+			}
+
+			using (var read_stream = await loader_task.Result.Content.ReadAsStreamAsync())
+			{
+				try
+				{
+					ReadGZip(read_stream);
+				}
+				catch (Exception)
+				{
+					DebugLogger.Log($"[SnipeTable] Failed to read {log_marker} - {table_name}");
+				}
+
+				if (this.Loaded)
+				{
+					DebugLogger.Log($"[SnipeTable] Table ready ({log_marker}) - {table_name}");
+				}
+			}
+		}
+#endif
+
 		private void ReadGZip(Stream stream)
 		{
 			using (GZipStream gzip = new GZipStream(stream, CompressionMode.Decompress))
