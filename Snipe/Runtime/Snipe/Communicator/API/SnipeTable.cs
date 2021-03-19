@@ -198,11 +198,11 @@ namespace MiniIT.Snipe
 				// try to load built-in file
 				if (!this.Loaded)
 				{
-#if !UNITY_EDITOR && UNITY_ANDROID
-					await ReadFromStramingAssets(table_name, GetBuiltInPath(table_name), "built-in");
-#else
+// #if !UNITY_EDITOR && UNITY_ANDROID
+					// await ReadFromStramingAssets(table_name, GetBuiltInPath(table_name), "built-in");
+// #else
 					ReadFile(table_name, GetBuiltInPath(table_name), "built-in");
-#endif
+//#endif
 				}
 			}
 			
