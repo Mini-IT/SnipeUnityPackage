@@ -5,7 +5,8 @@
 		"MiniIT.Snipe.Client",
 		"MiniIT.Snipe.Social.Runtime",
 		"MiniIT.GooglePlay.Runtime",
-		"MiniIT.Snipe.MessagePack"
+		"MiniIT.Snipe.MessagePack",
+		"BetterStreamingAssets"
     ],
     "optionalUnityReferences": [],
     "excludePlatforms": [],

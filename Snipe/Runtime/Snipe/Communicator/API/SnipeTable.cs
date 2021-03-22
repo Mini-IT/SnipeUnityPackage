@@ -112,6 +112,10 @@ namespace MiniIT.Snipe
 			Loaded = false;
 			Items = new Dictionary<int, ItemType>();
 			
+#if UNITY_ANDROID && !UNITY_EDITOR
+			BetterStreamingAssets.Initialize();
+#endif
+			
 			if (mLoadingTables == null)
 				mLoadingTables = new List<string>(MAX_LOADERS_COUNT);
 
@@ -150,11 +154,20 @@ namespace MiniIT.Snipe
 		
 		protected string GetBuiltInPath(string table_name)
 		{
-#if !UNITY_EDITOR && UNITY_ANDROID
-			return SnipeConfig.Instance.StreamingAssetsPath + $"/{mVersion}_{table_name}.jsongz";
+#if UNITY_ANDROID && !UNITY_EDITOR
+			// NOTE: There is a bug - only lowercase works
+			// (https://issuetracker.unity3d.com/issues/android-loading-assets-from-assetbundles-takes-significantly-more-time-when-the-project-is-built-as-an-aab)
+			string filename = $"/{mVersion}_{table_name}.jsongz".ToLower();
+			//return (SnipeConfig.Instance.StreamingAssetsPath + filename);
+			return filename;
 #else
 			return Path.Combine(SnipeConfig.Instance.StreamingAssetsPath, $"{mVersion}_{table_name}.json.gz");
 #endif
+		}
+		
+		protected string GetTableUrl(string table_name)
+		{
+			return $"{SnipeConfig.Instance.GetTablesPath()}/{table_name}.json.gz";
 		}
 		
 		private async Task LoadTask(string table_name, CancellationToken cancellation)
@@ -198,18 +211,18 @@ namespace MiniIT.Snipe
 				// try to load built-in file
 				if (!this.Loaded)
 				{
-// #if !UNITY_EDITOR && UNITY_ANDROID
-					// await ReadFromStramingAssets(table_name, GetBuiltInPath(table_name), "built-in");
-// #else
+#if UNITY_ANDROID && !UNITY_EDITOR
+					ReadFromStramingAssets(table_name, GetBuiltInPath(table_name), "built-in");
+#else
 					ReadFile(table_name, GetBuiltInPath(table_name), "built-in");
-//#endif
+#endif
 				}
 			}
 			
 			// If loading from cache failed
 			if (!this.Loaded)
 			{
-				string url = string.Format("{0}/{1}.json.gz", SnipeConfig.Instance.GetTablesPath(), table_name);
+				string url = GetTableUrl(table_name);
 				DebugLogger.Log("[SnipeTable] Loading table " + url);
 
 				this.LoadingFailed = false;
@@ -323,33 +336,37 @@ namespace MiniIT.Snipe
 			}
 		}
 
-#if !UNITY_EDITOR && UNITY_ANDROID
-		private async Task ReadFromStramingAssets(string table_name, string file_path, string log_marker)
+#if UNITY_ANDROID && !UNITY_EDITOR
+		private void ReadFromStramingAssets(string table_name, string file_path, string log_marker)
 		{
-			var loader = new HttpClient();
-			var loader_task = loader.GetAsync(file_path);
-			await loader_task;
-
-			if (loader_task.IsFaulted || loader_task.IsCanceled)
+			DebugLogger.Log($"[SnipeTable] ReadFromStramingAssets - {file_path}");
+			
+			if (!BetterStreamingAssets.FileExists(file_path))
 			{
-				DebugLogger.Log("[SnipeTable] Failed to read build-in table - " + table_name + "   (loader failed)");
+				DebugLogger.Log($"[SnipeTable] ReadFromStramingAssets - file not found");
 				return;
 			}
-
-			using (var read_stream = await loader_task.Result.Content.ReadAsStreamAsync())
+			
+			byte[] data = BetterStreamingAssets.ReadAllBytes(file_path);
+			
+			
+			if (data != null)
 			{
-				try
+				using (var read_stream = new MemoryStream(data))
 				{
-					ReadGZip(read_stream);
-				}
-				catch (Exception)
-				{
-					DebugLogger.Log($"[SnipeTable] Failed to read {log_marker} - {table_name}");
-				}
+					try
+					{
+						ReadGZip(read_stream);
+					}
+					catch (Exception e)
+					{
+						DebugLogger.Log($"[SnipeTable] Failed to read {log_marker} - {table_name} - {e.Message}");
+					}
 
-				if (this.Loaded)
-				{
-					DebugLogger.Log($"[SnipeTable] Table ready ({log_marker}) - {table_name}");
+					if (this.Loaded)
+					{
+						DebugLogger.Log($"[SnipeTable] Table ready ({log_marker}) - {table_name}");
+					}
 				}
 			}
 		}

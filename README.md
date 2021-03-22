@@ -33,4 +33,5 @@ Alternatively there are some other methods:
 <li> Ionic.Zlib
 <li> <a href="https://github.com/sta/websocket-sharp">websocket-sharp</a>
 <li> WebSocket.jslib - for WebGL build target  (not fully supported yet)
+<li> <a href="https://github.com/gwiazdorrr/BetterStreamingAssets">BetterStreamingAssets</a>
 </ul>
