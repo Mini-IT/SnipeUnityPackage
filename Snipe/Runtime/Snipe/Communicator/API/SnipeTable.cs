@@ -65,9 +65,12 @@ namespace MiniIT.Snipe
 					return;
 				}
 				
+				DebugLogger.Log("[SnipeTable] LoadVersion - file loaded");
+				
 				using (var reader = new StreamReader(await loader_task.Result.Content.ReadAsStreamAsync()))
 				{
 					mVersion = reader.ReadLine().Trim();
+					DebugLogger.Log($"[SnipeTable] LoadVersion done - {mVersion}");
 				}
 			}
 			catch (Exception)
@@ -91,21 +94,28 @@ namespace MiniIT.Snipe
 		private CancellationTokenSource mLoadingCancellation;
 		
 		private static readonly object mCacheIOLocker = new object();
-
-		public async void Load(string table_name)
+		
+		public void Load(string table_name)
+		{
+			DebugLogger.Log("[SnipeTable] Load - " + table_name);
+			Task.Run(async () => await LoadAsync(table_name));
+		}
+		
+		private async Task LoadAsync(string table_name)
 		{
 			mLoadingCancellation?.Cancel();
 			mLoadingCancellation = new CancellationTokenSource();
 			
 			if (!mVersionRequested)
 			{
+				mVersionRequested = true;
 				await LoadVersion(mLoadingCancellation);
 			}
 			else
 			{
 				while (!mVersionLoadingFailed && string.IsNullOrEmpty(mVersion))
 				{
-					await Task.Delay(20, mLoadingCancellation.Token);
+					await Task.Delay(50, mLoadingCancellation.Token);
 				}
 			}
 			
@@ -119,32 +129,27 @@ namespace MiniIT.Snipe
 			if (mLoadingTables == null)
 				mLoadingTables = new List<string>(MAX_LOADERS_COUNT);
 
-#pragma warning disable 4014
-			DebugLogger.Log("[SnipeTable] Load - Run async " + table_name);
-			Task.Run(async () =>
+//#pragma warning disable 4014
+			try
 			{
-				try
+				await LoadTask(table_name, mLoadingCancellation.Token);
+			}
+			catch (TaskCanceledException)
+			{
+				DebugLogger.Log($"[SnipeTable] Load {table_name} - TaskCanceled");
+			}
+			catch (Exception e)
+			{
+				DebugLogger.Log($"[SnipeTable] Load {table_name} - Exception: {e.Message}\n{e.StackTrace}");
+			}
+			finally
+			{
+				lock (mLoadingTables)
 				{
-					await LoadTask(table_name, mLoadingCancellation.Token);
+					mLoadingTables.Remove(table_name);
 				}
-				catch (TaskCanceledException)
-				{
-					DebugLogger.Log($"[SnipeTable] Load {table_name} - TaskCanceled");
-				}
-				catch (Exception e)
-				{
-					DebugLogger.Log($"[SnipeTable] Load {table_name} - Exception: {e.Message}\n{e.StackTrace}");
-				}
-				finally
-				{
-					lock (mLoadingTables)
-					{
-						mLoadingTables.Remove(table_name);
-					}
-				}
-			},
-			mLoadingCancellation.Token);
-#pragma warning restore 4014
+			}
+//#pragma warning restore 4014
 		}
 
 		protected string GetCachePath(string table_name)
