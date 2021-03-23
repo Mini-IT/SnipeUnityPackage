@@ -127,7 +127,6 @@ namespace MiniIT.Snipe
 			if (mLoadingTables == null)
 				mLoadingTables = new List<string>(MAX_LOADERS_COUNT);
 
-//#pragma warning disable 4014
 			try
 			{
 				await LoadTask(table_name, mLoadingCancellation.Token);
@@ -147,7 +146,6 @@ namespace MiniIT.Snipe
 					mLoadingTables.Remove(table_name);
 				}
 			}
-//#pragma warning restore 4014
 		}
 
 		protected string GetCachePath(string table_name)
@@ -159,7 +157,7 @@ namespace MiniIT.Snipe
 		{
 			// NOTE: There is a bug - only lowercase works
 			// (https://issuetracker.unity3d.com/issues/android-loading-assets-from-assetbundles-takes-significantly-more-time-when-the-project-is-built-as-an-aab)
-			return $"/{mVersion}_{table_name}.jsongz".ToLower();
+			return $"{mVersion}_{table_name}.jsongz".ToLower();
 		}
 		
 		protected string GetTableUrl(string table_name)
@@ -340,7 +338,6 @@ namespace MiniIT.Snipe
 			}
 			
 			byte[] data = BetterStreamingAssets.ReadAllBytes(file_path);
-			
 			
 			if (data != null)
 			{
