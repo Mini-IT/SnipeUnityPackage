@@ -329,7 +329,6 @@ namespace MiniIT.Snipe
 			}
 		}
 
-#if UNITY_ANDROID && !UNITY_EDITOR
 		private void ReadFromStramingAssets(string table_name, string file_path)
 		{
 			DebugLogger.Log($"[SnipeTable] ReadFromStramingAssets - {file_path}");
@@ -363,7 +362,6 @@ namespace MiniIT.Snipe
 				}
 			}
 		}
-#endif
 
 		private void ReadGZip(Stream stream)
 		{
