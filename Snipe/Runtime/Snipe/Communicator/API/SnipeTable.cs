@@ -176,11 +176,10 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			string cache_path = GetCachePath(table_name);
-			
 			// Try to load from cache
 			if (!string.IsNullOrEmpty(mVersion))
 			{
+				string cache_path = GetCachePath(table_name);
 				ReadFile(table_name, cache_path);
 				
 				// If loading from cache failed
@@ -242,32 +241,12 @@ namespace MiniIT.Snipe
 							
 						if (this.Loaded)
 						{
+							DebugLogger.Log("[SnipeTable] Table ready - " + table_name);
+							
 							// "using" block in ReadGZip closes the stream. We need to open it again
 							using (var file_content_stream = await loader_task.Result.Content.ReadAsStreamAsync())
 							{
-								lock (mCacheIOLocker)
-								{
-									DebugLogger.Log("[SnipeTable] Table ready - " + table_name);
-									
-									// Save to cache
-									try
-									{
-										if (!File.Exists(cache_path))
-										{
-											DebugLogger.Log("[SnipeTable] Save to cache " + cache_path);
-											
-											using (FileStream cache_write_stream = new FileStream(cache_path, FileMode.Create, FileAccess.Write))
-											{
-												file_content_stream.Position = 0;
-												file_content_stream.CopyTo(cache_write_stream);
-											}
-										}
-									}
-									catch (Exception ex)
-									{
-										DebugLogger.Log("[SnipeTable] Failed to save to cache - " + table_name + " - " + ex.Message);
-									}
-								}
+								SaveToCache(file_content_stream, table_name);
 							}
 						}
 					}
@@ -332,11 +311,45 @@ namespace MiniIT.Snipe
 					{
 						DebugLogger.Log($"[SnipeTable] Failed to read file - {table_name} - {e.Message}");
 					}
-
-					if (this.Loaded)
+				}
+				
+				if (this.Loaded)
+				{
+					DebugLogger.Log($"[SnipeTable] Table ready (built-in) - {table_name}");
+					
+#if UNITY_ANDROID
+					// "using" block in ReadGZip closes the stream. We need to open it again
+					using (var read_stream = new MemoryStream(data))
 					{
-						DebugLogger.Log($"[SnipeTable] Table ready (built-in) - {table_name}");
+						SaveToCache(read_stream, table_name);
 					}
+#endif
+				}
+			}
+		}
+		
+		private void SaveToCache(Stream stream, string table_name)
+		{
+			string cache_path = GetCachePath(table_name);
+			
+			lock (mCacheIOLocker)
+			{
+				try
+				{
+					if (!File.Exists(cache_path))
+					{
+						DebugLogger.Log("[SnipeTable] Save to cache " + cache_path);
+						
+						using (FileStream cache_write_stream = new FileStream(cache_path, FileMode.Create, FileAccess.Write))
+						{
+							stream.Position = 0;
+							stream.CopyTo(cache_write_stream);
+						}
+					}
+				}
+				catch (Exception ex)
+				{
+					DebugLogger.Log("[SnipeTable] Failed to save to cache - " + table_name + " - " + ex.Message);
 				}
 			}
 		}
