@@ -51,7 +51,11 @@ public class SnipeConfig
 		{
 			foreach(string path in list)
 			{
-				Instance.TablesURLs.Add(path);
+				var corrected_path = path.Trim();
+				if (!corrected_path.EndsWith("/"))
+					corrected_path += "/";
+				
+				Instance.TablesURLs.Add(corrected_path);
 			}
 		}
 
