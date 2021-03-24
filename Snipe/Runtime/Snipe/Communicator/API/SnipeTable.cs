@@ -14,70 +14,28 @@ namespace MiniIT.Snipe
 	public class SnipeTable
 	{
 		protected const int MAX_LOADERS_COUNT = 5;
-		protected static List<string> mLoadingTables;
 		
 		protected static string mVersion = null;
 		protected static bool mVersionRequested = false;
-		protected static bool mVersionLoadingFailed = false;
-		protected static WeakReference<CancellationTokenSource> mVersionLoadingCancellation;
+		protected static List<CancellationTokenSource> mCancellations;
 		
 		public static void ResetVersion()
 		{
-			if (mVersionLoadingCancellation != null && mVersionLoadingCancellation.TryGetTarget(out var cancellation))
+			DebugLogger.Log("[SnipeTable] ResetVersion");
+			
+			if (mCancellations != null)
 			{
-				cancellation.Cancel();
-				mVersionLoadingCancellation = null;
+				// clone the list for thread safety
+				var cancellations = new List<CancellationTokenSource>(mCancellations);
+				foreach (var cancellation in cancellations)
+				{
+					cancellation?.Cancel();
+				}
+				mCancellations.Clear();
 			}
+			
 			mVersion = null;
 			mVersionRequested = false;
-			mVersionLoadingFailed = false;
-		}
-		
-		protected async Task LoadVersion(CancellationTokenSource cancellation_source)
-		{
-			mVersionRequested = true;
-			
-			string url = $"{SnipeConfig.Instance.GetTablesPath()}/version.txt";
-			
-			DebugLogger.Log("[SnipeTable] LoadVersion " + url);
-			
-			try
-			{
-				var loader = new HttpClient();
-				
-				mVersionLoadingCancellation = new WeakReference<CancellationTokenSource>(cancellation_source);
-				CancellationToken cancellation = cancellation_source.Token;
-				var loader_task = loader.GetAsync(url, cancellation);
-
-				await loader_task;
-
-				if (cancellation.IsCancellationRequested)
-				{
-					DebugLogger.Log("[SnipeTable] LoadVersion - Failed to load tables version - (task canceled)");
-					mVersionRequested = false;
-					return;
-				}
-
-				if (loader_task.IsFaulted || loader_task.IsCanceled)
-				{
-					DebugLogger.Log("[SnipeTable] LoadVersion - Failed to load tables version - (loader failed)");
-					mVersionLoadingFailed = true;
-					return;
-				}
-				
-				DebugLogger.Log("[SnipeTable] LoadVersion - file loaded");
-				
-				using (var reader = new StreamReader(await loader_task.Result.Content.ReadAsStreamAsync()))
-				{
-					mVersion = reader.ReadLine().Trim();
-					DebugLogger.Log($"[SnipeTable] LoadVersion done - {mVersion}");
-				}
-			}
-			catch (Exception)
-			{
-				mVersionLoadingFailed = true;
-				DebugLogger.Log("[SnipeTable] LoadVersion - Failed to read tables version");
-			}
 		}
 	}
 	
@@ -93,58 +51,103 @@ namespace MiniIT.Snipe
 		
 		private CancellationTokenSource mLoadingCancellation;
 		
+		protected static bool mVersionLoadingFinished = false;
 		private static readonly object mCacheIOLocker = new object();
 		
-		public void Load(string table_name)
-		{
-			DebugLogger.Log("[SnipeTable] Load - " + table_name);
-			Task.Run(async () => await LoadAsync(table_name));
-		}
+		private static SemaphoreSlim mSemaphore;
 		
-		private async Task LoadAsync(string table_name)
+		public async void Load(string table_name)
 		{
 			mLoadingCancellation?.Cancel();
 			mLoadingCancellation = new CancellationTokenSource();
 			
+			if (mCancellations == null)
+				mCancellations = new List<CancellationTokenSource>();
+			mCancellations.Add(mLoadingCancellation);
+			
+			try
+			{
+				await LoadAsync(table_name, mLoadingCancellation.Token);
+			}
+			finally
+			{
+				mCancellations.Remove(mLoadingCancellation);
+			}
+		}
+		
+		private async Task LoadAsync(string table_name, CancellationToken cancellation_token)
+		{
 			if (!mVersionRequested)
 			{
 				mVersionRequested = true;
-				await LoadVersion(mLoadingCancellation);
+				mVersionLoadingFinished = false;
+				
+				string url = $"{SnipeConfig.Instance.GetTablesPath()}version.txt";
+				DebugLogger.Log("[SnipeTable] LoadVersion " + url);
+				
+				try
+				{
+					var load_task = new HttpClient().GetStringAsync(url); // , cancellation_token);
+					if (await Task.WhenAny(load_task, Task.Delay(10000, cancellation_token)) == load_task)
+					{
+						var content = load_task.Result;
+						mVersion = content.Trim();
+						
+						mVersionLoadingFinished = true;
+						DebugLogger.Log($"[SnipeTable] LoadVersion done - {mVersion}");
+					}
+					else // timeout
+					{
+						DebugLogger.Log($"[SnipeTable] LoadVersion - failed by timeout");
+						//mVersionLoadingFailed = true;
+						return;
+					}
+				}
+				// catch (TaskCanceledException)
+				// {
+					// DebugLogger.Log($"[SnipeTable] LoadVersion - TaskCanceled");
+				// }
+				catch (Exception e)
+				{
+					DebugLogger.Log($"[SnipeTable] LoadVersion - Exception: {e.Message}");
+					return;
+				}
 			}
 			else
 			{
-				while (!mVersionLoadingFailed && string.IsNullOrEmpty(mVersion))
+				while (string.IsNullOrEmpty(mVersion))
 				{
-					await Task.Delay(50, mLoadingCancellation.Token);
+					if (cancellation_token.IsCancellationRequested)
+					{
+						return;
+					}
+					
+					await Task.Yield();
 				}
+			}
+			
+			if (mSemaphore == null)
+			{
+				mSemaphore = new SemaphoreSlim(MAX_LOADERS_COUNT);
+				
+				BetterStreamingAssets.Initialize();
 			}
 			
 			Loaded = false;
 			Items = new Dictionary<int, ItemType>();
 			
-			BetterStreamingAssets.Initialize();
-			
-			if (mLoadingTables == null)
-				mLoadingTables = new List<string>(MAX_LOADERS_COUNT);
-
 			try
 			{
-				await LoadTask(table_name, mLoadingCancellation.Token);
-			}
-			catch (TaskCanceledException)
-			{
-				DebugLogger.Log($"[SnipeTable] Load {table_name} - TaskCanceled");
+				await mSemaphore.WaitAsync(cancellation_token);
+				await LoadTask(table_name, cancellation_token);
 			}
 			catch (Exception e)
 			{
-				DebugLogger.Log($"[SnipeTable] Load {table_name} - Exception: {e.Message}\n{e.StackTrace}");
+				DebugLogger.Log($"[SnipeTable] Load {table_name} - Exception: {e.Message}");
 			}
 			finally
 			{
-				lock (mLoadingTables)
-				{
-					mLoadingTables.Remove(table_name);
-				}
+				mSemaphore.Release();
 			}
 		}
 
@@ -162,39 +165,17 @@ namespace MiniIT.Snipe
 		
 		protected string GetTableUrl(string table_name)
 		{
-			return $"{SnipeConfig.Instance.GetTablesPath()}/{table_name}.json.gz";
+			return $"{SnipeConfig.Instance.GetTablesPath()}{table_name}.json.gz";
 		}
 		
 		private async Task LoadTask(string table_name, CancellationToken cancellation)
 		{
-			int loading_tables_count = 0;
-			lock (mLoadingTables)
-			{
-				mLoadingTables.Remove(table_name);
-				loading_tables_count = mLoadingTables.Count;
-			}
-			
-			while (loading_tables_count >= MAX_LOADERS_COUNT)
-			{
-				await Task.Delay(20, cancellation);
-
-				lock (mLoadingTables)
-				{
-					loading_tables_count = mLoadingTables.Count;
-				}
-			}
-			
 			if (cancellation.IsCancellationRequested)
 			{
 				DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (task canceled)");
 				return;
 			}
 
-			lock (mLoadingTables)
-			{
-				mLoadingTables.Add(table_name);
-			}
-			
 			string cache_path = GetCachePath(table_name);
 			
 			// Try to load from cache
