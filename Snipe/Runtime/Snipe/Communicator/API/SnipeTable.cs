@@ -54,9 +54,9 @@ namespace MiniIT.Snipe
 		protected static bool mVersionLoadingFinished = false;
 		private static readonly object mCacheIOLocker = new object();
 		
-		private static SemaphoreSlim mSemaphore;
+		//private static SemaphoreSlim mSemaphore;
 		
-		public async void Load(string table_name)
+		public async Task Load(string table_name)
 		{
 			mLoadingCancellation?.Cancel();
 			mLoadingCancellation = new CancellationTokenSource();
@@ -81,6 +81,8 @@ namespace MiniIT.Snipe
 			{
 				mVersionRequested = true;
 				mVersionLoadingFinished = false;
+				
+				BetterStreamingAssets.Initialize();
 				
 				string url = $"{SnipeConfig.Instance.GetTablesPath()}version.txt";
 				DebugLogger.Log("[SnipeTable] LoadVersion " + url);
@@ -126,29 +128,29 @@ namespace MiniIT.Snipe
 				}
 			}
 			
-			if (mSemaphore == null)
-			{
-				mSemaphore = new SemaphoreSlim(MAX_LOADERS_COUNT);
+			// if (mSemaphore == null)
+			// {
+				// mSemaphore = new SemaphoreSlim(MAX_LOADERS_COUNT);
 				
-				BetterStreamingAssets.Initialize();
-			}
+				// BetterStreamingAssets.Initialize();
+			// }
 			
 			Loaded = false;
 			Items = new Dictionary<int, ItemType>();
 			
 			try
 			{
-				await mSemaphore.WaitAsync(cancellation_token);
+				//await mSemaphore.WaitAsync(cancellation_token);
 				await LoadTask(table_name, cancellation_token);
 			}
 			catch (Exception e)
 			{
 				DebugLogger.Log($"[SnipeTable] Load {table_name} - Exception: {e.Message}");
 			}
-			finally
-			{
-				mSemaphore.Release();
-			}
+			// finally
+			// {
+				// mSemaphore.Release();
+			// }
 		}
 
 		protected string GetCachePath(string table_name)
@@ -175,6 +177,8 @@ namespace MiniIT.Snipe
 				DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (task canceled)");
 				return;
 			}
+			
+			DebugLogger.Log($"[SnipeTable] LoadTask start - {table_name}");
 
 			// Try to load from cache
 			if (!string.IsNullOrEmpty(mVersion))
