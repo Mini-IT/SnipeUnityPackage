@@ -6,7 +6,8 @@
 		"MiniIT.Snipe.Social.Runtime",
 		"MiniIT.GooglePlay.Runtime",
 		"MiniIT.Snipe.MessagePack",
-		"BetterStreamingAssets"
+		"BetterStreamingAssets",
+		"fastJSON"
     ],
     "optionalUnityReferences": [],
     "excludePlatforms": [],

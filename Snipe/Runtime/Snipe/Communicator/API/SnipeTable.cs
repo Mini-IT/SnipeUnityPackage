@@ -368,12 +368,16 @@ namespace MiniIT.Snipe
 					string json_string = reader.ReadToEnd();
 					
 					System.Diagnostics.Stopwatch sw = null;
-					SnipeObject data = null;
+					//SnipeObject data = null;
+					ItemsListWrapper<ItemType> list_wrapper;
 					lock (mParseJSONLocker)
 					{
 						sw = System.Diagnostics.Stopwatch.StartNew();
 						//long mem_parse_fast = GC.GetTotalMemory(false);
-						data = SnipeObject.FromFastJSONString(json_string);
+						//data = SnipeObject.FromFastJSONString(json_string);
+						
+						list_wrapper = fastJSON.JSON.ToObject<ItemsListWrapper<ItemType>>(json_string);
+						
 						//mem_parse_fast = GC.GetTotalMemory(false) - mem_parse_fast;
 						sw.Stop();
 					}
@@ -388,12 +392,19 @@ namespace MiniIT.Snipe
 					// float parse_time_old = (float)sw_old.ElapsedTicks / TimeSpan.TicksPerMillisecond;
 					
 					sw = System.Diagnostics.Stopwatch.StartNew();
-					if (data["list"] is List<object> list)
+					// if (data["list"] is List<object> list)
+					// {
+						// foreach (var item_data in list)
+						// {
+							// if (item_data is Dictionary<string, object> dict)
+								// AddTableItem(dict);
+						// }
+					// }
+					if (list_wrapper?.list != null)
 					{
-						foreach (var item_data in list)
+						foreach (var item in list_wrapper.list)
 						{
-							if (item_data is Dictionary<string, object> dict)
-								AddTableItem(dict);
+							Items[item.id] = item;
 						}
 					}
 					sw.Stop();
@@ -429,5 +440,10 @@ namespace MiniIT.Snipe
 				Items[item.id] = item;
 			}
 		}
+	}
+	
+	internal class ItemsListWrapper<ItemType> where ItemType : SnipeTableItem, new()
+	{
+		public List<ItemType> list;
 	}
 }
