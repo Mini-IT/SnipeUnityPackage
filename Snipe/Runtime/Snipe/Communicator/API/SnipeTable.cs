@@ -367,9 +367,10 @@ namespace MiniIT.Snipe
 				{
 					string json_string = reader.ReadToEnd();
 					
+					System.Diagnostics.Stopwatch sw = null;
 					lock (mParseJSONLocker)
 					{
-						var sw = System.Diagnostics.Stopwatch.StartNew();
+						sw = System.Diagnostics.Stopwatch.StartNew();
 						//long mem_parse_fast = GC.GetTotalMemory(false);
 						SnipeObject data = SnipeObject.FromFastJSONString(json_string);
 						//mem_parse_fast = GC.GetTotalMemory(false) - mem_parse_fast;
