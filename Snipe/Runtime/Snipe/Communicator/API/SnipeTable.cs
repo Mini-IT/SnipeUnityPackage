@@ -53,6 +53,7 @@ namespace MiniIT.Snipe
 		
 		protected static bool mVersionLoadingFinished = false;
 		private static readonly object mCacheIOLocker = new object();
+		private static readonly object mParseJSONLocker = new object();
 		
 		//private static SemaphoreSlim mSemaphore;
 		
@@ -366,11 +367,14 @@ namespace MiniIT.Snipe
 				{
 					string json_string = reader.ReadToEnd();
 					
-					var sw = System.Diagnostics.Stopwatch.StartNew();
-					//long mem_parse_fast = GC.GetTotalMemory(false);
-					SnipeObject data = SnipeObject.FromFastJSONString(json_string);
-					//mem_parse_fast = GC.GetTotalMemory(false) - mem_parse_fast;
-					sw.Stop();
+					lock (mParseJSONLocker)
+					{
+						var sw = System.Diagnostics.Stopwatch.StartNew();
+						//long mem_parse_fast = GC.GetTotalMemory(false);
+						SnipeObject data = SnipeObject.FromFastJSONString(json_string);
+						//mem_parse_fast = GC.GetTotalMemory(false) - mem_parse_fast;
+						sw.Stop();
+					}
 					
 					// var sw_old = System.Diagnostics.Stopwatch.StartNew();
 					// long mem_parse_old = GC.GetTotalMemory(false);
