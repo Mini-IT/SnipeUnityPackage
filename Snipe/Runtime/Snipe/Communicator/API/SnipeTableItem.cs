@@ -1,4 +1,5 @@
 ﻿using MiniIT;
+using System.Collections.Generic;
 
 namespace MiniIT.Snipe
 {
@@ -12,6 +13,10 @@ namespace MiniIT.Snipe
 		{
 		}
 		
+		public virtual void SetData(Dictionary<string, object> data)
+		{
+			SetData(new SnipeObject(data));
+		}
 		public virtual void SetData(SnipeObject data)
 		{
 			this.raw = data;

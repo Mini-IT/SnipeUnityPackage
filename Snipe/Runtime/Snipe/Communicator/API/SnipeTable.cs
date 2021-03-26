@@ -254,9 +254,9 @@ namespace MiniIT.Snipe
 							}
 						}
 					}
-					catch (Exception)
+					catch (Exception e)
 					{
-						DebugLogger.Log("[SnipeTable] Failed to parse table - " + table_name);
+						DebugLogger.Log($"[SnipeTable] Failed to parse table - {table_name}  {e.Message} {e.StackTrace}");
 					}
 				}
 			}
@@ -351,9 +351,9 @@ namespace MiniIT.Snipe
 						}
 					}
 				}
-				catch (Exception ex)
+				catch (Exception e)
 				{
-					DebugLogger.Log("[SnipeTable] Failed to save to cache - " + table_name + " - " + ex.Message);
+					DebugLogger.Log("[SnipeTable] Failed to save to cache - " + table_name + " - " + e.Message);
 				}
 			}
 		}
@@ -365,22 +365,56 @@ namespace MiniIT.Snipe
 				using (StreamReader reader = new StreamReader(gzip))
 				{
 					string json_string = reader.ReadToEnd();
-					SnipeObject data = SnipeObject.FromJSONString(json_string);
-
+					
+					var sw = System.Diagnostics.Stopwatch.StartNew();
+					//long mem_parse_fast = GC.GetTotalMemory(false);
+					SnipeObject data = SnipeObject.FromFastJSONString(json_string);
+					//mem_parse_fast = GC.GetTotalMemory(false) - mem_parse_fast;
+					sw.Stop();
+					
+					// var sw_old = System.Diagnostics.Stopwatch.StartNew();
+					// long mem_parse_old = GC.GetTotalMemory(false);
+					// SnipeObject data_old = SnipeObject.FromJSONString(json_string);
+					// mem_parse_old = GC.GetTotalMemory(false) - mem_parse_old;
+					// sw_old.Stop();
+					
+					float parse_time_fast = (float)sw.ElapsedTicks / TimeSpan.TicksPerMillisecond;
+					// float parse_time_old = (float)sw_old.ElapsedTicks / TimeSpan.TicksPerMillisecond;
+					
+					sw = System.Diagnostics.Stopwatch.StartNew();
 					if (data["list"] is List<object> list)
 					{
-						foreach (SnipeObject item_data in list)
+						foreach (var item_data in list)
 						{
-							AddTableItem(item_data);
+							if (item_data is Dictionary<string, object> dict)
+								AddTableItem(dict);
 						}
 					}
+					sw.Stop();
+					
+					// sw_old = System.Diagnostics.Stopwatch.StartNew();
+					// if (data_old["list"] is List<object> lst)
+					// {
+						// foreach (SnipeObject item_data in lst)
+						// {
+							// AddTableItem(item_data);
+						// }
+					// }
+					// sw_old.Stop();
+					
+					float inst_time_fast = (float)sw.ElapsedTicks / TimeSpan.TicksPerMillisecond;
+					//float inst_time_old = (float)sw_old.ElapsedTicks / TimeSpan.TicksPerMillisecond;
+					
+					DebugLogger.Log($"[SnipeTable] Parsing + Instantiating:  fast: {parse_time_fast} + {inst_time_fast} = {parse_time_fast + inst_time_fast}");
+					//DebugLogger.Log($"[SnipeTable] Parsing + Instantiating:  old: {parse_time_old} + {inst_time_old} = {parse_time_old + inst_time_old}");
+					//DebugLogger.Log($"[SnipeTable] Memory useage:  fast: {mem_parse_fast} old: {mem_parse_old}");
 
 					this.Loaded = true;
 				}
 			}
 		}
 		
-		protected void AddTableItem(SnipeObject item_data)
+		protected void AddTableItem(Dictionary<string, object> item_data)
 		{
 			var item = new ItemType();
 			item.SetData(item_data);
