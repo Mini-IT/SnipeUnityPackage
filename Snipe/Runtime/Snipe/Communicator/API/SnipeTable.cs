@@ -57,7 +57,7 @@ namespace MiniIT.Snipe
 		
 		//private static SemaphoreSlim mSemaphore;
 		
-		public async Task Load(string table_name)
+		public async Task Load<WrapperType>(string table_name) where WrapperType : ISnipeTableItemsListWrapper<ItemType>, new()
 		{
 			mLoadingCancellation?.Cancel();
 			mLoadingCancellation = new CancellationTokenSource();
@@ -68,7 +68,7 @@ namespace MiniIT.Snipe
 			
 			try
 			{
-				await LoadAsync(table_name, mLoadingCancellation.Token);
+				await LoadAsync<WrapperType>(table_name, mLoadingCancellation.Token);
 			}
 			finally
 			{
@@ -76,7 +76,7 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		private async Task LoadAsync(string table_name, CancellationToken cancellation_token)
+		private async Task LoadAsync<WrapperType>(string table_name, CancellationToken cancellation_token) where WrapperType : ISnipeTableItemsListWrapper<ItemType>, new()
 		{
 			if (!mVersionRequested)
 			{
@@ -142,7 +142,7 @@ namespace MiniIT.Snipe
 			try
 			{
 				//await mSemaphore.WaitAsync(cancellation_token);
-				await LoadTask(table_name, cancellation_token);
+				await LoadTask<WrapperType>(table_name, cancellation_token);
 			}
 			catch (Exception e)
 			{
@@ -171,7 +171,7 @@ namespace MiniIT.Snipe
 			return $"{SnipeConfig.Instance.GetTablesPath()}{table_name}.json.gz";
 		}
 		
-		private async Task LoadTask(string table_name, CancellationToken cancellation)
+		private async Task LoadTask<WrapperType>(string table_name, CancellationToken cancellation) where WrapperType : ISnipeTableItemsListWrapper<ItemType>, new()
 		{
 			if (cancellation.IsCancellationRequested)
 			{
@@ -185,13 +185,13 @@ namespace MiniIT.Snipe
 			if (!string.IsNullOrEmpty(mVersion))
 			{
 				string cache_path = GetCachePath(table_name);
-				ReadFile(table_name, cache_path);
+				ReadFile<WrapperType>(table_name, cache_path);
 				
 				// If loading from cache failed
 				// try to load built-in file
 				if (!this.Loaded)
 				{
-					ReadFromStramingAssets(table_name, GetBuiltInPath(table_name));
+					ReadFromStramingAssets<WrapperType>(table_name, GetBuiltInPath(table_name));
 				}
 			}
 			
@@ -241,7 +241,7 @@ namespace MiniIT.Snipe
 						
 						using (var file_content_stream = await loader_task.Result.Content.ReadAsStreamAsync())
 						{
-							ReadGZip(file_content_stream);
+							ReadGZip<WrapperType>(file_content_stream);
 						}
 							
 						if (this.Loaded)
@@ -266,7 +266,7 @@ namespace MiniIT.Snipe
 			LoadingFinished?.Invoke(this.Loaded);
 		}
 		
-		private void ReadFile(string table_name, string file_path)
+		private void ReadFile<WrapperType>(string table_name, string file_path) where WrapperType : ISnipeTableItemsListWrapper<ItemType>, new()
 		{
 			lock (mCacheIOLocker)
 			{
@@ -276,7 +276,7 @@ namespace MiniIT.Snipe
 					{
 						try
 						{
-							ReadGZip(read_stream);
+							ReadGZip<WrapperType>(read_stream);
 						}
 						catch (Exception)
 						{
@@ -292,7 +292,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void ReadFromStramingAssets(string table_name, string file_path)
+		private void ReadFromStramingAssets<WrapperType>(string table_name, string file_path) where WrapperType : ISnipeTableItemsListWrapper<ItemType>, new()
 		{
 			DebugLogger.Log($"[SnipeTable] ReadFromStramingAssets - {file_path}");
 			
@@ -310,7 +310,7 @@ namespace MiniIT.Snipe
 				{
 					try
 					{
-						ReadGZip(read_stream);
+						ReadGZip<WrapperType>(read_stream);
 					}
 					catch (Exception e)
 					{
@@ -359,7 +359,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void ReadGZip(Stream stream)
+		private void ReadGZip<WrapperType>(Stream stream) where WrapperType : ISnipeTableItemsListWrapper<ItemType>, new()
 		{
 			using (GZipStream gzip = new GZipStream(stream, CompressionMode.Decompress))
 			{
@@ -367,33 +367,33 @@ namespace MiniIT.Snipe
 				{
 					string json_string = reader.ReadToEnd();
 					
-					//System.Diagnostics.Stopwatch sw = null;
+					System.Diagnostics.Stopwatch sw = null;
 					//SnipeObject data = null;
-					/*
-					SnipeTableItemsListWrapper<ItemType> list_wrapper;
+					//SnipeTableItemsListWrapper<ItemType> list_wrapper;
+					WrapperType list_wrapper;
 					lock (mParseJSONLocker)
 					{
 						sw = System.Diagnostics.Stopwatch.StartNew();
 						//long mem_parse_fast = GC.GetTotalMemory(false);
 						//data = SnipeObject.FromFastJSONString(json_string);
 						
-						list_wrapper = fastJSON.JSON.ToObject<SnipeTableItemsListWrapper<ItemType>>(json_string);
+						//list_wrapper = fastJSON.JSON.ToObject<SnipeTableItemsListWrapper<ItemType>>(json_string);
+						list_wrapper = fastJSON.JSON.ToObject<WrapperType>(json_string);
 						
 						//mem_parse_fast = GC.GetTotalMemory(false) - mem_parse_fast;
 						sw.Stop();
 					}
-					*/
 					
-					var sw_old = System.Diagnostics.Stopwatch.StartNew();
+					// var sw_old = System.Diagnostics.Stopwatch.StartNew();
 					// long mem_parse_old = GC.GetTotalMemory(false);
-					SnipeObject data_old = SnipeObject.FromJSONString(json_string);
+					// SnipeObject data_old = SnipeObject.FromJSONString(json_string);
 					// mem_parse_old = GC.GetTotalMemory(false) - mem_parse_old;
-					sw_old.Stop();
+					// sw_old.Stop();
 					
-					//float parse_time_fast = (float)sw.ElapsedTicks / TimeSpan.TicksPerMillisecond;
-					float parse_time_old = (float)sw_old.ElapsedTicks / TimeSpan.TicksPerMillisecond;
+					float parse_time_fast = (float)sw.ElapsedTicks / TimeSpan.TicksPerMillisecond;
+					// float parse_time_old = (float)sw_old.ElapsedTicks / TimeSpan.TicksPerMillisecond;
 					
-					//sw = System.Diagnostics.Stopwatch.StartNew();
+					sw = System.Diagnostics.Stopwatch.StartNew();
 					// if (data["list"] is List<object> list)
 					// {
 						// foreach (var item_data in list)
@@ -402,30 +402,30 @@ namespace MiniIT.Snipe
 								// AddTableItem(dict);
 						// }
 					// }
-					// if (list_wrapper?.list != null)
-					// {
-						// foreach (var item in list_wrapper.list)
-						// {
-							// Items[item.id] = item;
-						// }
-					// }
-					// sw.Stop();
-					
-					sw_old = System.Diagnostics.Stopwatch.StartNew();
-					if (data_old["list"] is List<object> lst)
+					if (list_wrapper?.list != null)
 					{
-						foreach (SnipeObject item_data in lst)
+						foreach (ItemType item in list_wrapper.list)
 						{
-							AddTableItem(item_data);
+							Items[item.id] = item;
 						}
 					}
-					sw_old.Stop();
+					sw.Stop();
 					
-					//float inst_time_fast = (float)sw.ElapsedTicks / TimeSpan.TicksPerMillisecond;
-					float inst_time_old = (float)sw_old.ElapsedTicks / TimeSpan.TicksPerMillisecond;
+					// sw_old = System.Diagnostics.Stopwatch.StartNew();
+					// if (data_old["list"] is List<object> lst)
+					// {
+						// foreach (SnipeObject item_data in lst)
+						// {
+							// AddTableItem(item_data);
+						// }
+					// }
+					// sw_old.Stop();
 					
-					//DebugLogger.Log($"[SnipeTable] Parsing + Instantiating:  fast: {parse_time_fast} + {inst_time_fast} = {parse_time_fast + inst_time_fast}");
-					DebugLogger.Log($"[SnipeTable] Parsing + Instantiating:  old: {parse_time_old} + {inst_time_old} = {parse_time_old + inst_time_old}");
+					float inst_time_fast = (float)sw.ElapsedTicks / TimeSpan.TicksPerMillisecond;
+					//float inst_time_old = (float)sw_old.ElapsedTicks / TimeSpan.TicksPerMillisecond;
+					
+					DebugLogger.Log($"[SnipeTable] Parsing + Instantiating:  fast: {parse_time_fast} + {inst_time_fast} = {parse_time_fast + inst_time_fast}");
+					//DebugLogger.Log($"[SnipeTable] Parsing + Instantiating:  old: {parse_time_old} + {inst_time_old} = {parse_time_old + inst_time_old}");
 					//DebugLogger.Log($"[SnipeTable] Memory useage:  fast: {mem_parse_fast} old: {mem_parse_old}");
 
 					this.Loaded = true;
@@ -444,8 +444,12 @@ namespace MiniIT.Snipe
 		}
 	}
 	
-	internal class SnipeTableItemsListWrapper<ItemType> where ItemType : SnipeTableItem, new()
+	public interface ISnipeTableItemsListWrapper<ItemType>
 	{
-		public List<ItemType> list;
+		List<ItemType> list {get; set;}
 	}
+	// internal class SnipeTableItemsListWrapper<ItemType> where ItemType : SnipeTableItem, new()
+	// {
+		// public List<ItemType> list;
+	// }
 }
