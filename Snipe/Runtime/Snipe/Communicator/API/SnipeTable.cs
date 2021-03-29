@@ -66,6 +66,8 @@ namespace MiniIT.Snipe
 				mCancellations = new List<CancellationTokenSource>();
 			mCancellations.Add(mLoadingCancellation);
 			
+			BetterStreamingAssets.Initialize();
+			
 			try
 			{
 				await LoadAsync<WrapperType>(table_name, mLoadingCancellation.Token);
@@ -82,8 +84,6 @@ namespace MiniIT.Snipe
 			{
 				mVersionRequested = true;
 				mVersionLoadingFinished = false;
-				
-				BetterStreamingAssets.Initialize();
 				
 				string url = $"{SnipeConfig.Instance.GetTablesPath()}version.txt";
 				DebugLogger.Log("[SnipeTable] LoadVersion " + url);
