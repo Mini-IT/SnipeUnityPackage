@@ -7,7 +7,7 @@ namespace MiniIT.Snipe
 	{
 		//public SnipeObject raw { get; protected set; }
 
-		public int id { get; protected set; } = 0;
+		public int id { get; set; } = 0;
 
 		public SnipeTableItem()
 		{
