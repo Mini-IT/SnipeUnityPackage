@@ -367,31 +367,33 @@ namespace MiniIT.Snipe
 				{
 					string json_string = reader.ReadToEnd();
 					
-					System.Diagnostics.Stopwatch sw = null;
+					//System.Diagnostics.Stopwatch sw = null;
 					//SnipeObject data = null;
-					ItemsListWrapper<ItemType> list_wrapper;
+					/*
+					SnipeTableItemsListWrapper<ItemType> list_wrapper;
 					lock (mParseJSONLocker)
 					{
 						sw = System.Diagnostics.Stopwatch.StartNew();
 						//long mem_parse_fast = GC.GetTotalMemory(false);
 						//data = SnipeObject.FromFastJSONString(json_string);
 						
-						list_wrapper = fastJSON.JSON.ToObject<ItemsListWrapper<ItemType>>(json_string);
+						list_wrapper = fastJSON.JSON.ToObject<SnipeTableItemsListWrapper<ItemType>>(json_string);
 						
 						//mem_parse_fast = GC.GetTotalMemory(false) - mem_parse_fast;
 						sw.Stop();
 					}
+					*/
 					
-					// var sw_old = System.Diagnostics.Stopwatch.StartNew();
+					var sw_old = System.Diagnostics.Stopwatch.StartNew();
 					// long mem_parse_old = GC.GetTotalMemory(false);
-					// SnipeObject data_old = SnipeObject.FromJSONString(json_string);
+					SnipeObject data_old = SnipeObject.FromJSONString(json_string);
 					// mem_parse_old = GC.GetTotalMemory(false) - mem_parse_old;
-					// sw_old.Stop();
+					sw_old.Stop();
 					
-					float parse_time_fast = (float)sw.ElapsedTicks / TimeSpan.TicksPerMillisecond;
-					// float parse_time_old = (float)sw_old.ElapsedTicks / TimeSpan.TicksPerMillisecond;
+					//float parse_time_fast = (float)sw.ElapsedTicks / TimeSpan.TicksPerMillisecond;
+					float parse_time_old = (float)sw_old.ElapsedTicks / TimeSpan.TicksPerMillisecond;
 					
-					sw = System.Diagnostics.Stopwatch.StartNew();
+					//sw = System.Diagnostics.Stopwatch.StartNew();
 					// if (data["list"] is List<object> list)
 					// {
 						// foreach (var item_data in list)
@@ -400,30 +402,30 @@ namespace MiniIT.Snipe
 								// AddTableItem(dict);
 						// }
 					// }
-					if (list_wrapper?.list != null)
-					{
-						foreach (var item in list_wrapper.list)
-						{
-							Items[item.id] = item;
-						}
-					}
-					sw.Stop();
-					
-					// sw_old = System.Diagnostics.Stopwatch.StartNew();
-					// if (data_old["list"] is List<object> lst)
+					// if (list_wrapper?.list != null)
 					// {
-						// foreach (SnipeObject item_data in lst)
+						// foreach (var item in list_wrapper.list)
 						// {
-							// AddTableItem(item_data);
+							// Items[item.id] = item;
 						// }
 					// }
-					// sw_old.Stop();
+					// sw.Stop();
 					
-					float inst_time_fast = (float)sw.ElapsedTicks / TimeSpan.TicksPerMillisecond;
-					//float inst_time_old = (float)sw_old.ElapsedTicks / TimeSpan.TicksPerMillisecond;
+					sw_old = System.Diagnostics.Stopwatch.StartNew();
+					if (data_old["list"] is List<object> lst)
+					{
+						foreach (SnipeObject item_data in lst)
+						{
+							AddTableItem(item_data);
+						}
+					}
+					sw_old.Stop();
 					
-					DebugLogger.Log($"[SnipeTable] Parsing + Instantiating:  fast: {parse_time_fast} + {inst_time_fast} = {parse_time_fast + inst_time_fast}");
-					//DebugLogger.Log($"[SnipeTable] Parsing + Instantiating:  old: {parse_time_old} + {inst_time_old} = {parse_time_old + inst_time_old}");
+					//float inst_time_fast = (float)sw.ElapsedTicks / TimeSpan.TicksPerMillisecond;
+					float inst_time_old = (float)sw_old.ElapsedTicks / TimeSpan.TicksPerMillisecond;
+					
+					//DebugLogger.Log($"[SnipeTable] Parsing + Instantiating:  fast: {parse_time_fast} + {inst_time_fast} = {parse_time_fast + inst_time_fast}");
+					DebugLogger.Log($"[SnipeTable] Parsing + Instantiating:  old: {parse_time_old} + {inst_time_old} = {parse_time_old + inst_time_old}");
 					//DebugLogger.Log($"[SnipeTable] Memory useage:  fast: {mem_parse_fast} old: {mem_parse_old}");
 
 					this.Loaded = true;
@@ -442,7 +444,7 @@ namespace MiniIT.Snipe
 		}
 	}
 	
-	internal class ItemsListWrapper<ItemType> where ItemType : SnipeTableItem, new()
+	internal class SnipeTableItemsListWrapper<ItemType> where ItemType : SnipeTableItem, new()
 	{
 		public List<ItemType> list;
 	}
