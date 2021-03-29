@@ -41,14 +41,14 @@ namespace MiniIT
 		{
 			bool add_comma;
 
-			if (obj is SnipeObject expando)
+			if (obj is IDictionary<string, object> dict)
 			{
 				string_builder.Append("{");
 
-				if (expando != null)
+				if (dict != null)
 				{
 					add_comma = false;
-					foreach (string key in expando.Keys)
+					foreach (string key in dict.Keys)
 					{
 						if (add_comma)
 							string_builder.Append(",");
@@ -60,7 +60,7 @@ namespace MiniIT
 						else
 							string_builder.Append("\"" + key + "\":");
 
-						object item = expando[key];
+						object item = dict[key];
 						ConvertToJSONString(item, ref string_builder);
 					}
 				}
