@@ -5,22 +5,17 @@ namespace MiniIT.Snipe
 {
 	public class SnipeTableItem
 	{
-		//public SnipeObject raw { get; protected set; }
-
-		public int id { get; set; } = 0;
-
-		public SnipeTableItem()
-		{
-		}
+		public int id;
 		
-		public virtual void SetData(Dictionary<string, object> data)
-		{
-			SetData(new SnipeObject(data));
-		}
+		// TODO: remove
 		public virtual void SetData(SnipeObject data)
 		{
-			//this.raw = data;
 			this.id = data.SafeGetValue<int>("id");
 		}
+	}
+	
+	public interface ISnipeTableItemsListWrapper<ItemType>
+	{
+		List<ItemType> list { get; set; }
 	}
 }
