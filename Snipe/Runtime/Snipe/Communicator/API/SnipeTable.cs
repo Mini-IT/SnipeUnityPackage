@@ -19,9 +19,16 @@ namespace MiniIT.Snipe
 		protected static bool mVersionRequested = false;
 		protected static List<CancellationTokenSource> mCancellations;
 		
+		public static void Initialize()
+		{
+			BetterStreamingAssets.Initialize();
+		}
+		
 		public static void ResetVersion()
 		{
 			DebugLogger.Log("[SnipeTable] ResetVersion");
+			
+			Initialize();
 			
 			if (mCancellations != null)
 			{
@@ -65,8 +72,6 @@ namespace MiniIT.Snipe
 			if (mCancellations == null)
 				mCancellations = new List<CancellationTokenSource>();
 			mCancellations.Add(mLoadingCancellation);
-			
-			BetterStreamingAssets.Initialize();
 			
 			try
 			{
