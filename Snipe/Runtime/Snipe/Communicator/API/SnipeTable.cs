@@ -28,8 +28,6 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log("[SnipeTable] ResetVersion");
 			
-			Initialize();
-			
 			if (mCancellations != null)
 			{
 				// clone the list for thread safety
