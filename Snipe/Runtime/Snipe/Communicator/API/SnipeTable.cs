@@ -60,7 +60,7 @@ namespace MiniIT.Snipe
 		private static readonly object mCacheIOLocker = new object();
 		private static readonly object mParseJSONLocker = new object();
 		
-		//private static SemaphoreSlim mSemaphore;
+		private static SemaphoreSlim mSemaphore;
 		
 		public async Task Load<WrapperType>(string table_name) where WrapperType : ISnipeTableItemsListWrapper<ItemType>, new()
 		{
@@ -132,29 +132,27 @@ namespace MiniIT.Snipe
 				}
 			}
 			
-			// if (mSemaphore == null)
-			// {
-				// mSemaphore = new SemaphoreSlim(MAX_LOADERS_COUNT);
-				
-				// BetterStreamingAssets.Initialize();
-			// }
+			if (mSemaphore == null)
+			{
+				mSemaphore = new SemaphoreSlim(MAX_LOADERS_COUNT);
+			}
 			
 			Loaded = false;
 			Items = new Dictionary<int, ItemType>();
 			
 			try
 			{
-				//await mSemaphore.WaitAsync(cancellation_token);
+				await mSemaphore.WaitAsync(cancellation_token);
 				await LoadTask<WrapperType>(table_name, cancellation_token);
 			}
 			catch (Exception e)
 			{
 				DebugLogger.Log($"[SnipeTable] Load {table_name} - Exception: {e.Message}");
 			}
-			// finally
-			// {
-				// mSemaphore.Release();
-			// }
+			finally
+			{
+				mSemaphore.Release();
+			}
 		}
 
 		protected string GetCachePath(string table_name)
@@ -370,41 +368,17 @@ namespace MiniIT.Snipe
 				{
 					string json_string = reader.ReadToEnd();
 					
-					System.Diagnostics.Stopwatch sw = null;
-					//SnipeObject data = null;
-					//SnipeTableItemsListWrapper<ItemType> list_wrapper;
 					WrapperType list_wrapper;
 					lock (mParseJSONLocker)
 					{
-						sw = System.Diagnostics.Stopwatch.StartNew();
-						//long mem_parse_fast = GC.GetTotalMemory(false);
-						//data = SnipeObject.FromFastJSONString(json_string);
-						
-						//list_wrapper = fastJSON.JSON.ToObject<SnipeTableItemsListWrapper<ItemType>>(json_string);
+						var sw = System.Diagnostics.Stopwatch.StartNew();
 						list_wrapper = fastJSON.JSON.ToObject<WrapperType>(json_string);
-						
-						//mem_parse_fast = GC.GetTotalMemory(false) - mem_parse_fast;
 						sw.Stop();
+						
+						float parse_time_fast = (float)sw.ElapsedTicks / TimeSpan.TicksPerMillisecond;
+						DebugLogger.Log($"[SnipeTable] Parsing {parse_time_fast} ms");
 					}
 					
-					// var sw_old = System.Diagnostics.Stopwatch.StartNew();
-					// long mem_parse_old = GC.GetTotalMemory(false);
-					// SnipeObject data_old = SnipeObject.FromJSONString(json_string);
-					// mem_parse_old = GC.GetTotalMemory(false) - mem_parse_old;
-					// sw_old.Stop();
-					
-					float parse_time_fast = (float)sw.ElapsedTicks / TimeSpan.TicksPerMillisecond;
-					// float parse_time_old = (float)sw_old.ElapsedTicks / TimeSpan.TicksPerMillisecond;
-					
-					sw = System.Diagnostics.Stopwatch.StartNew();
-					// if (data["list"] is List<object> list)
-					// {
-						// foreach (var item_data in list)
-						// {
-							// if (item_data is Dictionary<string, object> dict)
-								// AddTableItem(dict);
-						// }
-					// }
 					if (list_wrapper?.list != null)
 					{
 						foreach (ItemType item in list_wrapper.list)
@@ -412,25 +386,7 @@ namespace MiniIT.Snipe
 							Items[item.id] = item;
 						}
 					}
-					sw.Stop();
 					
-					// sw_old = System.Diagnostics.Stopwatch.StartNew();
-					// if (data_old["list"] is List<object> lst)
-					// {
-						// foreach (SnipeObject item_data in lst)
-						// {
-							// AddTableItem(item_data);
-						// }
-					// }
-					// sw_old.Stop();
-					
-					float inst_time_fast = (float)sw.ElapsedTicks / TimeSpan.TicksPerMillisecond;
-					//float inst_time_old = (float)sw_old.ElapsedTicks / TimeSpan.TicksPerMillisecond;
-					
-					DebugLogger.Log($"[SnipeTable] Parsing + Instantiating:  fast: {parse_time_fast} + {inst_time_fast} = {parse_time_fast + inst_time_fast}");
-					//DebugLogger.Log($"[SnipeTable] Parsing + Instantiating:  old: {parse_time_old} + {inst_time_old} = {parse_time_old + inst_time_old}");
-					//DebugLogger.Log($"[SnipeTable] Memory useage:  fast: {mem_parse_fast} old: {mem_parse_old}");
-
 					this.Loaded = true;
 				}
 			}
