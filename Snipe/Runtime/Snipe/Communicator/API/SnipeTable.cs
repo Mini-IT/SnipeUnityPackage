@@ -105,7 +105,6 @@ namespace MiniIT.Snipe
 					else // timeout
 					{
 						DebugLogger.Log($"[SnipeTable] LoadVersion - failed by timeout");
-						//mVersionLoadingFailed = true;
 						return;
 					}
 				}
