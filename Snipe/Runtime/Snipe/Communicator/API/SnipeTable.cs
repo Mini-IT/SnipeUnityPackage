@@ -322,14 +322,6 @@ namespace MiniIT.Snipe
 				if (this.Loaded)
 				{
 					DebugLogger.Log($"[SnipeTable] Table ready (built-in) - {table_name}");
-					
-#if UNITY_ANDROID
-					// "using" block in ReadGZip closes the stream. We need to open it again
-					using (var read_stream = new MemoryStream(data))
-					{
-						SaveToCache(read_stream, table_name);
-					}
-#endif
 				}
 			}
 		}
