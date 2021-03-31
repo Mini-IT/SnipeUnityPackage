@@ -391,15 +391,5 @@ namespace MiniIT.Snipe
 				}
 			}
 		}
-		
-		// protected void AddTableItem(Dictionary<string, object> item_data)
-		// {
-			// var item = new ItemType();
-			// item.SetData(item_data);
-			// if (item.id > 0)
-			// {
-				// Items[item.id] = item;
-			// }
-		// }
 	}
 }
