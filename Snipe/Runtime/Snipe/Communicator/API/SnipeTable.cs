@@ -362,7 +362,7 @@ namespace MiniIT.Snipe
 					WrapperType list_wrapper;
 					lock (mParseJSONLocker)
 					{
-						list_wrapper = fastJSON.JSON.ToObject<WrapperType>(json_string, new fastJSON.JSONParameters() { ParametricConstructorOverride = true });
+						list_wrapper = fastJSON.JSON.ToObject<WrapperType>(json_string);
 					}
 					
 					if (list_wrapper?.list != null)
