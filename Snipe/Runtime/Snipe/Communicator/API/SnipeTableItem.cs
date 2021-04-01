@@ -14,6 +14,11 @@ namespace MiniIT.Snipe
 		List<ItemType> list { get; set; }
 	}
 	
+	public class SnipeTableAttrsItem<T> : SnipeTableItem
+	{
+		public T attrs { get; set; }
+	}
+	/*
 	public class SnipeTableAttrsItem : SnipeTableItem
 	{
 		public object attrs { get; set; }
@@ -92,4 +97,5 @@ namespace MiniIT.Snipe
 			return result;
 		}
 	}
+	*/
 }
