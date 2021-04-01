@@ -20,15 +20,23 @@ namespace MiniIT.Snipe
 		
 		public T GetAttr<T>(string key) where T : new()
 		{
+			DebugLogger.Log($"[SnipeTableAttrsItem] GetAttr {typeof(T)} - {key} - attrs = {attrs}");
+			
 			if (attrs == null)
 				return default;
+				
+			DebugLogger.Log($"[SnipeTableAttrsItem] {attrs.GetType()}");
 			
 			T result = default;
 
 			if (attrs is IDictionary<string, object> attrs_dict)
 			{
+				DebugLogger.Log($"[SnipeTableAttrsItem] attrs is Dictionary");
+				
 				if (attrs_dict.TryGetValue(key, out var value))
 				{
+					DebugLogger.Log($"[SnipeTableAttrsItem] Dictionary item value = {value}");
+					
 					try
 					{
 						result = (T)value;
@@ -52,12 +60,15 @@ namespace MiniIT.Snipe
 			}
 			else
 			{
+				DebugLogger.Log($"[SnipeTableAttrsItem] attrs is NOT a Dictionary");
+				
 				var attrs_type = attrs.GetType();
 				try
 				{
 					var field = attrs_type.GetField(key);
 					if (field != null)
 					{
+						DebugLogger.Log($"[SnipeTableAttrsItem] field");
 						result = (T)Convert.ChangeType(field.GetValue(attrs), typeof(T));
 					}
 					else
@@ -65,13 +76,16 @@ namespace MiniIT.Snipe
 						var prop = attrs_type.GetProperty(key);
 						if (prop != null)
 						{
+							DebugLogger.Log($"[SnipeTableAttrsItem] property");
 							result = (T)Convert.ChangeType(prop.GetValue(attrs), typeof(T));
 						}
 					}
 				}
-				catch (Exception)
+				catch (Exception e)
 				{
 					result = default;
+					
+					DebugLogger.Log($"[SnipeTableAttrsItem] field/property GetValue exception: {e.StackTrace}");
 				}
 			}
 			
