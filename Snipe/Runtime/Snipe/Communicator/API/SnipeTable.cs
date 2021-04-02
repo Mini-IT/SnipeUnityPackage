@@ -362,12 +362,7 @@ namespace MiniIT.Snipe
 					WrapperType list_wrapper;
 					lock (mParseJSONLocker)
 					{
-						var sw = System.Diagnostics.Stopwatch.StartNew();
 						list_wrapper = fastJSON.JSON.ToObject<WrapperType>(json_string);
-						sw.Stop();
-						
-						float parse_time_fast = (float)sw.ElapsedTicks / TimeSpan.TicksPerMillisecond;
-						DebugLogger.Log($"[SnipeTable] Parsing {parse_time_fast} ms");
 					}
 					
 					if (list_wrapper?.list != null)
