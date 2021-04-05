@@ -503,6 +503,7 @@ namespace MiniIT.Snipe
 
 					user_id = response.SafeGetValue<int>("id");
 					
+					Analytics.SetUserId(user_id.ToString());
 					Analytics.TrackEvent(Analytics.EVENT_ACCOUNT_REGISTERED, new SnipeObject()
 					{
 						["user_id"] = user_id,
