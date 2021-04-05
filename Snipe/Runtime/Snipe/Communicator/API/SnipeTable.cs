@@ -64,6 +64,12 @@ namespace MiniIT.Snipe
 		
 		public async Task Load<WrapperType>(string table_name) where WrapperType : ISnipeTableItemsListWrapper<ItemType>, new()
 		{
+			if (string.IsNullOrEmpty(SnipeConfig.Instance.GetTablesPath()))
+			{
+				DebugLogger.LogError("[SnipeTable] Loading failed. Tables path not specified. Make sure that SnipeConfig is initialized.");
+				return;
+			}
+			
 			mLoadingCancellation?.Cancel();
 			mLoadingCancellation = new CancellationTokenSource();
 			
