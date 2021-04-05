@@ -64,7 +64,7 @@ namespace MiniIT
 				{
 					try
 					{
-						result = (T)Convert.ChangeType(res, typeof(T));
+						result = (T)Convert.ChangeType(res, typeof(T), CultureInfo.InvariantCulture);
 					}
 					catch (Exception)
 					{
@@ -95,7 +95,7 @@ namespace MiniIT
 		{
 			object value;
 			if (this.TryGetValue(key, out value))
-				return Convert.ToString(value);
+				return Convert.ToString(value, CultureInfo.InvariantCulture);
 			return default_value;
 		}
 
