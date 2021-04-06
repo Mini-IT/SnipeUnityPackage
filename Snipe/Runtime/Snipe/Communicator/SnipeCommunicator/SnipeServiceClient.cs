@@ -17,7 +17,8 @@ namespace MiniIT.Snipe
 		public event Action<string> LoginFailed;
 		
 		private const double HEARTBEAT_INTERVAL = 30; // seconds
-		private const int HEARTBEAT_TASK_DELAY = 5000; // ms
+		private const int HEARTBEAT_TASK_DELAY = 5000; //milliseconds
+		private const int CHECK_CONNECTION_TIMEOUT = 5000; // milliseconds
 
 		protected bool mLoggedIn = false;
 
@@ -213,6 +214,8 @@ namespace MiniIT.Snipe
 				ServerReaction = mServerReactionStopwatch.Elapsed;
 			}
 			
+			StopCheckConnection();
+			
 			var message = MessagePackDeserializer.Parse(raw_data_buffer) as SnipeObject;
 
 			if (message != null)
@@ -351,6 +354,58 @@ namespace MiniIT.Snipe
 
 		#endregion
 		
+		#region CheckConnection
+
+		private CancellationTokenSource mCheckConnectionCancellation;
+		
+		private void StartCheckConnection()
+		{
+			if (!mLoggedIn)
+				return;
+			
+			// DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] StartCheckConnection");
+
+			mCheckConnectionCancellation?.Cancel();
+
+			mCheckConnectionCancellation = new CancellationTokenSource();
+			_ = CheckConnectionTask(mCheckConnectionCancellation.Token);
+		}
+
+		private void StopCheckConnection()
+		{
+			if (mCheckConnectionCancellation != null)
+			{
+				mCheckConnectionCancellation.Cancel();
+				mCheckConnectionCancellation = null;
+
+				// DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] StopCheckConnection");
+			}
+		}
+
+		private async Task CheckConnectionTask(CancellationToken cancellation)
+		{
+			try
+			{
+				await Task.Delay(CHECK_CONNECTION_TIMEOUT, cancellation);
+			}
+			catch (TaskCanceledException)
+			{
+				// This is OK. Just terminating the task
+				return;
+			}
+
+			// if the connection is ok then this task should already be cancelled
+			if (cancellation.IsCancellationRequested)
+				return;
+
+			// Disconnect detected
+			DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] CheckConnectionTask - Disconnect detected");
+
+			OnWebSocketClosed();
+		}
+
+		#endregion
+		
 		#region Send task
 
 		private CancellationTokenSource mSendTaskCancellation;
@@ -367,6 +422,8 @@ namespace MiniIT.Snipe
 
 		private void StopSendTask()
 		{
+			StopCheckConnection();
+			
 			if (mSendTaskCancellation != null)
 			{
 				mSendTaskCancellation.Cancel();
@@ -383,6 +440,11 @@ namespace MiniIT.Snipe
 				if (mSendMessages != null && !mSendMessages.IsEmpty && mSendMessages.TryDequeue(out var message))
 				{
 					DoSendRequest(message);
+					
+					if (mSendMessages.IsEmpty)
+					{
+						StartCheckConnection();
+					}
 				}
 
 				await Task.Yield();
