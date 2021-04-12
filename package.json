@@ -14,6 +14,6 @@
     "Client"
   ], 
   "description": "Mini IT Snipe client\n\n\n==========\nServer V5\n==========\nThis release requires .Net 4.x Scripting Runtime", 
-  "version": "1.5.3", 
+  "version": "1.5.4", 
   "name": "com.miniit.snipe.client"
 }
