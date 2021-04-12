@@ -57,7 +57,13 @@ namespace MiniIT.Snipe
 
 			string error_code = data?.SafeGetString("errorCode");
 			if (!string.IsNullOrEmpty(error_code))
+			{
 				AccountExists = (error_code == SnipeErrorCodes.OK);
+				if (AccountExists != true)
+				{
+					SetBindDoneFlag(false, false);
+				}
+			}
 		}
 
 		public virtual bool CheckAuthExists(CheckAuthExistsCallback callback = null)
