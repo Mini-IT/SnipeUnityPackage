@@ -147,6 +147,7 @@ namespace MiniIT.Snipe
 		#region Constants
 		
 		private const string EVENT_NAME = "Snipe Event";
+		public const string EVENT_COMMUNICATOR_START_CONNECTION = "Communicator Start Connection";
 		public const string EVENT_COMMUNICATOR_CONNECTED = "Communicator Connected";
 		public const string EVENT_COMMUNICATOR_DISCONNECTED = "Communicator Disconnected";
 		public const string EVENT_ROOM_COMMUNICATOR_CONNECTED = "Room Communicator Connected";

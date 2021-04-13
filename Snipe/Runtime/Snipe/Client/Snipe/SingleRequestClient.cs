@@ -43,6 +43,7 @@ namespace MiniIT.Snipe
 
 			Analytics.TrackEvent(Analytics.EVENT_SINGLE_REQUEST_CLIENT_CONNECTED, new SnipeObject()
 			{
+				["connection_id"] = mClient.ConnectionId,
 				["message_type"] = request_message_type,
 				["connection_type"] = "websocket",
 			});
@@ -58,6 +59,7 @@ namespace MiniIT.Snipe
 
 			Analytics.TrackEvent(Analytics.EVENT_SINGLE_REQUEST_CLIENT_DISCONNECTED, new SnipeObject()
 			{
+				["connection_id"] = mClient != null ? mClient.ConnectionId : "",
 				["message_type"] = request_message_type,
 			});
 
@@ -77,8 +79,8 @@ namespace MiniIT.Snipe
 			{
 				["message_type"] = request_message_type,
 				["response_message_type"] = response_message_type,
-				["error_code"] = data.SafeGetString("errorCode"),
-				["connection_id"] = data.SafeGetString(SnipeClient.KEY_CONNECTION_ID),
+				["error_code"] = data?.SafeGetString("errorCode"),
+				["connection_id"] = data?.SafeGetString(SnipeClient.KEY_CONNECTION_ID),
 			});
 
 			if (response_message_type == request_message_type)

@@ -192,6 +192,11 @@ namespace MiniIT.Snipe
 					mClient.Connect();
 				}
 			}
+			
+			InvokeInMainThread(() =>
+			{
+				AnalyticsTrackStartConnection();
+			});
 		}
 
 		public void Disconnect()
@@ -526,6 +531,11 @@ namespace MiniIT.Snipe
 		}
 		
 		#region Analytics
+		
+		private void AnalyticsTrackStartConnection()
+		{
+			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_START_CONNECTION);
+		}
 		
 		private void AnalyticsTrackConnectionSucceeded()
 		{
