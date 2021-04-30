@@ -201,6 +201,7 @@ namespace MiniIT.Snipe
 					["id"] = SnipeAuthCommunicator.UserID,
 					["token"] = SnipeAuthCommunicator.LoginToken,
 					["loginGame"] = true, // Snipe V5
+					["version"] = 6, // Snipe V6
 					["appInfo"] = SnipeConfig.Instance.AppInfo,
 				}
 			});
