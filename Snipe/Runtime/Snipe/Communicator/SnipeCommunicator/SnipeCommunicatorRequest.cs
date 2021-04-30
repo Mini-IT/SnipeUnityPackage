@@ -26,6 +26,7 @@ namespace MiniIT.Snipe
 		private int mRetriesLeft = RETRIES_COUNT;
 		
 		private bool mSent = false;
+		private bool mWaitingForResponse = false;
 
 		public SnipeCommunicatorRequest(SnipeCommunicator communicator, string message_type = null)
 		{
@@ -102,10 +103,12 @@ namespace MiniIT.Snipe
 				WaitingForRoomJoined = true;
 			}
 			
+			mCommunicator.ConnectionFailed -= OnConnectionClosed;
+			mCommunicator.ConnectionFailed += OnConnectionClosed;
+			
 			if (mCallback != null || WaitingForRoomJoined)
 			{
-				mCommunicator.ConnectionFailed -= OnConnectionClosed;
-				mCommunicator.ConnectionFailed += OnConnectionClosed;
+				mWaitingForResponse = true;
 				mCommunicator.MessageReceived -= OnMessageReceived;
 				mCommunicator.MessageReceived += OnMessageReceived;
 			}
@@ -124,14 +127,23 @@ namespace MiniIT.Snipe
 			{
 				InvokeCallback(SnipeErrorCodes.NOT_READY, EMPTY_DATA);
 			}
+			else if (!mWaitingForResponse)
+			{
+				Dispose();
+			}
 		}
 
 		private void OnConnectionClosed(bool will_rety = false)
 		{
 			if (will_rety)
 			{
+				mWaitingForResponse = false;
+				mCommunicator.MessageReceived -= OnMessageReceived;
+				
 				if (mCommunicator.AllowRequestsToWaitForLogin)
 				{
+					DebugLogger.Log($"[SnipeCommunicatorRequest] Waiting for login - {MessageType} - {Data?.ToJSONString()}");
+					
 					mCommunicator.LoginSucceeded -= OnCommunicatorReady;
 					mCommunicator.LoginSucceeded += OnCommunicatorReady;
 				}
@@ -152,6 +164,9 @@ namespace MiniIT.Snipe
 
 		private async void OnMessageReceived(string message_type, string error_code, SnipeObject response_data, int request_id)
 		{
+			if (mCommunicator == null)
+				return;
+			
 			if (WaitingForRoomJoined && mCommunicator.RoomJoined == true)
 			{
 				WaitingForRoomJoined = false;
@@ -198,6 +213,7 @@ namespace MiniIT.Snipe
 			}
 			
 			mCallback = null;
+			mWaitingForResponse = false;
 		}
 	}
 }
