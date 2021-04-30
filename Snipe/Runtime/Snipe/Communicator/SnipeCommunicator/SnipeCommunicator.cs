@@ -319,7 +319,7 @@ namespace MiniIT.Snipe
 			}
 			else if (message_type == SnipeMessageTypes.ROOM_JOIN)
 			{
-				if (error_code == SnipeErrorCodes.OK)
+				if (error_code == SnipeErrorCodes.OK || error_code == SnipeErrorCodes.ALREADY_IN_ROOM)
 				{
 					mRoomJoined = true;
 				}

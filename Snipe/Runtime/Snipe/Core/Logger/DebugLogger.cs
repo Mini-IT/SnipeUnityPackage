@@ -53,12 +53,14 @@ namespace MiniIT
 			if (mLogMessages == null || mLogMessages.Count == 0)
 				return;
 			
+#if !UNITY_EDITOR
 			var stack_log_type_log = UnityEngine.Application.GetStackTraceLogType(UnityEngine.LogType.Log);
 			var stack_log_type_warning = UnityEngine.Application.GetStackTraceLogType(UnityEngine.LogType.Warning);
 			var stack_log_type_error = UnityEngine.Application.GetStackTraceLogType(UnityEngine.LogType.Error);
 			UnityEngine.Application.SetStackTraceLogType(LogType.Log, StackTraceLogType.None);
 			UnityEngine.Application.SetStackTraceLogType(LogType.Warning, StackTraceLogType.None);
 			UnityEngine.Application.SetStackTraceLogType(LogType.Error, StackTraceLogType.None);
+#endif
 				
 			for (int i = 0; i < mLogMessages.Count; i++)
 			{
@@ -73,9 +75,11 @@ namespace MiniIT
 			
 			mLogMessages.Clear();
 			
+#if !UNITY_EDITOR
 			UnityEngine.Application.SetStackTraceLogType(LogType.Log, stack_log_type_log);
 			UnityEngine.Application.SetStackTraceLogType(LogType.Warning, stack_log_type_warning);
 			UnityEngine.Application.SetStackTraceLogType(LogType.Error, stack_log_type_error);
+#endif
 		}
 		
 		#endregion
