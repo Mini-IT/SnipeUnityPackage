@@ -118,6 +118,14 @@ namespace MiniIT.Snipe
 				// {
 					// DebugLogger.Log($"[SnipeTable] LoadVersion - TaskCanceled");
 				// }
+				catch (AggregateException ae)
+				{
+					foreach (var inner_exception in ae.InnerExceptions)
+					{
+						DebugLogger.Log($"[SnipeTable] LoadVersion - Exception: {inner_exception.Message}");
+					}
+					return;
+				}
 				catch (Exception e)
 				{
 					DebugLogger.Log($"[SnipeTable] LoadVersion - Exception: {e.Message}");
@@ -149,6 +157,13 @@ namespace MiniIT.Snipe
 			{
 				await mSemaphore.WaitAsync(cancellation_token);
 				await LoadTask<WrapperType>(table_name, cancellation_token);
+			}
+			catch (AggregateException ae)
+			{
+				foreach (var inner_exception in ae.InnerExceptions)
+				{
+					DebugLogger.Log($"[SnipeTable] Load {table_name} - Exception: {inner_exception.Message}");
+				}
 			}
 			catch (Exception e)
 			{
