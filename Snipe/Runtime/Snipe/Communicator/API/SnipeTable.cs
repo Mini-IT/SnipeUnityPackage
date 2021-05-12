@@ -99,24 +99,19 @@ namespace MiniIT.Snipe
 				
 				try
 				{
-					var load_task = new HttpClient().GetStringAsync(url); // , cancellation_token);
-					if (await Task.WhenAny(load_task, Task.Delay(10000, cancellation_token)) == load_task)
-					{
-						var content = load_task.Result;
-						mVersion = content.Trim();
-						
-						mVersionLoadingFinished = true;
-						DebugLogger.Log($"[SnipeTable] LoadVersion done - {mVersion}");
-					}
-					else // timeout
-					{
-						DebugLogger.Log($"[SnipeTable] LoadVersion - failed by timeout");
-						return;
-					}
+					var loader = new HttpClient();
+					loader.Timeout = TimeSpan.FromSeconds(10);
+					
+					var content = await loader.GetStringAsync(url); // , cancellation_token);
+					mVersion = content.Trim();
+					
+					mVersionLoadingFinished = true;
+					DebugLogger.Log($"[SnipeTable] LoadVersion done - {mVersion}");
 				}
 				// catch (TaskCanceledException)
 				// {
-					// DebugLogger.Log($"[SnipeTable] LoadVersion - TaskCanceled");
+				//		DebugLogger.Log($"[SnipeTable] LoadVersion - TaskCanceled");
+				//		return;
 				// }
 				catch (HttpRequestException re)
 				{
@@ -162,10 +157,6 @@ namespace MiniIT.Snipe
 			{
 				await mSemaphore.WaitAsync(cancellation_token);
 				await LoadTask<WrapperType>(table_name, cancellation_token);
-			}
-			catch (HttpRequestException re)
-			{
-				DebugLogger.Log($"[SnipeTable] Load {table_name} - HttpRequestException: {re.InnerException.Message}");
 			}
 			catch (AggregateException ae)
 			{
@@ -285,9 +276,13 @@ namespace MiniIT.Snipe
 							}
 						}
 					}
+					catch (HttpRequestException re)
+					{
+						DebugLogger.Log($"[SnipeTable] Failed to load table - {table_name} - HttpRequestException: {re.InnerException.Message}");
+					}
 					catch (Exception e)
 					{
-						DebugLogger.Log($"[SnipeTable] Failed to parse table - {table_name}  {e.Message} {e.StackTrace}");
+						DebugLogger.Log($"[SnipeTable] Failed to load or parse table - {table_name} - {e.Message} {e.StackTrace}");
 					}
 				}
 			}
