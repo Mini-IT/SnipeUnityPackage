@@ -24,6 +24,8 @@ public class SnipeConfig
 	public List<string> TablesURLs = new List<string>();
 	public string PersistentDataPath { get; private set; }
 	public string StreamingAssetsPath { get; private set; }
+	
+	private int mTablesURLIndex = 0;
 
 	/// <summary>
 	/// Should be called from the main Unity thread
@@ -46,6 +48,8 @@ public class SnipeConfig
 			Instance.TablesURLs = new List<string>();
 		else
 			Instance.TablesURLs.Clear();
+		
+		Instance.mTablesURLIndex = -1;
 		
 		if (data["tables_path"] is IList list)
 		{
@@ -75,10 +79,23 @@ public class SnipeConfig
 		}.ToJSONString();
 	}
 
-	public string GetTablesPath()
+	public string GetTablesPath(bool next = false)
 	{
 		if (TablesURLs != null && TablesURLs.Count > 0)
-			return TablesURLs[0];
+		{
+			if (mTablesURLIndex < 0)
+			{
+				mTablesURLIndex = 0;
+			}
+			else if (next)
+			{
+				mTablesURLIndex++;
+				if (mTablesURLIndex >= TablesURLs.Count)
+					mTablesURLIndex = 0;
+			}
+			
+			return TablesURLs[mTablesURLIndex];
+		}
 
 		return null;
 	}
