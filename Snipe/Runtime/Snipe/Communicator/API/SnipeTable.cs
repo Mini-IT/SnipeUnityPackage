@@ -94,7 +94,7 @@ namespace MiniIT.Snipe
 				mVersionRequested = true;
 				mVersionLoadingFinished = false;
 				
-				string url = $"{SnipeConfig.Instance.GetTablesPath()}version.txt";
+				string url = $"{SnipeConfig.Instance.GetTablesPath(true)}version.txt";
 				DebugLogger.Log("[SnipeTable] LoadVersion " + url);
 				
 				try
@@ -118,6 +118,11 @@ namespace MiniIT.Snipe
 				// {
 					// DebugLogger.Log($"[SnipeTable] LoadVersion - TaskCanceled");
 				// }
+				catch (HttpRequestException re)
+				{
+					DebugLogger.Log($"[SnipeTable] LoadVersion - HttpRequestException: {re.InnerException.Message}");
+					return;
+				}
 				catch (AggregateException ae)
 				{
 					foreach (var inner_exception in ae.InnerExceptions)
@@ -157,6 +162,10 @@ namespace MiniIT.Snipe
 			{
 				await mSemaphore.WaitAsync(cancellation_token);
 				await LoadTask<WrapperType>(table_name, cancellation_token);
+			}
+			catch (HttpRequestException re)
+			{
+				DebugLogger.Log($"[SnipeTable] Load {table_name} - HttpRequestException: {re.InnerException.Message}");
 			}
 			catch (AggregateException ae)
 			{
