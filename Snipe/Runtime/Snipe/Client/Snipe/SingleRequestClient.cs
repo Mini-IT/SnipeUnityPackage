@@ -1,16 +1,26 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Dynamic;
 using UnityEngine;
 using MiniIT;
-using System.Dynamic;
 
 namespace MiniIT.Snipe
 {
 	public class SingleRequestClient : MonoBehaviour
 	{
+		private static Dictionary<string, WeakReference<SingleRequestClient>> mInstances;
+		
+		internal class RequestsQueueItem
+		{
+			internal SnipeObject mRequestData;
+			internal Action<SnipeObject> mCallback;
+		}
+
 		private SnipeClient mClient;
 		private SnipeObject mRequestData;
-
 		private Action<SnipeObject> mCallback;
+
+		private Queue<RequestsQueueItem> mRequestsQueue;
 
 		private SingleRequestClient()
 		{
@@ -18,9 +28,47 @@ namespace MiniIT.Snipe
 
 		public static void Request(string web_socket_url, SnipeObject request, Action<SnipeObject> callback)
 		{
+			if (mInstances != null)
+			{
+				var instance_reference = mInstances[web_socket_url];
+				if (instance_reference != null && instance_reference.TryGetTarget(out var old_instance))
+				{
+					if (old_instance?.mClient != null && old_instance.mClient.Connected)
+					{
+						if (old_instance.mRequestData == null)
+						{
+							old_instance.mRequestData = request;
+							old_instance.mCallback = callback;
+							old_instance.mClient.SendRequest(request);
+						}
+						else
+						{
+							if (old_instance.mRequestsQueue == null)
+								old_instance.mRequestsQueue = new Queue<RequestsQueueItem>();
+
+							old_instance.mRequestsQueue.Enqueue(new RequestsQueueItem()
+							{
+								mRequestData = request,
+								mCallback = callback,
+							});
+						}
+						return;
+					}
+					else
+					{
+						mInstances.Remove(web_socket_url);
+					}
+				}
+			}				
+			
+			if (mInstances == null)
+				mInstances = new Dictionary<string, WeakReference<SingleRequestClient>>();
+
 			SnipeClient client = SnipeClient.CreateInstance(SnipeConfig.Instance.ClientKey, "SnipeSingleRequestClient", false);
 			SingleRequestClient instance = client.gameObject.AddComponent<SingleRequestClient>();
 			instance.InitClient(client, web_socket_url, request, callback);
+
+			mInstances[web_socket_url] = new WeakReference<SingleRequestClient>(instance);
 		}
 
 		private void InitClient(SnipeClient client, string web_socket_url, SnipeObject request, Action<SnipeObject> callback)
@@ -86,7 +134,15 @@ namespace MiniIT.Snipe
 			if (response_message_type == request_message_type)
 			{
 				InvokeCallback(data);
-				DisposeClient();
+				// DisposeClient();
+
+				if (mRequestsQueue != null && mRequestsQueue.Count > 0)
+				{
+					var item = mRequestsQueue.Dequeue();
+					mRequestData = item.mRequestData;
+					mCallback = item.mCallback;
+					mClient.SendRequest(mRequestData);
+				}
 			}
 		}
 
@@ -96,6 +152,7 @@ namespace MiniIT.Snipe
 				mCallback.Invoke(data);
 
 			mCallback = null;
+			mRequestData = null;
 		}
 
 		private void DisposeClient()
@@ -107,6 +164,11 @@ namespace MiniIT.Snipe
 
 			if (mClient == null)
 				return;
+
+			if (mInstances != null && !string.IsNullOrEmpty(mClient.mConnectionWebSocketURL))
+			{
+				mInstances.Remove(mClient.mConnectionWebSocketURL);
+			}
 
 			mClient.MessageReceived -= OnResponse;
 			mClient.ConnectionSucceeded -= OnConnectionSucceeded;
