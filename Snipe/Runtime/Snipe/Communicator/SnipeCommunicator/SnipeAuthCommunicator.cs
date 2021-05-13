@@ -39,8 +39,11 @@ namespace MiniIT.Snipe
 				if (mUserID <= 0)
 				{
 					mUserID = Convert.ToInt32(PlayerPrefs.GetString(SnipePrefs.LOGIN_USER_ID, "0"));
-					
-					Analytics.SetUserId(mUserID.ToString());
+
+					if (mUserID != 0)
+					{
+						Analytics.SetUserId(mUserID.ToString());
+					}
 				}
 				return mUserID;
 			}
