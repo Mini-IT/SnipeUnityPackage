@@ -56,7 +56,6 @@ namespace MiniIT.Snipe
 		
 		private CancellationTokenSource mLoadingCancellation;
 		
-		protected static bool mVersionLoadingFinished = false;
 		private static readonly object mCacheIOLocker = new object();
 		private static readonly object mParseJSONLocker = new object();
 		
@@ -92,43 +91,43 @@ namespace MiniIT.Snipe
 			if (!mVersionRequested)
 			{
 				mVersionRequested = true;
-				mVersionLoadingFinished = false;
 				
-				string url = $"{SnipeConfig.Instance.GetTablesPath(true)}version.txt";
-				DebugLogger.Log("[SnipeTable] LoadVersion " + url);
+				for (int retries_count = 0; retries_count < 3; retries_count++)
+				{
+					string url = $"{SnipeConfig.Instance.GetTablesPath(true)}version.txt";
+					DebugLogger.Log($"[SnipeTable] LoadVersion ({retries_count}) " + url);
 				
-				try
-				{
-					var loader = new HttpClient();
-					loader.Timeout = TimeSpan.FromSeconds(10);
-					
-					var content = await loader.GetStringAsync(url); // , cancellation_token);
-					mVersion = content.Trim();
-					
-					mVersionLoadingFinished = true;
-					DebugLogger.Log($"[SnipeTable] LoadVersion done - {mVersion}");
-				}
-				// catch (TaskCanceledException)
-				// {
-				//		DebugLogger.Log($"[SnipeTable] LoadVersion - TaskCanceled");
-				//		return;
-				// }
-				catch (HttpRequestException re)
-				{
-					DebugLogger.Log($"[SnipeTable] LoadVersion - HttpRequestException: {re.InnerException.Message}");
-					return;
-				}
-				catch (AggregateException ae)
-				{
-					foreach (var inner_exception in ae.InnerExceptions)
+					try
 					{
-						DebugLogger.Log($"[SnipeTable] LoadVersion - Exception: {inner_exception.Message}");
+						var loader = new HttpClient();
+						loader.Timeout = TimeSpan.FromSeconds(10);
+						
+						var content = await loader.GetStringAsync(url); // , cancellation_token);
+						mVersion = content.Trim();
+						
+						DebugLogger.Log($"[SnipeTable] LoadVersion done - {mVersion}");
+						break;
 					}
-					return;
+					// catch (TaskCanceledException)
+					// {
+					//		DebugLogger.Log($"[SnipeTable] LoadVersion - TaskCanceled");
+					//		return;
+					// }
+					catch (HttpRequestException re)
+					{
+						DebugLogger.Log($"[SnipeTable] LoadVersion - HttpRequestException: {re.InnerException.Message}");
+					}
+					catch (Exception e)
+					{
+						DebugLogger.Log($"[SnipeTable] LoadVersion - Exception: {e.Message}");
+					}
+					
+					await Task.Delay(100);
 				}
-				catch (Exception e)
+				
+				if (string.IsNullOrEmpty(mVersion))
 				{
-					DebugLogger.Log($"[SnipeTable] LoadVersion - Exception: {e.Message}");
+					DebugLogger.Log($"[SnipeTable] LoadVersion Failed");
 					return;
 				}
 			}
