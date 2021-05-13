@@ -14,6 +14,7 @@ namespace MiniIT.Snipe
 	public class SnipeTable
 	{
 		protected const int MAX_LOADERS_COUNT = 5;
+		protected const string VERSION_FILE_NAME = "snipe_tables_version.txt";
 		
 		protected static string mVersion = null;
 		protected static bool mVersionRequested = false;
@@ -92,6 +93,8 @@ namespace MiniIT.Snipe
 			{
 				mVersionRequested = true;
 				
+				string version_file_path = Path.Combine(SnipeConfig.Instance.PersistentDataPath, VERSION_FILE_NAME);
+				
 				for (int retries_count = 0; retries_count < 3; retries_count++)
 				{
 					string url = $"{SnipeConfig.Instance.GetTablesPath(true)}version.txt";
@@ -106,6 +109,10 @@ namespace MiniIT.Snipe
 						mVersion = content.Trim();
 						
 						DebugLogger.Log($"[SnipeTable] LoadVersion done - {mVersion}");
+						
+						// save to file
+						File.WriteAllText(version_file_path, mVersion);
+						
 						break;
 					}
 					// catch (TaskCanceledException)
@@ -127,8 +134,28 @@ namespace MiniIT.Snipe
 				
 				if (string.IsNullOrEmpty(mVersion))
 				{
-					DebugLogger.Log($"[SnipeTable] LoadVersion Failed");
-					return;
+					DebugLogger.Log($"[SnipeTable] LoadVersion - Failed to load from URL. Trying to read from cache");
+					
+					if (File.Exists(version_file_path))
+					{
+						mVersion = File.ReadAllText(version_file_path).Trim();
+						DebugLogger.Log($"[SnipeTable] LoadVersion - cached value - {mVersion}");
+					}
+					
+					if (string.IsNullOrEmpty(mVersion))
+					{
+						if (BetterStreamingAssets.FileExists(VERSION_FILE_NAME))
+						{
+							mVersion = BetterStreamingAssets.ReadAllText(VERSION_FILE_NAME).Trim();
+							DebugLogger.Log($"[SnipeTable] LoadVersion - built-in value - {mVersion}");
+						}
+					}
+					
+					if (string.IsNullOrEmpty(mVersion))
+					{
+						DebugLogger.Log($"[SnipeTable] LoadVersion Failed");
+						return;
+					}
 				}
 			}
 			else
