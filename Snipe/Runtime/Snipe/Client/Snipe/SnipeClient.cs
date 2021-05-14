@@ -52,7 +52,7 @@ namespace MiniIT.Snipe
 		protected bool mHeartbeatEnabled = true;
 		protected bool mLoggedIn = false;
 
-		private string mConnectionWebSocketURL;
+		internal string mConnectionWebSocketURL;
 
 		private int mRequestId = 0;
 		
