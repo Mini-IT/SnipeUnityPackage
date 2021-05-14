@@ -134,7 +134,6 @@ namespace MiniIT.Snipe
 			if (response_message_type == request_message_type)
 			{
 				InvokeCallback(data);
-				// DisposeClient();
 
 				if (mRequestsQueue != null && mRequestsQueue.Count > 0)
 				{
