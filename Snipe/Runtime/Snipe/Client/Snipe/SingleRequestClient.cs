@@ -28,38 +28,37 @@ namespace MiniIT.Snipe
 
 		public static void Request(string web_socket_url, SnipeObject request, Action<SnipeObject> callback)
 		{
-			if (mInstances != null)
+			if (mInstances != null &&
+				mInstances.TryGetValue(web_socket_url, out var instance_reference) &&
+				instance_reference != null &&
+				instance_reference.TryGetTarget(out var old_instance))
 			{
-				var instance_reference = mInstances[web_socket_url];
-				if (instance_reference != null && instance_reference.TryGetTarget(out var old_instance))
+				if (old_instance?.mClient != null && old_instance.mClient.Connected)
 				{
-					if (old_instance?.mClient != null && old_instance.mClient.Connected)
+					if (old_instance.mRequestData == null)
 					{
-						if (old_instance.mRequestData == null)
-						{
-							old_instance.mRequestData = request;
-							old_instance.mCallback = callback;
-							old_instance.mClient.SendRequest(request);
-						}
-						else
-						{
-							if (old_instance.mRequestsQueue == null)
-								old_instance.mRequestsQueue = new Queue<RequestsQueueItem>();
-
-							old_instance.mRequestsQueue.Enqueue(new RequestsQueueItem()
-							{
-								mRequestData = request,
-								mCallback = callback,
-							});
-						}
-						return;
+						old_instance.mRequestData = request;
+						old_instance.mCallback = callback;
+						old_instance.mClient.SendRequest(request);
 					}
 					else
 					{
-						mInstances.Remove(web_socket_url);
+						if (old_instance.mRequestsQueue == null)
+							old_instance.mRequestsQueue = new Queue<RequestsQueueItem>();
+
+						old_instance.mRequestsQueue.Enqueue(new RequestsQueueItem()
+						{
+							mRequestData = request,
+							mCallback = callback,
+						});
 					}
+					return;
 				}
-			}				
+				else
+				{
+					mInstances.Remove(web_socket_url);
+				}
+			}
 			
 			if (mInstances == null)
 				mInstances = new Dictionary<string, WeakReference<SingleRequestClient>>();
