@@ -9,6 +9,8 @@ namespace MiniIT.Snipe
 {
 	public class SnipeServiceClient
 	{
+		public const int SNIPE_VERSION = 6;
+		
 		public delegate void MessageReceivedHandler(string message_type, string error_code, SnipeObject data, int request_id);
 		public event MessageReceivedHandler MessageReceived;
 		public event Action ConnectionOpened;
@@ -200,8 +202,8 @@ namespace MiniIT.Snipe
 					["ckey"] = SnipeConfig.Instance.ClientKey,
 					["id"] = SnipeAuthCommunicator.UserID,
 					["token"] = SnipeAuthCommunicator.LoginToken,
-					["loginGame"] = true, // Snipe V5
-					["version"] = 6, // Snipe V6
+					["loginGame"] = true,        // Snipe V5+
+					["version"] = SNIPE_VERSION, // Snipe V6+
 					["appInfo"] = SnipeConfig.Instance.AppInfo,
 				}
 			});
