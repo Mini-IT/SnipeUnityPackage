@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeTableLogicItemWrapper : ISnipeTableItemsListWrapper<SnipeTableLogicItem>
+	public class SnipeTableLogicItemsWrapper : ISnipeTableItemsListWrapper<SnipeTableLogicItem>
 	{
 		public List<SnipeTableLogicItem> list { get; set; }
 	}
