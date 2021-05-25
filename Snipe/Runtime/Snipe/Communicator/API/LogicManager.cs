@@ -192,27 +192,23 @@ namespace MiniIT.Snipe
 
 		private void OnLogicGet(string error_code, SnipeObject response_data)
 		{
+			mUpdateRequested = false;
+			
 			if (mLogicTable == null || response_data == null)
 				return;
 
-			var list = new List<SnipeLogicNode>();
-			if (response_data["logic"] is IList src_logic)
-			{
-				foreach (SnipeObject o in src_logic)
-				{
-					if (o?["node"] is SnipeObject node)
-						list.Add(new SnipeLogicNode(node, mLogicTable));
-				}
-			}
-			OnLogicGet(error_code, list);
-		}
-
-		private void OnLogicGet(string error_code, List<SnipeLogicNode> logic_nodes)
-		{
-			mUpdateRequested = false;
-
 			if (error_code == "ok")
 			{
+				var logic_nodes = new List<SnipeLogicNode>();
+				if (response_data["logic"] is IList src_logic)
+				{
+					foreach (SnipeObject o in src_logic)
+					{
+						if (o?["node"] is SnipeObject node)
+							logic_nodes.Add(new SnipeLogicNode(node, mLogicTable));
+					}
+				}
+				
 				bool timer_finished = false;
 
 				if (Nodes == null)
@@ -225,14 +221,7 @@ namespace MiniIT.Snipe
 							continue;
 						
 						Nodes.Add(node.id, node);
-						
-						if (node.tree != null)
-						{
-							foreach (var tag in node.tree.tags)
-							{
-								mTaggedNodes[tag] = node;
-							}
-						}
+						AddTaggedNode(node);
 					}
 				}
 				else
@@ -248,24 +237,15 @@ namespace MiniIT.Snipe
 								timer_finished = true;
 							}
 
-							var list_node = node;
-
 							if (Nodes.TryGetValue(node.id, out var stored_node))
 							{
 								stored_node.CopyVars(node);
-								list_node = stored_node;
+								AddTaggedNode(stored_node);
 							}
 							else
 							{
 								Nodes.Add(node.id, node);
-							}
-							
-							if (node.tree != null)
-							{
-								foreach (var tag in node.tree.tags)
-								{
-									mTaggedNodes[tag] = list_node;
-								}
+								AddTaggedNode(node);
 							}
 						}
 					}
@@ -309,6 +289,20 @@ namespace MiniIT.Snipe
 				{
 					LogicUpdated?.Invoke(Nodes);
 					StartSecondsTimer();
+				}
+			}
+		}
+		
+		private void AddTaggedNode(SnipeLogicNode node)
+		{
+			if (node?.tree?.tags != null)
+			{
+				foreach (string tag in node.tree.tags)
+				{
+					if (!string.IsNullOrEmpty(tag))
+					{
+						mTaggedNodes[tag] = node;
+					}
 				}
 			}
 		}
