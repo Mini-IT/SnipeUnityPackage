@@ -221,11 +221,17 @@ namespace MiniIT.Snipe
 					mTaggedNodes = new Dictionary<string, SnipeLogicNode>();
 					foreach (var node in logic_nodes)
 					{
+						if (node == null)
+							continue;
+						
 						Nodes.Add(node.id, node);
-
-						foreach (var tag in node.tree.tags)
+						
+						if (node.tree != null)
 						{
-							mTaggedNodes[tag] = node;
+							foreach (var tag in node.tree.tags)
+							{
+								mTaggedNodes[tag] = node;
+							}
 						}
 					}
 				}
@@ -253,10 +259,13 @@ namespace MiniIT.Snipe
 							{
 								Nodes.Add(node.id, node);
 							}
-
-							foreach (var tag in node.tree.tags)
+							
+							if (node.tree != null)
 							{
-								mTaggedNodes[tag] = list_node;
+								foreach (var tag in node.tree.tags)
+								{
+									mTaggedNodes[tag] = list_node;
+								}
 							}
 						}
 					}
