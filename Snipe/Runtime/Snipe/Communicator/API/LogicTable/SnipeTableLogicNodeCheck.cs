@@ -8,7 +8,7 @@ namespace MiniIT.Snipe
 		public string @operator;
 		public int value;
 	}
-	
+
 	public class SnipeTableLogicNodeCheck
 	{
 		public const string TYPE_ATTR = "attr";
@@ -19,9 +19,9 @@ namespace MiniIT.Snipe
 		public const string TYPE_TIMER = "timer";
 		public const string TYPE_TIMEOUT = "timeout";
 		public const string TYPE_PAYMENT_ITEM_STRING_ID = "paymentItemStringID";
-		
+
 		public string type;
-		
+
 		public static implicit operator SnipeTableLogicNodeCheck(SnipeTableLogicRawNodeCheck raw)
 		{
 			SnipeTableLogicNodeCheck result = null;

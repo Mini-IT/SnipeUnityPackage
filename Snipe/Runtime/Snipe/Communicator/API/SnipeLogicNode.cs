@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -12,7 +13,11 @@ namespace MiniIT.Snipe
 		public List<SnipeLogicNodeVar> vars { get; private set; }
 
 		public string name { get => node?.name; }
+		public string stringID { get => node?.stringID; }
 		public List<SnipeTableLogicRawNodeResult> results { get => node?.results; }
+
+		public int timeleft = -1; // seconds left. (-1) means that the node does not have a timer
+		public bool isTimeout { get; private set; }
 
 		public SnipeLogicNode(SnipeObject data, SnipeTable<SnipeTableLogicItem> logic_table)
 		{
@@ -36,31 +41,131 @@ namespace MiniIT.Snipe
 
 			if (node != null)
 			{
+				foreach (var node_check in node.checks)
+				{
+					RefreshTimerVar(node_check.type, node_check.value);
+
+					//else if (node_check.type == SnipeTableLogicNodeCheck.TYPE_PAYMENT_ITEM_STRING_ID)
+					//{
+					//	PurchaseProductSku = node_check.name;
+					//}
+				}
+
 				if (data["vars"] is IList data_vars)
 				{
-					vars = new List<SnipeLogicNodeVar>(node.vars.Count);
+					vars = new List<SnipeLogicNodeVar>(Math.Max(data_vars.Count, node.vars.Count));
 
-					foreach (var v in node.vars)
+					foreach (SnipeObject data_var in data_vars)
 					{
-						SnipeObject data_var = null;
-						foreach (SnipeObject dv in data_vars)
+						bool found = false;
+
+						string var_name = data_var.SafeGetString("name");
+						foreach (var node_var in node.vars)
 						{
-							if (dv.SafeGetString("name") == v.name)
+							if (var_name == node_var.name)
 							{
-								data_var = dv;
+								vars.Add(new SnipeLogicNodeVar()
+								{
+									var = node_var,
+									value = data_var?.SafeGetValue<int>("value") ?? default,
+									maxValue = data_var?.SafeGetValue<int>("maxValue") ?? default,
+								});
+
+								found = true;
 								break;
 							}
 						}
 
-						vars.Add(new SnipeLogicNodeVar()
+						if (found)
+							break;
+
+						string var_type = data_var.SafeGetString("type");
+						if (!string.IsNullOrEmpty(var_type))
 						{
-							var = v,
-							value = data_var?.SafeGetValue<int>("value") ?? default,
-							maxValue = data_var?.SafeGetValue<int>("maxValue") ?? default,
-						});
+							foreach (var node_var in node.checks)
+							{
+								if (var_type == node_var.type)
+								{
+									int var_value = data_var?.SafeGetValue<int>("value") ?? default;
+									vars.Add(new SnipeLogicNodeVar()
+									{
+										var = node_var,
+										value = var_value,
+										maxValue = data_var?.SafeGetValue<int>("maxValue") ?? default,
+									});
+
+									RefreshTimerVar(var_type, var_value);
+
+									found = true;
+									break;
+								}
+							}
+						}
 					}
+
 				}
 			}
+		}
+
+		public bool HasCheckType(string check_type)
+		{
+			foreach (var node_check in node.checks)
+			{
+				if (node_check.type == check_type)
+					return true;
+			}
+			return false;
+		}
+
+		public bool HasCheckName(string check_name)
+		{
+			foreach (var node_check in node.checks)
+			{
+				if (node_check.name == check_name)
+					return true;
+			}
+			return false;
+		}
+
+		public string GetPurchaseProductSku()
+		{
+			foreach (var node_check in node.checks)
+			{
+				if (node_check.type == SnipeTableLogicNodeCheck.TYPE_PAYMENT_ITEM_STRING_ID)
+				{
+					return node_check.name;
+				}
+			}
+			return null;
+		}
+
+		public void CopyVars(SnipeLogicNode src_node)
+		{
+			vars = src_node.vars;
+
+			foreach (var node_var in vars)
+			{
+				RefreshTimerVar(node_var.var.type, node_var.value);
+
+				//else if (node_check.type == SnipeTableLogicNodeCheck.TYPE_PAYMENT_ITEM_STRING_ID)
+				//{
+				//	PurchaseProductSku = node_check.name;
+				//}
+			}
+		}
+
+		private bool RefreshTimerVar(string var_type, int var_value)
+		{
+			bool is_timeout = (var_type == SnipeTableLogicNodeCheck.TYPE_TIMEOUT);
+			if (is_timeout || var_type == SnipeTableLogicNodeCheck.TYPE_TIMER)
+			{
+				this.timeleft = var_value;
+				this.isTimeout = is_timeout;
+
+				return true;
+			}
+
+			return false;
 		}
 	}
 
