@@ -67,6 +67,7 @@ namespace MiniIT.Snipe
 
 			mLogicTable = null;
 			Nodes = null;
+			mTaggedNodes = null;
 		}
 
 		public SnipeLogicNode GetNodeById(int id)
@@ -191,7 +192,7 @@ namespace MiniIT.Snipe
 
 		private void OnLogicGet(string error_code, SnipeObject response_data)
 		{
-			if (mLogicTable == null)
+			if (mLogicTable == null || response_data == null)
 				return;
 
 			var list = new List<SnipeLogicNode>();
@@ -199,7 +200,7 @@ namespace MiniIT.Snipe
 			{
 				foreach (SnipeObject o in src_logic)
 				{
-					if (o["node"] is SnipeObject node)
+					if (o?["node"] is SnipeObject node)
 						list.Add(new SnipeLogicNode(node, mLogicTable));
 				}
 			}
@@ -266,7 +267,7 @@ namespace MiniIT.Snipe
 						bool found = false;
 						foreach (var node in logic_nodes)
 						{
-							if (node.id == stored_node_id)
+							if (node != null && node.id == stored_node_id)
 							{
 								found = true;
 								break;
