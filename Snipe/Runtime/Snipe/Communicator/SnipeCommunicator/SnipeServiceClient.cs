@@ -441,7 +441,7 @@ namespace MiniIT.Snipe
 				{
 					DoSendRequest(message);
 					
-					if (mSendMessages.IsEmpty)
+					if (mSendMessages.IsEmpty && !message.SafeGetString("t").StartsWith("payment/"))
 					{
 						StartCheckConnection();
 					}
