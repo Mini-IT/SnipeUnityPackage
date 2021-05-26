@@ -39,71 +39,74 @@ namespace MiniIT.Snipe
 					break;
 			}
 
-			if (node != null)
+			if (node == null)
 			{
-				foreach (var node_check in node.checks)
+				DebugLogger.LogError($"[SnipeLogicNode] Table node not found. id = {id}");
+				return;
+			}
+			
+			foreach (var node_check in node.checks)
+			{
+				RefreshTimerVar(node_check.type, node_check.value);
+
+				//else if (node_check.type == SnipeTableLogicNodeCheck.TYPE_PAYMENT_ITEM_STRING_ID)
+				//{
+				//	PurchaseProductSku = node_check.name;
+				//}
+			}
+
+			if (data["vars"] is IList data_vars)
+			{
+				vars = new List<SnipeLogicNodeVar>(Math.Max(data_vars.Count, node.vars.Count));
+
+				foreach (SnipeObject data_var in data_vars)
 				{
-					RefreshTimerVar(node_check.type, node_check.value);
+					bool found = false;
 
-					//else if (node_check.type == SnipeTableLogicNodeCheck.TYPE_PAYMENT_ITEM_STRING_ID)
-					//{
-					//	PurchaseProductSku = node_check.name;
-					//}
-				}
-
-				if (data["vars"] is IList data_vars)
-				{
-					vars = new List<SnipeLogicNodeVar>(Math.Max(data_vars.Count, node.vars.Count));
-
-					foreach (SnipeObject data_var in data_vars)
+					string var_name = data_var.SafeGetString("name");
+					foreach (var node_var in node.vars)
 					{
-						bool found = false;
-
-						string var_name = data_var.SafeGetString("name");
-						foreach (var node_var in node.vars)
+						if (var_name == node_var.name)
 						{
-							if (var_name == node_var.name)
+							vars.Add(new SnipeLogicNodeVar()
 							{
+								var = node_var,
+								value = data_var?.SafeGetValue<int>("value") ?? default,
+								maxValue = data_var?.SafeGetValue<int>("maxValue") ?? default,
+							});
+
+							found = true;
+							break;
+						}
+					}
+
+					if (found)
+						break;
+
+					string var_type = data_var.SafeGetString("type");
+					if (!string.IsNullOrEmpty(var_type))
+					{
+						foreach (var node_var in node.checks)
+						{
+							if (var_type == node_var.type)
+							{
+								int var_value = data_var?.SafeGetValue<int>("value") ?? default;
 								vars.Add(new SnipeLogicNodeVar()
 								{
 									var = node_var,
-									value = data_var?.SafeGetValue<int>("value") ?? default,
+									value = var_value,
 									maxValue = data_var?.SafeGetValue<int>("maxValue") ?? default,
 								});
+
+								RefreshTimerVar(var_type, var_value);
 
 								found = true;
 								break;
 							}
 						}
-
-						if (found)
-							break;
-
-						string var_type = data_var.SafeGetString("type");
-						if (!string.IsNullOrEmpty(var_type))
-						{
-							foreach (var node_var in node.checks)
-							{
-								if (var_type == node_var.type)
-								{
-									int var_value = data_var?.SafeGetValue<int>("value") ?? default;
-									vars.Add(new SnipeLogicNodeVar()
-									{
-										var = node_var,
-										value = var_value,
-										maxValue = data_var?.SafeGetValue<int>("maxValue") ?? default,
-									});
-
-									RefreshTimerVar(var_type, var_value);
-
-									found = true;
-									break;
-								}
-							}
-						}
 					}
-
 				}
+
 			}
 		}
 
