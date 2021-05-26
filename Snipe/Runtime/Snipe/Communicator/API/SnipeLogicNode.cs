@@ -48,11 +48,6 @@ namespace MiniIT.Snipe
 			foreach (var node_check in node.checks)
 			{
 				RefreshTimerVar(node_check.type, node_check.value);
-
-				//else if (node_check.type == SnipeTableLogicNodeCheck.TYPE_PAYMENT_ITEM_STRING_ID)
-				//{
-				//	PurchaseProductSku = node_check.name;
-				//}
 			}
 
 			if (data["vars"] is IList data_vars)
@@ -158,11 +153,6 @@ namespace MiniIT.Snipe
 			foreach (var node_var in vars)
 			{
 				RefreshTimerVar(node_var.var.type, node_var.value);
-
-				//else if (node_check.type == SnipeTableLogicNodeCheck.TYPE_PAYMENT_ITEM_STRING_ID)
-				//{
-				//	PurchaseProductSku = node_check.name;
-				//}
 			}
 		}
 
