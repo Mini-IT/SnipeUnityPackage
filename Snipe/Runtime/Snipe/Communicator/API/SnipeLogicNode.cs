@@ -109,6 +109,9 @@ namespace MiniIT.Snipe
 
 		public bool HasCheckType(string check_type)
 		{
+			if (node == null)
+				return false;
+			
 			foreach (var node_check in node.checks)
 			{
 				if (node_check.type == check_type)
@@ -119,6 +122,9 @@ namespace MiniIT.Snipe
 
 		public bool HasCheckName(string check_name)
 		{
+			if (node == null)
+				return false;
+			
 			foreach (var node_check in node.checks)
 			{
 				if (node_check.name == check_name)
@@ -129,6 +135,9 @@ namespace MiniIT.Snipe
 
 		public string GetPurchaseProductSku()
 		{
+			if (node == null)
+				return null;
+			
 			foreach (var node_check in node.checks)
 			{
 				if (node_check.type == SnipeTableLogicNodeCheck.TYPE_PAYMENT_ITEM_STRING_ID)
