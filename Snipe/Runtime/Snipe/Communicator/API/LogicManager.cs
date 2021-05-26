@@ -42,6 +42,19 @@ namespace MiniIT.Snipe
 			mSnipeCommunicator.PreDestroy -= OnSnipeCommunicatorPreDestroy;
 			mSnipeCommunicator.MessageReceived += OnSnipeMessageReceived;
 			mSnipeCommunicator.PreDestroy += OnSnipeCommunicatorPreDestroy;
+			
+			//----------
+			// DEBUG
+			DebugLogger.Log("[LogicManager] Init");
+			foreach (var table_tree in logic_table.Items.Values)
+			{
+				DebugLogger.Log($"[LogicManager]    tree {table_tree?.id} - {table_tree?.name}");
+				foreach (var table_node in table_tree.nodes)
+				{
+					DebugLogger.Log($"[LogicManager]      --- node {table_node?.id} - {table_node?.name}");
+				}
+			}
+			//----------
 		}
 
 		~LogicManager()
