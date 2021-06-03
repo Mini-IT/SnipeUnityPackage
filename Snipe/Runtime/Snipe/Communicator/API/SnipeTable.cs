@@ -13,12 +13,14 @@ namespace MiniIT.Snipe
 {
 	public class SnipeTable
 	{
-		protected const int MAX_LOADERS_COUNT = 5;
+		protected const int MAX_LOADERS_COUNT = 4;
 		protected const string VERSION_FILE_NAME = "snipe_tables_version.txt";
 		
 		protected static string mVersion = null;
 		protected static bool mVersionRequested = false;
 		protected static List<CancellationTokenSource> mCancellations;
+		
+		protected static SemaphoreSlim mSemaphore;
 		
 		public static void Initialize()
 		{
@@ -59,8 +61,6 @@ namespace MiniIT.Snipe
 		
 		private static readonly object mCacheIOLocker = new object();
 		private static readonly object mParseJSONLocker = new object();
-		
-		private static SemaphoreSlim mSemaphore;
 		
 		public async Task Load<WrapperType>(string table_name) where WrapperType : ISnipeTableItemsListWrapper<ItemType>, new()
 		{
@@ -162,12 +162,13 @@ namespace MiniIT.Snipe
 			{
 				while (string.IsNullOrEmpty(mVersion))
 				{
+					await Task.Yield();
+					
 					if (cancellation_token.IsCancellationRequested)
 					{
+						DebugLogger.Log($"[SnipeTable] Load {table_name} task canceled");
 						return;
 					}
-					
-					await Task.Yield();
 				}
 			}
 			
@@ -222,7 +223,7 @@ namespace MiniIT.Snipe
 		{
 			if (cancellation.IsCancellationRequested)
 			{
-				DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (task canceled)");
+				DebugLogger.Log($"[SnipeTable] Failed to load table - {table_name}   (task canceled)");
 				return;
 			}
 			
