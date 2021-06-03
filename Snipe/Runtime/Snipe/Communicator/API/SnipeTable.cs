@@ -22,6 +22,9 @@ namespace MiniIT.Snipe
 		
 		protected static SemaphoreSlim mSemaphore;
 		
+		protected static readonly object mCacheIOLocker = new object();
+		protected static readonly object mParseJSONLocker = new object();
+		
 		public static void Initialize()
 		{
 			BetterStreamingAssets.Initialize();
@@ -58,9 +61,6 @@ namespace MiniIT.Snipe
 		public Dictionary<int, ItemType> Items { get; private set; }
 		
 		private CancellationTokenSource mLoadingCancellation;
-		
-		private static readonly object mCacheIOLocker = new object();
-		private static readonly object mParseJSONLocker = new object();
 		
 		public async Task Load<WrapperType>(string table_name) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
 		{
