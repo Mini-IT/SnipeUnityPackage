@@ -31,17 +31,41 @@ namespace MiniIT.Snipe
 
 		protected void RequestLogin(string provider, string login, string token, bool reset_auth = false)
 		{
+			if (reset_auth)
+			{
+				SnipeObject data = new SnipeObject()
+				{
+					["ckey"] = SnipeConfig.Instance.ClientKey,
+					["provider"] = provider,
+					["login"] = login,
+					["auth"] = token,
+				};
+				SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_RESET)?.RequestAuth(data,
+					(string error_code, SnipeObject response_data) =>
+					{
+						if (error_code == "ok")
+						{
+							DoRequestLogin(response_data.SafeGetString("uid"), response_data.SafeGetString("password"));
+						}
+					}
+				);
+			}
+			else
+			{
+				DoRequestLogin(login, token);
+			}
+		}
+		
+		protected void DoRequestLogin(string login, string token)
+		{
 			SnipeObject data = new SnipeObject()
 			{
-				["provider"] = provider,
 				["login"] = login,
 				["auth"] = token,
 				["loginGame"] = true,
 				["version"] = SnipeClient.SNIPE_VERSION,
 				["appInfo"] = SnipeConfig.Instance.AppInfo,
 			};
-			if (reset_auth)
-				data["resetInternalAuth"] = reset_auth;
 			
 			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_LOGIN)?.RequestAuth(data, OnAuthLoginResponse);
 		}
