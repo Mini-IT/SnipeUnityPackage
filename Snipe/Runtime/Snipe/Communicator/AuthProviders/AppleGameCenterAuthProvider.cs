@@ -59,7 +59,7 @@ public class AppleGameCenterAuthProvider : BindProvider
 
 		AppleGameCenterProvider.InstanceInitializationComplete -= OnAppleGameCenterProviderInitializationComplete;
 
-		if (!string.IsNullOrEmpty(SnipeAuthCommunicator.LoginToken))
+		if (!string.IsNullOrEmpty(SnipeCommunicator.Instance.Auth.LoginToken))
 		{
 			CheckAuthExists(null);
 		}
@@ -100,7 +100,6 @@ public class AppleGameCenterAuthProvider : BindProvider
 							return;
 						}
 
-						data["messageType"] = SnipeMessageTypes.AUTH_USER_BIND;
 						data["provider"] = ProviderId;
 						data["login"] = gc_login;
 						//data["auth"] = login_token;
@@ -108,7 +107,8 @@ public class AppleGameCenterAuthProvider : BindProvider
 						data["authInt"] = auth_token;
 
 						DebugLogger.Log("[AppleGameCenterAuthProvider] send user.bind " + data.ToJSONString());
-						SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, data, OnBindResponse);
+						SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_BIND)?.RequestAuth(data, OnBindResponse);
+						
 					};
 					generateIdentityVerificationSignature(VerificationSignatureGeneratorCallback);
 					return;
@@ -125,11 +125,9 @@ public class AppleGameCenterAuthProvider : BindProvider
 		InvokeBindResultCallback(SnipeErrorCodes.NOT_INITIALIZED);
 	}
 
-	protected override void OnAuthLoginResponse(SnipeObject data)
+	protected override void OnAuthLoginResponse(string error_code, SnipeObject data)
 	{
-		base.OnAuthLoginResponse(data);
-
-		string error_code = data?.SafeGetString("errorCode");
+		base.OnAuthLoginResponse(error_code, data);
 
 		if (error_code == SnipeErrorCodes.OK)
 		{

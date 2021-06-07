@@ -11,7 +11,7 @@ using WebSocketSharp;
 
 namespace MiniIT.Snipe
 {
-	public partial class WebSocketWrapper : IDisposable
+	public class WebSocketWrapper : IDisposable
 	{
 		protected const int CONNECTION_TIMEOUT = 3000;
 		

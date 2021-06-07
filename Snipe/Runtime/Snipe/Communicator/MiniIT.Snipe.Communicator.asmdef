@@ -2,9 +2,9 @@
     "name": "MiniIT.Snipe.Communicator",
     "references": [
 		"MiniIT.Snipe.Core",
-		"MiniIT.Snipe.Client",
-		"MiniIT.Snipe.Social.Runtime",
-		"MiniIT.GooglePlay.Runtime",
+		"MiniIT.Snipe.WebSocketSharp",
+		"MiniIT.Snipe.Social",
+		"MiniIT.GooglePlay",
 		"MiniIT.Snipe.MessagePack",
 		"BetterStreamingAssets",
 		"fastJSON"

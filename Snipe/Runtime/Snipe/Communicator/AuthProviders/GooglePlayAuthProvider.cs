@@ -50,7 +50,7 @@ public class GooglePlayAuthProvider : BindProvider
 
 		GooglePlayProvider.InstanceInitializationComplete -= OnGooglePlayProviderInitializationComplete;
 
-		if (!string.IsNullOrEmpty(SnipeAuthCommunicator.LoginToken))
+		if (!string.IsNullOrEmpty(SnipeCommunicator.Instance.Auth.LoginToken))
 		{
 			CheckAuthExists(null);
 		}
@@ -95,16 +95,17 @@ public class GooglePlayAuthProvider : BindProvider
 						return;
 					}
 
-					SnipeObject data = new SnipeObject();
-					data["messageType"] = SnipeMessageTypes.AUTH_USER_BIND;
-					data["provider"] = ProviderId;
-					data["login"] = GooglePlayProvider.Instance.PlayerProfile.Id;
-					data["auth"] = google_token;
-					data["loginInt"] = auth_login;
-					data["authInt"] = auth_token;
+					SnipeObject data = new SnipeObject()
+					{
+						["provider"] = ProviderId,
+						["login"] = GooglePlayProvider.Instance.PlayerProfile.Id,
+						["auth"] = google_token,
+						["loginInt"] = auth_login,
+						["authInt"] = auth_token,
+					}
 
 					DebugLogger.Log("[GooglePlayAuthProvider] send user.bind " + data.ToJSONString());
-					SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, data, OnBindResponse);
+					SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_BIND)?.RequestAuth(data, OnBindResponse);
 				});
 
 				return;
@@ -118,11 +119,9 @@ public class GooglePlayAuthProvider : BindProvider
 		InvokeBindResultCallback(SnipeErrorCodes.NOT_INITIALIZED);
 	}
 
-	protected override void OnAuthLoginResponse(SnipeObject data)
+	protected override void OnAuthLoginResponse(string error_code, SnipeObject data)
 	{
-		base.OnAuthLoginResponse(data);
-
-		string error_code = data?.SafeGetString("errorCode");
+		base.OnAuthLoginResponse(error_code, data);
 
 		if (error_code == SnipeErrorCodes.OK)
 		{

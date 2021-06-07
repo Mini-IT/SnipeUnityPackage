@@ -18,7 +18,6 @@ public class SnipeConfig
 	public string ClientKey;
 	public string AppInfo;
 
-	public string AuthWebsocketURL;
 	public string ServiceWebsocketURL;
 	
 	public List<string> TablesURLs = new List<string>();
@@ -41,7 +40,6 @@ public class SnipeConfig
 	public static void Init(SnipeObject data)
 	{
 		Instance.ClientKey = data.SafeGetString("client_key");
-		Instance.AuthWebsocketURL = data.SafeGetString("auth_websocket");
 		Instance.ServiceWebsocketURL = data.SafeGetString("service_websocket");
 		
  		if (Instance.TablesURLs == null)

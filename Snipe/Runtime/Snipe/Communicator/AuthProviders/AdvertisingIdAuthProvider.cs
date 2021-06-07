@@ -101,7 +101,6 @@ public class AdvertisingIdAuthProvider : BindProvider
 				{
 					SnipeObject data = new SnipeObject()
 					{
-						["messageType"] = SnipeMessageTypes.AUTH_USER_BIND,
 						["provider"] = ProviderId,
 						["login"] = advertising_id,
 						["loginInt"] = auth_login,
@@ -117,7 +116,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 						mBindRequestData = data;
 
 						DebugLogger.Log("[AdvertisingIdAuthProvider] send user.bind " + data.ToJSONString());
-						SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, data, OnBindResponse);
+						SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_BIND)?.RequestAuth(data, OnBindResponse);
 					}
 				}
 				else
@@ -142,11 +141,9 @@ public class AdvertisingIdAuthProvider : BindProvider
 		}
 	}
 
-	protected override void OnAuthLoginResponse(SnipeObject data)
+	protected override void OnAuthLoginResponse(string error_code, SnipeObject data)
 	{
-		base.OnAuthLoginResponse(data);
-
-		string error_code = data?.SafeGetString("errorCode");
+		base.OnAuthLoginResponse(error_code, data);
 
 		DebugLogger.Log($"[AdvertisingIdAuthProvider] {error_code}");
 
@@ -165,11 +162,11 @@ public class AdvertisingIdAuthProvider : BindProvider
 		}
 	}
 	
-	protected override void OnBindResponse(SnipeObject data)
+	protected override void OnBindResponse(string error_code, SnipeObject data)
 	{
 		mBindRequestData = null;
 		
-		base.OnBindResponse(data);
+		base.OnBindResponse(error_code, data);
 	}
 
 	public override string GetUserId()

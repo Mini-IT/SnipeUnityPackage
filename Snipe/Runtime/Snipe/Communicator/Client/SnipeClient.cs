@@ -7,7 +7,7 @@ using MiniIT.MessagePack;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeServiceClient
+	public class SnipeClient
 	{
 		public const int SNIPE_VERSION = 6;
 		
@@ -66,7 +66,7 @@ namespace MiniIT.Snipe
 
 			string url = SnipeConfig.Instance.ServiceWebsocketURL;
 
-			DebugLogger.Log("[SnipeServiceClient] WebSocket Connect to " + url);
+			DebugLogger.Log("[SnipeClient] WebSocket Connect to " + url);
 			
 			mWebSocket = new WebSocketWrapper();
 			mWebSocket.OnConnectionOpened += OnWebSocketConnected;
@@ -77,7 +77,7 @@ namespace MiniIT.Snipe
 
 		private void OnWebSocketConnected()
 		{
-			DebugLogger.Log("[SnipeServiceClient] OnWebSocketConnected");
+			DebugLogger.Log("[SnipeClient] OnWebSocketConnected");
 			
 			try
 			{
@@ -85,15 +85,13 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception e)
 			{
-				DebugLogger.Log("[SnipeServiceClient] OnWebSocketConnected - ConnectionOpened invokation error: " + e.Message);
+				DebugLogger.Log("[SnipeClient] OnWebSocketConnected - ConnectionOpened invokation error: " + e.Message);
 			}
-
-			RequestLogin();
 		}
 
 		protected void OnWebSocketClosed()
 		{
-			DebugLogger.Log("[SnipeServiceClient] OnWebSocketClosed");
+			DebugLogger.Log("[SnipeClient] OnWebSocketClosed");
 
 			Disconnect();
 
@@ -103,7 +101,7 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception e)
 			{
-				DebugLogger.Log($"[SnipeServiceClient] OnWebSocketClosed - ConnectionClosed invokation error: {e.Message}\n{e.StackTrace}");
+				DebugLogger.Log($"[SnipeClient] OnWebSocketClosed - ConnectionClosed invokation error: {e.Message}\n{e.StackTrace}");
 			}
 		}
 
@@ -131,6 +129,13 @@ namespace MiniIT.Snipe
 				return 0;
 				
 			message["id"] = ++mRequestId;
+			
+			if (!mLoggedIn)
+			{
+				var data = message["data"] as SnipeObject ?? new SnipeObject();
+				data["ckey"] = SnipeConfig.Instance.ClientKey;
+				message["data"] = data;
+			}
 			
 			if (mSendMessages == null)
 			{
@@ -160,12 +165,12 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		private void DoSendRequest(SnipeObject message)
+		internal void DoSendRequest(SnipeObject message)
 		{
 			if (!Connected || message == null)
 				return;
 			
-			DebugLogger.Log($"[SnipeServiceClient] DoSendRequest - {message.ToJSONString()}");
+			DebugLogger.Log($"[SnipeClient] DoSendRequest - {message.ToJSONString()}");
 
 			byte[] bytes = MessagePackSerializer.Serialize(message);
 			lock (mWebSocket)
@@ -189,26 +194,6 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		protected void RequestLogin()
-		{
-			if (mLoggedIn || !Connected)
-				return;
-
-			DoSendRequest(new SnipeObject()
-			{
-				["t"] = SnipeMessageTypes.USER_LOGIN,
-				["data"] = new SnipeObject()
-				{
-					["ckey"] = SnipeConfig.Instance.ClientKey,
-					["id"] = SnipeAuthCommunicator.UserID,
-					["token"] = SnipeAuthCommunicator.LoginToken,
-					["loginGame"] = true,        // Snipe V5+
-					["version"] = SNIPE_VERSION, // Snipe V6+
-					["appInfo"] = SnipeConfig.Instance.AppInfo,
-				}
-			});
-		}
-
 		protected void ProcessMessage(byte[] raw_data_buffer)
 		{
 			if (mServerReactionStopwatch != null)
@@ -228,7 +213,7 @@ namespace MiniIT.Snipe
 				int request_id = message.SafeGetValue<int>("id");
 				SnipeObject response_data = message.SafeGetValue<SnipeObject>("data");
 				
-				DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] ProcessMessage - {request_id} - {message_type} {error_code} {response_data?.ToJSONString()}");
+				DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - {request_id} - {message_type} {error_code} {response_data?.ToJSONString()}");
 
 				if (!mLoggedIn)
 				{
@@ -236,7 +221,7 @@ namespace MiniIT.Snipe
 					{	
 						if (error_code == SnipeErrorCodes.OK)
 						{
-							DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] ProcessMessage - Login Succeeded");
+							DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - Login Succeeded");
 							
 							mLoggedIn = true;
 
@@ -255,7 +240,7 @@ namespace MiniIT.Snipe
 							}
 							catch (Exception e)
 							{
-								DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] ProcessMessage - LoginSucceeded invokation error: " + e.Message);
+								DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginSucceeded invokation error: " + e.Message);
 							}
 
 							if (mHeartbeatEnabled)
@@ -265,7 +250,7 @@ namespace MiniIT.Snipe
 						}
 						else
 						{
-							DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] ProcessMessage - Login Failed");
+							DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - Login Failed");
 							
 							try
 							{
@@ -273,7 +258,7 @@ namespace MiniIT.Snipe
 							}
 							catch (Exception e)
 							{
-								DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] ProcessMessage - LoginFailed invokation error: " + e.Message);
+								DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginFailed invokation error: " + e.Message);
 							}
 						}
 					}
@@ -287,12 +272,12 @@ namespace MiniIT.Snipe
 					}
 					catch (Exception e)
 					{
-						DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] ProcessMessage - MessageReceived invokation error: " + e.Message + "\n" + e.StackTrace);
+						DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - MessageReceived invokation error: " + e.Message + "\n" + e.StackTrace);
 					}
 				}
 				else
 				{
-					DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] ProcessMessage - no MessageReceived listeners");
+					DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - no MessageReceived listeners");
 				}
 
 				if (mHeartbeatEnabled)
@@ -343,7 +328,7 @@ namespace MiniIT.Snipe
 					}
 					ResetHeartbeatTimer();
 
-					DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] Heartbeat ping");
+					DebugLogger.Log($"[SnipeClient] [{ConnectionId}] Heartbeat ping");
 				}
 
 				await Task.Delay(HEARTBEAT_TASK_DELAY, cancellation);
@@ -366,7 +351,7 @@ namespace MiniIT.Snipe
 			if (!mLoggedIn)
 				return;
 			
-			// DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] StartCheckConnection");
+			// DebugLogger.Log($"[SnipeClient] [{ConnectionId}] StartCheckConnection");
 
 			mCheckConnectionCancellation?.Cancel();
 
@@ -381,7 +366,7 @@ namespace MiniIT.Snipe
 				mCheckConnectionCancellation.Cancel();
 				mCheckConnectionCancellation = null;
 
-				// DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] StopCheckConnection");
+				// DebugLogger.Log($"[SnipeClient] [{ConnectionId}] StopCheckConnection");
 			}
 		}
 
@@ -402,7 +387,7 @@ namespace MiniIT.Snipe
 				return;
 
 			// Disconnect detected
-			DebugLogger.Log($"[SnipeServiceClient] [{ConnectionId}] CheckConnectionTask - Disconnect detected");
+			DebugLogger.Log($"[SnipeClient] [{ConnectionId}] CheckConnectionTask - Disconnect detected");
 
 			OnWebSocketClosed();
 		}
@@ -420,7 +405,7 @@ namespace MiniIT.Snipe
 			mSendMessages = new ConcurrentQueue<SnipeObject>();
 
 			mSendTaskCancellation = new CancellationTokenSource();
-			_ = SendTask(mHeartbeatCancellation.Token);
+			_ = SendTask(mHeartbeatCancellation?.Token);
 		}
 
 		private void StopSendTask()
@@ -436,9 +421,9 @@ namespace MiniIT.Snipe
 			mSendMessages = null;
 		}
 
-		private async Task SendTask(CancellationToken cancellation)
+		private async Task SendTask(CancellationToken? cancellation)
 		{
-			while (!cancellation.IsCancellationRequested && Connected)
+			while (cancellation?.IsCancellationRequested != true && Connected)
 			{
 				if (mSendMessages != null && !mSendMessages.IsEmpty && mSendMessages.TryDequeue(out var message))
 				{

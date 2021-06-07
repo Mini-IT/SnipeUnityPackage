@@ -33,20 +33,22 @@ namespace MiniIT.Snipe
 		{
 			SnipeObject data = new SnipeObject()
 			{
-				["messageType"] = SnipeMessageTypes.AUTH_USER_LOGIN,
 				["provider"] = provider,
 				["login"] = login,
 				["auth"] = token,
+				["loginGame"] = true,
+				["version"] = SnipeClient.SNIPE_VERSION,
+				["appInfo"] = SnipeConfig.Instance.AppInfo,
 			};
 			if (reset_auth)
 				data["resetInternalAuth"] = reset_auth;
-
-			SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, data, OnAuthLoginResponse);
+			
+			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_LOGIN)?.RequestAuth(data, OnAuthLoginResponse);
 		}
 
-		protected virtual void OnAuthLoginResponse(SnipeObject data)
+		protected virtual void OnAuthLoginResponse(string error_code, SnipeObject data)
 		{
-			if (data?.SafeGetString("errorCode") == SnipeErrorCodes.OK)
+			if (error_code == SnipeErrorCodes.OK)
 			{
 				//LoggedIn = true;
 

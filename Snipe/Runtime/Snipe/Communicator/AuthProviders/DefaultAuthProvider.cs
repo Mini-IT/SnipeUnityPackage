@@ -27,14 +27,12 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		protected override void OnAuthLoginResponse(SnipeObject data)
+		protected override void OnAuthLoginResponse(string error_code, SnipeObject data)
 		{
-			base.OnAuthLoginResponse(data);
+			base.OnAuthLoginResponse(error_code, data);
 
 			if (mAuthSuccessCallback == null)
 				return;
-
-			string error_code = data?.SafeGetString("errorCode");
 
 			if (error_code == SnipeErrorCodes.OK)
 			{
