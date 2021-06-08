@@ -8,11 +8,9 @@ namespace MiniIT.Snipe
 		public const string PROVIDER_ID = "__";
 		public override string ProviderId { get { return PROVIDER_ID; } }
 
-
-		public override void RequestAuth(AuthSuccessCallback success_callback, AuthFailCallback fail_callback, bool reset_auth = false)
+		public override void RequestAuth(AuthResultCallback callback = null, bool reset_auth = false)
 		{
-			mAuthSuccessCallback = success_callback;
-			mAuthFailCallback = fail_callback;
+			mAuthResultCallback = callback;
 
 			string auth_login = PlayerPrefs.GetString(SnipePrefs.AUTH_UID);
 			string auth_token = PlayerPrefs.GetString(SnipePrefs.AUTH_KEY);
@@ -31,15 +29,14 @@ namespace MiniIT.Snipe
 		{
 			base.OnAuthLoginResponse(error_code, data);
 
-			if (mAuthSuccessCallback == null)
+			if (mAuthResultCallback == null)
 				return;
 
 			if (error_code == SnipeErrorCodes.OK)
 			{
 				int user_id = data.SafeGetValue<int>("id");
-				string login_token = data.SafeGetString("token");
 
-				InvokeAuthSuccessCallback(user_id, login_token);
+				InvokeAuthSuccessCallback(user_id);
 			}
 			else
 			{

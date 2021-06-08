@@ -14,6 +14,7 @@ namespace MiniIT.Snipe
 		public const string NO_SUCH_USER = "noSuchUser";
 		public const string NO_SUCH_AUTH = "noSuchAuth";
 		public const string PARAMS_WRONG = "paramsWrong";
+		public const string USER_ONLINE = "userOnline";
 		
 		// SnipeCommunicatorRequest
 		public const string NOT_READY = "notReady";

@@ -129,7 +129,6 @@ namespace MiniIT.Snipe
 		
 		private void DoSendRequest()
 		{
-			//mRequestId = mCommunicator.Request(this);
 			if (mCommunicator.LoggedIn || mAuthorization)
 				mRequestId = mCommunicator.Client.SendRequest(this.MessageType, this.Data);
 			else

@@ -84,9 +84,11 @@ namespace MiniIT.Snipe
 				["login"] = user_id,
 			};
 
-			string login_id = PlayerPrefs.GetString(SnipePrefs.LOGIN_USER_ID);
-			if (!string.IsNullOrEmpty(login_id))
-				data["id"] = Convert.ToInt32(login_id);
+			int login_id = SnipeCommunicator.Instance.Auth.UserID;
+			if (login_id != 0)
+			{
+				data["userID"] = login_id;
+			}
 
 			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_EXISTS)?.RequestAuth(data, OnCheckAuthExistsResponse);
 		}
