@@ -44,7 +44,7 @@ public class FacebookAuthProvider : BindProvider
 
 		FacebookProvider.InstanceInitializationComplete -= OnFacebookProviderInitializationComplete;
 
-		if (!string.IsNullOrEmpty(SnipeAuthCommunicator.LoginToken) && !AccountExists.HasValue)
+		if (!string.IsNullOrEmpty(SnipeCommunicator.Instance.Auth.LoginToken) && !AccountExists.HasValue)
 		{
 			CheckAuthExists(null);
 		}
@@ -71,7 +71,7 @@ public class FacebookAuthProvider : BindProvider
 			{
 				SnipeObject data = new SnipeObject()
 				{
-					["messageType"] = SnipeMessageTypes.AUTH_USER_BIND,
+					["ckey"] = SnipeConfig.Instance.ClientKey,
 					["provider"] = ProviderId,
 					["login"] = AccessToken.CurrentAccessToken.UserId,
 					["auth"] = AccessToken.CurrentAccessToken.TokenString,
@@ -80,7 +80,7 @@ public class FacebookAuthProvider : BindProvider
 				};
 
 				DebugLogger.Log("[FacebookAuthProvider] send user.bind " + data.ToJSONString());
-				SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, data, OnBindResponse);
+				SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_BIND)?.RequestAuth(data, OnBindResponse);
 
 				return;
 			}
@@ -95,11 +95,9 @@ public class FacebookAuthProvider : BindProvider
 		InvokeBindResultCallback(SnipeErrorCodes.NOT_INITIALIZED);
 	}
 
-	protected override void OnAuthLoginResponse(SnipeObject data)
+	protected override void OnAuthLoginResponse(string error_code, SnipeObject data)
 	{
-		base.OnAuthLoginResponse(data);
-
-		string error_code = data?.SafeGetString("errorCode");
+		base.OnAuthLoginResponse(error_code, data);
 
 		if (error_code == SnipeErrorCodes.OK)
 		{

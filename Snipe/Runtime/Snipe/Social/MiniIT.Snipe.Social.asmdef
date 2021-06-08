@@ -1,8 +1,8 @@
 {
-    "name": "MiniIT.Snipe.Social.Runtime",
+    "name": "MiniIT.Snipe.Social",
     "references": [
 		"MiniIT.Snipe.Core",
-		"MiniIT.GooglePlay.Runtime"
+		"MiniIT.GooglePlay"
 	],
     "optionalUnityReferences": [],
     "excludePlatforms": [],

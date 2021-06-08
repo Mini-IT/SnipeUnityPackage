@@ -29,34 +29,60 @@ namespace MiniIT.Snipe
 			InvokeAuthFailCallback(SnipeErrorCodes.NOT_INITIALIZED);
 		}
 
-		protected void RequestLogin(string provider, string login, string token, bool reset_auth = false)
+		protected void RequestLogin(string provider, string login, string password, bool reset_auth = false)
+		{
+			if (reset_auth)
+			{
+				SnipeObject data = new SnipeObject()
+				{
+					["ckey"] = SnipeConfig.Instance.ClientKey,
+					["provider"] = provider,
+					["login"] = login,
+					["auth"] = password,
+				};
+				SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_RESET)?.RequestAuth(data,
+					(string error_code, SnipeObject response_data) =>
+					{
+						if (error_code == "ok")
+						{
+							DoRequestLogin(response_data.SafeGetString("uid"), response_data.SafeGetString("password"));
+						}
+					}
+				);
+			}
+			else
+			{
+				DoRequestLogin(login, password);
+			}
+		}
+		
+		protected void DoRequestLogin(string login, string password)
 		{
 			SnipeObject data = new SnipeObject()
 			{
-				["messageType"] = SnipeMessageTypes.AUTH_USER_LOGIN,
-				["provider"] = provider,
 				["login"] = login,
-				["auth"] = token,
+				["auth"] = password,
+				["loginGame"] = true,
+				["version"] = SnipeClient.SNIPE_VERSION,
+				["appInfo"] = SnipeConfig.Instance.AppInfo,
 			};
-			if (reset_auth)
-				data["resetInternalAuth"] = reset_auth;
-
-			SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, data, OnAuthLoginResponse);
+			
+			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_LOGIN)?.RequestAuth(data, OnAuthLoginResponse);
 		}
 
-		protected virtual void OnAuthLoginResponse(SnipeObject data)
+		protected virtual void OnAuthLoginResponse(string error_code, SnipeObject data)
 		{
-			if (data?.SafeGetString("errorCode") == SnipeErrorCodes.OK)
+			if (error_code == SnipeErrorCodes.OK)
 			{
 				//LoggedIn = true;
 
 				string auth_login = data?.SafeGetString("internalUID");
-				string auth_token = data?.SafeGetString("internalPassword");
+				string auth_password = data?.SafeGetString("internalPassword");
 
-				if (!string.IsNullOrEmpty(auth_login) && !string.IsNullOrEmpty(auth_token))
+				if (!string.IsNullOrEmpty(auth_login) && !string.IsNullOrEmpty(auth_password))
 				{
 					PlayerPrefs.SetString(SnipePrefs.AUTH_UID, auth_login);
-					PlayerPrefs.SetString(SnipePrefs.AUTH_KEY, auth_token);
+					PlayerPrefs.SetString(SnipePrefs.AUTH_KEY, auth_password);
 				}
 			}
 		}

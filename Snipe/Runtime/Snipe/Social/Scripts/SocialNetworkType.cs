@@ -9,8 +9,6 @@ namespace MiniIT.Social
 		public const string MAILRU             = "MM";
 		public const string ODNOKLASSNIKI      = "OD";
 		public const string FACEBOOK           = "FB";
-		public const string GOOGLE_PLAY        = "GP";
-		public const string APPLE_GAME_CENTER  = "GC";
 		
 		public static string GetCorrectValue(string id = NONE) 
 		{
@@ -18,9 +16,7 @@ namespace MiniIT.Social
 			if (value != VK &&
 				value != MAILRU &&
 				value != ODNOKLASSNIKI &&
-				value != FACEBOOK &&
-				value != GOOGLE_PLAY &&
-				value != APPLE_GAME_CENTER)
+				value != FACEBOOK)
 			{
 				value = NONE;
 			}

@@ -27,6 +27,7 @@ namespace MiniIT.Snipe
 		
 		private bool mSent = false;
 		private bool mWaitingForResponse = false;
+		private bool mAuthorization = false;
 
 		public SnipeCommunicatorRequest(SnipeCommunicator communicator, string message_type = null)
 		{
@@ -52,6 +53,13 @@ namespace MiniIT.Snipe
 				
 			mCallback = callback;
 			SendRequest();
+		}
+		
+		internal void RequestAuth(SnipeObject data, ResponseHandler callback = null)
+		{
+			mAuthorization = true;
+			Data = data;
+			Request(callback);
 		}
 		
 		internal void ResendInactive()
@@ -83,7 +91,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 			
-			if (mCommunicator.LoggedIn)
+			if (mCommunicator.LoggedIn || mAuthorization)
 			{
 				OnCommunicatorReady();
 			}
@@ -121,7 +129,11 @@ namespace MiniIT.Snipe
 		
 		private void DoSendRequest()
 		{
-			mRequestId = mCommunicator.Request(this);
+			//mRequestId = mCommunicator.Request(this);
+			if (mCommunicator.LoggedIn || mAuthorization)
+				mRequestId = mCommunicator.Client.SendRequest(this.MessageType, this.Data);
+			else
+				mRequestId = 0;
 			
 			if (mRequestId == 0)
 			{
@@ -140,14 +152,14 @@ namespace MiniIT.Snipe
 				mWaitingForResponse = false;
 				mCommunicator.MessageReceived -= OnMessageReceived;
 				
-				if (mCommunicator.AllowRequestsToWaitForLogin)
+				if (mCommunicator.AllowRequestsToWaitForLogin && !mAuthorization)
 				{
 					DebugLogger.Log($"[SnipeCommunicatorRequest] Waiting for login - {MessageType} - {Data?.ToJSONString()}");
 					
 					mCommunicator.LoginSucceeded -= OnCommunicatorReady;
 					mCommunicator.LoginSucceeded += OnCommunicatorReady;
 				}
-				else if (mCommunicator.KeepOfflineRequests)
+				else if (mCommunicator.KeepOfflineRequests && !mAuthorization)
 				{
 					Active = false;
 				}

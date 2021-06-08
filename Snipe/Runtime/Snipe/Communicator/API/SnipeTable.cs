@@ -62,7 +62,7 @@ namespace MiniIT.Snipe
 		
 		private CancellationTokenSource mLoadingCancellation;
 		
-		public async Task Load<WrapperType>(string table_name) where WrapperType : ISnipeTableItemsListWrapper<ItemType>, new()
+		public async Task Load<WrapperType>(string table_name) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
 		{
 			if (string.IsNullOrEmpty(SnipeConfig.Instance.GetTablesPath()))
 			{
@@ -87,7 +87,7 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		private async Task LoadAsync<WrapperType>(string table_name, CancellationToken cancellation_token) where WrapperType : ISnipeTableItemsListWrapper<ItemType>, new()
+		private async Task LoadAsync<WrapperType>(string table_name, CancellationToken cancellation_token) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
 		{
 			if (!mVersionRequested)
 			{
@@ -219,7 +219,7 @@ namespace MiniIT.Snipe
 			return $"{SnipeConfig.Instance.GetTablesPath()}{table_name}.json.gz";
 		}
 		
-		private async Task LoadTask<WrapperType>(string table_name, CancellationToken cancellation) where WrapperType : ISnipeTableItemsListWrapper<ItemType>, new()
+		private async Task LoadTask<WrapperType>(string table_name, CancellationToken cancellation) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
 		{
 			if (cancellation.IsCancellationRequested)
 			{
@@ -318,7 +318,7 @@ namespace MiniIT.Snipe
 			LoadingFinished?.Invoke(this.Loaded);
 		}
 		
-		private void ReadFile<WrapperType>(string table_name, string file_path) where WrapperType : ISnipeTableItemsListWrapper<ItemType>, new()
+		private void ReadFile<WrapperType>(string table_name, string file_path) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
 		{
 			lock (mCacheIOLocker)
 			{
@@ -344,7 +344,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void ReadFromStramingAssets<WrapperType>(string table_name, string file_path) where WrapperType : ISnipeTableItemsListWrapper<ItemType>, new()
+		private void ReadFromStramingAssets<WrapperType>(string table_name, string file_path) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
 		{
 			DebugLogger.Log($"[SnipeTable] ReadFromStramingAssets - {file_path}");
 			
@@ -403,7 +403,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void ReadGZip<WrapperType>(Stream stream) where WrapperType : ISnipeTableItemsListWrapper<ItemType>, new()
+		private void ReadGZip<WrapperType>(Stream stream) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
 		{
 			using (GZipStream gzip = new GZipStream(stream, CompressionMode.Decompress))
 			{
@@ -411,10 +411,32 @@ namespace MiniIT.Snipe
 				{
 					string json_string = reader.ReadToEnd();
 					
-					WrapperType list_wrapper;
-					lock (mParseJSONLocker)
+					WrapperType list_wrapper = default;
+					
+					if (typeof(WrapperType) == typeof(SnipeTableLogicItemsWrapper))
 					{
-						list_wrapper = fastJSON.JSON.ToObject<WrapperType>(json_string);
+						DebugLogger.Log("[SnipeTable] SnipeTableLogicItemsWrapper");
+						
+						Dictionary<string, object> parsed_data = null;
+						lock (mParseJSONLocker)
+						{
+							//parsed_data = (Dictionary<string, object>)fastJSON.JSON.ToObject(json_string);
+							parsed_data = SnipeObject.FromJSONString(json_string);
+						}
+						
+						list_wrapper = SnipeTableLogicItemsWrapper.FromTableData(parsed_data) as WrapperType;
+						
+						if (list_wrapper == null)
+						{
+							DebugLogger.Log("[SnipeTable] parsed_data is null");
+						}
+					}
+					else
+					{
+						lock (mParseJSONLocker)
+						{
+							list_wrapper = fastJSON.JSON.ToObject<WrapperType>(json_string);
+						}
 					}
 					
 					if (list_wrapper?.list != null)
