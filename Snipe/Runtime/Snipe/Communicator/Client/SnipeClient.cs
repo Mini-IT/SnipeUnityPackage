@@ -9,7 +9,7 @@ namespace MiniIT.Snipe
 {
 	public class SnipeClient
 	{
-		public const int SNIPE_VERSION = 6;
+		public const int SNIPE_VERSION = 5;
 		
 		public delegate void MessageReceivedHandler(string message_type, string error_code, SnipeObject data, int request_id);
 		public event MessageReceivedHandler MessageReceived;
