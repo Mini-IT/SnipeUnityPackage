@@ -101,6 +101,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 				{
 					SnipeObject data = new SnipeObject()
 					{
+						["ckey"] = SnipeConfig.Instance.ClientKey,
 						["provider"] = ProviderId,
 						["login"] = advertising_id,
 						["loginInt"] = auth_login,

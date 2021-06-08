@@ -54,6 +54,7 @@ public class DeviceIdAuthProvider : BindProvider
 			{
 				SnipeObject data = new SnipeObject()
 				{
+					["ckey"] = SnipeConfig.Instance.ClientKey,
 					["provider"] = ProviderId,
 					["login"] = GetUserId(),
 					["loginInt"] = auth_login,
