@@ -29,7 +29,7 @@ namespace MiniIT.Snipe
 			InvokeAuthFailCallback(SnipeErrorCodes.NOT_INITIALIZED);
 		}
 
-		protected void RequestLogin(string provider, string login, string token, bool reset_auth = false)
+		protected void RequestLogin(string provider, string login, string password, bool reset_auth = false)
 		{
 			if (reset_auth)
 			{
@@ -38,7 +38,7 @@ namespace MiniIT.Snipe
 					["ckey"] = SnipeConfig.Instance.ClientKey,
 					["provider"] = provider,
 					["login"] = login,
-					["auth"] = token,
+					["auth"] = password,
 				};
 				SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_RESET)?.RequestAuth(data,
 					(string error_code, SnipeObject response_data) =>
@@ -52,16 +52,16 @@ namespace MiniIT.Snipe
 			}
 			else
 			{
-				DoRequestLogin(login, token);
+				DoRequestLogin(login, password);
 			}
 		}
 		
-		protected void DoRequestLogin(string login, string token)
+		protected void DoRequestLogin(string login, string password)
 		{
 			SnipeObject data = new SnipeObject()
 			{
 				["login"] = login,
-				["auth"] = token,
+				["auth"] = password,
 				["loginGame"] = true,
 				["version"] = SnipeClient.SNIPE_VERSION,
 				["appInfo"] = SnipeConfig.Instance.AppInfo,
@@ -77,12 +77,12 @@ namespace MiniIT.Snipe
 				//LoggedIn = true;
 
 				string auth_login = data?.SafeGetString("internalUID");
-				string auth_token = data?.SafeGetString("internalPassword");
+				string auth_password = data?.SafeGetString("internalPassword");
 
-				if (!string.IsNullOrEmpty(auth_login) && !string.IsNullOrEmpty(auth_token))
+				if (!string.IsNullOrEmpty(auth_login) && !string.IsNullOrEmpty(auth_password))
 				{
 					PlayerPrefs.SetString(SnipePrefs.AUTH_UID, auth_login);
-					PlayerPrefs.SetString(SnipePrefs.AUTH_KEY, auth_token);
+					PlayerPrefs.SetString(SnipePrefs.AUTH_KEY, auth_password);
 				}
 			}
 		}
