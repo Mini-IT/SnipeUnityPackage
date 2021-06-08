@@ -44,7 +44,7 @@ public class FacebookAuthProvider : BindProvider
 
 		FacebookProvider.InstanceInitializationComplete -= OnFacebookProviderInitializationComplete;
 
-		if (!string.IsNullOrEmpty(SnipeCommunicator.Instance.Auth.LoginToken) && !AccountExists.HasValue)
+		if (SnipeCommunicator.Instance.LoggedIn && !AccountExists.HasValue)
 		{
 			CheckAuthExists(null);
 		}
