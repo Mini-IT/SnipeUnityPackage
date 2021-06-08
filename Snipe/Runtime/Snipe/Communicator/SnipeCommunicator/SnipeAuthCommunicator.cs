@@ -435,12 +435,7 @@ namespace MiniIT.Snipe
 
 		private void RequestRegister()
 		{
-			SnipeObject data = new SnipeObject();
-
-			if (SystemInfo.unsupportedIdentifier != SystemInfo.deviceUniqueIdentifier)
-				data["name"] = SystemInfo.deviceUniqueIdentifier; // optional
-			
-			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_REGISTER)?.RequestAuth(data,
+			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_REGISTER)?.RequestAuth(null,
 				(error_code, response) =>
 				{
 					int user_id = 0;
