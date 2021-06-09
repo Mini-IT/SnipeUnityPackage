@@ -91,7 +91,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 			
-			if (mCommunicator.LoggedIn || mAuthorization)
+			if (mCommunicator.LoggedIn || (mAuthorization && mCommunicator.Connected))
 			{
 				OnCommunicatorReady();
 			}
@@ -151,14 +151,20 @@ namespace MiniIT.Snipe
 				mWaitingForResponse = false;
 				mCommunicator.MessageReceived -= OnMessageReceived;
 				
-				if (mCommunicator.AllowRequestsToWaitForLogin && !mAuthorization)
+				if (mAuthorization)
+				{
+					DebugLogger.Log($"[SnipeCommunicatorRequest] Waiting for connection - {MessageType}");
+					mCommunicator.ConnectionSucceeded -= OnCommunicatorReady;
+					mCommunicator.ConnectionSucceeded += OnCommunicatorReady;
+				}
+				else if (mCommunicator.AllowRequestsToWaitForLogin)
 				{
 					DebugLogger.Log($"[SnipeCommunicatorRequest] Waiting for login - {MessageType} - {Data?.ToJSONString()}");
 					
 					mCommunicator.LoginSucceeded -= OnCommunicatorReady;
 					mCommunicator.LoginSucceeded += OnCommunicatorReady;
 				}
-				else if (mCommunicator.KeepOfflineRequests && !mAuthorization)
+				else if (mCommunicator.KeepOfflineRequests)
 				{
 					Active = false;
 				}
@@ -218,6 +224,7 @@ namespace MiniIT.Snipe
 				}
 				
 				mCommunicator.LoginSucceeded -= OnCommunicatorReady;
+				mCommunicator.ConnectionSucceeded -= OnCommunicatorReady;
 				mCommunicator.ConnectionFailed -= OnConnectionClosed;
 				mCommunicator.MessageReceived -= OnMessageReceived;
 				mCommunicator = null;

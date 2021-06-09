@@ -41,6 +41,8 @@ namespace MiniIT.Snipe
 		public bool AllowRequestsToWaitForLogin = true;
 		public bool KeepOfflineRequests = false; // works only if AllowRequestsToWaitForLogin == false
 		
+		private bool mAutoLogin = true;
+		
 		private List<SnipeCommunicatorRequest> mRequests;
 		public List<SnipeCommunicatorRequest> Requests
 		{
@@ -123,13 +125,14 @@ namespace MiniIT.Snipe
 		/// <summary>
 		/// Should be called from the main Unity thread
 		/// </summary>
-		public void StartCommunicator()
+		public void StartCommunicator(bool autologin = true)
 		{
 			if (MainThreadLoopCoroutine == null)
 			{
 				MainThreadLoopCoroutine = StartCoroutine(MainThreadLoop());
 			}
 			
+			mAutoLogin = autologin;
 			InitClient();
 		}
 		
@@ -164,8 +167,11 @@ namespace MiniIT.Snipe
 			});
 		}
 
-		private void Authorize()
+		public void Authorize()
 		{
+			if (!Connected || LoggedIn)
+				return;
+			
 			InvokeInMainThread(() =>
 			{
 				DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Authorize");
@@ -239,7 +245,10 @@ namespace MiniIT.Snipe
 			mRestoreConnectionAttempt = 0;
 			mDisconnecting = false;
 			
-			Authorize();
+			if (mAutoLogin)
+			{
+				Authorize();
+			}
 
 			InvokeInMainThread(() =>
 			{
@@ -291,6 +300,7 @@ namespace MiniIT.Snipe
 				if (error_code == SnipeErrorCodes.OK)
 				{
 					UserName = data.SafeGetString("name");
+					mAutoLogin = true;
 
 					if (LoginSucceeded != null)
 					{
