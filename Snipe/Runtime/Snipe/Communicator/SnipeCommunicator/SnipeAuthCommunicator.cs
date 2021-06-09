@@ -46,12 +46,12 @@ namespace MiniIT.Snipe
 		
 		public bool JustRegistered { get; private set; } = false;
 
-		private List<AuthProvider> mAuthProviders;
-		private AuthProvider mCurrentProvider;
+		private static List<AuthProvider> mAuthProviders;
+		private static AuthProvider mCurrentProvider;
 
 		private AuthResultCallback mAuthResultCallback;
 
-		private bool mRebindAllProviders = false;
+		private static bool mRebindAllProviders = false;
 
 		public ProviderType AddAuthProvider<ProviderType>() where ProviderType : AuthProvider, new()
 		{
