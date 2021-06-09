@@ -14,12 +14,11 @@ public class AdvertisingIdAuthProvider : BindProvider
 	
 	private SnipeObject mBindRequestData = null;
 
-	public override void RequestAuth(AuthSuccessCallback success_callback, AuthFailCallback fail_callback, bool reset_auth = false)
+	public override void RequestAuth(AuthResultCallback callback = null, bool reset_auth = false)
 	{
 		DebugLogger.Log("[AdvertisingIdAuthProvider] RequestAuth");
 		
-		mAuthSuccessCallback = success_callback;
-		mAuthFailCallback = fail_callback;
+		mAuthResultCallback = callback;
 
 		void advertising_id_callback(string advertising_id, bool tracking_enabled, string error)
 		{
@@ -151,11 +150,10 @@ public class AdvertisingIdAuthProvider : BindProvider
 		if (error_code == SnipeErrorCodes.OK)
 		{
 			int user_id = data.SafeGetValue<int>("id");
-			string login_token = data.SafeGetString("token");
 
 			IsBindDone = true;
 
-			InvokeAuthSuccessCallback(user_id, login_token);
+			InvokeAuthSuccessCallback(user_id);
 		}
 		else
 		{

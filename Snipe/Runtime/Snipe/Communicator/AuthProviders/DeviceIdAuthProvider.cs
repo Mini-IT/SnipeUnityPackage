@@ -10,12 +10,11 @@ public class DeviceIdAuthProvider : BindProvider
 	public const string PROVIDER_ID = "dvid";
 	public override string ProviderId { get { return PROVIDER_ID; } }
 
-	public override void RequestAuth(AuthSuccessCallback success_callback, AuthFailCallback fail_callback, bool reset_auth = false)
+	public override void RequestAuth(AuthResultCallback callback = null, bool reset_auth = false)
 	{
 		DebugLogger.Log("[DeviceIdAuthProvider] RequestAuth");
 		
-		mAuthSuccessCallback = success_callback;
-		mAuthFailCallback = fail_callback;
+		mAuthResultCallback = callback;
 		
 		if (SystemInfo.unsupportedIdentifier != SystemInfo.deviceUniqueIdentifier)
 		{
@@ -80,11 +79,10 @@ public class DeviceIdAuthProvider : BindProvider
 		if (error_code == SnipeErrorCodes.OK)
 		{
 			int user_id = data.SafeGetValue<int>("id");
-			string login_token = data.SafeGetString("token");
 
 			IsBindDone = true;
 
-			InvokeAuthSuccessCallback(user_id, login_token);
+			InvokeAuthSuccessCallback(user_id);
 		}
 		else
 		{

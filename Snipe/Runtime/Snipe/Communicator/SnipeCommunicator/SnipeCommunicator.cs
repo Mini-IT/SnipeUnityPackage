@@ -164,41 +164,21 @@ namespace MiniIT.Snipe
 			});
 		}
 
-		private bool CheckLoginParams()
-		{
-			if (Auth.UserID != 0 && !string.IsNullOrEmpty(Auth.LoginToken))
-			{
-				// TODO: check token expiry
-				return true;
-			}
-
-			return false;
-		}
-
 		private void Authorize()
 		{
 			InvokeInMainThread(() =>
 			{
-				if (CheckLoginParams())
-				{
-					RequestLogin();
-				}
-				else
-				{
-					DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Authorize");
-					Auth.Authorize(OnAuthSucceeded, OnAuthFailed);
-				}
+				DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Authorize");
+				Auth.Authorize(OnAuthResult);
 			});
 		}
 
-		private void OnAuthSucceeded()
+		private void OnAuthResult(string error_code, int user_id)
 		{
-			RequestLogin();
-		}
+			if (user_id != 0)  // authorization succeeded
+				return;
 
-		private void OnAuthFailed()
-		{
-			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) OnAuthFailed");
+			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) OnAuthResult - authorization failed");
 
 			if (ConnectionFailed != null)
 			{
@@ -209,27 +189,6 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		private void RequestLogin()
-		{
-			if (Client.LoggedIn || !Connected)
-				return;
-
-			Client.DoSendRequest(new SnipeObject()
-			{
-				["t"] = SnipeMessageTypes.USER_LOGIN,
-				["data"] = new SnipeObject()
-				{
-					["ckey"] = SnipeConfig.Instance.ClientKey,
-					["id"] = Auth.UserID,
-					["token"] = Auth.LoginToken,
-					["loginGame"] = true,
-					["version"] = SnipeClient.SNIPE_VERSION,
-					["appInfo"] = SnipeConfig.Instance.AppInfo,
-				}
-			});
-		}
-
-
 		public void Disconnect()
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) {this.name} Disconnect");
@@ -430,15 +389,7 @@ namespace MiniIT.Snipe
 		{
 			CreateRequest(message_type, parameters).Request();
 		}
-
-		// internal int Request(SnipeCommunicatorRequest request)
-		// {
-			// if (!LoggedIn || request == null)
-				// return 0;
-
-			// return Client.SendRequest(request.MessageType, request.Data);
-		// }
-
+		
 		public SnipeCommunicatorRequest CreateRequest(string message_type = null, SnipeObject parameters = null)
 		{
 			var request = new SnipeCommunicatorRequest(this, message_type);

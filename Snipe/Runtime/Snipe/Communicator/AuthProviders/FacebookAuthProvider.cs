@@ -18,10 +18,9 @@ public class FacebookAuthProvider : BindProvider
 		}
 	}
 
-	public override void RequestAuth(AuthSuccessCallback success_callback, AuthFailCallback fail_callback, bool reset_auth = false)
+	public override void RequestAuth(AuthResultCallback callback = null, bool reset_auth = false)
 	{
-		mAuthSuccessCallback = success_callback;
-		mAuthFailCallback = fail_callback;
+		mAuthResultCallback = callback;
 
 		if (FB.IsLoggedIn && AccessToken.CurrentAccessToken != null)
 		{
@@ -102,11 +101,10 @@ public class FacebookAuthProvider : BindProvider
 		if (error_code == SnipeErrorCodes.OK)
 		{
 			int user_id = data.SafeGetValue<int>("id");
-			string login_token = data.SafeGetString("token");
 
 			IsBindDone = true;
 
-			InvokeAuthSuccessCallback(user_id, login_token);
+			InvokeAuthSuccessCallback(user_id);
 		}
 		else
 		{
