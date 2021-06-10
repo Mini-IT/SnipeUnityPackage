@@ -18,4 +18,3 @@ Works with [SnipeServer](http://snipeserver.com).<br />
 ## Third-party libraries used
 
 [websocket-sharp](https://github.com/sta/websocket-sharp)<br />
-[MPack](https://github.com/caesay/MPack)<br />
