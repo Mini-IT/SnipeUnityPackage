@@ -129,10 +129,31 @@ namespace MiniIT.Snipe
 		
 		private void DoSendRequest()
 		{
+			mRequestId = 0;
+			
+			for (int i = 0; i < mCommunicator.Requests.Count; i++)
+			{
+				var request = mCommunicator.Requests[i];
+				if (request != null && request != this &&
+					request.mAuthorization == this.mAuthorization &&
+					string.Equals(request.MessageType, this.MessageType, StringComparison.Ordinal) &&
+					SnipeObject.ContentEquals(request.Data, this.Data))
+				{
+					mRequestId = request.mRequestId;
+					break;
+				}
+			}
+			
+			if (mRequestId != 0)
+			{
+				DebugLogger.Log($"[SnipeCommunicatorRequest] DoSendRequest - Same request found: {MessageType}, id = {mRequestId}");
+				return;
+			}
+			
 			if (mCommunicator.LoggedIn || mAuthorization)
+			{
 				mRequestId = mCommunicator.Client.SendRequest(this.MessageType, this.Data);
-			else
-				mRequestId = 0;
+			}
 			
 			if (mRequestId == 0)
 			{
