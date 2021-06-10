@@ -128,7 +128,7 @@ namespace MiniIT
 				return true;
 			if (first == null || second == null)
 				return false;
-			if (first.Count == second.Count)
+			if (first.Count != second.Count)
 				return false;
 			
             return second.OrderBy(kvp => kvp.Key).SequenceEqual(first.OrderBy(kvp => kvp.Key));
