@@ -97,7 +97,7 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[BindProvider] ({ProviderId}) OnBindResponse - {error_code}");
 
-			if (error_code == "ok")
+			if (error_code == SnipeErrorCodes.OK)
 			{
 				AccountExists = true;
 				IsBindDone = true;
