@@ -27,6 +27,7 @@ namespace MiniIT.Snipe
 		
 		private bool mSent = false;
 		private bool mWaitingForResponse = false;
+		private bool mAuthorization = false;
 
 		public SnipeCommunicatorRequest(SnipeCommunicator communicator, string message_type = null)
 		{
@@ -52,6 +53,13 @@ namespace MiniIT.Snipe
 				
 			mCallback = callback;
 			SendRequest();
+		}
+		
+		internal void RequestAuth(SnipeObject data, ResponseHandler callback = null)
+		{
+			mAuthorization = true;
+			Data = data;
+			Request(callback);
 		}
 		
 		internal void ResendInactive()
@@ -83,7 +91,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 			
-			if (mCommunicator.LoggedIn)
+			if (mCommunicator.LoggedIn || (mAuthorization && mCommunicator.Connected))
 			{
 				OnCommunicatorReady();
 			}
@@ -121,7 +129,31 @@ namespace MiniIT.Snipe
 		
 		private void DoSendRequest()
 		{
-			mRequestId = mCommunicator.Request(this);
+			mRequestId = 0;
+			
+			for (int i = 0; i < mCommunicator.Requests.Count; i++)
+			{
+				var request = mCommunicator.Requests[i];
+				if (request != null && request != this &&
+					request.mAuthorization == this.mAuthorization &&
+					string.Equals(request.MessageType, this.MessageType, StringComparison.Ordinal) &&
+					SnipeObject.ContentEquals(request.Data, this.Data))
+				{
+					mRequestId = request.mRequestId;
+					break;
+				}
+			}
+			
+			if (mRequestId != 0)
+			{
+				DebugLogger.Log($"[SnipeCommunicatorRequest] DoSendRequest - Same request found: {MessageType}, id = {mRequestId}");
+				return;
+			}
+			
+			if (mCommunicator.LoggedIn || mAuthorization)
+			{
+				mRequestId = mCommunicator.Client.SendRequest(this.MessageType, this.Data);
+			}
 			
 			if (mRequestId == 0)
 			{
@@ -140,7 +172,13 @@ namespace MiniIT.Snipe
 				mWaitingForResponse = false;
 				mCommunicator.MessageReceived -= OnMessageReceived;
 				
-				if (mCommunicator.AllowRequestsToWaitForLogin)
+				if (mAuthorization)
+				{
+					DebugLogger.Log($"[SnipeCommunicatorRequest] Waiting for connection - {MessageType}");
+					mCommunicator.ConnectionSucceeded -= OnCommunicatorReady;
+					mCommunicator.ConnectionSucceeded += OnCommunicatorReady;
+				}
+				else if (mCommunicator.AllowRequestsToWaitForLogin)
 				{
 					DebugLogger.Log($"[SnipeCommunicatorRequest] Waiting for login - {MessageType} - {Data?.ToJSONString()}");
 					
@@ -207,6 +245,7 @@ namespace MiniIT.Snipe
 				}
 				
 				mCommunicator.LoginSucceeded -= OnCommunicatorReady;
+				mCommunicator.ConnectionSucceeded -= OnCommunicatorReady;
 				mCommunicator.ConnectionFailed -= OnConnectionClosed;
 				mCommunicator.MessageReceived -= OnMessageReceived;
 				mCommunicator = null;

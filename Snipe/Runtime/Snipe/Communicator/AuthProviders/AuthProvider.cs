@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace MiniIT.Snipe
@@ -7,19 +8,18 @@ namespace MiniIT.Snipe
 	{
 		public virtual string ProviderId { get { return "__"; } }
 
-		public delegate void AuthSuccessCallback(int user_id, string login_token);
-		public delegate void AuthFailCallback(string login_code);
-
-		protected AuthSuccessCallback mAuthSuccessCallback;
-		protected AuthFailCallback mAuthFailCallback;
+		public delegate void AuthResultCallback(string error_code, int user_id = 0);
+		protected AuthResultCallback mAuthResultCallback;
+		
+		private string mLogin;
+		private string mPassword;
 
 		public virtual void Dispose()
 		{
-			mAuthSuccessCallback = null;
-			mAuthFailCallback = null;
+			mAuthResultCallback = null;
 		}
 
-		public virtual void RequestAuth(AuthSuccessCallback success_callback, AuthFailCallback fail_callback, bool reset_auth = false)
+		public virtual void RequestAuth(AuthResultCallback callback = null, bool reset_auth = false)
 		{
 			// Override this method.
 
@@ -29,54 +29,104 @@ namespace MiniIT.Snipe
 			InvokeAuthFailCallback(SnipeErrorCodes.NOT_INITIALIZED);
 		}
 
-		protected void RequestLogin(string provider, string login, string token, bool reset_auth = false)
+		protected void RequestLogin(string provider, string login, string password, bool reset_auth = false)
 		{
+			if (reset_auth)
+			{
+				SnipeObject data = new SnipeObject()
+				{
+					["ckey"] = SnipeConfig.Instance.ClientKey,
+					["provider"] = provider,
+					["login"] = login,
+					["auth"] = password,
+				};
+				ResetAuthAndLogin(data);
+			}
+			else
+			{
+				DoRequestLogin(login, password);
+			}
+		}
+		
+		private void ResetAuthAndLogin(SnipeObject data)
+		{
+			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_RESET)?.RequestAuth(data,
+				(string error_code, SnipeObject response_data) =>
+				{
+					if (error_code == SnipeErrorCodes.OK)
+					{
+						DoRequestLogin(response_data.SafeGetString("uid"), response_data.SafeGetString("password"));
+					}
+					// else if (error_code == SnipeErrorCodes.USER_ONLINE)
+					// {
+						// Task.Run(() => DelayedResetAuth(data));
+					// }
+					else
+					{
+						InvokeAuthFailCallback(error_code);
+					}
+				}
+			);
+		}
+		
+		// private async void DelayedResetAuth(SnipeObject data)
+		// {
+			// await Task.Delay(1000);
+			// ResetAuthAndLogin(data);
+		// }
+		
+		protected void DoRequestLogin(string login, string password)
+		{
+			mLogin = login;
+			mPassword = password;
+			
 			SnipeObject data = new SnipeObject()
 			{
-				["messageType"] = SnipeMessageTypes.AUTH_USER_LOGIN,
-				["provider"] = provider,
 				["login"] = login,
-				["auth"] = token,
+				["auth"] = password,
+				["loginGame"] = true,
+				["version"] = SnipeClient.SNIPE_VERSION,
+				["appInfo"] = SnipeConfig.Instance.AppInfo,
 			};
-			if (reset_auth)
-				data["resetInternalAuth"] = reset_auth;
-
-			SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, data, OnAuthLoginResponse);
+			
+			SnipeCommunicator.Instance.MessageReceived -= OnMessageReceived;
+			SnipeCommunicator.Instance.MessageReceived += OnMessageReceived;
+			SnipeCommunicator.Instance.Client.SendRequest(SnipeMessageTypes.AUTH_USER_LOGIN, data);
 		}
-
-		protected virtual void OnAuthLoginResponse(SnipeObject data)
+		
+		private void OnMessageReceived(string message_type, string error_code, SnipeObject response_data, int request_id)
 		{
-			if (data?.SafeGetString("errorCode") == SnipeErrorCodes.OK)
+			if (message_type == SnipeMessageTypes.AUTH_USER_LOGIN)
 			{
-				//LoggedIn = true;
-
-				string auth_login = data?.SafeGetString("internalUID");
-				string auth_token = data?.SafeGetString("internalPassword");
-
-				if (!string.IsNullOrEmpty(auth_login) && !string.IsNullOrEmpty(auth_token))
-				{
-					PlayerPrefs.SetString(SnipePrefs.AUTH_UID, auth_login);
-					PlayerPrefs.SetString(SnipePrefs.AUTH_KEY, auth_token);
-				}
+				SnipeCommunicator.Instance.MessageReceived -= OnMessageReceived;
+				OnAuthLoginResponse(error_code, response_data);
 			}
 		}
 
-		protected virtual void InvokeAuthSuccessCallback(int user_id, string login_token)
+		protected virtual void OnAuthLoginResponse(string error_code, SnipeObject data)
 		{
-			if (mAuthSuccessCallback != null)
-				mAuthSuccessCallback.Invoke(user_id, login_token);
+			DebugLogger.Log($"[AuthProvider] OnAuthLoginResponse {error_code} {data?.ToJSONString()}");
 
-			mAuthSuccessCallback = null;
-			mAuthFailCallback = null;
+			if (error_code == SnipeErrorCodes.OK && !string.IsNullOrEmpty(mLogin) && !string.IsNullOrEmpty(mPassword))
+			{
+				PlayerPrefs.SetString(SnipePrefs.AUTH_UID, mLogin);
+				PlayerPrefs.SetString(SnipePrefs.AUTH_KEY, mPassword);
+			}
+			
+			mLogin = "";
+			mPassword = "";
+		}
+
+		protected virtual void InvokeAuthSuccessCallback(int user_id)
+		{
+			mAuthResultCallback?.Invoke(SnipeErrorCodes.OK, user_id);
+			mAuthResultCallback = null;
 		}
 
 		protected virtual void InvokeAuthFailCallback(string error_code)
 		{
-			if (mAuthFailCallback != null)
-				mAuthFailCallback.Invoke(error_code);
-
-			mAuthSuccessCallback = null;
-			mAuthFailCallback = null;
+			mAuthResultCallback?.Invoke(error_code, 0);
+			mAuthResultCallback = null;
 		}
 	}
 }

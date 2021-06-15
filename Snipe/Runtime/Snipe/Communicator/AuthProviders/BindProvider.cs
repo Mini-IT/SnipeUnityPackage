@@ -51,11 +51,10 @@ namespace MiniIT.Snipe
 			return "";
 		}
 
-		protected override void OnAuthLoginResponse(SnipeObject data)
+		protected override void OnAuthLoginResponse(string error_code, SnipeObject data)
 		{
-			base.OnAuthLoginResponse(data);
+			base.OnAuthLoginResponse(error_code, data);
 
-			string error_code = data?.SafeGetString("errorCode");
 			if (!string.IsNullOrEmpty(error_code))
 			{
 				AccountExists = (error_code == SnipeErrorCodes.OK);
@@ -78,22 +77,24 @@ namespace MiniIT.Snipe
 
 			DebugLogger.Log($"[BindProvider] ({ProviderId}) CheckAuthExists {user_id}");
 
-			SnipeObject data = new SnipeObject();
-			data["messageType"] = SnipeMessageTypes.AUTH_USER_EXISTS;
-			data["provider"] = ProviderId;
-			data["login"] = user_id;
+			SnipeObject data = new SnipeObject()
+			{
+				["ckey"] = SnipeConfig.Instance.ClientKey,
+				["provider"] = ProviderId,
+				["login"] = user_id,
+			};
 
-			string login_id = PlayerPrefs.GetString(SnipePrefs.LOGIN_USER_ID);
-			if (!string.IsNullOrEmpty(login_id))
-				data["id"] = Convert.ToInt32(login_id);
+			int login_id = SnipeCommunicator.Instance.Auth.UserID;
+			if (login_id != 0)
+			{
+				data["userID"] = login_id;
+			}
 
-			SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, data, OnCheckAuthExistsResponse);
+			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_EXISTS)?.RequestAuth(data, OnCheckAuthExistsResponse);
 		}
 
-		protected virtual void OnBindResponse(SnipeObject data)
+		protected virtual void OnBindResponse(string error_code, SnipeObject data)
 		{
-			string error_code = data?.SafeGetString("errorCode");
-
 			DebugLogger.Log($"[BindProvider] ({ProviderId}) OnBindResponse - {error_code}");
 
 			if (error_code == "ok")
@@ -105,9 +106,8 @@ namespace MiniIT.Snipe
 			InvokeBindResultCallback(error_code);
 		}
 
-		protected void OnCheckAuthExistsResponse(SnipeObject data)
+		protected void OnCheckAuthExistsResponse(string error_code, SnipeObject data)
 		{
-			string error_code = data?.SafeGetString("errorCode");
 			if (!string.IsNullOrEmpty(error_code))
 				AccountExists = (error_code == SnipeErrorCodes.OK);
 			
@@ -130,7 +130,7 @@ namespace MiniIT.Snipe
 				else if (!is_me)
 				{
 					DebugLogger.Log($"[BindProvider] ({ProviderId}) OnCheckAuthExistsResponse - another account found - InvokeAccountBindingCollisionEvent");
-					SnipeAuthCommunicator.InvokeAccountBindingCollisionEvent(this, data.SafeGetString("name"));
+					SnipeCommunicator.Instance.Auth.InvokeAccountBindingCollisionEvent(this, data.SafeGetString("name"));
 				}
 			}
 		}

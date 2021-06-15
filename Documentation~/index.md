@@ -3,22 +3,20 @@ Mini IT Snipe Client
 
 ## Snipe
 
-Works with [SnipeServer](http://snipeserver.com).
+Works with [SnipeServer](http://snipeserver.com).<br />
 
 ## Documentation
 
-[SnipeServer wiki](https://github.com/Mini-IT/SnipeWiki/wiki)
-[SnipeServer API Reference](http://api.snipeserver.com)
+* [SnipeServer wiki](https://github.com/Mini-IT/SnipeWiki/wiki)<br />
+* [SnipeServer API Reference](http://api.snipeserver.com)<br />
 
 
 ## Dependencies
 
-[GooglePlayGamesPlugin](https://github.com/playgameservices/play-games-plugin-for-unity)
-[Facebook SDK for Unity](https://developers.facebook.com/docs/unity/)
+* [Facebook SDK for Unity](https://developers.facebook.com/docs/unity/)<br />
 
 ## Third-party libraries used
 
-Ionic.Zlib
-[websocket-sharp](https://github.com/sta/websocket-sharp)
-WebSocket.jslib - for WebGL build target  (not fully supported yet)
-[MPack](https://github.com/caesay/MPack)
+* [websocket-sharp](https://github.com/sta/websocket-sharp)
+* [BetterStreamingAssets](https://github.com/gwiazdorrr/BetterStreamingAssets)
+* [fastJSON](https://github.com/mgholam/fastJSON) - modified for IL2CPP compatibility

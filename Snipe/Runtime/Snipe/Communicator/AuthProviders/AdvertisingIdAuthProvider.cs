@@ -14,12 +14,11 @@ public class AdvertisingIdAuthProvider : BindProvider
 	
 	private SnipeObject mBindRequestData = null;
 
-	public override void RequestAuth(AuthSuccessCallback success_callback, AuthFailCallback fail_callback, bool reset_auth = false)
+	public override void RequestAuth(AuthResultCallback callback = null, bool reset_auth = false)
 	{
 		DebugLogger.Log("[AdvertisingIdAuthProvider] RequestAuth");
 		
-		mAuthSuccessCallback = success_callback;
-		mAuthFailCallback = fail_callback;
+		mAuthResultCallback = callback;
 
 		void advertising_id_callback(string advertising_id, bool tracking_enabled, string error)
 		{
@@ -101,7 +100,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 				{
 					SnipeObject data = new SnipeObject()
 					{
-						["messageType"] = SnipeMessageTypes.AUTH_USER_BIND,
+						["ckey"] = SnipeConfig.Instance.ClientKey,
 						["provider"] = ProviderId,
 						["login"] = advertising_id,
 						["loginInt"] = auth_login,
@@ -117,7 +116,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 						mBindRequestData = data;
 
 						DebugLogger.Log("[AdvertisingIdAuthProvider] send user.bind " + data.ToJSONString());
-						SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, data, OnBindResponse);
+						SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_BIND)?.RequestAuth(data, OnBindResponse);
 					}
 				}
 				else
@@ -142,22 +141,19 @@ public class AdvertisingIdAuthProvider : BindProvider
 		}
 	}
 
-	protected override void OnAuthLoginResponse(SnipeObject data)
+	protected override void OnAuthLoginResponse(string error_code, SnipeObject data)
 	{
-		base.OnAuthLoginResponse(data);
-
-		string error_code = data?.SafeGetString("errorCode");
+		base.OnAuthLoginResponse(error_code, data);
 
 		DebugLogger.Log($"[AdvertisingIdAuthProvider] {error_code}");
 
 		if (error_code == SnipeErrorCodes.OK)
 		{
 			int user_id = data.SafeGetValue<int>("id");
-			string login_token = data.SafeGetString("token");
 
 			IsBindDone = true;
 
-			InvokeAuthSuccessCallback(user_id, login_token);
+			InvokeAuthSuccessCallback(user_id);
 		}
 		else
 		{
@@ -165,11 +161,11 @@ public class AdvertisingIdAuthProvider : BindProvider
 		}
 	}
 	
-	protected override void OnBindResponse(SnipeObject data)
+	protected override void OnBindResponse(string error_code, SnipeObject data)
 	{
 		mBindRequestData = null;
 		
-		base.OnBindResponse(data);
+		base.OnBindResponse(error_code, data);
 	}
 
 	public override string GetUserId()

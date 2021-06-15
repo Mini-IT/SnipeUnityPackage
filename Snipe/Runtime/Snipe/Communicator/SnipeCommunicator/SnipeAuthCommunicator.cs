@@ -7,32 +7,20 @@ using MiniIT;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeAuthCommunicator : MonoBehaviour
+	using AuthResultCallback = AuthProvider.AuthResultCallback;
+	using AccountRegisterResponseHandler = AuthProvider.AuthResultCallback;
+
+	public class SnipeAuthCommunicator
 	{
-		private const float LOGING_TOKEN_REFRESH_TIMEOUT = 1800.0f; // = 30 min
-
-		public delegate void AccountRegisterRespondedHandler(string error_code, int user_id = 0);
-		public static event AccountRegisterRespondedHandler AccountRegisterResponded;
-
 		public delegate void AccountBindingCollisionHandler(BindProvider provider, string user_name = null);
-		public static event AccountBindingCollisionHandler AccountBindingCollision;
+
+		public event AccountRegisterResponseHandler AccountRegisterResponse;
+		public event AccountBindingCollisionHandler AccountBindingCollision;
 		
 		public delegate void GetUserAttributeCallback(string error_code, string user_name, string key, object value);
 
-		private static SnipeAuthCommunicator mInstance;
-		private static void InitInstance()
-		{
-			if (mInstance == null)
-			{
-				mInstance = new GameObject("SnipeAuthCommunicator").AddComponent<SnipeAuthCommunicator>();
-				GameObject.DontDestroyOnLoad(mInstance.gameObject);
-				
-				DebugLogger.InitInstance();
-			}
-		}
-
-		private static int mUserID = 0;
-		public static int UserID
+		private int mUserID = 0;
+		public int UserID
 		{
 			get
 			{
@@ -55,69 +43,42 @@ namespace MiniIT.Snipe
 				Analytics.SetUserId(mUserID.ToString());
 			}
 		}
-		public static string LoginToken { get; private set; }
+		
+		public bool JustRegistered { get; private set; } = false;
 
-		private static float mLoginTokenExpiry = -1;
-		private Coroutine mCheckLoginTokenExpiryCoroutine;
+		private static List<AuthProvider> mAuthProviders;
+		private static AuthProvider mCurrentProvider;
 
-		public static bool JustRegistered { get; private set; } = false;
+		private AuthResultCallback mAuthResultCallback;
 
-		private List<AuthProvider> mAuthProviders;
-		private AuthProvider mCurrentProvider;
+		private static bool mRebindAllProviders = false;
 
-		private Action mAuthSucceededCallback;
-		private Action mAuthFailedCallback;
-
-		private bool mRebindAllProviders = false;
-
-		// private constructor
-		//private SnipeAuthCommunicator()
-		//{
-		//}
-
-		public static void ClearLoginToken()
+		public ProviderType AddAuthProvider<ProviderType>() where ProviderType : AuthProvider, new()
 		{
-			LoginToken = "";
-		}
-
-		private void Awake()
-		{
-			if (mInstance != null && mInstance != this)
-			{
-				Destroy(this.gameObject);
-				return;
-			}
-		}
-
-		public static ProviderType AddAuthProvider<ProviderType>() where ProviderType : AuthProvider, new()
-		{
-			if (mInstance == null)
-				InitInstance();
-
 			ProviderType auth_provider = GetAuthProvider<ProviderType>();
 			if (auth_provider == null)
 			{
 				auth_provider = new ProviderType();
 				
-				if (mInstance.mAuthProviders == null)
-					mInstance.mAuthProviders = new List<AuthProvider>();
+				if (mAuthProviders == null)
+					mAuthProviders = new List<AuthProvider>();
 				
-				mInstance.mAuthProviders.Add(auth_provider);
+				mAuthProviders.Add(auth_provider);
 			}
 
 			return auth_provider;
 		}
 
-		public static List<AuthProvider> GetAuthProviders()
+		public List<AuthProvider> GetAuthProviders()
 		{
-			return mInstance?.mAuthProviders;
+			return mAuthProviders;
 		}
 
-		public static ProviderType GetAuthProvider<ProviderType>() where ProviderType : AuthProvider
+		public ProviderType GetAuthProvider<ProviderType>() where ProviderType : AuthProvider
 		{
-			if (mInstance?.mAuthProviders != null)
+			if (mAuthProviders != null)
 			{
-				foreach (AuthProvider provider in mInstance.mAuthProviders)
+				foreach (AuthProvider provider in mAuthProviders)
 				{
 					if (provider != null && provider is ProviderType)
 					{
@@ -129,11 +90,11 @@ namespace MiniIT.Snipe
 			return null;
 		}
 
-		public static AuthProvider GetAuthProvider(string provider_id)
+		public AuthProvider GetAuthProvider(string provider_id)
 		{
-			if (mInstance?.mAuthProviders != null)
+			if (mAuthProviders != null)
 			{
-				foreach (AuthProvider provider in mInstance.mAuthProviders)
+				foreach (AuthProvider provider in mAuthProviders)
 				{
 					if (provider != null && provider.ProviderId == provider_id)
 					{
@@ -145,33 +106,31 @@ namespace MiniIT.Snipe
 			return null;
 		}
 
-		public static bool SetCurrentProvider(AuthProvider provider)
+		public bool SetCurrentProvider(AuthProvider provider)
 		{
-			InitInstance();
-			
 			DebugLogger.Log($"[SnipeAuthCommunicator] SetCurrentProvider - {provider?.ProviderId}");
 
 			if (provider == null)
 			{
-				if (mInstance.mCurrentProvider != null)
+				if (mCurrentProvider != null)
 				{
-					mInstance.mCurrentProvider.Dispose();
-					mInstance.mCurrentProvider = null;
+					mCurrentProvider.Dispose();
+					mCurrentProvider = null;
 				}
 				return false;
 			}
 
-			if (mInstance.mCurrentProvider == provider || mInstance.mCurrentProvider?.ProviderId == provider?.ProviderId)
+			if (mCurrentProvider == provider || mCurrentProvider?.ProviderId == provider?.ProviderId)
 				return true;
 
-			if (mInstance.mAuthProviders != null)
+			if (mAuthProviders != null)
 			{
-				if (mInstance.mAuthProviders.IndexOf(provider) >= 0)
+				if (mAuthProviders.IndexOf(provider) >= 0)
 				{
-					if (mInstance.mCurrentProvider != null)
-						mInstance.mCurrentProvider.Dispose();
+					if (mCurrentProvider != null)
+						mCurrentProvider.Dispose();
 
-					mInstance.mCurrentProvider = provider;
+					mCurrentProvider = provider;
 					return true;
 				}
 				else
@@ -179,10 +138,10 @@ namespace MiniIT.Snipe
 					var added_provider = GetAuthProvider(provider.ProviderId);
 					if (added_provider != null)
 					{
-						if (mInstance.mCurrentProvider != null)
-							mInstance.mCurrentProvider.Dispose();
+						if (mCurrentProvider != null)
+							mCurrentProvider.Dispose();
 
-						mInstance.mCurrentProvider = added_provider;
+						mCurrentProvider = added_provider;
 						return true;
 					}
 				}
@@ -191,17 +150,16 @@ namespace MiniIT.Snipe
 			return false;
 		}
 
-		public static void SwitchToDefaultProvider()
+		public void SwitchToDefaultProvider()
 		{
-			if (mInstance != null)
-				mInstance.SwitchToDefaultAuthProvider();
+			SwitchToDefaultAuthProvider();
 		}
 
-		public static void BindAllProviders(bool force_all = false, BindProvider.BindResultCallback single_bind_callback = null)
+		public void BindAllProviders(bool force_all = false, BindProvider.BindResultCallback single_bind_callback = null)
 		{
-			if (mInstance != null && mInstance.mAuthProviders != null)
+			if (mAuthProviders != null)
 			{
-				foreach (BindProvider provider in mInstance.mAuthProviders)
+				foreach (BindProvider provider in mAuthProviders)
 				{
 					if (provider != null && (force_all || provider.AccountExists == false))
 					{
@@ -211,11 +169,11 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private static void ClearAllBindings()
+		private void ClearAllBindings()
 		{
-			if (mInstance != null && mInstance.mAuthProviders != null)
+			if (mAuthProviders != null)
 			{
-				foreach (BindProvider provider in mInstance.mAuthProviders)
+				foreach (BindProvider provider in mAuthProviders)
 				{
 					if (provider != null)
 					{
@@ -225,102 +183,86 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		public static void Authorize<ProviderType>(Action succeess_callback, Action fail_callback = null) where ProviderType : AuthProvider
+		public void Authorize<ProviderType>(AuthResultCallback callback = null) where ProviderType : AuthProvider
 		{
-			InitInstance();
-			mInstance.mCurrentProvider = GetAuthProvider<ProviderType>();
+			mCurrentProvider = GetAuthProvider<ProviderType>();
 
-			if (mInstance.mCurrentProvider == null)
+			if (mCurrentProvider == null)
 			{
 				DebugLogger.Log("[SnipeAuthCommunicator] Authorize<ProviderType> - provider not found");
 
-				if (fail_callback != null)
-					fail_callback.Invoke();
+				callback?.Invoke(SnipeErrorCodes.NOT_INITIALIZED, 0);
 
 				return;
 			}
 
-			mInstance.AuthorizeWithCurrentProvider(succeess_callback, fail_callback);
+			AuthorizeWithCurrentProvider(callback);
 		}
 
-		public static void Authorize(Action succeess_callback, Action fail_callback = null)
+		public void Authorize(AuthResultCallback callback = null)
 		{
-			InitInstance();
+			if (mCurrentProvider == null)
+				SwitchToNextAuthProvider();
 
-			if (mInstance.mCurrentProvider == null)
-				mInstance.SwitchToNextAuthProvider();
-
-			mInstance.AuthorizeWithCurrentProvider(succeess_callback, fail_callback);
+			AuthorizeWithCurrentProvider(callback);
 		}
 
-		public static void Authorize(bool reset, Action succeess_callback, Action fail_callback = null)
+		public void Authorize(bool reset, AuthResultCallback callback = null)
 		{
-			if (reset && mInstance != null) // forget previous provider and start again from the beginning
+			if (reset) // forget previous provider and start again from the beginning
 			{
-				ClearLoginToken();
+				AuthProvider prev_provider = mCurrentProvider;
 
-				AuthProvider prev_provider = mInstance.mCurrentProvider;
+				mCurrentProvider = null; 
+				SwitchToNextAuthProvider();
 
-				mInstance.mCurrentProvider = null; 
-				mInstance.SwitchToNextAuthProvider();
-
-				if (prev_provider != mInstance.mCurrentProvider)
+				if (prev_provider != mCurrentProvider)
 					prev_provider.Dispose();
 			}
 
-			Authorize(succeess_callback, fail_callback);
+			Authorize(callback);
 		}
 
 		/// <summary>
 		/// Clear all auth data an authorize using specified <c>AuthProvider</c>.
 		/// </summary>
-		public static void ClearAuthDataAndSetCurrentProvider(AuthProvider provider)
+		public void ClearAuthDataAndSetCurrentProvider(AuthProvider provider)
 		{
 			PlayerPrefs.DeleteKey(SnipePrefs.LOGIN_USER_ID);
 			
-			if (mInstance != null)
+			foreach (BindProvider bind_provider in mAuthProviders)
 			{
-				foreach (BindProvider bind_provider in mInstance.mAuthProviders)
+				if (bind_provider != null)
 				{
-					if (bind_provider != null)
-					{
-						bind_provider.IsBindDone = false;
-					}
+					bind_provider.IsBindDone = false;
 				}
 			}
 			
-			SnipeAuthCommunicator.ClearLoginToken();
-			SnipeAuthCommunicator.SetCurrentProvider(provider);
+			SetCurrentProvider(provider);
 		}
 
 		/// <summary>
 		/// After successful authorization with current provider <c>BindAllProviders(true)</c> will be called
 		/// </summary>
-		public static void RebindAllProvidersAfterAuthorization()
+		public void RebindAllProvidersAfterAuthorization()
 		{
-			if (mInstance != null)
-				mInstance.mRebindAllProviders = true;
+			mRebindAllProviders = true;
 		}
 
-		public static void ClaimRestoreToken(string token, Action<bool> callback)
+		public void ClaimRestoreToken(string token, Action<bool> callback)
 		{
-			if (mInstance == null)
-				return;
-
-			SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, 
+			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_RESTORE)?.RequestAuth(
 				new SnipeObject()
 				{
-					["messageType"] = SnipeMessageTypes.AUTH_CLAIM_RESTORE_TOKEN,
+					["ckey"] = SnipeConfig.Instance.ClientKey,
 					["token"] = token,
 				},
-				(response) =>
+				(error_code, response) =>
 				{
-					string error_code = response?.SafeGetString("errorCode");
 					if (error_code == "ok")
 					{
 						ClearAllBindings();
 						UserID = 0;
-						SnipeAuthCommunicator.LoginToken = "";
 						PlayerPrefs.SetString(SnipePrefs.AUTH_UID, response.SafeGetString("uid"));
 						PlayerPrefs.SetString(SnipePrefs.AUTH_KEY, response.SafeGetString("password"));
 						PlayerPrefs.Save();
@@ -333,26 +275,22 @@ namespace MiniIT.Snipe
 				});
 		}
 		
-		public static void GetUserAttribute(string provider_id, string user_id, string key, GetUserAttributeCallback callback)
+		public void GetUserAttribute(string provider_id, string user_id, string key, GetUserAttributeCallback callback)
 		{
-			if (mInstance == null)
-				return;
-
-			SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, 
+			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_ATTR_GET)?.RequestAuth(
 				new SnipeObject()
 				{
-					["messageType"] = SnipeMessageTypes.AUTH_ATTR_GET,
 					["provider"] = provider_id,
 					["login"] = user_id,
 					["key"] = key,
 				},
-				(response) =>
+				(error_code, response) =>
 				{
 					if (callback != null)
 					{
 						if (response != null)
 						{
-							callback.Invoke(response?.SafeGetString("errorCode"), response?.SafeGetString("name"), response?.SafeGetString("key"), response?["val"]);
+							callback.Invoke(error_code, response?.SafeGetString("name"), response?.SafeGetString("key"), response?["val"]);
 						}
 						else
 						{
@@ -362,20 +300,22 @@ namespace MiniIT.Snipe
 				});
 		}
 
-		internal static void InvokeAccountBindingCollisionEvent(BindProvider provider, string user_name = null)
+		internal void InvokeAccountBindingCollisionEvent(BindProvider provider, string user_name = null)
 		{
 			AccountBindingCollision?.Invoke(provider, user_name);
 		}
 
-		protected void AuthorizeWithCurrentProvider(Action succeess_callback, Action fail_callback = null)
+		protected void AuthorizeWithCurrentProvider(AuthResultCallback callback = null)
 		{
 			JustRegistered = false;
+			mAuthResultCallback = callback;
+			CurrentProviderRequestAuth();
+		}
 
-			mAuthSucceededCallback = succeess_callback;
-			mAuthFailedCallback = fail_callback;
-
+		private void CurrentProviderRequestAuth()
+		{
 			bool reset_auth = !(mCurrentProvider is DefaultAuthProvider) || string.IsNullOrEmpty(PlayerPrefs.GetString(SnipePrefs.AUTH_KEY));
-			mCurrentProvider.RequestAuth(OnCurrentProviderAuthSuccess, OnCurrentProviderAuthFail, reset_auth);
+			mCurrentProvider.RequestAuth(OnCurrentProviderAuthResult, reset_auth);
 		}
 
 		private void SwitchToNextAuthProvider(bool create_default = true)
@@ -416,66 +356,58 @@ namespace MiniIT.Snipe
 				mCurrentProvider = new DefaultAuthProvider();
 		}
 
-		private void OnCurrentProviderAuthSuccess(int user_id, string login_token)
+		private void OnCurrentProviderAuthResult(string error_code, int user_id = 0)
 		{
-			UserID = user_id;
-			LoginToken = login_token;
-
-			InvokeAuthSuccessCallback();
-
-			ResetCheckLoginTokenExpiryCoroutine();
-
-			mCurrentProvider?.Dispose();
-			mCurrentProvider = null;
-
-			BindAllProviders(mRebindAllProviders);
-			mRebindAllProviders = false;
-		}
-
-		private void OnCurrentProviderAuthFail(string error_code)
-		{
-			DebugLogger.Log("[SnipeAuthCommunicator] OnCurrentProviderAuthFail (" + (mCurrentProvider != null ? mCurrentProvider.ProviderId : "null") + ") error_code: " + error_code);
-
-			mRebindAllProviders = false;
-
-			if (mCurrentProvider is DefaultAuthProvider)
+			if (user_id != 0)
 			{
-				if (error_code == SnipeErrorCodes.NOT_INITIALIZED || error_code == SnipeErrorCodes.NO_SUCH_USER)
-				{
-					RequestRegister();
-				}
-				else
-				{
-					InvokeAuthFailCallback();
-				}
+				UserID = user_id;
+
+				InvokeAuthSuccessCallback(user_id);
+
+				mCurrentProvider?.Dispose();
+				mCurrentProvider = null;
+
+				BindAllProviders(mRebindAllProviders);
+				mRebindAllProviders = false;
 			}
-			else  // try next provider
+			else
 			{
-				if (mCurrentProvider != null)
-					mCurrentProvider.Dispose();
+				DebugLogger.Log("[SnipeAuthCommunicator] OnCurrentProviderAuthFail (" + (mCurrentProvider != null ? mCurrentProvider.ProviderId : "null") + ") error_code: " + error_code);
 
-				SwitchToNextAuthProvider();
-				bool reset_auth = !(mCurrentProvider is DefaultAuthProvider) || string.IsNullOrEmpty(PlayerPrefs.GetString(SnipePrefs.AUTH_KEY));
-				mCurrentProvider.RequestAuth(OnCurrentProviderAuthSuccess, OnCurrentProviderAuthFail, reset_auth);
+				mRebindAllProviders = false;
+
+				if (mCurrentProvider is DefaultAuthProvider)
+				{
+					if (error_code == SnipeErrorCodes.NOT_INITIALIZED || error_code == SnipeErrorCodes.NO_SUCH_USER)
+					{
+						RequestRegister();
+					}
+					else
+					{
+						InvokeAuthFailCallback(error_code);
+					}
+				}
+				else  // try next provider
+				{
+					if (mCurrentProvider != null)
+						mCurrentProvider.Dispose();
+
+					SwitchToNextAuthProvider();
+					CurrentProviderRequestAuth();
+				}
 			}
 		}
 
-		private void InvokeAuthSuccessCallback()
+		private void InvokeAuthSuccessCallback(int user_id)
 		{
-			if (mAuthSucceededCallback != null)
-				mAuthSucceededCallback.Invoke();
-
-			mAuthSucceededCallback = null;
-			mAuthFailedCallback = null;
+			mAuthResultCallback?.Invoke(SnipeErrorCodes.OK, user_id);
+			mAuthResultCallback = null;
 		}
 
-		private void InvokeAuthFailCallback()
+		private void InvokeAuthFailCallback(string error_code)
 		{
-			if (mAuthFailedCallback != null)
-				mAuthFailedCallback.Invoke();
-
-			mAuthSucceededCallback = null;
-			mAuthFailedCallback = null;
+			mAuthResultCallback?.Invoke(error_code, 0);
+			mAuthResultCallback = null;
 
 			mCurrentProvider?.Dispose();
 			mCurrentProvider = null;
@@ -483,79 +415,46 @@ namespace MiniIT.Snipe
 
 		private void RequestRegister()
 		{
-			SnipeObject data = new SnipeObject();
-			data["messageType"] = SnipeMessageTypes.AUTH_USER_REGISTER;
-
-			if (SystemInfo.unsupportedIdentifier != SystemInfo.deviceUniqueIdentifier)
-				data["name"] = SystemInfo.deviceUniqueIdentifier; // optional
-
-			SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, data, (response) =>
-			{
-				int user_id = 0;
-
-				string error_code = response?.SafeGetString("errorCode");
-				if (error_code == "ok")
+			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_REGISTER)?.RequestAuth(null,
+				(error_code, response) =>
 				{
-					JustRegistered = true;
-
-					string auth_login = response.SafeGetString("uid");
-					string auth_token = response.SafeGetString("password");
-
-					PlayerPrefs.SetString(SnipePrefs.AUTH_UID, auth_login);
-					PlayerPrefs.SetString(SnipePrefs.AUTH_KEY, auth_token);
-
-					user_id = response.SafeGetValue<int>("id");
+					int user_id = 0;
 					
-					Analytics.SetUserId(user_id.ToString());
-					Analytics.TrackEvent(Analytics.EVENT_ACCOUNT_REGISTERED, new SnipeObject()
+					if (error_code == "ok")
 					{
-						["user_id"] = user_id,
-					});
+						JustRegistered = true;
 
-					SwitchToDefaultAuthProvider();
-					mCurrentProvider.RequestAuth(OnCurrentProviderAuthSuccess, OnCurrentProviderAuthFail);
+						string auth_login = response.SafeGetString("uid");
+						string auth_token = response.SafeGetString("password");
 
-					BindAllProviders(false);
-				}
-				else
-				{
-					Analytics.TrackEvent(Analytics.EVENT_ACCOUNT_REGISTERATION_FAILED, new SnipeObject()
+						PlayerPrefs.SetString(SnipePrefs.AUTH_UID, auth_login);
+						PlayerPrefs.SetString(SnipePrefs.AUTH_KEY, auth_token);
+
+						user_id = response.SafeGetValue<int>("id");
+						
+						Analytics.SetUserId(user_id.ToString());
+						Analytics.TrackEvent(Analytics.EVENT_ACCOUNT_REGISTERED, new SnipeObject()
+						{
+							["user_id"] = user_id,
+						});
+
+						SwitchToDefaultAuthProvider();
+						mCurrentProvider.RequestAuth(OnCurrentProviderAuthResult);
+
+						BindAllProviders(false);
+					}
+					else
 					{
-						["error_code"] = error_code,
-					});
-					
-					InvokeAuthFailCallback();
-				}
+						Analytics.TrackEvent(Analytics.EVENT_ACCOUNT_REGISTERATION_FAILED, new SnipeObject()
+						{
+							["error_code"] = error_code,
+						});
+						
+						InvokeAuthFailCallback(error_code);
+					}
 
-				AccountRegisterResponded?.Invoke(error_code, user_id);
-			});
-		}
-
-		private void ResetCheckLoginTokenExpiryCoroutine()
-		{
-			if (mCheckLoginTokenExpiryCoroutine != null)
-				StopCoroutine(mCheckLoginTokenExpiryCoroutine);
-
-			mCheckLoginTokenExpiryCoroutine = StartCoroutine(CheckLoginTokenExpiryCoroutine());
-		}
-
-		private IEnumerator CheckLoginTokenExpiryCoroutine()
-		{
-			mLoginTokenExpiry = Time.realtimeSinceStartup + LOGING_TOKEN_REFRESH_TIMEOUT;
-			while (mLoginTokenExpiry > Time.realtimeSinceStartup)
-				yield return null;
-
-			mCheckLoginTokenExpiryCoroutine = null;
-			RefreshLoginToken();
-		}
-
-		private void RefreshLoginToken()
-		{
-			if (mAuthSucceededCallback != null)
-				return;
-
-			SwitchToDefaultAuthProvider();
-			mCurrentProvider.RequestAuth(OnCurrentProviderAuthSuccess, OnCurrentProviderAuthFail);
+					AccountRegisterResponse?.Invoke(error_code, user_id);
+				});
 		}
 	}
 }

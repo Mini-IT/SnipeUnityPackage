@@ -25,19 +25,23 @@ namespace MiniIT.Snipe
 		public event LoginSucceededHandler LoginSucceeded;
 		public event MessageReceivedHandler MessageReceived;
 		public event PreDestroyHandler PreDestroy;
+		
+		public SnipeAuthCommunicator Auth { get; private set; }
 
 		public string UserName { get; private set; }
-		public string ConnectionId { get { return mClient?.ConnectionId; } }
-		public TimeSpan ServerReaction { get { return mClient?.ServerReaction ?? new TimeSpan(0); } }
-		public TimeSpan CurrentRequestElapsed { get { return mClient?.CurrentRequestElapsed ?? new TimeSpan(0); } }
+		public string ConnectionId { get { return Client?.ConnectionId; } }
+		public TimeSpan ServerReaction { get { return Client?.ServerReaction ?? new TimeSpan(0); } }
+		public TimeSpan CurrentRequestElapsed { get { return Client?.CurrentRequestElapsed ?? new TimeSpan(0); } }
 
-		private SnipeServiceClient mClient;
+		internal SnipeClient Client { get; private set; }
 
 		public int RestoreConnectionAttempts = 10;
 		private int mRestoreConnectionAttempt;
 		
 		public bool AllowRequestsToWaitForLogin = true;
 		public bool KeepOfflineRequests = false; // works only if AllowRequestsToWaitForLogin == false
+		
+		private bool mAutoLogin = true;
 		
 		private List<SnipeCommunicatorRequest> mRequests;
 		public List<SnipeCommunicatorRequest> Requests
@@ -54,19 +58,19 @@ namespace MiniIT.Snipe
 		{
 			get
 			{
-				return mClient != null && mClient.Connected;
+				return Client != null && Client.Connected;
 			}
 		}
 
 		public bool LoggedIn
 		{
-			get { return mClient != null && mClient.LoggedIn; }
+			get { return Client != null && Client.LoggedIn; }
 		}
 		
 		private bool? mRoomJoined = null;
 		public bool? RoomJoined
 		{
-			get { return (mClient != null && mClient.LoggedIn) ? mRoomJoined : null; }
+			get { return (Client != null && Client.LoggedIn) ? mRoomJoined : null; }
 		}
 
 		private bool mDisconnecting = false;
@@ -84,12 +88,18 @@ namespace MiniIT.Snipe
 					var game_object = new GameObject("[SnipeCommunicator]");
 					//game_object.hideFlags = HideFlags.HideAndDontSave;
 					mInstance = game_object.AddComponent<SnipeCommunicator>();
+					mInstance.Auth = new SnipeAuthCommunicator();
 					DontDestroyOnLoad(game_object);
 					
 					DebugLogger.InitInstance();
 				}
 				return mInstance;
 			}
+		}
+		
+		public static bool InstanceInitialized
+		{
+			get => mInstance != null;
 		}
 		
 		public static void DestroyInstance()
@@ -115,59 +125,17 @@ namespace MiniIT.Snipe
 		/// <summary>
 		/// Should be called from the main Unity thread
 		/// </summary>
-		public void StartCommunicator()
+		public void StartCommunicator(bool autologin = true)
 		{
 			if (MainThreadLoopCoroutine == null)
 			{
 				MainThreadLoopCoroutine = StartCoroutine(MainThreadLoop());
 			}
 			
-			if (CheckLoginParams())
-			{
-				InitClient();
-			}
-			else
-			{
-				Authorize();
-			}
-		}
-
-		private bool CheckLoginParams()
-		{
-			if (SnipeAuthCommunicator.UserID != 0 && !string.IsNullOrEmpty(SnipeAuthCommunicator.LoginToken))
-			{
-				// TODO: check token expiry
-				return true;
-			}
-
-			return false;
-		}
-
-		private void Authorize()
-		{
-			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Authorize");
-
-			SnipeAuthCommunicator.Authorize(OnAuthSucceeded, OnAuthFailed);
-		}
-
-		private void OnAuthSucceeded()
-		{
+			mAutoLogin = autologin;
 			InitClient();
 		}
-
-		private void OnAuthFailed()
-		{
-			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) OnAuthFailed");
-
-			if (ConnectionFailed != null)
-			{
-				InvokeInMainThread(() =>
-				{
-					ConnectionFailed?.Invoke(false);
-				});
-			}
-		}
-
+		
 		private void InitClient()
 		{
 			if (LoggedIn)
@@ -176,20 +144,20 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			if (mClient == null)
+			if (Client == null)
 			{
-				mClient = new SnipeServiceClient();
-				mClient.ConnectionOpened += OnClientConnectionSucceeded;
-				mClient.ConnectionClosed += OnClientConnectionFailed;
-				mClient.MessageReceived += OnMessageReceived;
+				Client = new SnipeClient();
+				Client.ConnectionOpened += OnClientConnectionOpened;
+				Client.ConnectionClosed += OnClientConnectionClosed;
+				Client.MessageReceived += OnMessageReceived;
 			}
 
-			lock (mClient)
+			lock (Client)
 			{
-				if (!mClient.Connected)
+				if (!Client.Connected)
 				{
 					mDisconnecting = false;
-					mClient.Connect();
+					Client.Connect();
 				}
 			}
 			
@@ -199,6 +167,34 @@ namespace MiniIT.Snipe
 			});
 		}
 
+		public void Authorize()
+		{
+			if (!Connected || LoggedIn)
+				return;
+			
+			InvokeInMainThread(() =>
+			{
+				DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Authorize");
+				Auth.Authorize(OnAuthResult);
+			});
+		}
+
+		private void OnAuthResult(string error_code, int user_id)
+		{
+			if (user_id != 0)  // authorization succeeded
+				return;
+
+			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) OnAuthResult - authorization failed");
+
+			if (ConnectionFailed != null)
+			{
+				InvokeInMainThread(() =>
+				{
+					ConnectionFailed?.Invoke(false);
+				});
+			}
+		}
+		
 		public void Disconnect()
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) {this.name} Disconnect");
@@ -207,8 +203,8 @@ namespace MiniIT.Snipe
 			mDisconnecting = true;
 			UserName = "";
 
-			if (mClient != null)
-				mClient.Disconnect();
+			if (Client != null)
+				Client.Disconnect();
 		}
 
 		private void OnDestroy()
@@ -232,22 +228,27 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception) { }
 
-			if (mClient != null)
+			if (Client != null)
 			{
-				mClient.ConnectionOpened -= OnClientConnectionSucceeded;
-				mClient.ConnectionClosed -= OnClientConnectionFailed;
-				mClient.MessageReceived -= OnMessageReceived;
-				mClient.Disconnect();
-				mClient = null;
+				Client.ConnectionOpened -= OnClientConnectionOpened;
+				Client.ConnectionClosed -= OnClientConnectionClosed;
+				Client.MessageReceived -= OnMessageReceived;
+				Client.Disconnect();
+				Client = null;
 			}
 		}
 		
-		private void OnClientConnectionSucceeded()
+		private void OnClientConnectionOpened()
 		{
-			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Connection succeeded");
+			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Client connection opened");
 
 			mRestoreConnectionAttempt = 0;
 			mDisconnecting = false;
+			
+			if (mAutoLogin)
+			{
+				Authorize();
+			}
 
 			InvokeInMainThread(() =>
 			{
@@ -256,9 +257,9 @@ namespace MiniIT.Snipe
 			});
 		}
 		
-		private void OnClientConnectionFailed()
+		private void OnClientConnectionClosed()
 		{
-			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) [{mClient?.ConnectionId}] Game Connection failed");
+			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) [{Client?.ConnectionId}] Client connection closed");
 			
 			mRoomJoined = null;
 
@@ -292,13 +293,14 @@ namespace MiniIT.Snipe
 
 		private void OnMessageReceived(string message_type, string error_code, SnipeObject data, int request_id)
 		{
-			// DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) [{mClient?.ConnectionId}] OnMessageReceived {request_id} {message_type} {error_code} " + (data != null ? data.ToJSONString() : "null"));
+			// DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) [{Client?.ConnectionId}] OnMessageReceived {request_id} {message_type} {error_code} " + (data != null ? data.ToJSONString() : "null"));
 
 			if (message_type == SnipeMessageTypes.USER_LOGIN)
 			{
 				if (error_code == SnipeErrorCodes.OK)
 				{
 					UserName = data.SafeGetString("name");
+					mAutoLogin = true;
 
 					if (LoginSucceeded != null)
 					{
@@ -397,15 +399,7 @@ namespace MiniIT.Snipe
 		{
 			CreateRequest(message_type, parameters).Request();
 		}
-
-		internal int Request(SnipeCommunicatorRequest request)
-		{
-			if (!LoggedIn || request == null)
-				return 0;
-
-			return mClient.SendRequest(request.MessageType, request.Data);
-		}
-
+		
 		public SnipeCommunicatorRequest CreateRequest(string message_type = null, SnipeObject parameters = null)
 		{
 			var request = new SnipeCommunicatorRequest(this, message_type);
@@ -480,7 +474,7 @@ namespace MiniIT.Snipe
 		
 		public void RequestActionRun(string action_id, SnipeObject parameters = null)
 		{
-			if (mClient == null || !mClient.LoggedIn)
+			if (Client == null || !Client.LoggedIn)
 				return;
 			
 			CreateActionRunRequest(action_id, parameters).Request();
@@ -550,9 +544,9 @@ namespace MiniIT.Snipe
 			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_DISCONNECTED, new SnipeObject()
 			{
 				//["communicator"] = this.name,
-				["connection_id"] = mClient?.ConnectionId,
-				//["disconnect_reason"] = mClient?.DisconnectReason,
-				//["check_connection_message"] = mClient?.CheckConnectionMessageType,
+				["connection_id"] = Client?.ConnectionId,
+				//["disconnect_reason"] = Client?.DisconnectReason,
+				//["check_connection_message"] = Client?.CheckConnectionMessageType,
 			});
 		}
 		

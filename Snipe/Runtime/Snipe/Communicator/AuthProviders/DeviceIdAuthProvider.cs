@@ -10,12 +10,11 @@ public class DeviceIdAuthProvider : BindProvider
 	public const string PROVIDER_ID = "dvid";
 	public override string ProviderId { get { return PROVIDER_ID; } }
 
-	public override void RequestAuth(AuthSuccessCallback success_callback, AuthFailCallback fail_callback, bool reset_auth = false)
+	public override void RequestAuth(AuthResultCallback callback = null, bool reset_auth = false)
 	{
 		DebugLogger.Log("[DeviceIdAuthProvider] RequestAuth");
 		
-		mAuthSuccessCallback = success_callback;
-		mAuthFailCallback = fail_callback;
+		mAuthResultCallback = callback;
 		
 		if (SystemInfo.unsupportedIdentifier != SystemInfo.deviceUniqueIdentifier)
 		{
@@ -54,7 +53,7 @@ public class DeviceIdAuthProvider : BindProvider
 			{
 				SnipeObject data = new SnipeObject()
 				{
-					["messageType"] = SnipeMessageTypes.AUTH_USER_BIND,
+					["ckey"] = SnipeConfig.Instance.ClientKey,
 					["provider"] = ProviderId,
 					["login"] = GetUserId(),
 					["loginInt"] = auth_login,
@@ -62,7 +61,7 @@ public class DeviceIdAuthProvider : BindProvider
 				};
 
 				DebugLogger.Log("[DeviceIdAuthProvider] send user.bind " + data.ToJSONString());
-				SingleRequestClient.Request(SnipeConfig.Instance.AuthWebsocketURL, data, OnBindResponse);
+				SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_BIND)?.RequestAuth(data, OnBindResponse);
 			}
 		}
 		else
@@ -71,22 +70,19 @@ public class DeviceIdAuthProvider : BindProvider
 		}
 	}
 
-	protected override void OnAuthLoginResponse(SnipeObject data)
+	protected override void OnAuthLoginResponse(string error_code, SnipeObject data)
 	{
-		base.OnAuthLoginResponse(data);
-
-		string error_code = data?.SafeGetString("errorCode");
+		base.OnAuthLoginResponse(error_code, data);
 
 		DebugLogger.Log($"[DeviceIdAuthProvider] {error_code}");
 
 		if (error_code == SnipeErrorCodes.OK)
 		{
 			int user_id = data.SafeGetValue<int>("id");
-			string login_token = data.SafeGetString("token");
 
 			IsBindDone = true;
 
-			InvokeAuthSuccessCallback(user_id, login_token);
+			InvokeAuthSuccessCallback(user_id);
 		}
 		else
 		{
