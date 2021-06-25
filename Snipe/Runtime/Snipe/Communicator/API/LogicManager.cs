@@ -148,7 +148,7 @@ namespace MiniIT.Snipe
 			mUpdateRequestedTime = current_time;
 			mUpdateRequested = true;
 
-			var request = SnipeApiBase.CreateRequest("logic.get2", new SnipeObject() { ["noDump"] = false });
+			var request = SnipeApiBase.CreateRequest("logic.get", new SnipeObject() { ["noDump"] = false });
 			request?.Request();
 		}
 
@@ -180,7 +180,7 @@ namespace MiniIT.Snipe
 		{
 			switch (message_type)
 			{
-				case "logic.get2":
+				case "logic.get":
 					OnLogicGet(error_code, data);
 					break;
 
