@@ -33,13 +33,6 @@ namespace MiniIT.Snipe
 		{
 			if (reset_auth)
 			{
-				SnipeObject data = new SnipeObject()
-				{
-					["ckey"] = SnipeConfig.Instance.ClientKey,
-					["provider"] = provider,
-					["login"] = login,
-					["auth"] = password,
-				};
 				ResetAuthAndLogin(data);
 			}
 			else
@@ -48,8 +41,16 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		private void ResetAuthAndLogin(SnipeObject data)
+		private void ResetAuthAndLogin(string provider, string login, string password)
 		{
+			SnipeObject data = new SnipeObject()
+			{
+				["ckey"] = SnipeConfig.Instance.ClientKey,
+				["provider"] = provider,
+				["login"] = login,
+				["auth"] = password,
+			};
+			
 			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_RESET)?.RequestAuth(data,
 				(string error_code, SnipeObject response_data) =>
 				{
