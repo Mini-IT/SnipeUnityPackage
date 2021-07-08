@@ -265,7 +265,7 @@ namespace MiniIT.Snipe
 
 			InvokeInMainThread(() =>
 			{
-				AnalyticsTrackConnectionFailed();
+				AnalyticsTrackConnectionFailed(Client?.ConnectionId);
 				OnConnectionFailed();
 			});
 		}
@@ -536,15 +536,16 @@ namespace MiniIT.Snipe
 			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_CONNECTED, new SnipeObject()
 			{
 				["connection_type"] = "websocket",
+				["connection_id"] = Client?.ConnectionId,
 			});
 		}
 		
-		private void AnalyticsTrackConnectionFailed()
+		private void AnalyticsTrackConnectionFailed(string? connection_id)
 		{
 			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_DISCONNECTED, new SnipeObject()
 			{
 				//["communicator"] = this.name,
-				["connection_id"] = Client?.ConnectionId,
+				["connection_id"] = connection_id,
 				//["disconnect_reason"] = Client?.DisconnectReason,
 				//["check_connection_message"] = Client?.CheckConnectionMessageType,
 			});
