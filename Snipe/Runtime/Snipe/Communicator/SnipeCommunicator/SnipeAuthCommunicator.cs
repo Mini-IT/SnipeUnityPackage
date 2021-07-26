@@ -224,11 +224,12 @@ namespace MiniIT.Snipe
 		}
 
 		/// <summary>
-		/// Clear all auth data an authorize using specified <c>AuthProvider</c>.
+		/// Clear all auth data and authorize using specified <c>AuthProvider</c>.
 		/// </summary>
 		public void ClearAuthDataAndSetCurrentProvider(AuthProvider provider)
 		{
 			PlayerPrefs.DeleteKey(SnipePrefs.LOGIN_USER_ID);
+			PlayerPrefs.DeleteKey(SnipePrefs.AUTH_KEY);
 			
 			foreach (BindProvider bind_provider in mAuthProviders)
 			{
@@ -314,7 +315,8 @@ namespace MiniIT.Snipe
 
 		private void CurrentProviderRequestAuth()
 		{
-			bool reset_auth = !(mCurrentProvider is DefaultAuthProvider) || string.IsNullOrEmpty(PlayerPrefs.GetString(SnipePrefs.AUTH_KEY));
+			bool reset_auth = //!(mCurrentProvider is DefaultAuthProvider) || 
+				string.IsNullOrEmpty(PlayerPrefs.GetString(SnipePrefs.AUTH_KEY));
 			mCurrentProvider.RequestAuth(OnCurrentProviderAuthResult, reset_auth);
 		}
 
