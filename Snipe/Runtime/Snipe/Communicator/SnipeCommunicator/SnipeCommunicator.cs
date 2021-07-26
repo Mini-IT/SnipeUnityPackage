@@ -40,6 +40,7 @@ namespace MiniIT.Snipe
 		
 		public bool AllowRequestsToWaitForLogin = true;
 		public bool KeepOfflineRequests = false; // works only if AllowRequestsToWaitForLogin == false
+		public bool ResendPendingRequestsAfterLogin = true;
 		
 		private bool mAutoLogin = true;
 		
@@ -190,7 +191,7 @@ namespace MiniIT.Snipe
 			{
 				InvokeInMainThread(() =>
 				{
-					ConnectionFailed?.Invoke(false);
+					RaiseEvent(ConnectionFailed, false);
 				});
 			}
 		}
@@ -224,7 +225,7 @@ namespace MiniIT.Snipe
 
 			try
 			{
-				PreDestroy?.Invoke();
+				RaiseEvent(PreDestroy);
 			}
 			catch (Exception) { }
 
@@ -253,7 +254,7 @@ namespace MiniIT.Snipe
 			InvokeInMainThread(() =>
 			{
 				AnalyticsTrackConnectionSucceeded();
-				ConnectionSucceeded?.Invoke();
+				RaiseEvent(ConnectionSucceeded);
 			});
 		}
 		
@@ -265,7 +266,7 @@ namespace MiniIT.Snipe
 
 			InvokeInMainThread(() =>
 			{
-				AnalyticsTrackConnectionFailed(Client?.ConnectionId);
+				AnalyticsTrackConnectionFailed();
 				OnConnectionFailed();
 			});
 		}
@@ -277,7 +278,7 @@ namespace MiniIT.Snipe
 
 			if (mRestoreConnectionAttempt < RestoreConnectionAttempts && !mDisconnecting)
 			{
-				ConnectionFailed?.Invoke(true);
+				RaiseEvent(ConnectionFailed, true);
 				
 				mRestoreConnectionAttempt++;
 				DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Attempt to restore connection {mRestoreConnectionAttempt}");
@@ -286,7 +287,7 @@ namespace MiniIT.Snipe
 			}
 			else if (ConnectionFailed != null)
 			{
-				ConnectionFailed?.Invoke(false);
+				RaiseEvent(ConnectionFailed, false);
 				DisposeRequests();
 			}
 		}
@@ -302,11 +303,14 @@ namespace MiniIT.Snipe
 					UserName = data.SafeGetString("name");
 					mAutoLogin = true;
 
-					if (LoginSucceeded != null)
+					if (LoginSucceeded != null || (ResendPendingRequestsAfterLogin && Requests != null && Requests.Count > 0))
 					{
 						InvokeInMainThread(() =>
 						{
-							LoginSucceeded?.Invoke();
+							RaiseEvent(LoginSucceeded);
+							
+							if (ResendPendingRequestsAfterLogin)
+								ResendOfflineRequests();
 						});
 					}
 				}
@@ -341,7 +345,7 @@ namespace MiniIT.Snipe
 			{
 				InvokeInMainThread(() =>
 				{
-					MessageReceived?.Invoke(message_type, error_code, data, request_id);
+					RaiseEvent(MessageReceived, message_type, error_code, data, request_id);
 				});
 			}
 			
@@ -385,6 +389,33 @@ namespace MiniIT.Snipe
 		}
 
 		#endregion // Main Thread
+		
+		#region Safe events raising
+		
+		// https://www.codeproject.com/Articles/36760/C-events-fundamentals-and-exception-handling-in-mu#exceptions
+		
+		private void RaiseEvent(Delegate event_delegate, params object[] args)
+		{
+			if (event_delegate != null)
+			{
+				foreach (Delegate handler in event_delegate.GetInvocationList())
+				{
+					if (handler == null)
+						continue;
+					
+					try
+					{
+						handler.DynamicInvoke(args);
+					}
+					catch (Exception e)
+					{
+						DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) RaiseEvent - Error in the handler {handler?.Method?.Name}: {e.Message}");
+					}
+				}
+			}
+		}
+		
+		#endregion
 
 		private IEnumerator WaitAndInitClient()
 		{
@@ -508,7 +539,7 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		private void DisposeRequests()
+		public void DisposeRequests()
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) DisposeRequests");
 			
@@ -520,7 +551,6 @@ namespace MiniIT.Snipe
 				{
 					request?.Dispose();
 				}
-				//temp_requests.Clear();
 			}
 		}
 		
@@ -536,16 +566,15 @@ namespace MiniIT.Snipe
 			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_CONNECTED, new SnipeObject()
 			{
 				["connection_type"] = "websocket",
-				["connection_id"] = Client?.ConnectionId,
 			});
 		}
 		
-		private void AnalyticsTrackConnectionFailed(string? connection_id)
+		private void AnalyticsTrackConnectionFailed()
 		{
 			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_DISCONNECTED, new SnipeObject()
 			{
 				//["communicator"] = this.name,
-				["connection_id"] = connection_id,
+				["connection_id"] = Client?.ConnectionId,
 				//["disconnect_reason"] = Client?.DisconnectReason,
 				//["check_connection_message"] = Client?.CheckConnectionMessageType,
 			});
