@@ -33,7 +33,7 @@ namespace MiniIT.Snipe
 		{
 			if (reset_auth)
 			{
-				ResetAuthAndLogin(data);
+				ResetAuthAndLogin(provider, login, password);
 			}
 			else
 			{
