@@ -202,7 +202,12 @@ namespace MiniIT.Snipe
 		public void Authorize(AuthResultCallback callback = null)
 		{
 			if (mCurrentProvider == null)
-				SwitchToNextAuthProvider();
+			{
+				if (string.IsNullOrEmpty(PlayerPrefs.GetString(SnipePrefs.AUTH_KEY))
+					SwitchToDefaultProvider();
+				else
+					SwitchToNextAuthProvider();
+			}
 
 			AuthorizeWithCurrentProvider(callback);
 		}
@@ -229,6 +234,7 @@ namespace MiniIT.Snipe
 		public void ClearAuthDataAndSetCurrentProvider(AuthProvider provider)
 		{
 			PlayerPrefs.DeleteKey(SnipePrefs.LOGIN_USER_ID);
+			PlayerPrefs.DeleteKey(SnipePrefs.AUTH_UID);
 			PlayerPrefs.DeleteKey(SnipePrefs.AUTH_KEY);
 			
 			foreach (BindProvider bind_provider in mAuthProviders)
@@ -315,8 +321,7 @@ namespace MiniIT.Snipe
 
 		private void CurrentProviderRequestAuth()
 		{
-			bool reset_auth = //!(mCurrentProvider is DefaultAuthProvider) || 
-				string.IsNullOrEmpty(PlayerPrefs.GetString(SnipePrefs.AUTH_KEY));
+			bool reset_auth = !(mCurrentProvider is DefaultAuthProvider) || string.IsNullOrEmpty(PlayerPrefs.GetString(SnipePrefs.AUTH_KEY));
 			mCurrentProvider.RequestAuth(OnCurrentProviderAuthResult, reset_auth);
 		}
 
