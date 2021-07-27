@@ -203,7 +203,7 @@ namespace MiniIT.Snipe
 		{
 			if (mCurrentProvider == null)
 			{
-				if (string.IsNullOrEmpty(PlayerPrefs.GetString(SnipePrefs.AUTH_KEY))
+				if (string.IsNullOrEmpty(PlayerPrefs.GetString(SnipePrefs.AUTH_KEY)))
 					SwitchToDefaultProvider();
 				else
 					SwitchToNextAuthProvider();
