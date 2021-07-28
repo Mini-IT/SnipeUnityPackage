@@ -62,7 +62,7 @@ namespace MiniIT.Snipe
 			if (mWebSocket != null)  // already connected or trying to connect
 				return;
 
-			Disconnect(); // clean up
+			Disconnect(false); // clean up
 
 			string url = SnipeConfig.Instance.ServiceWebsocketURL;
 
@@ -93,8 +93,11 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log("[SnipeClient] OnWebSocketClosed");
 
-			Disconnect();
+			Disconnect(true);
+		}
 
+		private void RaiseConnectionClosedEvent()
+		{
 			try
 			{
 				ConnectionClosed?.Invoke();
@@ -106,6 +109,11 @@ namespace MiniIT.Snipe
 		}
 
 		public void Disconnect()
+		{
+			Disconnect(true);
+		}
+
+		private void Disconnect(bool raise_event)
 		{
 			mLoggedIn = false;
 			ConnectionId = "";
@@ -120,6 +128,11 @@ namespace MiniIT.Snipe
 				mWebSocket.ProcessMessage -= ProcessMessage;
 				mWebSocket.Disconnect();
 				mWebSocket = null;
+			}
+
+			if (raise_event)
+			{
+				RaiseConnectionClosedEvent();
 			}
 		}
 
