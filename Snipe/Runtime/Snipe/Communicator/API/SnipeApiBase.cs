@@ -7,7 +7,7 @@ namespace MiniIT.Snipe
 	{
 		public static SnipeCommunicatorRequest CreateRequest(string message_type, SnipeObject data)
 		{
-			if (SnipeCommunicator.Instance.LoggedIn || SnipeCommunicator.Instance.AllowRequestsToWaitForLogin || SnipeCommunicator.Instance.KeepOfflineRequests)
+			if (SnipeCommunicator.Instance.LoggedIn || SnipeCommunicator.Instance.AllowRequestsToWaitForLogin)
 			{
 				return SnipeCommunicator.Instance.CreateRequest(message_type, data);
 			}

@@ -39,8 +39,6 @@ namespace MiniIT.Snipe
 		private int mRestoreConnectionAttempt;
 		
 		public bool AllowRequestsToWaitForLogin = true;
-		public bool KeepOfflineRequests = false; // works only if AllowRequestsToWaitForLogin == false
-		public bool ResendPendingRequestsAfterLogin = true;
 		
 		private bool mAutoLogin = true;
 		
@@ -303,14 +301,11 @@ namespace MiniIT.Snipe
 					UserName = data.SafeGetString("name");
 					mAutoLogin = true;
 
-					if (LoginSucceeded != null || (ResendPendingRequestsAfterLogin && Requests != null && Requests.Count > 0))
+					if (LoginSucceeded != null)
 					{
 						InvokeInMainThread(() =>
 						{
 							RaiseEvent(LoginSucceeded);
-							
-							if (ResendPendingRequestsAfterLogin)
-								ResendOfflineRequests();
 						});
 					}
 				}
@@ -436,45 +431,6 @@ namespace MiniIT.Snipe
 			var request = new SnipeCommunicatorRequest(this, message_type);
 			request.Data = parameters;
 			return request;
-		}
-		
-		public void ResendOfflineRequests()
-		{
-			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) ResendOfflineRequests - begin");
-			
-			foreach (var request in Requests)
-			{
-				if (request != null && !request.Active)
-				{
-					request.ResendInactive();
-				}
-			}
-			
-			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) ResendOfflineRequests - done");
-		}
-		
-		public void DisposeOfflineRequests()
-		{
-			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) DisposeOfflineRequests");
-			
-			List<SnipeCommunicatorRequest> inactive_requests = null;
-			foreach (var request in Requests)
-			{
-				if (request != null && !request.Active)
-				{
-					if (inactive_requests == null)
-						inactive_requests = new List<SnipeCommunicatorRequest>();
-					
-					inactive_requests.Add(request);
-				}
-			}
-			if (inactive_requests != null)
-			{
-				foreach (var request in inactive_requests)
-				{
-					request?.Dispose();
-				}
-			}
 		}
 		
 		public void DisposeRoomRequests()

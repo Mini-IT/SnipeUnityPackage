@@ -11,7 +11,6 @@ namespace MiniIT.Snipe
 		
 		private static readonly SnipeObject EMPTY_DATA = new SnipeObject();
 		
-		public bool Active { get; private set; } = true;
 		public string MessageType { get; private set; }
 		public SnipeObject Data { get; set; }
 		
@@ -60,16 +59,6 @@ namespace MiniIT.Snipe
 			mAuthorization = true;
 			Data = data;
 			Request(callback);
-		}
-		
-		internal void ResendInactive()
-		{
-			if (!Active)
-			{
-				Active = true;
-				mSent = false;
-				SendRequest();
-			}
 		}
 		
 		private void SendRequest()
@@ -170,24 +159,22 @@ namespace MiniIT.Snipe
 			if (will_rety)
 			{
 				mWaitingForResponse = false;
+
+				mCommunicator.ConnectionSucceeded -= OnCommunicatorReady;
+				mCommunicator.LoginSucceeded -= OnCommunicatorReady;
 				mCommunicator.MessageReceived -= OnMessageReceived;
 				
 				if (mAuthorization)
 				{
 					DebugLogger.Log($"[SnipeCommunicatorRequest] Waiting for connection - {MessageType}");
-					mCommunicator.ConnectionSucceeded -= OnCommunicatorReady;
+					
 					mCommunicator.ConnectionSucceeded += OnCommunicatorReady;
 				}
 				else if (mCommunicator.AllowRequestsToWaitForLogin)
 				{
 					DebugLogger.Log($"[SnipeCommunicatorRequest] Waiting for login - {MessageType} - {Data?.ToJSONString()}");
 					
-					mCommunicator.LoginSucceeded -= OnCommunicatorReady;
 					mCommunicator.LoginSucceeded += OnCommunicatorReady;
-				}
-				else if (mCommunicator.KeepOfflineRequests)
-				{
-					Active = false;
 				}
 				else
 				{
