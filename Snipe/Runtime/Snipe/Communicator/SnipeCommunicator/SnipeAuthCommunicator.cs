@@ -202,7 +202,12 @@ namespace MiniIT.Snipe
 		public void Authorize(AuthResultCallback callback = null)
 		{
 			if (mCurrentProvider == null)
-				SwitchToNextAuthProvider();
+			{
+				if (!string.IsNullOrEmpty(PlayerPrefs.GetString(SnipePrefs.AUTH_KEY)))
+					SwitchToDefaultProvider();
+				else
+					SwitchToNextAuthProvider();
+			}
 
 			AuthorizeWithCurrentProvider(callback);
 		}
@@ -224,11 +229,13 @@ namespace MiniIT.Snipe
 		}
 
 		/// <summary>
-		/// Clear all auth data an authorize using specified <c>AuthProvider</c>.
+		/// Clear all auth data and authorize using specified <c>AuthProvider</c>.
 		/// </summary>
 		public void ClearAuthDataAndSetCurrentProvider(AuthProvider provider)
 		{
 			PlayerPrefs.DeleteKey(SnipePrefs.LOGIN_USER_ID);
+			PlayerPrefs.DeleteKey(SnipePrefs.AUTH_UID);
+			PlayerPrefs.DeleteKey(SnipePrefs.AUTH_KEY);
 			
 			foreach (BindProvider bind_provider in mAuthProviders)
 			{
@@ -329,8 +336,6 @@ namespace MiniIT.Snipe
 				if (prev_provider != null)
 				{
 					next_index = mAuthProviders.IndexOf(prev_provider) + 1;
-					if (next_index < 0)
-						next_index = 0;
 				}
 
 				if (mAuthProviders.Count > next_index)
@@ -375,8 +380,16 @@ namespace MiniIT.Snipe
 				DebugLogger.Log("[SnipeAuthCommunicator] OnCurrentProviderAuthFail (" + (mCurrentProvider != null ? mCurrentProvider.ProviderId : "null") + ") error_code: " + error_code);
 
 				mRebindAllProviders = false;
+				
+				if (mAuthProviders != null && mAuthProviders.Count > mAuthProviders.IndexOf(mCurrentProvider) + 1)
+				{
+					// try next provider
+					mCurrentProvider?.Dispose();
 
-				if (mCurrentProvider is DefaultAuthProvider)
+					SwitchToNextAuthProvider();
+					CurrentProviderRequestAuth();
+				}
+				else // all providers failed
 				{
 					if (error_code == SnipeErrorCodes.NOT_INITIALIZED || error_code == SnipeErrorCodes.NO_SUCH_USER)
 					{
@@ -386,14 +399,6 @@ namespace MiniIT.Snipe
 					{
 						InvokeAuthFailCallback(error_code);
 					}
-				}
-				else  // try next provider
-				{
-					if (mCurrentProvider != null)
-						mCurrentProvider.Dispose();
-
-					SwitchToNextAuthProvider();
-					CurrentProviderRequestAuth();
 				}
 			}
 		}
