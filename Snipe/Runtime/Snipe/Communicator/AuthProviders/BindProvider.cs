@@ -113,7 +113,7 @@ namespace MiniIT.Snipe
 			
 			bool is_me = data.SafeGetValue("isSame", false);
 			if (AccountExists == true && is_me)
-				IsBindDone = true;
+				IsBindDone = SnipeCommunicator.Instance.LoggedIn;
 
 			if (mCheckAuthExistsCallback != null)
 			{
@@ -121,7 +121,7 @@ namespace MiniIT.Snipe
 				mCheckAuthExistsCallback = null;
 			}
 
-			if (AccountExists.HasValue)
+			if (AccountExists.HasValue && SnipeCommunicator.Instance.LoggedIn)
 			{
 				if (AccountExists == false)
 				{
