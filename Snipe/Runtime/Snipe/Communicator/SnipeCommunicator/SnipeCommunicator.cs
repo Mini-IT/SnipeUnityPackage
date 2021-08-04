@@ -196,7 +196,7 @@ namespace MiniIT.Snipe
 		
 		public void Disconnect()
 		{
-			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) {this.name} Disconnect");
+			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Disconnect");
 
 			mRoomJoined = null;
 			mDisconnecting = true;
