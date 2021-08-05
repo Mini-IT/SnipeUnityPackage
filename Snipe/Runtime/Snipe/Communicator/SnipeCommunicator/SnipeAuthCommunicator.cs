@@ -391,7 +391,9 @@ namespace MiniIT.Snipe
 				}
 				else // all providers failed
 				{
-					if (error_code == SnipeErrorCodes.NOT_INITIALIZED || error_code == SnipeErrorCodes.NO_SUCH_USER)
+					if (error_code == SnipeErrorCodes.NOT_INITIALIZED ||
+						error_code == SnipeErrorCodes.NO_SUCH_USER ||
+						error_code == SnipeErrorCodes.NO_SUCH_AUTH)
 					{
 						RequestRegister();
 					}
