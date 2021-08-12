@@ -159,9 +159,9 @@ namespace MiniIT.Snipe
 		{
 			if (mAuthProviders != null)
 			{
-				foreach (BindProvider provider in mAuthProviders)
+				foreach (var auth_provider in mAuthProviders)
 				{
-					if (provider != null && (force_all || provider.AccountExists == false))
+					if (auth_provider is BindProvider provider && (force_all || provider.AccountExists == false))
 					{
 						provider.RequestBind(single_bind_callback);
 					}
@@ -173,9 +173,9 @@ namespace MiniIT.Snipe
 		{
 			if (mAuthProviders != null)
 			{
-				foreach (BindProvider provider in mAuthProviders)
+				foreach (var auth_provider in mAuthProviders)
 				{
-					if (provider != null)
+					if (auth_provider is BindProvider provider)
 					{
 						PlayerPrefs.DeleteKey(provider.BindDonePrefsKey);
 					}
@@ -237,9 +237,9 @@ namespace MiniIT.Snipe
 			PlayerPrefs.DeleteKey(SnipePrefs.AUTH_UID);
 			PlayerPrefs.DeleteKey(SnipePrefs.AUTH_KEY);
 			
-			foreach (BindProvider bind_provider in mAuthProviders)
+			foreach (var auth_provider in mAuthProviders)
 			{
-				if (bind_provider != null)
+				if (auth_provider is BindProvider bind_provider)
 				{
 					bind_provider.IsBindDone = false;
 				}
