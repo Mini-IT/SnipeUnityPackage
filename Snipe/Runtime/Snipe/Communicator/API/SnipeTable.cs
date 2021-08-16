@@ -62,6 +62,26 @@ namespace MiniIT.Snipe
 		
 		private CancellationTokenSource mLoadingCancellation;
 		
+		public ItemType this[int id]
+		{
+			get
+			{
+				TryGetValue(id, out var item)
+				return item;
+			}
+		}
+		
+		public bool TryGetValue(int id, out ItemType item)
+		{
+			if (Loaded && Items != null)
+			{
+				return Items.TryGetValue(id, out item);
+			}
+			
+			item = default;
+			return false;
+		}
+		
 		public async Task Load<WrapperType>(string table_name) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
 		{
 			if (string.IsNullOrEmpty(SnipeConfig.Instance.GetTablesPath()))
