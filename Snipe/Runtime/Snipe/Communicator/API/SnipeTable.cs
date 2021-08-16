@@ -66,7 +66,7 @@ namespace MiniIT.Snipe
 		{
 			get
 			{
-				TryGetValue(id, out var item)
+				TryGetValue(id, out var item);
 				return item;
 			}
 		}
