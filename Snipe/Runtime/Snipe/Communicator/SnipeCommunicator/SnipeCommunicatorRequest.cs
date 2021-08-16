@@ -103,7 +103,7 @@ namespace MiniIT.Snipe
 			mCommunicator.ConnectionFailed -= OnConnectionClosed;
 			mCommunicator.ConnectionFailed += OnConnectionClosed;
 			
-			if (mCallback != null || WaitingForRoomJoined || MessageType == SnipeMessageTypes.ROOM_LEAVE)
+			if ((mCallback != null || WaitingForRoomJoined) && MessageType != SnipeMessageTypes.ROOM_LEAVE)
 			{
 				mWaitingForResponse = true;
 				mCommunicator.MessageReceived -= OnMessageReceived;
