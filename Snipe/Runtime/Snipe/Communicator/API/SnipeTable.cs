@@ -115,6 +115,7 @@ namespace MiniIT.Snipe
 				
 				string version_file_path = Path.Combine(SnipeConfig.Instance.PersistentDataPath, VERSION_FILE_NAME);
 				
+				HttpClient loader = null;
 				for (int retries_count = 0; retries_count < 3; retries_count++)
 				{
 					string url = $"{SnipeConfig.Instance.GetTablesPath(true)}version.txt";
@@ -122,18 +123,22 @@ namespace MiniIT.Snipe
 				
 					try
 					{
-						var loader = new HttpClient();
+						loader = new HttpClient();
 						loader.Timeout = TimeSpan.FromSeconds(10);
 						
-						var content = await loader.GetStringAsync(url); // , cancellation_token);
-						mVersion = content.Trim();
-						
-						DebugLogger.Log($"[SnipeTable] LoadVersion done - {mVersion}");
-						
-						// save to file
-						File.WriteAllText(version_file_path, mVersion);
-						
-						break;
+						var load_task = loader.GetAsync(url); // , cancellation_token);
+						if (await Task.WhenAny(load_task, Task.Delay(10000)) == load_task && load_task.Result.IsSuccessStatusCode)
+						{
+							var content = await load_task.Result.Content.ReadAsStringAsync();
+							mVersion = content.Trim();
+							
+							DebugLogger.Log($"[SnipeTable] LoadVersion done - {mVersion}");
+							
+							// save to file
+							File.WriteAllText(version_file_path, mVersion);
+							
+							break;
+						}
 					}
 					// catch (TaskCanceledException)
 					// {
@@ -149,7 +154,19 @@ namespace MiniIT.Snipe
 						DebugLogger.Log($"[SnipeTable] LoadVersion - Exception: {e.Message}");
 					}
 					
+					if (loader != null)
+					{
+						loader.Dispose();
+						loader = null;
+					}
+					
 					await Task.Delay(100);
+					
+					if (cancellation_token.IsCancellationRequested)
+					{
+						DebugLogger.Log($"[SnipeTable] LoadVersion task canceled");
+						return;
+					}
 				}
 				
 				if (string.IsNullOrEmpty(mVersion))
