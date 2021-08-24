@@ -218,8 +218,21 @@ namespace MiniIT.Snipe
 		
 		private void InvokeCallback(string error_code, SnipeObject response_data)
 		{
-			mCallback?.Invoke(error_code, response_data);
+			var callback = mCallback;
+			
 			Dispose();
+			
+			if (callback != null)
+			{
+				try
+				{
+					callback.Invoke(error_code, response_data);
+				}
+				catch (Exception e)
+				{
+					DebugLogger.Log($"[SnipeCommunicatorRequest] {MessageType} Callback invokation error: {e.Message}");
+				}
+			}
 		}
 
 		public void Dispose()
