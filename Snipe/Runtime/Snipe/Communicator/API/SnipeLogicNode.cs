@@ -76,7 +76,7 @@ namespace MiniIT.Snipe
 					}
 
 					if (found)
-						break;
+						continue;
 
 					string var_type = data_var.SafeGetString("type");
 					if (!string.IsNullOrEmpty(var_type))
@@ -95,7 +95,7 @@ namespace MiniIT.Snipe
 
 								RefreshTimerVar(var_type, var_value);
 
-								found = true;
+								// found = true;
 								break;
 							}
 						}
