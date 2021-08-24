@@ -9,7 +9,7 @@ namespace MiniIT.Snipe
 	{
 		public static float UpdateMinTimeout = 30.0f; // seconds
 
-		public delegate void LogicUpdatedHandler(Dictionary<int, SnipeLogicNode> node);
+		public delegate void LogicUpdatedHandler(Dictionary<int, SnipeLogicNode> nodes);
 		public delegate void ExitNodeHandler(SnipeLogicNode node, List<object> results);
 
 		public event LogicUpdatedHandler LogicUpdated;
