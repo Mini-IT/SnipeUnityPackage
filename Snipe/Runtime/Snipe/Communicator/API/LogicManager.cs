@@ -79,22 +79,54 @@ namespace MiniIT.Snipe
 
 			return null;
 		}
+		
+		public SnipeLogicNode GetNodeByTreeId(int id)
+		{
+			if (Nodes != null)
+			{
+				foreach (var node in Nodes.Values)
+				{
+					if (node?.tree != null && node.tree.id == id)
+					{
+						return node;
+					}
+				}
+			}
 
-		//public SnipeLogicNode GetNodeByName(string name)
-		//{
-		//	if (Nodes != null)
-		//	{
-		//		foreach (var node in Nodes.Values)
-		//		{
-		//			if (node != null && node.name.Equals(name))
-		//			{
-		//				return node;
-		//			}
-		//		}
-		//	}
+			return null;
+		}
 
-		//	return null;
-		//}
+		public SnipeLogicNode GetNodeByName(string name)
+		{
+			if (Nodes != null)
+			{
+				foreach (var node in Nodes.Values)
+				{
+					if (string.Equals(node?.name, name, StringComparison.Ordinal))
+					{
+						return node;
+					}
+				}
+			}
+
+			return null;
+		}
+		
+		public SnipeLogicNode GetNodeByTreeStringID(string stringID)
+		{
+			if (Nodes != null)
+			{
+				foreach (var node in Nodes.Values)
+				{
+					if (string.Equals(node?.tree?.stringID, stringID, StringComparison.Ordinal))
+					{
+						return node;
+					}
+				}
+			}
+
+			return null;
+		}
 
 		public SnipeLogicNode GetNodeByTag(string tag)
 		{
