@@ -37,11 +37,6 @@ public static class SnipeConfig
 		else
 			ServerUrls.Clear();
 		
-		// "service_websocket" field for backward compatibility
-		var service_url = data.SafeGetString("service_websocket");
-		if (!string.IsNullOrEmpty(service_url))
-			ServerUrls.Add(service_url);
-		
 		if (data["server_urls"] is IList server_ulrs_list)
 		{
 			foreach (string url in server_ulrs_list)
@@ -51,6 +46,14 @@ public static class SnipeConfig
 					ServerUrls.Add(url);
 				}
 			}
+		}
+		
+		if (ServerUrls.Count < 1)
+		{
+			// "service_websocket" field for backward compatibility
+			var service_url = data.SafeGetString("service_websocket");
+			if (!string.IsNullOrEmpty(service_url))
+				ServerUrls.Add(service_url);
 		}
 		
  		if (TablesUrls == null)
