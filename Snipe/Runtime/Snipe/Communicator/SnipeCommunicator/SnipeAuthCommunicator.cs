@@ -261,7 +261,7 @@ namespace MiniIT.Snipe
 			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_RESTORE)?.RequestAuth(
 				new SnipeObject()
 				{
-					["ckey"] = SnipeConfig.Instance.ClientKey,
+					["ckey"] = SnipeConfig.ClientKey,
 					["token"] = token,
 				},
 				(error_code, response) =>

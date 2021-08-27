@@ -22,6 +22,7 @@ namespace MiniIT.Snipe
 		private const int HEARTBEAT_TASK_DELAY = 5000; //milliseconds
 		private const int CHECK_CONNECTION_TIMEOUT = 5000; // milliseconds
 
+		private bool mConnected = false;
 		protected bool mLoggedIn = false;
 
 		public bool Connected { get { return (mWebSocket != null && mWebSocket.Connected); } }
@@ -64,7 +65,7 @@ namespace MiniIT.Snipe
 
 			Disconnect(false); // clean up
 
-			string url = SnipeConfig.Instance.ServiceWebsocketURL;
+			string url = SnipeConfig.GetServerUrl();
 
 			DebugLogger.Log("[SnipeClient] WebSocket Connect to " + url);
 			
@@ -79,6 +80,8 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log("[SnipeClient] OnWebSocketConnected");
 			
+			mConnected = true;
+			
 			try
 			{
 				ConnectionOpened?.Invoke();
@@ -92,6 +95,11 @@ namespace MiniIT.Snipe
 		protected void OnWebSocketClosed()
 		{
 			DebugLogger.Log("[SnipeClient] OnWebSocketClosed");
+			
+			if (!mConnected) // failed to establish connection
+			{
+				SnipeConfig.NextServerUrl();
+			}
 
 			Disconnect(true);
 		}
@@ -115,6 +123,7 @@ namespace MiniIT.Snipe
 
 		private void Disconnect(bool raise_event)
 		{
+			mConnected = false;
 			mLoggedIn = false;
 			ConnectionId = "";
 			
@@ -146,7 +155,7 @@ namespace MiniIT.Snipe
 			if (!mLoggedIn)
 			{
 				var data = message["data"] as SnipeObject ?? new SnipeObject();
-				data["ckey"] = SnipeConfig.Instance.ClientKey;
+				data["ckey"] = SnipeConfig.ClientKey;
 				message["data"] = data;
 			}
 			
