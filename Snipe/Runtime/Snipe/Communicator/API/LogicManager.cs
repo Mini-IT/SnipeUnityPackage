@@ -20,7 +20,6 @@ namespace MiniIT.Snipe
 		private SnipeTable<SnipeTableLogicItem> mLogicTable = null;
 
 		private float mUpdateRequestedTime = 0.0f;
-		private bool mUpdateRequested = false;
 
 		private SnipeCommunicator mSnipeCommunicator;
 
@@ -167,9 +166,6 @@ namespace MiniIT.Snipe
 
 		public void RequestLogicGet(bool force = false)
 		{
-			if (mUpdateRequested)
-				return;
-
 			if (mLogicTable == null)
 				return;
 
@@ -178,7 +174,6 @@ namespace MiniIT.Snipe
 				return;
 
 			mUpdateRequestedTime = current_time;
-			mUpdateRequested = true;
 
 			var request = SnipeApiBase.CreateRequest("logic.get", new SnipeObject() { ["noDump"] = false });
 			request?.Request();
@@ -224,7 +219,7 @@ namespace MiniIT.Snipe
 
 		private void OnLogicGet(string error_code, SnipeObject response_data)
 		{
-			mUpdateRequested = false;
+			mUpdateRequestedTime = 0.0f; // reset timer
 			
 			if (mLogicTable == null || response_data == null)
 				return;
