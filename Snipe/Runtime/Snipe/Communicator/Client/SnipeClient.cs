@@ -187,7 +187,7 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		internal void DoSendRequest(SnipeObject message)
+		private void DoSendRequest(SnipeObject message)
 		{
 			if (!Connected || message == null)
 				return;
