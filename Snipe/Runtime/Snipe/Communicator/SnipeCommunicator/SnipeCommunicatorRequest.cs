@@ -123,6 +123,7 @@ namespace MiniIT.Snipe
 			for (int i = 0; i < mCommunicator.Requests.Count; i++)
 			{
 				var request = mCommunicator.Requests[i];
+				
 				if (request != null && request != this &&
 					request.mAuthorization == this.mAuthorization &&
 					string.Equals(request.MessageType, this.MessageType, StringComparison.Ordinal) &&
@@ -136,6 +137,11 @@ namespace MiniIT.Snipe
 			if (mRequestId != 0)
 			{
 				DebugLogger.Log($"[SnipeCommunicatorRequest] DoSendRequest - Same request found: {MessageType}, id = {mRequestId}");
+				
+				if (!mWaitingForResponse)
+				{
+					Dispose();
+				}
 				return;
 			}
 			
@@ -150,7 +156,8 @@ namespace MiniIT.Snipe
 			}
 			else if (!mWaitingForResponse)
 			{
-				Dispose();
+				// keep this instance for a while to prevent duplicate requests
+				_ = DelayedDispose();
 			}
 		}
 
@@ -233,6 +240,12 @@ namespace MiniIT.Snipe
 					DebugLogger.Log($"[SnipeCommunicatorRequest] {MessageType} Callback invokation error: {e.Message}");
 				}
 			}
+		}
+		
+		private async Task DelayedDispose()
+		{
+			await Task.Yield();
+			Dispose();
 		}
 
 		public void Dispose()
