@@ -19,9 +19,10 @@ namespace MiniIT.Snipe
 		private Dictionary<string, SnipeLogicNode> mTaggedNodes;
 		private SnipeTable<SnipeTableLogicItem> mLogicTable = null;
 
-		private float mUpdateRequestedTime = 0.0f;
-
 		private SnipeCommunicator mSnipeCommunicator;
+		private float mUpdateRequestedTime = 0.0f;
+		private SnipeObject mLogicGetRequestParameters;
+		
 
 		private Timer mSecondsTimer;
 
@@ -174,8 +175,11 @@ namespace MiniIT.Snipe
 				return;
 
 			mUpdateRequestedTime = current_time;
+			
+			if (mLogicGetRequestParameters == null)
+				mLogicGetRequestParameters = new SnipeObject() { ["noDump"] = false };
 
-			var request = SnipeApiBase.CreateRequest("logic.get", new SnipeObject() { ["noDump"] = false });
+			var request = SnipeApiBase.CreateRequest("logic.get", mLogicGetRequestParameters);
 			request?.Request();
 		}
 
