@@ -218,6 +218,11 @@ namespace MiniIT.Snipe
 				case "logic.exitNode":
 					OnLogicExitNode(data);
 					break;
+					
+				case "logic.incVar"
+					// In case that incVar was requested outside LogicManager
+					mUpdateRequestedTime = 0.0f; // reset timer
+					break;
 			}
 		}
 
@@ -310,7 +315,8 @@ namespace MiniIT.Snipe
 					}
 				}
 
-				// Because of rounding sometimes messages may contain zero timer values.
+				// Highly unlikely but sometimes
+				// messages may contain zero timer values (because of rounding).
 				// In this case just request once more
 				if (timer_finished)
 				{
