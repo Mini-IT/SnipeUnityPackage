@@ -219,7 +219,7 @@ namespace MiniIT.Snipe
 					OnLogicExitNode(data);
 					break;
 					
-				case "logic.incVar"
+				case "logic.incVar":
 					// In case that incVar was requested outside LogicManager
 					mUpdateRequestedTime = 0.0f; // reset timer
 					break;
