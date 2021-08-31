@@ -220,8 +220,7 @@ namespace MiniIT.Snipe
 					break;
 					
 				case "logic.incVar":
-					// In case that incVar was requested outside LogicManager
-					mUpdateRequestedTime = 0.0f; // reset timer
+					RequestLogicGet(true);
 					break;
 			}
 		}
