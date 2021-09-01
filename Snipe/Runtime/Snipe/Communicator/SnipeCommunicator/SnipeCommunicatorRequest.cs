@@ -120,17 +120,35 @@ namespace MiniIT.Snipe
 		{
 			mRequestId = 0;
 			
-			for (int i = 0; i < mCommunicator.Requests.Count; i++)
+			bool check_duplication = !string.Equals(this.MessageType, SnipeMessageTypes.LOGIC_INC_VAR, StringComparison.Ordinal);
+			
+			if (check_duplication && mCommunicator.mDontMergeRequests != null)
 			{
-				var request = mCommunicator.Requests[i];
-				
-				if (request != null && request != this &&
-					request.mAuthorization == this.mAuthorization &&
-					string.Equals(request.MessageType, this.MessageType, StringComparison.Ordinal) &&
-					SnipeObject.ContentEquals(request.Data, this.Data))
+				for (int i = 0; i < mCommunicator.mDontMergeRequests.Count; i++)
 				{
-					mRequestId = request.mRequestId;
-					break;
+					string skip_message_type = mCommunicator.mDontMergeRequests[i];
+					if (skip_message_type != null && string.Equals(skip_message_type, this.MessageType, StringComparison.Ordinal))
+					{
+						check_duplication = false;
+						break;
+					}
+				}
+			}
+			
+			if (check_duplication)
+			{
+				for (int i = 0; i < mCommunicator.Requests.Count; i++)
+				{
+					var request = mCommunicator.Requests[i];
+					
+					if (request != null && request != this &&
+						request.mAuthorization == this.mAuthorization &&
+						string.Equals(request.MessageType, this.MessageType, StringComparison.Ordinal) &&
+						SnipeObject.ContentEquals(request.Data, this.Data))
+					{
+						mRequestId = request.mRequestId;
+						break;
+					}
 				}
 			}
 			
