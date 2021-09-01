@@ -52,6 +52,17 @@ namespace MiniIT.Snipe
 				return mRequests;
 			}
 		}
+		
+		internal List<string> mDontMergeRequests;
+		public List<string> DontMergeRequests
+		{
+			get
+			{
+				if (mDontMergeRequests == null)
+					mDontMergeRequests = new List<string>();
+				return mDontMergeRequests;
+			}
+		}
 
 		public bool Connected
 		{

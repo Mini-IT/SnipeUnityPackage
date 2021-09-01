@@ -19,5 +19,8 @@ namespace MiniIT.Snipe
 		public const string ROOM_JOIN = "room.join";
 		public const string ROOM_DEAD = "room.dead";
 		public const string ROOM_LEAVE = "room.leave";
+		
+		public const string LOGIC_GET = "logic.get";
+		public const string LOGIC_INC_VAR = "logic.incVar";
 	}
 }
