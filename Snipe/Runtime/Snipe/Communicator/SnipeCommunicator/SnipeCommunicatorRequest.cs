@@ -141,8 +141,13 @@ namespace MiniIT.Snipe
 				{
 					var request = mCommunicator.Requests[i];
 					
-					if (request != null && request != this &&
-						request.mAuthorization == this.mAuthorization &&
+					if (request == null)
+						continue;
+					
+					if (request == this)
+						break;
+					
+					if (request.mAuthorization == this.mAuthorization &&
 						string.Equals(request.MessageType, this.MessageType, StringComparison.Ordinal) &&
 						SnipeObject.ContentEquals(request.Data, this.Data))
 					{
@@ -219,6 +224,8 @@ namespace MiniIT.Snipe
 			
 			if (WaitingForRoomJoined && mCommunicator.RoomJoined == true)
 			{
+				DebugLogger.Log($"[SnipeCommunicatorRequest] OnMessageReceived - Room joined. Send {MessageType}, id = {mRequestId}");
+				
 				WaitingForRoomJoined = false;
 				DoSendRequest();
 				return;
