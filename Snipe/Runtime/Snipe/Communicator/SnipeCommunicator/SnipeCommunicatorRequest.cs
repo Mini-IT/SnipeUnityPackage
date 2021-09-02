@@ -219,6 +219,8 @@ namespace MiniIT.Snipe
 			
 			if (WaitingForRoomJoined && mCommunicator.RoomJoined == true)
 			{
+				DebugLogger.Log($"[SnipeCommunicatorRequest] OnMessageReceived - Room joined. Send {MessageType}, id = {mRequestId}");
+				
 				WaitingForRoomJoined = false;
 				DoSendRequest();
 				return;
