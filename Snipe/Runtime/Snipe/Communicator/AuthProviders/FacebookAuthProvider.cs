@@ -70,7 +70,7 @@ public class FacebookAuthProvider : BindProvider
 			{
 				SnipeObject data = new SnipeObject()
 				{
-					["ckey"] = SnipeConfig.Instance.ClientKey,
+					["ckey"] = SnipeConfig.ClientKey,
 					["provider"] = ProviderId,
 					["login"] = AccessToken.CurrentAccessToken.UserId,
 					["auth"] = AccessToken.CurrentAccessToken.TokenString,

@@ -45,7 +45,7 @@ namespace MiniIT.Snipe
 		{
 			SnipeObject data = new SnipeObject()
 			{
-				["ckey"] = SnipeConfig.Instance.ClientKey,
+				["ckey"] = SnipeConfig.ClientKey,
 				["provider"] = provider,
 				["login"] = login,
 				["auth"] = password,
@@ -87,7 +87,7 @@ namespace MiniIT.Snipe
 				["auth"] = password,
 				["loginGame"] = true,
 				["version"] = SnipeClient.SNIPE_VERSION,
-				["appInfo"] = SnipeConfig.Instance.AppInfo,
+				["appInfo"] = SnipeConfig.AppInfo,
 			};
 			
 			SnipeCommunicator.Instance.MessageReceived -= OnMessageReceived;

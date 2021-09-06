@@ -79,7 +79,7 @@ namespace MiniIT.Snipe
 
 			SnipeObject data = new SnipeObject()
 			{
-				["ckey"] = SnipeConfig.Instance.ClientKey,
+				["ckey"] = SnipeConfig.ClientKey,
 				["provider"] = ProviderId,
 				["login"] = user_id,
 			};

@@ -84,7 +84,7 @@ namespace MiniIT.Snipe
 		
 		public async Task Load<WrapperType>(string table_name) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
 		{
-			if (string.IsNullOrEmpty(SnipeConfig.Instance.GetTablesPath()))
+			if (string.IsNullOrEmpty(SnipeConfig.GetTablesPath()))
 			{
 				DebugLogger.LogError("[SnipeTable] Loading failed. Tables path not specified. Make sure that SnipeConfig is initialized.");
 				return;
@@ -113,12 +113,12 @@ namespace MiniIT.Snipe
 			{
 				mVersionRequested = true;
 				
-				string version_file_path = Path.Combine(SnipeConfig.Instance.PersistentDataPath, VERSION_FILE_NAME);
+				string version_file_path = Path.Combine(SnipeConfig.PersistentDataPath, VERSION_FILE_NAME);
 				
 				HttpClient loader = null;
 				for (int retries_count = 0; retries_count < 3; retries_count++)
 				{
-					string url = $"{SnipeConfig.Instance.GetTablesPath(true)}version.txt";
+					string url = $"{SnipeConfig.GetTablesPath(true)}version.txt";
 					DebugLogger.Log($"[SnipeTable] LoadVersion ({retries_count}) " + url);
 				
 					try
@@ -241,7 +241,7 @@ namespace MiniIT.Snipe
 
 		protected string GetCachePath(string table_name)
 		{
-			return Path.Combine(SnipeConfig.Instance.PersistentDataPath, $"{mVersion}_{table_name}.json.gz");
+			return Path.Combine(SnipeConfig.PersistentDataPath, $"{mVersion}_{table_name}.json.gz");
 		}
 		
 		protected string GetBuiltInPath(string table_name)
@@ -253,7 +253,7 @@ namespace MiniIT.Snipe
 		
 		protected string GetTableUrl(string table_name)
 		{
-			return $"{SnipeConfig.Instance.GetTablesPath()}{table_name}.json.gz";
+			return $"{SnipeConfig.GetTablesPath()}{table_name}.json.gz";
 		}
 		
 		private async Task LoadTask<WrapperType>(string table_name, CancellationToken cancellation) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
