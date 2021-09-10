@@ -148,9 +148,10 @@ namespace MiniIT.Snipe
 
 		public void CopyVars(SnipeLogicNode src_node)
 		{
-			vars = src_node.vars;
-
-			foreach (var node_var in vars)
+			if (src_node?.vars == null)
+				return;
+			
+			foreach (var node_var in src_node.vars)
 			{
 				RefreshTimerVar(node_var.var.type, node_var.value);
 			}
