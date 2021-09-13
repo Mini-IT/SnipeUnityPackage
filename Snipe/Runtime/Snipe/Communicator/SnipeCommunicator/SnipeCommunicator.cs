@@ -415,7 +415,8 @@ namespace MiniIT.Snipe
 					}
 					catch (Exception e)
 					{
-						DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) RaiseEvent - Error in the handler {handler?.Method?.Name}: {e.Message}");
+						string message = e is TargetInvocationException tie ? tie.InnerException?.Message : e.Message;
+						DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) RaiseEvent - Error in the handler {handler?.Method?.Name}: {message}");
 					}
 				}
 			}
