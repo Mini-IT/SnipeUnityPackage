@@ -150,8 +150,10 @@ namespace MiniIT.Snipe
 		{
 			if (src_node?.vars == null)
 				return;
-			
-			foreach (var node_var in src_node.vars)
+
+			vars = src_node.vars;
+
+			foreach (var node_var in vars)
 			{
 				RefreshTimerVar(node_var.var.type, node_var.value);
 			}
