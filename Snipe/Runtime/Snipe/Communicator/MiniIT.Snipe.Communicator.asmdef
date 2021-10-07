@@ -1,18 +1,28 @@
 {
     "name": "MiniIT.Snipe.Communicator",
+    "rootNamespace": "",
     "references": [
-		"MiniIT.Snipe.Core",
-		"MiniIT.Snipe.WebSocketSharp",
-		"MiniIT.Snipe.Social",
-		"MiniIT.Snipe.MessagePack",
-		"BetterStreamingAssets",
-		"fastJSON"
+        "MiniIT.Snipe.Core",
+        "MiniIT.Snipe.WebSocketSharp",
+        "MiniIT.Snipe.Social",
+        "MiniIT.Snipe.MessagePack",
+        "BetterStreamingAssets",
+        "fastJSON",
+        "MiniIT.AdvertisingIdFetcher"
     ],
-    "optionalUnityReferences": [],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,
-    "defineConstraints": []
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.miniit.advertising-id",
+            "expression": "1.0.0",
+            "define": "MINI_IT_ADVERTISING_ID"
+        }
+    ],
+    "noEngineReferences": false
 }
