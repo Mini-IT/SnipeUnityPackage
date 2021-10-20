@@ -51,7 +51,7 @@ namespace MiniIT.Snipe
 				["auth"] = password,
 			};
 			
-			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_RESET)?.RequestAuth(data,
+			SnipeCommunicator.Instance.Auth.Channel.CreateRequest(SnipeMessageTypes.AUTH_RESET)?.Request(data,
 				(string error_code, SnipeObject response_data) =>
 				{
 					if (error_code == SnipeErrorCodes.OK)

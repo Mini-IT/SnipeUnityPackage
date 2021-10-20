@@ -45,13 +45,19 @@ namespace MiniIT.Snipe
 		}
 		
 		public bool JustRegistered { get; private set; } = false;
-
+		internal SnipeAuthChannel Channel { get; private set; }
+		
 		private static List<AuthProvider> mAuthProviders;
 		private static AuthProvider mCurrentProvider;
-
-		private AuthResultCallback mAuthResultCallback;
-
+		
 		private static bool mRebindAllProviders = false;
+		
+		private AuthResultCallback mAuthResultCallback;
+		
+		public SnipeAuthCommunicator()
+		{
+			Channel = SnipeCommunicator.Instance.CreateChannel<SnipeAuthChannel>("AuthChannel");
+		}
 
 		public ProviderType AddAuthProvider<ProviderType>() where ProviderType : AuthProvider, new()
 		{
@@ -258,7 +264,7 @@ namespace MiniIT.Snipe
 
 		public void ClaimRestoreToken(string token, Action<bool> callback)
 		{
-			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_RESTORE)?.RequestAuth(
+			Channel.CreateRequest(SnipeMessageTypes.AUTH_RESTORE)?.Request(
 				new SnipeObject()
 				{
 					["ckey"] = SnipeConfig.ClientKey,
@@ -284,7 +290,7 @@ namespace MiniIT.Snipe
 		
 		public void GetUserAttribute(string provider_id, string user_id, string key, GetUserAttributeCallback callback)
 		{
-			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_ATTR_GET)?.RequestAuth(
+			Channel.CreateRequest(SnipeMessageTypes.AUTH_ATTR_GET)?.Request(
 				new SnipeObject()
 				{
 					["provider"] = provider_id,
@@ -422,7 +428,7 @@ namespace MiniIT.Snipe
 
 		private void RequestRegister()
 		{
-			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_REGISTER)?.RequestAuth(null,
+			Channel.CreateRequest(SnipeMessageTypes.AUTH_USER_REGISTER)?.Request(null,
 				(error_code, response) =>
 				{
 					int user_id = 0;
