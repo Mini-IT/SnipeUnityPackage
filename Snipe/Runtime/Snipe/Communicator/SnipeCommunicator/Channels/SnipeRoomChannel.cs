@@ -14,7 +14,7 @@ namespace MiniIT.Snipe
 			SetJoinMessageType(SnipeMessageTypes.ROOM_JOIN);
 			AddJoinOkErrorCodes(SnipeErrorCodes.ALREADY_IN_ROOM);
 			AddLeaveMessageTypes(SnipeMessageTypes.ROOM_LEAVE, SnipeMessageTypes.ROOM_DEAD);
-			AddNoScopeMessageTypes("matchmaking.add", "matchmaking.remove");
+			AddUnobstructedMessageTypes("matchmaking.add", "matchmaking.remove");
 		}
 	}
 	

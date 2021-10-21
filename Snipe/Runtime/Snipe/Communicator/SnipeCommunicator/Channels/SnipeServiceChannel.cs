@@ -67,9 +67,9 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		public override bool CheckNoScopeMessageType(string message_type)
+		public override bool CheckUnobstructedMessageType(string message_type)
 		{
-			return message_type == mJoinMessageType || base.CheckNoScopeMessageType(message_type);
+			return message_type == mJoinMessageType || base.CheckUnobstructedMessageType(message_type);
 		}
 	}
 }

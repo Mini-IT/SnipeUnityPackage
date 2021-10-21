@@ -10,7 +10,7 @@ namespace MiniIT.Snipe
 		public bool KeepRequestsIfNotReady = true; // Requests created before the channel is ready will be sent after the channel is ready
 		public List<SnipeRequest> Requests  { get; private set; }
 		
-		protected List<string> mNoScopeMessageTypes;
+		protected List<string> mUnobstructedMessageTypes; // Requests that don't need the channel to be ready. The only requirement is SnipeCommunicator.LoggedIn
 		
 		public SnipeChannel()
 		{
@@ -37,26 +37,17 @@ namespace MiniIT.Snipe
 			if (CheckReady())  // CheckReady may require more than just login
 				return true;
 			
-			return SnipeCommunicator.InstanceInitialized && SnipeCommunicator.Instance.LoggedIn && CheckNoScopeMessageType(message_type);
+			return SnipeCommunicator.InstanceInitialized && SnipeCommunicator.Instance.LoggedIn && CheckUnobstructedMessageType(message_type);
 		}
 		
-		public virtual bool CheckNoScopeMessageType(string message_type)
+		public virtual bool CheckUnobstructedMessageType(string message_type)
 		{
-			return mNoScopeMessageTypes != null && mNoScopeMessageTypes.Contains(message_type);
+			return mUnobstructedMessageTypes != null && mUnobstructedMessageTypes.Contains(message_type);
 		}
 		
-		public void AddNoScopeMessageTypes(params string[] message_types)
+		public void AddUnobstructedMessageTypes(params string[] message_types)
 		{
-			// if (mNoScopeMessageTypes == null)
-				// mNoScopeMessageTypes = new List<string>();
-			// foreach (var type in message_types)
-			// {
-				// if (!string.IsNullOrEmpty(type))
-				// {
-					// mNoScopeMessageTypes.Add(type);
-				// }
-			// }
-			AddStringItems(ref mNoScopeMessageTypes, message_types);
+			AddStringItems(ref mUnobstructedMessageTypes, message_types);
 		}
 		
 		protected void AddStringItems(ref List<string> list, params string[] items)

@@ -212,7 +212,7 @@ namespace MiniIT.Snipe
 			string join_message_type = null,
 			string[] join_ok_error_codes = null,
 			string[] leave_message_types = null,
-			string[] no_scope_message_types = null)
+			string[] unobstructed_message_types = null)
 		{
 			var channel = new SnipeServiceChannel();
 			Channels.Add(channel);
@@ -220,7 +220,7 @@ namespace MiniIT.Snipe
 			channel.SetJoinMessageType(join_message_type);
 			channel.AddJoinOkErrorCodes(join_ok_error_codes);
 			channel.AddLeaveMessageTypes(leave_message_types);
-			channel.AddNoScopeMessageTypes(no_scope_message_types);
+			channel.AddUnobstructedMessageTypes(unobstructed_message_types);
 			return channel;
 		}
 		
