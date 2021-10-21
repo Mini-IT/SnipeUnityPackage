@@ -7,7 +7,7 @@ namespace MiniIT.Snipe
 	public class SnipeChannel
 	{
 		public string Name;
-		public bool KeepRequestsIfNotReady = false; // Requests created before the channel is ready will be sent after the channel is ready
+		public bool KeepRequestsIfNotReady = true; // Requests created before the channel is ready will be sent after the channel is ready
 		public List<SnipeRequest> Requests  { get; private set; }
 		
 		protected List<string> mNoScopeMessageTypes;
@@ -61,6 +61,8 @@ namespace MiniIT.Snipe
 		
 		protected void AddStringItems(ref List<string> list, params string[] items)
 		{
+			if (items == null || items.Length == 0)
+				return;
 			if (list == null)
 				list = new List<string>();
 			foreach (var item in items)

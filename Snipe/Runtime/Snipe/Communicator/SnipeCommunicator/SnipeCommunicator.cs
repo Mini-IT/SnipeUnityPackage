@@ -29,6 +29,7 @@ namespace MiniIT.Snipe
 		public SnipeAuthCommunicator Auth { get; private set; }
 		public SnipeChannel MainChannel { get; private set; }
 		internal List<SnipeChannel> Channels { get; private set; }
+		public Dictionary<string, SnipeChannel> ChannelsPrefixes { get; private set; } = new Dictionary<string, SnipeChannel>();
 
 		public string UserName { get; private set; }
 		public string ConnectionId { get { return Client?.ConnectionId; } }
@@ -204,6 +205,22 @@ namespace MiniIT.Snipe
 			var channel = new ChannelType();
 			channel.Name = name;
 			Channels.Add(channel);
+			return channel;
+		}
+		
+		public SnipeServiceChannel CreateServiceChannel(string name = "",
+			string join_message_type = null,
+			string[] join_ok_error_codes = null,
+			string[] leave_message_types = null,
+			string[] no_scope_message_types = null)
+		{
+			var channel = new SnipeServiceChannel();
+			Channels.Add(channel);
+			channel.Name = name;
+			channel.SetJoinMessageType(join_message_type);
+			channel.AddJoinOkErrorCodes(join_ok_error_codes);
+			channel.AddLeaveMessageTypes(leave_message_types);
+			channel.AddNoScopeMessageTypes(no_scope_message_types);
 			return channel;
 		}
 		
@@ -451,7 +468,24 @@ namespace MiniIT.Snipe
 		
 		public SnipeRequest CreateRequest(string message_type = null, SnipeObject parameters = null)
 		{
-			var request = new SnipeRequest(MainChannel, message_type);
+			SnipeChannel channel = MainChannel;
+			
+			if (!string.IsNullOrEmpty(message_type))
+			{
+				foreach (var pair in ChannelsPrefixes)
+				{
+					if (message_type.StartsWith(pair.Key, System.StringComparison.Ordinal))
+					{
+						if (pair.Value != null)
+						{
+							channel = pair.Value;
+						}
+						break;
+					}
+				}
+			}
+			
+			var request = new SnipeRequest(channel, message_type);
 			request.Data = parameters;
 			return request;
 		}

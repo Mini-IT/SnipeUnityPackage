@@ -13,7 +13,8 @@ namespace MiniIT.Snipe
 		public static SnipeRequest CreateRequest(SnipeChannel channel, string message_type, SnipeObject data)
 		{
 			if (channel == null)
-				channel = SnipeCommunicator.Instance.MainChannel;
+				return SnipeCommunicator.Instance.CreateRequest(message_type, data);
+			
 			return channel.CreateRequest(message_type, data);
 		}
 	}

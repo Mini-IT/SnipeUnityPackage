@@ -214,7 +214,7 @@ namespace MiniIT.Snipe
 				
 				if (mChannel is SnipeAuthChannel)
 				{
-					DebugLogger.Log($"[SnipeRequest] ({mChannel?.Name}) Waiting for channel ready - {MessageType}");
+					DebugLogger.Log($"[SnipeRequest] ({mChannel?.Name}) Waiting for auth channel ready - {MessageType}");
 				}
 				else if (mChannel.KeepRequestsIfNotReady) //(SnipeCommunicator.Instance.AllowRequestsToWaitForLogin)
 				{
