@@ -120,6 +120,7 @@ namespace MiniIT.Snipe
 				GameObject.DestroyImmediate(this.gameObject);
 				return;
 			}
+			mInstance = this;
 			DontDestroyOnLoad(this.gameObject);
 			
 			Channels = new List<SnipeChannel>(1);
@@ -248,9 +249,12 @@ namespace MiniIT.Snipe
 			}
 			ClearMainThreadActionsQueue();
 			
-			foreach (var channel in Channels)
+			if (Channels != null)
 			{
-				channel?.DisposeRequests();
+				foreach (var channel in Channels)
+				{
+					channel?.DisposeRequests();
+				}
 			}
 
 			try

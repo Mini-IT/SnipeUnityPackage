@@ -50,21 +50,6 @@ namespace MiniIT.Snipe
 			AddStringItems(ref mUnobstructedMessageTypes, message_types);
 		}
 		
-		protected void AddStringItems(ref List<string> list, params string[] items)
-		{
-			if (items == null || items.Length == 0)
-				return;
-			if (list == null)
-				list = new List<string>();
-			foreach (var item in items)
-			{
-				if (!string.IsNullOrEmpty(item))
-				{
-					list.Add(item);
-				}
-			}
-		}
-		
 		public void Request(string message_type, SnipeObject parameters = null)
 		{
 			CreateRequest(message_type, parameters).Request();
@@ -118,7 +103,10 @@ namespace MiniIT.Snipe
 		
 		private void OnCommunicatorLoggedIn()
 		{
-			RaiseGotReady();
+			if (CheckReady())
+			{
+				RaiseGotReady();
+			}
 		}
 		
 		protected void RaiseGotReady()
@@ -133,7 +121,22 @@ namespace MiniIT.Snipe
 			
 			foreach (var request in Requests)
 			{
-				request.OnChannelReady();
+				request?.OnChannelReady();
+			}
+		}
+		
+		protected void AddStringItems(ref List<string> list, params string[] items)
+		{
+			if (items == null || items.Length == 0)
+				return;
+			if (list == null)
+				list = new List<string>();
+			foreach (var item in items)
+			{
+				if (!string.IsNullOrEmpty(item))
+				{
+					list.Add(item);
+				}
 			}
 		}
 	}
