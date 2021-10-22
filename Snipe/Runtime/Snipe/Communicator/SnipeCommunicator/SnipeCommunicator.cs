@@ -116,8 +116,7 @@ namespace MiniIT.Snipe
 		{
 			if (mInstance != null)
 			{
-				if (mInstance.gameObject != null)
-					GameObject.DestroyImmediate(mInstance.gameObject);
+				mInstance.Dispose();
 				mInstance = null;
 			}
 		}
