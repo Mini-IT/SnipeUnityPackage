@@ -39,12 +39,16 @@ public class AdvertisingIdAuthProvider : BindProvider
 			}
 		}
 
+#if MINI_IT_ADVERTISING_ID
+		MiniIT.Utils.AdvertisingIdFetcher.RequestAdvertisingId((adid) => advertising_id_callback(adid, true, ""));
+#else
 		if (!Application.RequestAdvertisingIdentifierAsync(advertising_id_callback))
 		{
 			DebugLogger.Log("[AdvertisingIdAuthProvider] advertising id is not supported on this platform");
 			
 			InvokeAuthFailCallback(SnipeErrorCodes.NOT_INITIALIZED);
 		}
+#endif
 	}
 
 	private bool CheckAdvertisingId(string advertising_id)
@@ -133,11 +137,18 @@ public class AdvertisingIdAuthProvider : BindProvider
 			DebugLogger.Log("[AdvertisingIdAuthProvider] advertising id is already known");
 			advertising_id_callback(AdvertisingId, false, "");
 		}
-		else if (!Application.RequestAdvertisingIdentifierAsync(advertising_id_callback))
+		else
 		{
-			DebugLogger.Log("[AdvertisingIdAuthProvider] advertising id is not supported on this platform");
+#if MINI_IT_ADVERTISING_ID
+			MiniIT.Utils.AdvertisingIdFetcher.RequestAdvertisingId((adid) => advertising_id_callback(adid, true, ""));
+#else
+			if (!Application.RequestAdvertisingIdentifierAsync(advertising_id_callback))
+			{
+				DebugLogger.Log("[AdvertisingIdAuthProvider] advertising id is not supported on this platform");
 
-			InvokeAuthFailCallback(SnipeErrorCodes.NOT_INITIALIZED);
+				InvokeAuthFailCallback(SnipeErrorCodes.NOT_INITIALIZED);
+			}
+#endif
 		}
 	}
 
@@ -194,6 +205,11 @@ public class AdvertisingIdAuthProvider : BindProvider
 			}
 		}
 
+#if MINI_IT_ADVERTISING_ID
+		MiniIT.Utils.AdvertisingIdFetcher.RequestAdvertisingId((adid) => advertising_id_callback(adid, true, ""));
+		return true;
+#else
 		return Application.RequestAdvertisingIdentifierAsync(advertising_id_callback);
+#endif
 	}
 }

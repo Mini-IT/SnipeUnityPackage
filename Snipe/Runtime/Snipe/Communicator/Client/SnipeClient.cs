@@ -9,7 +9,7 @@ namespace MiniIT.Snipe
 {
 	public class SnipeClient
 	{
-		public const int SNIPE_VERSION = 5;
+		public const int SNIPE_VERSION = 6;
 		
 		public delegate void MessageReceivedHandler(string message_type, string error_code, SnipeObject data, int request_id);
 		public event MessageReceivedHandler MessageReceived;
@@ -21,7 +21,7 @@ namespace MiniIT.Snipe
 		private const double HEARTBEAT_INTERVAL = 30; // seconds
 		private const int HEARTBEAT_TASK_DELAY = 5000; //milliseconds
 		private const int CHECK_CONNECTION_TIMEOUT = 5000; // milliseconds
-		
+
 		private bool mConnected = false;
 		protected bool mLoggedIn = false;
 
@@ -65,7 +65,7 @@ namespace MiniIT.Snipe
 
 			Disconnect(false); // clean up
 
-			string url = SnipeConfig.GetServerUrl()	;
+			string url = SnipeConfig.GetServerUrl();
 
 			DebugLogger.Log("[SnipeClient] WebSocket Connect to " + url);
 			
@@ -123,6 +123,7 @@ namespace MiniIT.Snipe
 
 		private void Disconnect(bool raise_event)
 		{
+			mConnected = false;
 			mLoggedIn = false;
 			ConnectionId = "";
 			
@@ -186,7 +187,7 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		internal void DoSendRequest(SnipeObject message)
+		private void DoSendRequest(SnipeObject message)
 		{
 			if (!Connected || message == null)
 				return;

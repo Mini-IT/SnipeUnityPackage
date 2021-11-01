@@ -116,8 +116,7 @@ namespace MiniIT.Snipe
 		{
 			if (mInstance != null)
 			{
-				if (mInstance.gameObject != null)
-					GameObject.DestroyImmediate(mInstance.gameObject);
+				mInstance.Dispose();
 				mInstance = null;
 			}
 		}
@@ -415,7 +414,10 @@ namespace MiniIT.Snipe
 					}
 					catch (Exception e)
 					{
-						DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) RaiseEvent - Error in the handler {handler?.Method?.Name}: {e.Message}");
+						string message = (e is System.Reflection.TargetInvocationException tie) ?
+							$"{tie.InnerException?.Message}\n{tie.InnerException?.StackTrace}" :
+							$"{e.Message}\n{e.StackTrace}";
+						DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) RaiseEvent - Error in the handler {handler?.Method?.Name}: {message}");
 					}
 				}
 			}
