@@ -50,11 +50,19 @@ namespace MiniIT.Snipe
 			// Override this method.
 			return "";
 		}
+		
+		protected override void OnAuthResetResponse(string error_code, SnipeObject response_data)
+		{
+			if (error_code == SnipeErrorCodes.NO_SUCH_AUTH)
+			{
+				AccountExists = false;
+			}
+			
+			base.OnAuthResetResponse(error_code, response_data);
+		}
 
 		protected override void OnAuthLoginResponse(string error_code, SnipeObject data)
 		{
-			base.OnAuthLoginResponse(error_code, data);
-
 			if (!string.IsNullOrEmpty(error_code))
 			{
 				AccountExists = (error_code == SnipeErrorCodes.OK);
@@ -63,6 +71,8 @@ namespace MiniIT.Snipe
 					SetBindDoneFlag(false, false);
 				}
 			}
+			
+			base.OnAuthLoginResponse(error_code, data);
 		}
 
 		public virtual bool CheckAuthExists(CheckAuthExistsCallback callback = null)
@@ -163,11 +173,11 @@ namespace MiniIT.Snipe
 		{
 		}
 
-		public override void Dispose()
+		public override void DisposeCallbacks()
 		{
 			mBindResultCallback = null;
 
-			base.Dispose();
+			base.DisposeCallbacks();
 		}
 	}
 }

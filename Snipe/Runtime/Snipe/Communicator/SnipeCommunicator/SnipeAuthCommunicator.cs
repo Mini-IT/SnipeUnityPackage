@@ -114,7 +114,7 @@ namespace MiniIT.Snipe
 			{
 				if (mCurrentProvider != null)
 				{
-					mCurrentProvider.Dispose();
+					mCurrentProvider.DisposeCallbacks();
 					mCurrentProvider = null;
 				}
 				return false;
@@ -128,7 +128,7 @@ namespace MiniIT.Snipe
 				if (mAuthProviders.IndexOf(provider) >= 0)
 				{
 					if (mCurrentProvider != null)
-						mCurrentProvider.Dispose();
+						mCurrentProvider.DisposeCallbacks();
 
 					mCurrentProvider = provider;
 					return true;
@@ -139,7 +139,7 @@ namespace MiniIT.Snipe
 					if (added_provider != null)
 					{
 						if (mCurrentProvider != null)
-							mCurrentProvider.Dispose();
+							mCurrentProvider.DisposeCallbacks();
 
 						mCurrentProvider = added_provider;
 						return true;
@@ -222,7 +222,7 @@ namespace MiniIT.Snipe
 				SwitchToNextAuthProvider();
 
 				if (prev_provider != mCurrentProvider)
-					prev_provider.Dispose();
+					prev_provider.DisposeCallbacks();
 			}
 
 			Authorize(callback);
@@ -354,7 +354,7 @@ namespace MiniIT.Snipe
 		{
 			if (mCurrentProvider != null && !(mCurrentProvider is DefaultAuthProvider))
 			{
-				mCurrentProvider.Dispose();
+				mCurrentProvider.DisposeCallbacks();
 				mCurrentProvider = null;
 			}
 			if (mCurrentProvider == null)
@@ -369,7 +369,7 @@ namespace MiniIT.Snipe
 
 				InvokeAuthSuccessCallback(user_id);
 
-				mCurrentProvider?.Dispose();
+				mCurrentProvider?.DisposeCallbacks();
 				mCurrentProvider = null;
 
 				BindAllProviders(mRebindAllProviders);
@@ -384,7 +384,7 @@ namespace MiniIT.Snipe
 				if (mAuthProviders != null && mAuthProviders.Count > mAuthProviders.IndexOf(mCurrentProvider) + 1)
 				{
 					// try next provider
-					mCurrentProvider?.Dispose();
+					mCurrentProvider?.DisposeCallbacks();
 
 					SwitchToNextAuthProvider();
 					CurrentProviderRequestAuth();
@@ -416,7 +416,7 @@ namespace MiniIT.Snipe
 			mAuthResultCallback?.Invoke(error_code, 0);
 			mAuthResultCallback = null;
 
-			mCurrentProvider?.Dispose();
+			mCurrentProvider?.DisposeCallbacks();
 			mCurrentProvider = null;
 		}
 

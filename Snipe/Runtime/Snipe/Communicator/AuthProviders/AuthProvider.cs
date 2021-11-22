@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace MiniIT.Snipe
 {
-	public class AuthProvider : IDisposable
+	public class AuthProvider
 	{
 		public virtual string ProviderId { get { return "__"; } }
 
@@ -14,7 +14,7 @@ namespace MiniIT.Snipe
 		private string mLogin;
 		private string mPassword;
 
-		public virtual void Dispose()
+		public virtual void DisposeCallbacks()
 		{
 			mAuthResultCallback = null;
 		}
@@ -51,23 +51,23 @@ namespace MiniIT.Snipe
 				["auth"] = password,
 			};
 			
-			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_RESET)?.RequestAuth(data,
-				(string error_code, SnipeObject response_data) =>
-				{
-					if (error_code == SnipeErrorCodes.OK)
-					{
-						DoRequestLogin(response_data.SafeGetString("uid"), response_data.SafeGetString("password"));
-					}
-					// else if (error_code == SnipeErrorCodes.USER_ONLINE)
-					// {
-						// Task.Run(() => DelayedResetAuth(data));
-					// }
-					else
-					{
-						InvokeAuthFailCallback(error_code);
-					}
-				}
-			);
+			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_RESET)?.RequestAuth(data, OnAuthResetResponse);
+		}
+		
+		protected virtual void OnAuthResetResponse(string error_code, SnipeObject response_data)
+		{
+			if (error_code == SnipeErrorCodes.OK)
+			{
+				DoRequestLogin(response_data.SafeGetString("uid"), response_data.SafeGetString("password"));
+			}
+			// else if (error_code == SnipeErrorCodes.USER_ONLINE)
+			// {
+				// Task.Run(() => DelayedResetAuth(data));
+			// }
+			else
+			{
+				InvokeAuthFailCallback(error_code);
+			}
 		}
 		
 		// private async void DelayedResetAuth(SnipeObject data)
