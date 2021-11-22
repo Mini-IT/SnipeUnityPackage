@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using UnityEngine;
 using MiniIT;
@@ -10,26 +11,79 @@ public class AdvertisingIdAuthProvider : BindProvider
 	public const string PROVIDER_ID = "adid";
 	public override string ProviderId { get { return PROVIDER_ID; } }
 
-	public static string AdvertisingId { get; private set; }
+	public static string AdvertisingId { get; private set; } = null;
 	
 	private SnipeObject mBindRequestData = null;
+	private Queue<Action> mAdvertisingIdReadyActions;
+	
+	public AdvertisingIdAuthProvider() : base()
+	{
+		if (AdvertisingId != null)
+			return;
+		
+		void advertising_id_callback(string advertising_id, bool tracking_enabled, string error)
+		{
+			var error_string = string.IsNullOrEmpty(error) ? "" : ", error: " + error;
+			DebugLogger.Log($"[AdvertisingIdAuthProvider] advertising_id : {advertising_id} {error_string}");
+			
+			AdvertisingId = advertising_id ?? "";
+			InvokeAdvertisingIdReadyActions();
+		}
+		
+#if MINI_IT_ADVERTISING_ID
+		MiniIT.Utils.AdvertisingIdFetcher.RequestAdvertisingId((adid) => advertising_id_callback(adid, true, ""));
+#else
+		if (!Application.RequestAdvertisingIdentifierAsync(advertising_id_callback))
+		{
+			DebugLogger.Log("[AdvertisingIdAuthProvider] advertising id is not supported on this platform");
+			
+			AdvertisingId = "";
+			InvokeAdvertisingIdReadyActions();
+		}
+#endif
+	}
+	
+	private void EnqueueAdvertisingIdReadyAction(Action action)
+	{
+		if (mAdvertisingIdReadyActions == null)
+			mAdvertisingIdReadyActions = new Queue<Action>();
+		mAdvertisingIdReadyActions.Enqueue(action);
+	}
+	
+	private void InvokeAdvertisingIdReadyActions()
+	{
+		if (mAdvertisingIdReadyActions != null)
+		{
+			while (mAdvertisingIdReadyActions.Count > 0)
+			{
+				var action = mAdvertisingIdReadyActions.Dequeue();
+				try
+				{
+					action?.Invoke();
+				}
+				catch(Exception e)
+				{
+					DebugLogger.Log("[AdvertisingIdAuthProvider] InvokeAdvertisingIdReadyActions error: " + e.Message);
+				}
+			}
+			
+			mAdvertisingIdReadyActions = null;
+		}
+	}
 
 	public override void RequestAuth(AuthResultCallback callback = null, bool reset_auth = false)
 	{
 		DebugLogger.Log("[AdvertisingIdAuthProvider] RequestAuth");
 		
 		mAuthResultCallback = callback;
-
-		void advertising_id_callback(string advertising_id, bool tracking_enabled, string error)
+		
+		void on_advertising_id_ready()
 		{
-			var error_string = string.IsNullOrEmpty(error) ? "" : ", error: " + error;
-			DebugLogger.Log($"[AdvertisingIdAuthProvider] advertising_id : {advertising_id} {error_string}");
-
-			AdvertisingId = advertising_id;
-
-			if (CheckAdvertisingId(advertising_id))
+			DebugLogger.Log("[AdvertisingIdAuthProvider] RequestAuth - on_advertising_id_ready");
+			
+			if (CheckAdvertisingId(AdvertisingId))
 			{
-				RequestLogin(ProviderId, advertising_id, "", reset_auth);
+				RequestLogin(ProviderId, AdvertisingId, "", reset_auth);
 			}
 			else
 			{
@@ -38,17 +92,15 @@ public class AdvertisingIdAuthProvider : BindProvider
 				InvokeAuthFailCallback(SnipeErrorCodes.NOT_INITIALIZED);
 			}
 		}
-
-#if MINI_IT_ADVERTISING_ID
-		MiniIT.Utils.AdvertisingIdFetcher.RequestAdvertisingId((adid) => advertising_id_callback(adid, true, ""));
-#else
-		if (!Application.RequestAdvertisingIdentifierAsync(advertising_id_callback))
+		
+		if (AdvertisingId == null)  // not initialized yet
 		{
-			DebugLogger.Log("[AdvertisingIdAuthProvider] advertising id is not supported on this platform");
-			
-			InvokeAuthFailCallback(SnipeErrorCodes.NOT_INITIALIZED);
+			EnqueueAdvertisingIdReadyAction(on_advertising_id_ready);
 		}
-#endif
+		else
+		{
+			on_advertising_id_ready();
+		}
 	}
 
 	private bool CheckAdvertisingId(string advertising_id)
@@ -76,19 +128,17 @@ public class AdvertisingIdAuthProvider : BindProvider
 			InvokeBindResultCallback(SnipeErrorCodes.OK);
 			return;
 		}
-
-		void advertising_id_callback(string advertising_id, bool tracking_enabled, string error)
+		
+		void on_advertising_id_ready()
 		{
-			DebugLogger.Log($"[AdvertisingIdAuthProvider] advertising_id : {advertising_id} , {error}");
-
-			if (AdvertisingId == advertising_id && IsBindDone)
+			DebugLogger.Log("[AdvertisingIdAuthProvider] RequestBind - on_advertising_id_ready");
+			
+			if (IsBindDone)
 			{
 				InvokeBindResultCallback(SnipeErrorCodes.OK);
 				return;
 			}
 			
-			AdvertisingId = advertising_id;
-
 			string auth_login = PlayerPrefs.GetString(SnipePrefs.AUTH_UID);
 			string auth_token = PlayerPrefs.GetString(SnipePrefs.AUTH_KEY);
 
@@ -100,13 +150,13 @@ public class AdvertisingIdAuthProvider : BindProvider
 			}
 			else
 			{
-				if (CheckAdvertisingId(advertising_id))
+				if (CheckAdvertisingId(AdvertisingId))
 				{
 					SnipeObject data = new SnipeObject()
 					{
 						["ckey"] = SnipeConfig.ClientKey,
 						["provider"] = ProviderId,
-						["login"] = advertising_id,
+						["login"] = AdvertisingId,
 						["loginInt"] = auth_login,
 						["authInt"] = auth_token,
 					};
@@ -132,23 +182,13 @@ public class AdvertisingIdAuthProvider : BindProvider
 			}
 		}
 		
-		if (CheckAdvertisingId(AdvertisingId))
+		if (AdvertisingId == null)  // not initialized yet
 		{
-			DebugLogger.Log("[AdvertisingIdAuthProvider] advertising id is already known");
-			advertising_id_callback(AdvertisingId, false, "");
+			EnqueueAdvertisingIdReadyAction(on_advertising_id_ready);
 		}
 		else
 		{
-#if MINI_IT_ADVERTISING_ID
-			MiniIT.Utils.AdvertisingIdFetcher.RequestAdvertisingId((adid) => advertising_id_callback(adid, true, ""));
-#else
-			if (!Application.RequestAdvertisingIdentifierAsync(advertising_id_callback))
-			{
-				DebugLogger.Log("[AdvertisingIdAuthProvider] advertising id is not supported on this platform");
-
-				InvokeAuthFailCallback(SnipeErrorCodes.NOT_INITIALIZED);
-			}
-#endif
+			on_advertising_id_ready();
 		}
 	}
 
@@ -186,13 +226,11 @@ public class AdvertisingIdAuthProvider : BindProvider
 
 	public override bool CheckAuthExists(CheckAuthExistsCallback callback = null)
 	{
-		void advertising_id_callback(string advertising_id, bool tracking_enabled, string error)
+		void on_advertising_id_ready()
 		{
-			DebugLogger.Log($"[AdvertisingIdAuthProvider] CheckAuthExists - advertising_id : {advertising_id} , error : {error}");
+			DebugLogger.Log("[AdvertisingIdAuthProvider] CheckAuthExists - on_advertising_id_ready");
 
-			AdvertisingId = advertising_id;
-
-			if (CheckAdvertisingId(advertising_id))
+			if (CheckAdvertisingId(AdvertisingId))
 			{
 				CheckAuthExists(AdvertisingId, callback);
 			}
@@ -204,12 +242,16 @@ public class AdvertisingIdAuthProvider : BindProvider
 					callback.Invoke(this, false, false);
 			}
 		}
+		
+		if (AdvertisingId == null)  // not initialized yet
+		{
+			EnqueueAdvertisingIdReadyAction(on_advertising_id_ready);
+		}
+		else
+		{
+			on_advertising_id_ready();
+		}
 
-#if MINI_IT_ADVERTISING_ID
-		MiniIT.Utils.AdvertisingIdFetcher.RequestAdvertisingId((adid) => advertising_id_callback(adid, true, ""));
 		return true;
-#else
-		return Application.RequestAdvertisingIdentifierAsync(advertising_id_callback);
-#endif
 	}
 }
