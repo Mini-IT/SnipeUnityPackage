@@ -450,9 +450,30 @@ namespace MiniIT.Snipe
 					
 					WrapperType list_wrapper = default;
 					
-					lock (mParseJSONLocker)
+					if (typeof(WrapperType) == typeof(SnipeTableLogicItemsWrapper))
 					{
-						list_wrapper = fastJSON.JSON.ToObject<WrapperType>(json_string);
+						DebugLogger.Log("[SnipeTable] SnipeTableLogicItemsWrapper");
+						
+						Dictionary<string, object> parsed_data = null;
+						lock (mParseJSONLocker)
+						{
+							//parsed_data = (Dictionary<string, object>)fastJSON.JSON.ToObject(json_string);
+							parsed_data = SnipeObject.FromJSONString(json_string);
+						}
+						
+						list_wrapper = SnipeTableLogicItemsWrapper.FromTableData(parsed_data) as WrapperType;
+						
+						if (list_wrapper == null)
+						{
+							DebugLogger.Log("[SnipeTable] parsed_data is null");
+						}
+					}
+					else
+					{
+						lock (mParseJSONLocker)
+						{
+							list_wrapper = fastJSON.JSON.ToObject<WrapperType>(json_string);
+						}
 					}
 					
 					if (list_wrapper?.list != null)
