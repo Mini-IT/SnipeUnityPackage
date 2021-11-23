@@ -2,6 +2,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Net;
@@ -15,6 +16,8 @@ namespace MiniIT.Snipe
 	{
 		protected const int MAX_LOADERS_COUNT = 4;
 		protected const string VERSION_FILE_NAME = "snipe_tables_version.txt";
+		
+		public static long VersionFetchingTime { get; protected set; }
 		
 		protected static string mVersion = null;
 		protected static bool mVersionRequested = false;
@@ -124,6 +127,8 @@ namespace MiniIT.Snipe
 				
 				string version_file_path = Path.Combine(SnipeConfig.PersistentDataPath, VERSION_FILE_NAME);
 				
+				var stopwatch = Stopwatch.StartNew();
+				
 				HttpClient loader = null;
 				for (int retries_count = 0; retries_count < 3; retries_count++)
 				{
@@ -174,6 +179,10 @@ namespace MiniIT.Snipe
 					if (cancellation_token.IsCancellationRequested)
 					{
 						DebugLogger.Log($"[SnipeTable] LoadVersion task canceled");
+						
+						stopwatch.Stop();
+						VersionFetchingTime = stopwatch.ElapsedMilliseconds;
+						
 						return;
 					}
 				}
@@ -196,12 +205,15 @@ namespace MiniIT.Snipe
 							DebugLogger.Log($"[SnipeTable] LoadVersion - built-in value - {mVersion}");
 						}
 					}
-					
-					if (string.IsNullOrEmpty(mVersion))
-					{
-						DebugLogger.Log($"[SnipeTable] LoadVersion Failed");
-						return;
-					}
+				}
+				
+				stopwatch.Stop();
+				VersionFetchingTime = stopwatch.ElapsedMilliseconds;
+				
+				if (string.IsNullOrEmpty(mVersion))
+				{
+					DebugLogger.Log($"[SnipeTable] LoadVersion Failed");
+					return;
 				}
 			}
 			else
