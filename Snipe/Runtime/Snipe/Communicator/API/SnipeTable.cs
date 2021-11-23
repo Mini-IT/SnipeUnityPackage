@@ -25,6 +25,21 @@ namespace MiniIT.Snipe
 		protected static readonly object mCacheIOLocker = new object();
 		protected static readonly object mParseJSONLocker = new object();
 		
+		public delegate void LoadingFinishedHandler(bool success);
+		
+		public bool Loaded { get; protected set; } = false;
+		public bool LoadingFailed { get; protected set; } = false;
+		
+		public enum LoadingLocation
+		{
+			Network,  // External URL
+			Cache,    // Application cache
+			BuiltIn,  // StremingAssets
+		}
+		public LoadingLocation LoadedFrom { get; protected set; } = LoadingLocation.Network;
+		
+		protected CancellationTokenSource mLoadingCancellation;
+		
 		public static void Initialize()
 		{
 			BetterStreamingAssets.Initialize();
@@ -52,15 +67,9 @@ namespace MiniIT.Snipe
 	
 	public class SnipeTable<ItemType> : SnipeTable where ItemType : SnipeTableItem, new()
 	{
-		public delegate void LoadingFinishedHandler(bool success);
 		public event LoadingFinishedHandler LoadingFinished;
-
-		public bool Loaded { get; private set; } = false;
-		public bool LoadingFailed { get; private set; } = false;
 		
 		public Dictionary<int, ItemType> Items { get; private set; }
-		
-		private CancellationTokenSource mLoadingCancellation;
 		
 		public ItemType this[int id]
 		{
@@ -374,6 +383,7 @@ namespace MiniIT.Snipe
 
 						if (this.Loaded)
 						{
+							this.LoadedFrom = LoadingLocation.Cache;
 							DebugLogger.Log($"[SnipeTable] Table ready (from cache) - {table_name}");
 						}
 					}
@@ -409,6 +419,7 @@ namespace MiniIT.Snipe
 				
 				if (this.Loaded)
 				{
+					this.LoadedFrom = LoadingLocation.BuiltIn;
 					DebugLogger.Log($"[SnipeTable] Table ready (built-in) - {table_name}");
 				}
 			}
