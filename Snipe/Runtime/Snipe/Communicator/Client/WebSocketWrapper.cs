@@ -127,12 +127,15 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		public void Ping()
+		public void Ping(Action<bool> callback = null)
 		{
 			if (!Connected)
+			{
+				callback?.Invoke(false);
 				return;
+			}
 
-			mWebSocket.Ping();
+			mWebSocket.PingAsync(callback);
 		}
 
 		public bool Connected

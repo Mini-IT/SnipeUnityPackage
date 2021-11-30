@@ -29,6 +29,7 @@ namespace MiniIT.Snipe
 		public bool LoggedIn { get { return mLoggedIn && Connected; } }
 
 		public string ConnectionId { get; private set; }
+		public bool BadConnection { get; private set; } = false;
 
 		protected bool mHeartbeatEnabled = true;
 		public bool HeartbeatEnabled
@@ -129,6 +130,7 @@ namespace MiniIT.Snipe
 			
 			StopSendTask();
 			StopHeartbeat();
+			StopCheckConnection();
 
 			if (mWebSocket != null)
 			{
@@ -390,10 +392,14 @@ namespace MiniIT.Snipe
 
 				// DebugLogger.Log($"[SnipeClient] [{ConnectionId}] StopCheckConnection");
 			}
+			
+			BadConnection = false;
 		}
 
 		private async Task CheckConnectionTask(CancellationToken cancellation)
 		{
+			BadConnection = false;
+			
 			try
 			{
 				await Task.Delay(CHECK_CONNECTION_TIMEOUT, cancellation);
@@ -407,11 +413,51 @@ namespace MiniIT.Snipe
 			// if the connection is ok then this task should already be cancelled
 			if (cancellation.IsCancellationRequested)
 				return;
+			
+			BadConnection = true;
+			DebugLogger.Log($"[SnipeClient] [{ConnectionId}] CheckConnectionTask - Bad connection detected");
+			
+			lock (mWebSocket)
+			{
+				mWebSocket.Ping(pong =>
+				{
+					if (!pong)
+					{
+						OnDisconnectDetected();
+					}
+				});
+			}
+			
+			try
+			{
+				await Task.Delay(CHECK_CONNECTION_TIMEOUT * 2, cancellation);
+			}
+			catch (TaskCanceledException)
+			{
+				// This is OK. Just terminating the task
+				BadConnection = false;
+				return;
+			}
+			
+			// if the connection is ok then this task should already be cancelled
+			if (cancellation.IsCancellationRequested)
+			{
+				BadConnection = false;
+				return;
+			}
+			
+			OnDisconnectDetected();
+		}
+		
+		private void OnDisconnectDetected()
+		{
+			if (Connected)
+			{
+				// Disconnect detected
+				DebugLogger.Log($"[SnipeClient] [{ConnectionId}] CheckConnectionTask - Disconnect detected");
 
-			// Disconnect detected
-			DebugLogger.Log($"[SnipeClient] [{ConnectionId}] CheckConnectionTask - Disconnect detected");
-
-			OnWebSocketClosed();
+				OnWebSocketClosed();
+			}
 		}
 
 		#endregion

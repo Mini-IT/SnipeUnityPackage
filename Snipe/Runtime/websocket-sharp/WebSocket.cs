@@ -3343,7 +3343,29 @@ namespace WebSocketSharp
 
       return ping (bytes);
     }
-
+	
+	public void PingAsync(Action<bool> completed = null)
+	{
+		Func<byte[], bool> sender = ping;
+		sender.BeginInvoke (EmptyBytes,
+        ar => {
+          try {
+            var sent = sender.EndInvoke (ar);
+            if (completed != null)
+              completed (sent);
+          }
+          catch (Exception ex) {
+            _logger.Error (ex.ToString ());
+            error (
+              "An error has occurred during the callback for an async ping.",
+              ex
+            );
+          }
+        },
+        null
+      );
+	}
+	
     /// <summary>
     /// Sends the specified data using the WebSocket connection.
     /// </summary>
