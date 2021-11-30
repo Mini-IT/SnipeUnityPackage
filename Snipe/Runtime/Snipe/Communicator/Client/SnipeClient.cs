@@ -58,6 +58,7 @@ namespace MiniIT.Snipe
 		#region Web Socket
 
 		private WebSocketWrapper mWebSocket = null;
+		private object mWebSocketLock = new object();
 
 		public void Connect()
 		{
@@ -197,7 +198,7 @@ namespace MiniIT.Snipe
 			DebugLogger.Log($"[SnipeClient] DoSendRequest - {message.ToJSONString()}");
 
 			byte[] bytes = MessagePackSerializer.Serialize(message);
-			lock (mWebSocket)
+			lock (mWebSocketLock)
 			{
 				mWebSocket.SendRequest(bytes);
 			}
@@ -346,7 +347,7 @@ namespace MiniIT.Snipe
 			{
 				if (DateTime.UtcNow.Ticks >= mHeartbeatTriggerTicks)
 				{
-					lock (mWebSocket)
+					lock (mWebSocketLock)
 					{
 						mWebSocket.Ping();
 					}
@@ -417,36 +418,62 @@ namespace MiniIT.Snipe
 			BadConnection = true;
 			DebugLogger.Log($"[SnipeClient] [{ConnectionId}] CheckConnectionTask - Bad connection detected");
 			
-			lock (mWebSocket)
+			bool pinging = false;
+			while (Connected)
 			{
-				mWebSocket.Ping(pong =>
+				if (pinging)
 				{
-					if (!pong)
+					await Task.Yield();
+				}
+				else
+				{
+					lock (mWebSocketLock)
 					{
-						OnDisconnectDetected();
+						pinging = true;
+						mWebSocket.Ping(pong =>
+						{
+							pinging = false;
+							
+							if (pong)
+							{
+								DebugLogger.Log($"[SnipeClient] [{ConnectionId}] CheckConnectionTask - pong received");
+							}
+							else
+							{
+								DebugLogger.Log($"[SnipeClient] [{ConnectionId}] CheckConnectionTask - pong NOT received");
+								OnDisconnectDetected();
+							}
+						});
 					}
-				});
+				}
+				
+				// if the connection is ok then this task should already be cancelled
+				if (cancellation.IsCancellationRequested)
+				{
+					BadConnection = false;
+					return;
+				}
 			}
 			
-			try
-			{
-				await Task.Delay(CHECK_CONNECTION_TIMEOUT * 2, cancellation);
-			}
-			catch (TaskCanceledException)
-			{
-				// This is OK. Just terminating the task
-				BadConnection = false;
-				return;
-			}
+			// try
+			// {
+				// await Task.Delay(CHECK_CONNECTION_TIMEOUT * 2, cancellation);
+			// }
+			// catch (TaskCanceledException)
+			// {
+				// // This is OK. Just terminating the task
+				// BadConnection = false;
+				// return;
+			// }
 			
-			// if the connection is ok then this task should already be cancelled
-			if (cancellation.IsCancellationRequested)
-			{
-				BadConnection = false;
-				return;
-			}
+			// // if the connection is ok then this task should already be cancelled
+			// if (cancellation.IsCancellationRequested)
+			// {
+				// BadConnection = false;
+				// return;
+			// }
 			
-			OnDisconnectDetected();
+			// OnDisconnectDetected();
 		}
 		
 		private void OnDisconnectDetected()
