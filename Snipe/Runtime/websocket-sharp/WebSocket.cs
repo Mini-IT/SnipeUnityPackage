@@ -773,16 +773,18 @@ namespace WebSocketSharp
         }
       }
     }
-	
-	public bool NoDelay
-	{
-		get => (_tcpClient != null) ? _tcpClient.NoDelay : false;
-		set
-		{
-			if (_tcpClient != null)
-				_tcpClient.NoDelay = value;
-		}
-	}
+    
+    private bool _noDelay = false;
+    public bool NoDelay
+    {
+        get => (_tcpClient != null) ? _tcpClient.NoDelay : _noDelay;
+        set
+        {
+            _noDelay = value;
+            if (_tcpClient != null)
+                _tcpClient.NoDelay = value;
+        }
+    }
 
     #endregion
 
@@ -2103,6 +2105,7 @@ namespace WebSocketSharp
           if (res.HasConnectionClose) {
             releaseClientResources ();
             _tcpClient = new TcpClient (_proxyUri.DnsSafeHost, _proxyUri.Port);
+            _tcpClient.NoDelay = _noDelay;
             _stream = _tcpClient.GetStream ();
           }
 
@@ -2125,11 +2128,13 @@ namespace WebSocketSharp
     {
       if (_proxyUri != null) {
         _tcpClient = new TcpClient (_proxyUri.DnsSafeHost, _proxyUri.Port);
+        _tcpClient.NoDelay = _noDelay;
         _stream = _tcpClient.GetStream ();
         sendProxyConnectRequest ();
       }
       else {
         _tcpClient = new TcpClient (_uri.DnsSafeHost, _uri.Port);
+        _tcpClient.NoDelay = _noDelay;
         _stream = _tcpClient.GetStream ();
       }
 

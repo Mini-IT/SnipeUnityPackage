@@ -38,6 +38,7 @@ namespace MiniIT.Snipe
 			mWebSocket.OnOpen += OnWebSocketConnected;
 			mWebSocket.OnClose += OnWebSocketClosed;
 			mWebSocket.OnMessage += OnWebSocketMessage;
+			mWebSocket.NoDelay = true;
 			mWebSocket.ConnectAsync();
 			
 			mConnectionWaitingCancellation = new CancellationTokenSource();
@@ -89,8 +90,6 @@ namespace MiniIT.Snipe
 				mConnectionWaitingCancellation.Cancel();
 				mConnectionWaitingCancellation = null;
 			}
-			
-			mWebSocket.NoDelay = true;
 			
 			OnConnectionOpened?.Invoke();
 		}
