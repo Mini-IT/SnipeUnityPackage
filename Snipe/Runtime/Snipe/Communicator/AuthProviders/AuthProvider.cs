@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -13,6 +14,8 @@ namespace MiniIT.Snipe
 		
 		private string mLogin;
 		private string mPassword;
+		
+		private Stopwatch mLoginStopwatch;
 
 		public virtual void DisposeCallbacks()
 		{
@@ -51,7 +54,19 @@ namespace MiniIT.Snipe
 				["auth"] = password,
 			};
 			
-			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_RESET)?.RequestAuth(data, OnAuthResetResponse);
+			var stopwatch = Stopwatch.StartNew();
+			
+			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_RESET)?.RequestAuth(data, 
+				(string error_code, SnipeObject response_data) =>
+				{
+					stopwatch.Stop();
+					Analytics.TrackEvent(SnipeMessageTypes.AUTH_RESET, new SnipeObject()
+						{
+							["request_time"] = stopwatch.ElapsedMilliseconds,
+						});
+					
+					OnAuthResetResponse(error_code, response_data);
+				});
 		}
 		
 		protected virtual void OnAuthResetResponse(string error_code, SnipeObject response_data)
@@ -92,6 +107,9 @@ namespace MiniIT.Snipe
 			
 			SnipeCommunicator.Instance.MessageReceived -= OnMessageReceived;
 			SnipeCommunicator.Instance.MessageReceived += OnMessageReceived;
+			
+			mLoginStopwatch = Stopwatch.StartNew();
+			
 			SnipeCommunicator.Instance.Client.SendRequest(SnipeMessageTypes.AUTH_USER_LOGIN, data);
 		}
 		
@@ -106,7 +124,14 @@ namespace MiniIT.Snipe
 
 		protected virtual void OnAuthLoginResponse(string error_code, SnipeObject data)
 		{
+			mLoginStopwatch?.Stop();
+			
 			DebugLogger.Log($"[AuthProvider] OnAuthLoginResponse {error_code} {data?.ToJSONString()}");
+			
+			Analytics.TrackEvent(SnipeMessageTypes.AUTH_USER_LOGIN, new SnipeObject()
+				{
+					["request_time"] = mLoginStopwatch?.ElapsedMilliseconds,
+				});
 
 			if (error_code == SnipeErrorCodes.OK && !string.IsNullOrEmpty(mLogin) && !string.IsNullOrEmpty(mPassword))
 			{

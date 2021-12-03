@@ -422,9 +422,13 @@ namespace MiniIT.Snipe
 
 		private void RequestRegister()
 		{
+			var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+			
 			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_REGISTER)?.RequestAuth(null,
 				(error_code, response) =>
 				{
+					stopwatch.Stop();
+					
 					int user_id = 0;
 					
 					if (error_code == "ok")
@@ -443,6 +447,7 @@ namespace MiniIT.Snipe
 						Analytics.TrackEvent(Analytics.EVENT_ACCOUNT_REGISTERED, new SnipeObject()
 						{
 							["user_id"] = user_id,
+							["request_time"] = stopwatch.ElapsedMilliseconds,
 						});
 
 						SwitchToDefaultAuthProvider();
@@ -455,6 +460,7 @@ namespace MiniIT.Snipe
 						Analytics.TrackEvent(Analytics.EVENT_ACCOUNT_REGISTERATION_FAILED, new SnipeObject()
 						{
 							["error_code"] = error_code,
+							["request_time"] = stopwatch.ElapsedMilliseconds,
 						});
 						
 						InvokeAuthFailCallback(error_code);

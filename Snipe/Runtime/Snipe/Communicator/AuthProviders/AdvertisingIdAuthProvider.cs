@@ -12,6 +12,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 	public override string ProviderId { get { return PROVIDER_ID; } }
 
 	public static string AdvertisingId { get; private set; } = null;
+	public static TimeSpan AdvertisingIdFetchTime { get; private set; }
 	
 	private SnipeObject mBindRequestData = null;
 	private Queue<Action> mAdvertisingIdReadyActions;
@@ -21,10 +22,20 @@ public class AdvertisingIdAuthProvider : BindProvider
 		if (AdvertisingId != null)
 			return;
 		
+		var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+		
 		void advertising_id_callback(string advertising_id, bool tracking_enabled, string error)
 		{
+			stopwatch.Stop();
+			AdvertisingIdFetchTime = stopwatch.Elapsed;
+			
 			var error_string = string.IsNullOrEmpty(error) ? "" : ", error: " + error;
 			DebugLogger.Log($"[AdvertisingIdAuthProvider] advertising_id : {advertising_id} {error_string}");
+			
+			Analytics.TrackEvent("RequestAdvertisingId", new SnipeObject()
+				{
+					["request_time"] = stopwatch.ElapsedMilliseconds,
+				});
 			
 			AdvertisingId = advertising_id ?? "";
 			InvokeAdvertisingIdReadyActions();

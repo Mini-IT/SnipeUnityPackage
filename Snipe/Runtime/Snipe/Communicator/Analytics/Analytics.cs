@@ -108,6 +108,13 @@ namespace MiniIT.Snipe
 				// Some trackers (for example Amplitude) may crash if used not in the main Unity thread.
 				// We'll put events into a queue and call mTracker.TrackEvent in the MonoBehaviour's coroutine.
 				
+				if (SnipeCommunicator.InstanceInitialized && SnipeCommunicator.Instance.Connected)
+				{
+					if (properties == null)
+						properties = new Dictionary<string, object>(1);
+					properties["server_reaction"] = SnipeCommunicator.Instance.ServerReaction.TotalMilliseconds;
+				}
+				
 				GetInstance().EnqueueEvent(name, properties);
 			}
 		}
