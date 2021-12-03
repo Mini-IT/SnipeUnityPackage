@@ -773,6 +773,16 @@ namespace WebSocketSharp
         }
       }
     }
+	
+	public bool NoDelay
+	{
+		get => (_tcpClient != null) ? _tcpClient.NoDelay : false;
+		set
+		{
+			if (_tcpClient != null)
+				_tcpClient.NoDelay = value;
+		}
+	}
 
     #endregion
 

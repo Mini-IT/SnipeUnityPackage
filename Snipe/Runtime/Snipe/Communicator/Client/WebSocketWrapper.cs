@@ -90,6 +90,8 @@ namespace MiniIT.Snipe
 				mConnectionWaitingCancellation = null;
 			}
 			
+			mWebSocket.NoDelay = true;
+			
 			OnConnectionOpened?.Invoke();
 		}
 
