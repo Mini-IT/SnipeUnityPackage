@@ -535,6 +535,7 @@ namespace MiniIT.Snipe
 			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_CONNECTED, new SnipeObject()
 			{
 				["connection_type"] = "websocket",
+				["connection_time"] = Analytics.ConnectionEstablishmentTime,
 			});
 		}
 		

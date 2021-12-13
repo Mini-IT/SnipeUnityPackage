@@ -48,6 +48,9 @@ namespace MiniIT.Snipe
 			}
 		}
 		
+		private Stopwatch mConnectionStopwatch;
+		private Stopwatch mPingStopwatch;
+		
 		private Stopwatch mServerReactionStopwatch;
 		public TimeSpan CurrentRequestElapsed { get { return mServerReactionStopwatch?.Elapsed ?? new TimeSpan(0); } }
 		public TimeSpan ServerReaction { get; private set; }
@@ -75,12 +78,18 @@ namespace MiniIT.Snipe
 			mWebSocket.OnConnectionOpened += OnWebSocketConnected;
 			mWebSocket.OnConnectionClosed += OnWebSocketClosed;
 			mWebSocket.ProcessMessage += ProcessMessage;
+			
+			mConnectionStopwatch = Stopwatch.StartNew();
+			
 			mWebSocket.Connect(url);
 		}
 
 		private void OnWebSocketConnected()
 		{
-			DebugLogger.Log("[SnipeClient] OnWebSocketConnected");
+			DebugLogger.Log($"[SnipeClient] OnWebSocketConnected");
+			
+			mConnectionStopwatch?.Stop();
+			Analytics.ConnectionEstablishmentTime = mConnectionStopwatch?.ElapsedMilliseconds ?? 0;
 			
 			mConnected = true;
 			
@@ -128,6 +137,9 @@ namespace MiniIT.Snipe
 			mConnected = false;
 			mLoggedIn = false;
 			ConnectionId = "";
+			
+			mConnectionStopwatch?.Stop();
+			Analytics.PingTime = 0;
 			
 			StopSendTask();
 			StopHeartbeat();
@@ -213,10 +225,10 @@ namespace MiniIT.Snipe
 				mServerReactionStopwatch = Stopwatch.StartNew();
 			}
 
-			if (mHeartbeatEnabled)
-			{
-				ResetHeartbeatTimer();
-			}
+			// if (mHeartbeatEnabled)
+			// {
+				// ResetHeartbeatTimer();
+			// }
 		}
 		
 		protected void ProcessMessage(byte[] raw_data_buffer)
@@ -339,21 +351,57 @@ namespace MiniIT.Snipe
 
 		private async Task HeartbeatTask(CancellationToken cancellation)
 		{
-			ResetHeartbeatTimer();
+			//ResetHeartbeatTimer();
 
-			await Task.Delay(HEARTBEAT_TASK_DELAY, cancellation);
+			// await Task.Delay(HEARTBEAT_TASK_DELAY, cancellation);
+			mHeartbeatTriggerTicks = 0;
 
 			while (!cancellation.IsCancellationRequested && Connected)
 			{
 				if (DateTime.UtcNow.Ticks >= mHeartbeatTriggerTicks)
 				{
-					lock (mWebSocketLock)
+					bool pinging = false;
+					if (pinging)
 					{
-						mWebSocket.Ping();
+						await Task.Yield();
 					}
+					else
+					{
+						lock (mWebSocketLock)
+						{
+							pinging = true;
+							
+							if (mPingStopwatch == null)
+							{
+								mPingStopwatch = Stopwatch.StartNew();
+							}
+							else
+							{
+								mPingStopwatch.Restart();
+							}
+							
+							mWebSocket.Ping(pong =>
+							{
+								pinging = false;
+								mPingStopwatch?.Stop();
+								Analytics.PingTime = pong && mPingStopwatch != null ? mPingStopwatch.ElapsedMilliseconds : 0;
+								
+								if (pong)
+									DebugLogger.Log($"[SnipeClient] [{ConnectionId}] Heartbeat pong {Analytics.PingTime} ms");
+								else
+									DebugLogger.Log($"[SnipeClient] [{ConnectionId}] Heartbeat pong NOT RECEIVED");
+							});
+						}
+					}
+					
 					ResetHeartbeatTimer();
 
 					DebugLogger.Log($"[SnipeClient] [{ConnectionId}] Heartbeat ping");
+				}
+				
+				if (cancellation.IsCancellationRequested)
+				{
+					return;
 				}
 
 				await Task.Delay(HEARTBEAT_TASK_DELAY, cancellation);

@@ -11,6 +11,9 @@ namespace MiniIT.Snipe
 		
 		#region AnalyticsTracker
 		
+		public static long PingTime { get; internal set; }
+		public static long ConnectionEstablishmentTime { get; internal set; }
+		
 		private static IAnalyticsTracker mTracker;
 		
 		private static string mUserId = null;
@@ -40,15 +43,8 @@ namespace MiniIT.Snipe
 		
 		public static void SetUserId(string uid)
 		{
-			if (CheckReady())
-			{
-				mTracker.SetUserId(uid);
-				mUserId = null;
-			}
-			else
-			{
-				mUserId = uid;
-			}
+			mUserId = uid;
+			CheckReady();
 		}
 
 		public static void SetUserProperty(string name, string value)
@@ -108,10 +104,13 @@ namespace MiniIT.Snipe
 				// Some trackers (for example Amplitude) may crash if used not in the main Unity thread.
 				// We'll put events into a queue and call mTracker.TrackEvent in the MonoBehaviour's coroutine.
 				
+				if (properties == null)
+					properties = new Dictionary<string, object>(2);
+				if (PingTime > 0)
+					properties["ping_time"] = PingTime;
+				
 				if (SnipeCommunicator.InstanceInitialized && SnipeCommunicator.Instance.Connected)
-				{
-					if (properties == null)
-						properties = new Dictionary<string, object>(1);
+				{	
 					properties["server_reaction"] = SnipeCommunicator.Instance.ServerReaction.TotalMilliseconds;
 				}
 				
@@ -122,7 +121,7 @@ namespace MiniIT.Snipe
 		{
 			if (CheckReady())
 			{
-				Dictionary<string, object> properties = new Dictionary<string, object>(1);
+				Dictionary<string, object> properties = new Dictionary<string, object>(3);
 				properties[property_name] = property_value;
 				TrackEvent(name, properties);
 			}
@@ -131,7 +130,7 @@ namespace MiniIT.Snipe
 		{
 			if (CheckReady())
 			{
-				Dictionary<string, object> properties = new Dictionary<string, object>(1);
+				Dictionary<string, object> properties = new Dictionary<string, object>(3);
 				properties["value"] = property_value;
 				TrackEvent(name, properties);
 			}
@@ -141,7 +140,7 @@ namespace MiniIT.Snipe
 		{
 			if (CheckReady() && mTracker.CheckErrorCodeTracking(message_type, error_code))
 			{
-				Dictionary<string, object> properties = new Dictionary<string, object>(1);
+				Dictionary<string, object> properties = new Dictionary<string, object>(5);
 				properties["message_type"] = message_type;
 				properties["error_code"] = error_code;
 				properties["data"] = data?.ToJSONString();
