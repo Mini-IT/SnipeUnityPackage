@@ -536,6 +536,20 @@ namespace MiniIT.Snipe
 			{
 				["connection_type"] = "websocket",
 				["connection_time"] = Analytics.ConnectionEstablishmentTime,
+				
+				["ws dns resolve"] = Analytics.WebSocketDnsResolveTime,
+				["ws tcp client constructor"] = Analytics.WebSocketTcpClientConstructorTime,
+				["ws get stream"] = Analytics.WebSocketTcpClientGetStreamTime,
+				["ws tcp connect"] = Analytics.WebSocketConnectTime,
+				["ws ssl auth"] = Analytics.WebSocketSslAuthenticateTime,
+				["ws upgrade request"] = Analytics.WebSocketHandshakeTime,
+				["ws misc"] = Analytics.ConnectionEstablishmentTime - 
+					Analytics.WebSocketDnsResolveTime -
+					Analytics.WebSocketTcpClientConstructorTime -
+					Analytics.WebSocketTcpClientGetStreamTime -
+					Analytics.WebSocketConnectTime -
+					Analytics.WebSocketSslAuthenticateTime -
+					Analytics.WebSocketHandshakeTime,
 			});
 		}
 		
@@ -547,6 +561,13 @@ namespace MiniIT.Snipe
 				["connection_id"] = Client?.ConnectionId,
 				//["disconnect_reason"] = Client?.DisconnectReason,
 				//["check_connection_message"] = Client?.CheckConnectionMessageType,
+				
+				["ws dns resolve"] = Analytics.WebSocketDnsResolveTime,
+				["ws tcp client constructor"] = Analytics.WebSocketTcpClientConstructorTime,
+				["ws get stream"] = Analytics.WebSocketTcpClientGetStreamTime,
+				["ws tcp connect"] = Analytics.WebSocketConnectTime,
+				["ws ssl auth"] = Analytics.WebSocketSslAuthenticateTime,
+				["ws upgrade request"] = Analytics.WebSocketHandshakeTime,
 			});
 		}
 		

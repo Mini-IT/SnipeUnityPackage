@@ -75,6 +75,7 @@ namespace MiniIT.Snipe
 			
 			if (mWebSocket != null)
 			{
+				SetConnectionAnalyticsValues();
 				mWebSocket.OnOpen -= OnWebSocketConnected;
 				mWebSocket.OnClose -= OnWebSocketClosed;
 				mWebSocket.OnMessage -= OnWebSocketMessage;
@@ -90,6 +91,8 @@ namespace MiniIT.Snipe
 				mConnectionWaitingCancellation.Cancel();
 				mConnectionWaitingCancellation = null;
 			}
+			
+			SetConnectionAnalyticsValues();
 			
 			OnConnectionOpened?.Invoke();
 		}
@@ -159,6 +162,16 @@ namespace MiniIT.Snipe
 		}
 		
 		#endregion
+		
+		private void SetConnectionAnalyticsValues()
+		{
+			Analytics.WebSocketTcpClientConstructorTime = mWebSocket.TcpClientConstructorTime.TotalMilliseconds;
+			Analytics.WebSocketTcpClientGetStreamTime = mWebSocket.TcpClientGetStreamTime.TotalMilliseconds;
+			Analytics.WebSocketDnsResolveTime = mWebSocket.DnsResolveTime.TotalMilliseconds;
+			Analytics.WebSocketConnectTime = mWebSocket.ConnectTime.TotalMilliseconds;
+			Analytics.WebSocketSslAuthenticateTime = mWebSocket.SslAuthenticateTime.TotalMilliseconds;
+			Analytics.WebSocketHandshakeTime = mWebSocket.HandshakeTime.TotalMilliseconds;
+		}
 	}
 
 }
