@@ -1410,9 +1410,12 @@ namespace WebSocketSharp
     private void doHandshake ()
     {
       setClientStream ();
+			var sw = System.Diagnostics.Stopwatch.StartNew();
       var res = sendHandshakeRequest ();
+			sw.Stop();
+			HandshakeTime = sw.Elapsed;
 
-      string msg;
+			string msg;
       if (!checkHandshakeResponse (res, out msg))
         throw new WebSocketException (CloseStatusCode.ProtocolError, msg);
 
@@ -2123,20 +2126,49 @@ namespace WebSocketSharp
           "The proxy has failed a connection to the requested host and port.");
     }
 
-    // As client
-    private void setClientStream ()
+		public TimeSpan TcpClientConstructorTime { get; private set; }
+		public TimeSpan TcpClientGetStreamTime { get; private set; }
+		public TimeSpan DnsResolveTime { get; private set; }
+		public TimeSpan ConnectTime { get; private set; }
+		public TimeSpan SslAuthenticateTime { get; private set; }
+		public TimeSpan HandshakeTime { get; private set; }
+
+		// As client
+		private void setClientStream ()
     {
-      if (_proxyUri != null) {
+			System.Diagnostics.Stopwatch sw;
+
+
+	  if (_proxyUri != null) {
         _tcpClient = new TcpClient (_proxyUri.DnsSafeHost, _proxyUri.Port);
         _tcpClient.NoDelay = _noDelay;
         _stream = _tcpClient.GetStream ();
         sendProxyConnectRequest ();
       }
       else {
-        _tcpClient = new TcpClient (_uri.DnsSafeHost, _uri.Port);
-        _tcpClient.NoDelay = _noDelay;
+				sw = System.Diagnostics.Stopwatch.StartNew();
+				//_tcpClient = new TcpClient (_uri.DnsSafeHost, _uri.Port);
+				System.Net.IPAddress ipAddress = System.Net.Dns.GetHostEntry(_uri.DnsSafeHost).AddressList[0];
+				DnsResolveTime = sw.Elapsed;
+				System.Net.IPEndPoint ipLocalEndPoint = new System.Net.IPEndPoint(ipAddress, _uri.Port);
+
+				sw.Restart();
+				_tcpClient = new TcpClient();
+				TcpClientConstructorTime = sw.Elapsed;
+
+				sw.Restart();
+				_tcpClient.Connect(ipLocalEndPoint);
+				sw.Stop();
+				ConnectTime = sw.Elapsed;
+
+				_tcpClient.NoDelay = _noDelay;
+
+				sw.Restart();
         _stream = _tcpClient.GetStream ();
-      }
+				TcpClientGetStreamTime = sw.Elapsed;
+				sw.Stop();
+
+	  }
 
       if (_secure) {
         var conf = getSslConfiguration ();
@@ -2145,7 +2177,9 @@ namespace WebSocketSharp
           throw new WebSocketException (
             CloseStatusCode.TlsHandshakeFailure, "An invalid host name is specified.");
 
-        try {
+				sw = System.Diagnostics.Stopwatch.StartNew();
+
+				try {
           var sslStream = new SslStream (
             _stream,
             false,
@@ -2157,6 +2191,9 @@ namespace WebSocketSharp
             conf.ClientCertificates,
             conf.EnabledSslProtocols,
             conf.CheckCertificateRevocation);
+
+					sw.Stop();
+					SslAuthenticateTime = sw.Elapsed;
 
           _stream = sslStream;
         }
