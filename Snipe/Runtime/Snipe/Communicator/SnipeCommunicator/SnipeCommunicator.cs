@@ -279,6 +279,14 @@ namespace MiniIT.Snipe
 			});
 		}
 		
+		private void OnClientUdpConnectionFailed()
+		{
+			InvokeInMainThread(() =>
+			{
+				AnalyticsTrackUdpConnectionFailed();
+			});
+		}
+		
 		// Main thread
 		private void OnConnectionFailed()
 		{	
@@ -534,7 +542,7 @@ namespace MiniIT.Snipe
 		{
 			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_CONNECTED, new SnipeObject()
 			{
-				["connection_type"] = Client.UdpTransportConnected ? "udp" : "websocket",
+				["connection_type"] = Client.UdpClientConnected ? "udp" : "websocket",
 				["connection_time"] = Analytics.ConnectionEstablishmentTime,
 				
 				["ws dns resolve"] = Analytics.WebSocketDnsResolveTime,
@@ -569,6 +577,11 @@ namespace MiniIT.Snipe
 				["ws ssl auth"] = Analytics.WebSocketSslAuthenticateTime,
 				["ws upgrade request"] = Analytics.WebSocketHandshakeTime,
 			});
+		}
+		
+		private void AnalyticsTrackUdpConnectionFailed()
+		{
+			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_DISCONNECTED + " UDP");
 		}
 		
 		#endregion Analytics

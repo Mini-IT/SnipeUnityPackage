@@ -21,6 +21,7 @@ namespace MiniIT.Snipe
 		public event Action ConnectionClosed;
 		public event Action LoginSucceeded;
 		public event Action<string> LoginFailed;
+		public event Action UdpConnectionFailed;
 		
 		private const double HEARTBEAT_INTERVAL = 30; // seconds
 		private const int HEARTBEAT_TASK_DELAY = 5000; //milliseconds
@@ -29,7 +30,7 @@ namespace MiniIT.Snipe
 		private bool mConnected = false;
 		protected bool mLoggedIn = false;
 
-		public bool Connected => UdpTransportConnected || WebSocketConnected;
+		public bool Connected => UdpClientConnected || WebSocketConnected;
 		public bool LoggedIn { get { return mLoggedIn && Connected; } }
 
 		public string ConnectionId { get; private set; }
@@ -65,12 +66,12 @@ namespace MiniIT.Snipe
 		public void Connect(bool udp = true)
 		{
 			if (udp && !string.IsNullOrEmpty(SnipeConfig.ServerUdpAddress) && SnipeConfig.ServerUdpPort > 0)
-				ConnectUdpTransport();
+				ConnectUdpClient();
 			else
 				ConnectWebSocket();
 		}
 		
-		#region UdpTransport
+		#region UdpClient
 		
 		private KcpClient mUdpClient;
 		private bool mUdpClientConnected;
@@ -81,14 +82,14 @@ namespace MiniIT.Snipe
 		private const byte OPCODE_SNIPE_REQUEST = 4;
 		private const byte OPCODE_SNIPE_RESPONSE = 5;
 		
-		public bool UdpTransportConnected => mUdpClient != null && mUdpClient.connected;
+		public bool UdpClientConnected => mUdpClient != null && mUdpClient.connected;
 		
-		private void ConnectUdpTransport()
+		private void ConnectUdpClient()
 		{	
 			mUdpClient = new KcpClient(
-				OnUdpTransportConnected,
-				(message, channel) => OnUdpTransportDataReceived(message),
-				OnUdpTransportDisconnected);
+				OnUdpClientConnected,
+				(message, channel) => OnUdpClientDataReceived(message),
+				OnUdpClientDisconnected);
 			
 			mUdpClient.Connect(
 				SnipeConfig.ServerUdpAddress,
@@ -105,10 +106,10 @@ namespace MiniIT.Snipe
 			StartUdpNetworkLoop();
 		}
 		
-		private void OnUdpTransportConnected() 
+		private void OnUdpClientConnected() 
 		{
 			// tunnel authentication
-			DebugLogger.Log("[SnipeClient] OnUdpTransportConnected - Sending tunnel authentication response");
+			DebugLogger.Log("[SnipeClient] OnUdpClientConnected - Sending tunnel authentication response");
 			
 			mUdpClientConnected = true;
 			
@@ -120,9 +121,11 @@ namespace MiniIT.Snipe
 			mUdpClient.Send(new ArraySegment<byte>(data, 0, pos), KcpChannel.Reliable);
 		}
 		
-		private void OnUdpTransportDisconnected()
+		private void OnUdpClientDisconnected()
 		{
-			DebugLogger.Log("[SnipeClient] OnUdpTransportDisconnected");
+			DebugLogger.Log("[SnipeClient] OnUdpClientDisconnected");
+			
+			UdpConnectionFailed?.Invoke();
 			
 			if (mUdpClientConnected)
 			{
@@ -134,14 +137,14 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		// private void OnUdpTransportError(Exception err)
+		// private void OnUdpClientError(Exception err)
 		// {
-			// DebugLogger.Log($"[SnipeClient] OnUdpTransportError: {err.Message}");
+			// DebugLogger.Log($"[SnipeClient] OnUdpClientError: {err.Message}");
 		// }
 		
-		private void OnUdpTransportDataReceived(ArraySegment<byte> b) //, int channel)
+		private void OnUdpClientDataReceived(ArraySegment<byte> b) //, int channel)
 		{
-			DebugLogger.Log("[SnipeClient] OnUdpTransportDataReceived");
+			DebugLogger.Log("[SnipeClient] OnUdpClientDataReceived");
 			
 			var data = b.Array;
 			int pos = b.Offset;
@@ -152,7 +155,7 @@ namespace MiniIT.Snipe
 			// idk what that is...
 			if (opcode == 200)
 				return;
-			DebugLogger.Log($"[SnipeClient] : Received opcode {opcode}");
+			// DebugLogger.Log($"[SnipeClient] : Received opcode {opcode}");
 
 			// auth request -> auth response -> authenticated
 			// handled in OnClientConnected
@@ -167,13 +170,13 @@ namespace MiniIT.Snipe
 			else if (opcode == OPCODE_SNIPE_RESPONSE)
 			{
 				//var len = data.ReadInt(ref posin);
-				DebugLogger.Log($"[SnipeClient] recv snipe response"); // ({len} bytes) "); // {BitConverter.ToString(b.Array, posin, len)}
+				// DebugLogger.Log($"[SnipeClient] recv snipe response"); // ({len} bytes) "); // {BitConverter.ToString(b.Array, posin, len)}
 				byte[] msg = data.ReadBytes(ref pos);
 				ProcessMessage(msg);
 			}
 		}
 		
-		private void DoSendRequestUdpTransport(byte[] msg)
+		private void DoSendRequestUdpClient(byte[] msg)
 		{
 			int pos = 0;
 			// opcode + length (4 bytes) + msg
@@ -222,7 +225,7 @@ namespace MiniIT.Snipe
 			DebugLogger.Log("[SnipeClient] UdpNetworkLoop - finish");
 		}
 		
-		#endregion UdpTransport
+		#endregion UdpClient
 		
 		#region Web Socket
 
@@ -309,7 +312,7 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception e)
 			{
-				DebugLogger.Log("[SnipeClient] OnWebSocketConnected - ConnectionOpened invokation error: " + e.Message);
+				DebugLogger.Log("[SnipeClient] ConnectionOpened invokation error: " + e.Message);
 			}
 		}
 
@@ -321,7 +324,7 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception e)
 			{
-				DebugLogger.Log($"[SnipeClient] OnWebSocketClosed - ConnectionClosed invokation error: {e.Message}\n{e.StackTrace}");
+				DebugLogger.Log($"[SnipeClient] ConnectionClosed invokation error: {e.Message}\n{e.StackTrace}");
 			}
 		}
 
@@ -418,8 +421,8 @@ namespace MiniIT.Snipe
 
 			byte[] bytes = MessagePackSerializer.Serialize(message);
 			
-			if (UdpTransportConnected)
-				DoSendRequestUdpTransport(bytes);
+			if (UdpClientConnected)
+				DoSendRequestUdpClient(bytes);
 			else if (WebSocketConnected)
 				DoSendRequestWebSocket(bytes);
 		}
