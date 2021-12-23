@@ -73,6 +73,7 @@ namespace MiniIT.Snipe
 		#region UdpTransport
 		
 		private KcpClient mUdpClient;
+		private bool mUdpClientConnected;
 		
 		private const byte OPCODE_AUTHENTICATION_REQUEST = 1;
 		private const byte OPCODE_AUTHENTICATION_RESPONSE = 2;
@@ -109,6 +110,8 @@ namespace MiniIT.Snipe
 			// tunnel authentication
 			DebugLogger.Log("[SnipeClient] OnUdpTransportConnected - Sending tunnel authentication response");
 			
+			mUdpClientConnected = true;
+			
 			var code = "N4EPtDpPdLfpGwLp";
 			int pos = 0;
 			byte[] data = new byte[code.Length * 2 + 5];
@@ -121,13 +124,20 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log("[SnipeClient] OnUdpTransportDisconnected");
 			
-			Disconnect(true);
+			if (mUdpClientConnected)
+			{
+				Disconnect(true);
+			}
+			else // not connected yet, try websocket
+			{
+				ConnectWebSocket();
+			}
 		}
 		
-		private void OnUdpTransportError(Exception err)
-		{
-			DebugLogger.Log($"[SnipeClient] OnUdpTransportError: {err.Message}");
-		}
+		// private void OnUdpTransportError(Exception err)
+		// {
+			// DebugLogger.Log($"[SnipeClient] OnUdpTransportError: {err.Message}");
+		// }
 		
 		private void OnUdpTransportDataReceived(ArraySegment<byte> b) //, int channel)
 		{
@@ -204,8 +214,8 @@ namespace MiniIT.Snipe
 			
 			while (cancellation != null && !cancellation.IsCancellationRequested)
 			{
-				mUdpClient.TickIncoming();
-				mUdpClient.TickOutgoing();
+				mUdpClient?.TickIncoming();
+				mUdpClient?.TickOutgoing();
 				await Task.Yield();
 			}
 			
@@ -334,6 +344,13 @@ namespace MiniIT.Snipe
 			StopCheckConnection();
 			
 			StopUdpNetworkLoop();
+			
+			mUdpClientConnected = false;
+			if (mUdpClient != null)
+			{
+				mUdpClient.Disconnect();
+				mUdpClient = null;
+			}
 
 			if (mWebSocket != null)
 			{
