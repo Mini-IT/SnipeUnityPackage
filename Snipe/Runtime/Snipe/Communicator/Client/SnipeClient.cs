@@ -1,9 +1,13 @@
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Collections.Concurrent;
 using MiniIT.MessagePack;
+
+using kcp2k;
+using UnityEngine;
 
 namespace MiniIT.Snipe
 {
@@ -25,7 +29,7 @@ namespace MiniIT.Snipe
 		private bool mConnected = false;
 		protected bool mLoggedIn = false;
 
-		public bool Connected { get { return (mWebSocket != null && mWebSocket.Connected); } }
+		public bool Connected => UdpTransportConnected || WebSocketConnected;
 		public bool LoggedIn { get { return mLoggedIn && Connected; } }
 
 		public string ConnectionId { get; private set; }
@@ -57,13 +61,167 @@ namespace MiniIT.Snipe
 
 		private int mRequestId = 0;
 		private ConcurrentQueue<SnipeObject> mSendMessages;
+		
+		public void Connect(bool udp = true)
+		{
+			if (udp && !string.IsNullOrEmpty(SnipeConfig.ServerUdpAddress) && SnipeConfig.ServerUdpPort > 0)
+				ConnectUdpTransport();
+			else
+				ConnectWebSocket();
+		}
+		
+		#region UdpTransport
+		
+		private KcpClient mUdpClient;
+		
+		private const byte OPCODE_AUTHENTICATION_REQUEST = 1;
+		private const byte OPCODE_AUTHENTICATION_RESPONSE = 2;
+		private const byte OPCODE_AUTHENTICATED = 3;
+		private const byte OPCODE_SNIPE_REQUEST = 4;
+		private const byte OPCODE_SNIPE_RESPONSE = 5;
+		
+		public bool UdpTransportConnected => mUdpClient != null && mUdpClient.connected;
+		
+		private void ConnectUdpTransport()
+		{	
+			mUdpClient = new KcpClient(
+				OnUdpTransportConnected,
+				(message, channel) => OnUdpTransportDataReceived(message),
+				OnUdpTransportDisconnected);
+			
+			mUdpClient.Connect(
+				SnipeConfig.ServerUdpAddress,
+				SnipeConfig.ServerUdpPort,
+				true,  // NoDelay is recommended to reduce latency
+				10,    // KCP internal update interval. 100ms is KCP default, but a lower interval is recommended to minimize latency and to scale to more networked entities
+				2,     // KCP fastresend parameter. Faster resend for the cost of higher bandwidth. 0 in normal mode, 2 in turbo mode
+				false, // KCP congestion window. Enabled in normal mode, disabled in turbo mode. Disable this for high scale games if connections get choked regularly
+				4096,  // SendWindowSize    - KCP window size can be modified to support higher loads
+				4096,  // ReceiveWindowSize - KCP window size can be modified to support higher loads. This also increases max message size
+				10000, // KCP timeout in milliseconds. Note that KCP sends a ping automatically
+				Kcp.DEADLINK * 2); // KCP will try to retransmit lost messages up to MaxRetransmit (aka dead_link) before disconnecting. default prematurely disconnects a lot of people (#3022). use 2x
+			
+			StartUdpNetworkLoop();
+		}
+		
+		private void OnUdpTransportConnected() 
+		{
+			// tunnel authentication
+			DebugLogger.Log("[SnipeClient] OnUdpTransportConnected - Sending tunnel authentication response");
+			
+			var code = "N4EPtDpPdLfpGwLp";
+			int pos = 0;
+			byte[] data = new byte[code.Length * 2 + 5];
+			data.WriteByte(ref pos, OPCODE_AUTHENTICATION_RESPONSE);
+			data.WriteString(ref pos, code);
+			mUdpClient.Send(new ArraySegment<byte>(data, 0, pos), KcpChannel.Reliable);
+		}
+		
+		private void OnUdpTransportDisconnected()
+		{
+			DebugLogger.Log("[SnipeClient] OnUdpTransportDisconnected");
+			
+			Disconnect(true);
+		}
+		
+		private void OnUdpTransportError(Exception err)
+		{
+			DebugLogger.Log($"[SnipeClient] OnUdpTransportError: {err.Message}");
+		}
+		
+		private void OnUdpTransportDataReceived(ArraySegment<byte> b) //, int channel)
+		{
+			DebugLogger.Log("[SnipeClient] OnUdpTransportDataReceived");
+			
+			var data = b.Array;
+			int pos = b.Offset;
+				
+			// get opcode
+			
+			byte opcode = (byte)data.ReadByte(ref pos);
+			// idk what that is...
+			if (opcode == 200)
+				return;
+			DebugLogger.Log($"[SnipeClient] : Received opcode {opcode}");
 
+			// auth request -> auth response -> authenticated
+			// handled in OnClientConnected
+			if (opcode == OPCODE_AUTHENTICATION_REQUEST)
+			{
+				return;
+			}
+			else if (opcode == OPCODE_AUTHENTICATED)
+			{
+				OnConnected();
+			}
+			else if (opcode == OPCODE_SNIPE_RESPONSE)
+			{
+				//var len = data.ReadInt(ref posin);
+				DebugLogger.Log($"[SnipeClient] recv snipe response"); // ({len} bytes) "); // {BitConverter.ToString(b.Array, posin, len)}
+				byte[] msg = data.ReadBytes(ref pos);
+				ProcessMessage(msg);
+			}
+		}
+		
+		private void DoSendRequestUdpTransport(byte[] msg)
+		{
+			int pos = 0;
+			// opcode + length (4 bytes) + msg
+			byte[] data = new byte[msg.Length + 5];
+			data.WriteByte(ref pos, OPCODE_SNIPE_REQUEST);
+			data.WriteBytes(ref pos, msg);
+			mUdpClient.Send(new ArraySegment<byte>(data, 0, pos), KcpChannel.Reliable);
+		}
+		
+		private CancellationTokenSource mUdpNetworkLoopCancellation;
+
+		private void StartUdpNetworkLoop()
+		{
+			DebugLogger.Log("[SnipeClient] StartUdpNetworkLoop");
+			
+			mUdpNetworkLoopCancellation?.Cancel();
+
+			mUdpNetworkLoopCancellation = new CancellationTokenSource();
+			#pragma warning disable CS4014
+			UdpNetworkLoop(mUdpNetworkLoopCancellation.Token);
+			#pragma warning restore CS4014
+		}
+
+		private void StopUdpNetworkLoop()
+		{
+			DebugLogger.Log("[SnipeClient] StopUdpNetworkLoop");
+			
+			if (mUdpNetworkLoopCancellation != null)
+			{
+				mUdpNetworkLoopCancellation.Cancel();
+				mUdpNetworkLoopCancellation = null;
+			}
+		}
+
+		private async void UdpNetworkLoop(CancellationToken cancellation)
+		{
+			DebugLogger.Log("[SnipeClient] UdpNetworkLoop - start");
+			
+			while (cancellation != null && !cancellation.IsCancellationRequested)
+			{
+				mUdpClient.TickIncoming();
+				mUdpClient.TickOutgoing();
+				await Task.Yield();
+			}
+			
+			DebugLogger.Log("[SnipeClient] UdpNetworkLoop - finish");
+		}
+		
+		#endregion UdpTransport
+		
 		#region Web Socket
 
 		private WebSocketWrapper mWebSocket = null;
 		private object mWebSocketLock = new object();
-
-		public void Connect()
+		
+		public bool WebSocketConnected => mWebSocket != null && mWebSocket.Connected;
+		
+		private void ConnectWebSocket()
 		{
 			if (mWebSocket != null)  // already connected or trying to connect
 				return;
@@ -91,18 +249,9 @@ namespace MiniIT.Snipe
 			mConnectionStopwatch?.Stop();
 			Analytics.ConnectionEstablishmentTime = mConnectionStopwatch?.ElapsedMilliseconds ?? 0;
 			
-			mConnected = true;
-			
-			try
-			{
-				ConnectionOpened?.Invoke();
-			}
-			catch (Exception e)
-			{
-				DebugLogger.Log("[SnipeClient] OnWebSocketConnected - ConnectionOpened invokation error: " + e.Message);
-			}
+			OnConnected();
 		}
-
+		
 		protected void OnWebSocketClosed()
 		{
 			DebugLogger.Log("[SnipeClient] OnWebSocketClosed");
@@ -113,6 +262,45 @@ namespace MiniIT.Snipe
 			}
 
 			Disconnect(true);
+		}
+		
+		private void DoSendRequestWebSocket(byte[] bytes)
+		{
+			lock (mWebSocketLock)
+			{
+				mWebSocket.SendRequest(bytes);
+			}
+			
+			if (mServerReactionStopwatch != null)
+			{
+				mServerReactionStopwatch.Reset();
+				mServerReactionStopwatch.Start();
+			}
+			else
+			{
+				mServerReactionStopwatch = Stopwatch.StartNew();
+			}
+
+			// if (mHeartbeatEnabled)
+			// {
+				// ResetHeartbeatTimer();
+			// }
+		}
+		
+		#endregion // Web Socket
+		
+		private void OnConnected()
+		{
+			mConnected = true;
+			
+			try
+			{
+				ConnectionOpened?.Invoke();
+			}
+			catch (Exception e)
+			{
+				DebugLogger.Log("[SnipeClient] OnWebSocketConnected - ConnectionOpened invokation error: " + e.Message);
+			}
 		}
 
 		private void RaiseConnectionClosedEvent()
@@ -144,6 +332,8 @@ namespace MiniIT.Snipe
 			StopSendTask();
 			StopHeartbeat();
 			StopCheckConnection();
+			
+			StopUdpNetworkLoop();
 
 			if (mWebSocket != null)
 			{
@@ -210,25 +400,11 @@ namespace MiniIT.Snipe
 			DebugLogger.Log($"[SnipeClient] DoSendRequest - {message.ToJSONString()}");
 
 			byte[] bytes = MessagePackSerializer.Serialize(message);
-			lock (mWebSocketLock)
-			{
-				mWebSocket.SendRequest(bytes);
-			}
 			
-			if (mServerReactionStopwatch != null)
-			{
-				mServerReactionStopwatch.Reset();
-				mServerReactionStopwatch.Start();
-			}
-			else
-			{
-				mServerReactionStopwatch = Stopwatch.StartNew();
-			}
-
-			// if (mHeartbeatEnabled)
-			// {
-				// ResetHeartbeatTimer();
-			// }
+			if (UdpTransportConnected)
+				DoSendRequestUdpTransport(bytes);
+			else if (WebSocketConnected)
+				DoSendRequestWebSocket(bytes);
 		}
 		
 		protected void ProcessMessage(byte[] raw_data_buffer)
@@ -323,8 +499,6 @@ namespace MiniIT.Snipe
 				}
 			}
 		}
-
-		#endregion // Web Socket
 
 		#region Heartbeat
 

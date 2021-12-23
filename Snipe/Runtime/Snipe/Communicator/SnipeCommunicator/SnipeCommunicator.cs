@@ -534,7 +534,7 @@ namespace MiniIT.Snipe
 		{
 			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_CONNECTED, new SnipeObject()
 			{
-				["connection_type"] = "websocket",
+				["connection_type"] = Client.UdpTransportConnected ? "udp" : "websocket",
 				["connection_time"] = Analytics.ConnectionEstablishmentTime,
 				
 				["ws dns resolve"] = Analytics.WebSocketDnsResolveTime,

@@ -11,6 +11,10 @@ public static class SnipeConfig
 
 	public static List<string> ServerUrls = new List<string>();
 	public static List<string> TablesUrls = new List<string>();
+	
+	public static string ServerUdpAddress;
+	public static ushort ServerUdpPort;
+	
 	public static string PersistentDataPath { get; private set; }
 	public static string StreamingAssetsPath { get; private set; }
 	
@@ -31,6 +35,9 @@ public static class SnipeConfig
 	public static void Init(SnipeObject data)
 	{
 		ClientKey = data.SafeGetString("client_key");
+		
+		ServerUdpAddress = data.SafeGetString("server_udp_address");
+		ServerUdpPort = data.SafeGetValue<ushort>("server_udp_port");
 		
 		if (ServerUrls == null)
 			ServerUrls = new List<string>();

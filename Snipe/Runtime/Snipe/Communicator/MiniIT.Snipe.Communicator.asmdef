@@ -8,11 +8,12 @@
         "MiniIT.Snipe.MessagePack",
         "BetterStreamingAssets",
         "fastJSON",
-        "MiniIT.AdvertisingIdFetcher"
+        "MiniIT.AdvertisingIdFetcher",
+		"kcp2k"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
-    "allowUnsafeCode": false,
+    "allowUnsafeCode": true,
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,
