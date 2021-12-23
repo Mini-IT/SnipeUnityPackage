@@ -113,7 +113,7 @@ namespace MiniIT.Snipe
 			
 			mUdpClientConnected = true;
 			
-			var code = "N4EPtDpPdLfpGwLp";
+			var code = SnipeConfig.ServerUdpAuthKey;
 			int pos = 0;
 			byte[] data = new byte[code.Length * 2 + 5];
 			data.WriteByte(ref pos, OPCODE_AUTHENTICATION_RESPONSE);

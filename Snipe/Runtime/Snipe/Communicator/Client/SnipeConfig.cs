@@ -14,6 +14,7 @@ public static class SnipeConfig
 	
 	public static string ServerUdpAddress;
 	public static ushort ServerUdpPort;
+	public static string ServerUdpAuthKey;
 	
 	public static string PersistentDataPath { get; private set; }
 	public static string StreamingAssetsPath { get; private set; }
@@ -38,6 +39,9 @@ public static class SnipeConfig
 		
 		ServerUdpAddress = data.SafeGetString("server_udp_address");
 		ServerUdpPort = data.SafeGetValue<ushort>("server_udp_port");
+		string udp_auth_key = data.SafeGetString("server_udp_auth_key");
+		if (!string.IsNullOrEmpty(udp_auth_key))
+			ServerUdpAuthKey = udp_auth_key;
 		
 		if (ServerUrls == null)
 			ServerUrls = new List<string>();
