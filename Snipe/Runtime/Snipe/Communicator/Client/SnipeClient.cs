@@ -79,6 +79,8 @@ namespace MiniIT.Snipe
 		
 		#region UdpClient
 		
+		public int UdpClientId { get; private set; }
+		
 		private KcpClient mUdpClient;
 		private bool mUdpClientConnected;
 		
@@ -106,6 +108,7 @@ namespace MiniIT.Snipe
 				(message, channel) => OnUdpClientDataReceived(message),
 				OnUdpClientDisconnected);
 				
+			UdpClientId = 0;
 			mConnectionStopwatch = Stopwatch.StartNew();
 			
 			mUdpClient.Connect(
@@ -188,6 +191,10 @@ namespace MiniIT.Snipe
 			}
 			else if (opcode == OPCODE_AUTHENTICATED)
 			{
+				UdpClientId = data.ReadInt(ref pos);
+				
+				DebugLogger.Log($"[SnipeClient] UdpClientId = {UdpClientId}");
+				
 				OnConnected();
 			}
 			else if (opcode == OPCODE_SNIPE_RESPONSE)
