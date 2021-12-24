@@ -97,6 +97,7 @@ namespace kcp2k
         // same goes for slow paced card games etc.
         public const int PING_INTERVAL = 1000;
         uint lastPingTime;
+		public uint PingTime { get; private set; }
 
         // if we send more than kcp can handle, we will get ever growing
         // send/recv buffers and queues and minutes of latency.
@@ -358,6 +359,7 @@ namespace kcp2k
                     case KcpHeader.Ping:
                     {
                         // ping keeps kcp from timing out. do nothing.
+						PingTime = time - lastPingTime;
                         break;
                     }
                     case KcpHeader.Disconnect:
