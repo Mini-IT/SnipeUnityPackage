@@ -65,10 +65,16 @@ namespace MiniIT.Snipe
 		
 		public void Connect(bool udp = true)
 		{
-			if (udp && !string.IsNullOrEmpty(SnipeConfig.ServerUdpAddress) && SnipeConfig.ServerUdpPort > 0)
+			if (udp && SnipeConfig.ServerUdpPort > 0 &&
+				!string.IsNullOrEmpty(SnipeConfig.ServerUdpAddress) &&
+				!string.IsNullOrEmpty(SnipeConfig.ServerUdpAuthKey))
+			{
 				ConnectUdpClient();
+			}
 			else
+			{
 				ConnectWebSocket();
+			}
 		}
 		
 		#region UdpClient
