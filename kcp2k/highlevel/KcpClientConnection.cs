@@ -14,9 +14,9 @@ namespace kcp2k
         //            => we need the MTU to fit channel + message!
         readonly byte[] rawReceiveBuffer = new byte[Kcp.MTU_DEF];
 		
-		public TimeSpan DnsResolveTime { get; private set; }
-		public TimeSpan SocketConnectTime { get; private set; }
-		public TimeSpan SendHandshakeTime { get; private set; }
+		public double DnsResolveTime { get; private set; }
+		public double SocketConnectTime { get; private set; }
+		public double SendHandshakeTime { get; private set; }
 
         // helper function to resolve host to IPAddress
         public static bool ResolveHostname(string hostname, out IPAddress[] addresses)
@@ -24,7 +24,7 @@ namespace kcp2k
             try
             {
                 addresses = Dns.GetHostAddresses(hostname);
-				return addresses.Length >= 1;
+                return addresses.Length >= 1;
             }
             catch (SocketException)
             {
@@ -52,7 +52,7 @@ namespace kcp2k
             if (ResolveHostname(host, out IPAddress[] addresses))
             {
 				stopwatch.Stop();
-				DnsResolveTime = stopwatch.Elapsed;
+				DnsResolveTime = stopwatch.Elapsed.TotalMilliseconds;
 				
                 // create remote endpoint
                 CreateRemoteEndPoint(addresses, port);
@@ -62,7 +62,7 @@ namespace kcp2k
 				stopwatch.Restart();
                 socket.Connect(remoteEndPoint);
 				stopwatch.Stop();
-				SocketConnectTime = stopwatch.Elapsed;
+				SocketConnectTime = stopwatch.Elapsed.TotalMilliseconds;
 
                 // set up kcp
                 SetupKcp(noDelay, interval, fastResend, congestionWindow, sendWindowSize, receiveWindowSize, timeout, maxRetransmits);
@@ -71,7 +71,7 @@ namespace kcp2k
 				stopwatch.Restart();
                 SendHandshake();
 				stopwatch.Stop();
-				SendHandshakeTime = stopwatch.Elapsed;
+				SendHandshakeTime = stopwatch.Elapsed.TotalMilliseconds;
 
                 RawReceive();
             }

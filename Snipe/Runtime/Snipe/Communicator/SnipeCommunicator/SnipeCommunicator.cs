@@ -158,6 +158,7 @@ namespace MiniIT.Snipe
 				Client = new SnipeClient();
 				Client.ConnectionOpened += OnClientConnectionOpened;
 				Client.ConnectionClosed += OnClientConnectionClosed;
+				Client.UdpConnectionFailed += OnClientUdpConnectionFailed;
 				Client.MessageReceived += OnMessageReceived;
 			}
 
@@ -241,6 +242,7 @@ namespace MiniIT.Snipe
 			{
 				Client.ConnectionOpened -= OnClientConnectionOpened;
 				Client.ConnectionClosed -= OnClientConnectionClosed;
+				Client.UdpConnectionFailed -= OnClientUdpConnectionFailed;
 				Client.MessageReceived -= OnMessageReceived;
 				Client.Disconnect();
 				Client = null;
@@ -543,15 +545,15 @@ namespace MiniIT.Snipe
 			var data = Client.UdpClientConnected ? new SnipeObject()
 			{
 				["connection_type"] = "udp",
-				["connection_time"] = Client.UdpConnectionTime.TotalMilliseconds,
+				["connection_time"] = Client?.UdpConnectionTime,
 				
-				["udp dns resolve"] = Client.UdpDnsResolveTime.TotalMilliseconds,
-				["udp socket connect"] = Client.UdpSocketConnectTime.TotalMilliseconds,
-				["udp handshake request"] = Client.UdpSendHandshakeTime.TotalMilliseconds,
-				["udp misc"] = Client.UdpConnectionTime.TotalMilliseconds - 
-					Client.UdpDnsResolveTime.TotalMilliseconds -
-					Client.UdpSocketConnectTime.TotalMilliseconds -
-					Client.UdpSendHandshakeTime.TotalMilliseconds,
+				["udp dns resolve"] = Client?.UdpDnsResolveTime,
+				["udp socket connect"] = Client?.UdpSocketConnectTime,
+				["udp handshake request"] = Client?.UdpSendHandshakeTime,
+				["udp misc"] = Client.UdpConnectionTime - 
+					Client.UdpDnsResolveTime -
+					Client.UdpSocketConnectTime -
+					Client.UdpSendHandshakeTime,
 			} :
 			new SnipeObject()
 			{
@@ -592,10 +594,10 @@ namespace MiniIT.Snipe
 				["ws ssl auth"] = Analytics.WebSocketSslAuthenticateTime,
 				["ws upgrade request"] = Analytics.WebSocketHandshakeTime,
 				
-				["udp connection_time"] = Client?.UdpConnectionTime.TotalMilliseconds,
-				["udp dns resolve"] = Client?.UdpDnsResolveTime.TotalMilliseconds,
-				["udp socket connect"] = Client?.UdpSocketConnectTime.TotalMilliseconds,
-				["udp handshake request"] = Client?.UdpSendHandshakeTime.TotalMilliseconds,
+				["udp connection_time"] = Client?.UdpConnectionTime,
+				["udp dns resolve"] = Client?.UdpDnsResolveTime,
+				["udp socket connect"] = Client?.UdpSocketConnectTime,
+				["udp handshake request"] = Client?.UdpSendHandshakeTime,
 			});
 		}
 		
@@ -604,15 +606,15 @@ namespace MiniIT.Snipe
 			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_DISCONNECTED + " UDP", new SnipeObject()
 			{
 				["connection_type"] = "udp",
-				["connection_time"] = Client.UdpConnectionTime.TotalMilliseconds,
+				["connection_time"] = Client?.UdpConnectionTime,
 				
-				["udp dns resolve"] = Client.UdpDnsResolveTime.TotalMilliseconds,
-				["udp socket connect"] = Client.UdpSocketConnectTime.TotalMilliseconds,
-				["udp handshake request"] = Client.UdpSendHandshakeTime.TotalMilliseconds,
-				["udp misc"] = Client.UdpConnectionTime.TotalMilliseconds - 
-					Client.UdpDnsResolveTime.TotalMilliseconds -
-					Client.UdpSocketConnectTime.TotalMilliseconds -
-					Client.UdpSendHandshakeTime.TotalMilliseconds,
+				["udp dns resolve"] = Client?.UdpDnsResolveTime,
+				["udp socket connect"] = Client?.UdpSocketConnectTime,
+				["udp handshake request"] = Client?.UdpSendHandshakeTime,
+				["udp misc"] = Client != null ? Client.UdpConnectionTime - 
+					Client.UdpDnsResolveTime -
+					Client.UdpSocketConnectTime -
+					Client.UdpSendHandshakeTime : 0,
 			});
 		}
 		

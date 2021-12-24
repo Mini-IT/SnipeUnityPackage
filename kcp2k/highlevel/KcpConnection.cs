@@ -165,7 +165,6 @@ namespace kcp2k
             state = KcpState.Connected;
 
             refTime.Start();
-			lastPingTime = 0;
         }
 
         void HandleTimeout(uint time)
@@ -294,6 +293,7 @@ namespace kcp2k
                     case KcpHeader.Ping:
                     {
                         // ping keeps kcp from timing out. do nothing.
+						PingTime = time - lastPingTime;
                         break;
                     }
                     case KcpHeader.Data:
