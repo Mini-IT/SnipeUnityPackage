@@ -592,10 +592,10 @@ namespace MiniIT.Snipe
 				["ws ssl auth"] = Analytics.WebSocketSslAuthenticateTime,
 				["ws upgrade request"] = Analytics.WebSocketHandshakeTime,
 				
-				["udp connection_time"] = Client?.UdpConnectionTime?.TotalMilliseconds,
-				["udp dns resolve"] = Client?.UdpDnsResolveTime?.TotalMilliseconds,
-				["udp socket connect"] = Client?.UdpSocketConnectTime?.TotalMilliseconds,
-				["udp handshake request"] = Client?.UdpSendHandshakeTime?.TotalMilliseconds,
+				["udp connection_time"] = Client?.UdpConnectionTime.TotalMilliseconds,
+				["udp dns resolve"] = Client?.UdpDnsResolveTime.TotalMilliseconds,
+				["udp socket connect"] = Client?.UdpSocketConnectTime.TotalMilliseconds,
+				["udp handshake request"] = Client?.UdpSendHandshakeTime.TotalMilliseconds,
 			});
 		}
 		
