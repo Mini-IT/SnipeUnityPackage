@@ -540,9 +540,22 @@ namespace MiniIT.Snipe
 		
 		private void AnalyticsTrackConnectionSucceeded()
 		{
-			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_CONNECTED, new SnipeObject()
+			var data = Client.UdpClientConnected ? new SnipeObject()
 			{
-				["connection_type"] = Client.UdpClientConnected ? "udp" : "websocket",
+				["connection_type"] = "udp",
+				["connection_time"] = Client.UdpConnectionTime.TotalMilliseconds,
+				
+				["udp dns resolve"] = Client.UdpDnsResolveTime.TotalMilliseconds,
+				["udp socket connect"] = Client.UdpSocketConnectTime.TotalMilliseconds,
+				["udp handshake request"] = Client.UdpSendHandshakeTime.TotalMilliseconds,
+				["udp misc"] = Client.UdpConnectionTime.TotalMilliseconds - 
+					Client.UdpDnsResolveTime.TotalMilliseconds -
+					Client.UdpSocketConnectTime.TotalMilliseconds -
+					Client.UdpSendHandshakeTime.TotalMilliseconds,
+			} :
+			new SnipeObject()
+			{
+				["connection_type"] = "websocket",
 				["connection_time"] = Analytics.ConnectionEstablishmentTime,
 				
 				["ws dns resolve"] = Analytics.WebSocketDnsResolveTime,
@@ -558,7 +571,9 @@ namespace MiniIT.Snipe
 					Analytics.WebSocketConnectTime -
 					Analytics.WebSocketSslAuthenticateTime -
 					Analytics.WebSocketHandshakeTime,
-			});
+			};
+			
+			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_CONNECTED, data);
 		}
 		
 		private void AnalyticsTrackConnectionFailed()
@@ -581,7 +596,19 @@ namespace MiniIT.Snipe
 		
 		private void AnalyticsTrackUdpConnectionFailed()
 		{
-			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_DISCONNECTED + " UDP");
+			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_DISCONNECTED + " UDP", new SnipeObject()
+			{
+				["connection_type"] = "udp",
+				["connection_time"] = Client.UdpConnectionTime.TotalMilliseconds,
+				
+				["udp dns resolve"] = Client.UdpDnsResolveTime.TotalMilliseconds,
+				["udp socket connect"] = Client.UdpSocketConnectTime.TotalMilliseconds,
+				["udp handshake request"] = Client.UdpSendHandshakeTime.TotalMilliseconds,
+				["udp misc"] = Client.UdpConnectionTime.TotalMilliseconds - 
+					Client.UdpDnsResolveTime.TotalMilliseconds -
+					Client.UdpSocketConnectTime.TotalMilliseconds -
+					Client.UdpSendHandshakeTime.TotalMilliseconds,
+			});
 		}
 		
 		#endregion Analytics

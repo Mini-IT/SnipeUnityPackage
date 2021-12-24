@@ -84,12 +84,23 @@ namespace MiniIT.Snipe
 		
 		public bool UdpClientConnected => mUdpClient != null && mUdpClient.connected;
 		
+		public TimeSpan UdpConnectionTime { get; private set; }
+		public TimeSpan UdpDnsResolveTime => mUdpClient?.connection?.DnsResolveTime ?? default;
+		public TimeSpan UdpSocketConnectTime => mUdpClient?.connection?.SocketConnectTime ?? default;
+		public TimeSpan UdpSendHandshakeTime => mUdpClient?.connection?.SendHandshakeTime ?? default;
+
+		
 		private void ConnectUdpClient()
 		{	
+			if (mUdpClient != null) // already connected or trying to connect
+				return;
+			
 			mUdpClient = new KcpClient(
 				OnUdpClientConnected,
 				(message, channel) => OnUdpClientDataReceived(message),
 				OnUdpClientDisconnected);
+				
+			mConnectionStopwatch = Stopwatch.StartNew();
 			
 			mUdpClient.Connect(
 				SnipeConfig.ServerUdpAddress,
@@ -108,6 +119,12 @@ namespace MiniIT.Snipe
 		
 		private void OnUdpClientConnected() 
 		{
+			if (mConnectionStopwatch != null)
+			{
+				mConnectionStopwatch.Stop();
+				UdpConnectionTime = mConnectionStopwatch.Elapsed;
+			}
+			
 			// tunnel authentication
 			DebugLogger.Log("[SnipeClient] OnUdpClientConnected - Sending tunnel authentication response");
 			

@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
+using System;
+using System.Diagnostics;
 
 namespace kcp2k
 {
@@ -11,6 +13,10 @@ namespace kcp2k
         //            silently drop excess data.
         //            => we need the MTU to fit channel + message!
         readonly byte[] rawReceiveBuffer = new byte[Kcp.MTU_DEF];
+		
+		public TimeSpan DnsResolveTime { get; private set; }
+		public TimeSpan SocketConnectTime { get; private set; }
+		public TimeSpan SendHandshakeTime { get; private set; }
 
         // helper function to resolve host to IPAddress
         public static bool ResolveHostname(string hostname, out IPAddress[] addresses)
@@ -18,7 +24,7 @@ namespace kcp2k
             try
             {
                 addresses = Dns.GetHostAddresses(hostname);
-                return addresses.Length >= 1;
+				return addresses.Length >= 1;
             }
             catch (SocketException)
             {
@@ -42,20 +48,30 @@ namespace kcp2k
             Log.Info($"KcpClient: connect to {host}:{port}");
 
             // try resolve host name
+			var stopwatch = Stopwatch.StartNew();
             if (ResolveHostname(host, out IPAddress[] addresses))
             {
+				stopwatch.Stop();
+				DnsResolveTime = stopwatch.Elapsed;
+				
                 // create remote endpoint
                 CreateRemoteEndPoint(addresses, port);
 
                 // create socket
                 socket = new Socket(remoteEndPoint.AddressFamily, SocketType.Dgram, ProtocolType.Udp);
+				stopwatch.Restart();
                 socket.Connect(remoteEndPoint);
+				stopwatch.Stop();
+				SocketConnectTime = stopwatch.Elapsed;
 
                 // set up kcp
                 SetupKcp(noDelay, interval, fastResend, congestionWindow, sendWindowSize, receiveWindowSize, timeout, maxRetransmits);
 
                 // client should send handshake to server as very first message
+				stopwatch.Restart();
                 SendHandshake();
+				stopwatch.Stop();
+				SendHandshakeTime = stopwatch.Elapsed;
 
                 RawReceive();
             }
