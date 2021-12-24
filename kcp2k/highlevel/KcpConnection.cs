@@ -165,6 +165,7 @@ namespace kcp2k
             state = KcpState.Connected;
 
             refTime.Start();
+			lastPingTime = 0;
         }
 
         void HandleTimeout(uint time)

@@ -167,13 +167,13 @@ namespace MiniIT.Snipe
 				{
 					mDisconnecting = false;
 					Client.Connect();
+					
+					InvokeInMainThread(() =>
+					{
+						AnalyticsTrackStartConnection();
+					});
 				}
 			}
-			
-			InvokeInMainThread(() =>
-			{
-				AnalyticsTrackStartConnection();
-			});
 		}
 
 		public void Authorize()
@@ -591,6 +591,11 @@ namespace MiniIT.Snipe
 				["ws tcp connect"] = Analytics.WebSocketConnectTime,
 				["ws ssl auth"] = Analytics.WebSocketSslAuthenticateTime,
 				["ws upgrade request"] = Analytics.WebSocketHandshakeTime,
+				
+				["udp connection_time"] = Client?.UdpConnectionTime?.TotalMilliseconds,
+				["udp dns resolve"] = Client?.UdpDnsResolveTime?.TotalMilliseconds,
+				["udp socket connect"] = Client?.UdpSocketConnectTime?.TotalMilliseconds,
+				["udp handshake request"] = Client?.UdpSendHandshakeTime?.TotalMilliseconds,
 			});
 		}
 		
