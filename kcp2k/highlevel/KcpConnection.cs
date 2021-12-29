@@ -195,7 +195,7 @@ namespace kcp2k
             if (time >= lastPingTime + PING_INTERVAL)
             {
                 // ping again and reset time
-                //Log.Debug("KCP: sending ping...");
+                // Log.Info("KCP: sending ping...");
                 SendPing();
                 lastPingTime = time;
             }
@@ -243,7 +243,12 @@ namespace kcp2k
                         // extract header & content without header
                         header = (KcpHeader)kcpMessageBuffer[0];
                         message = new ArraySegment<byte>(kcpMessageBuffer, 1, msgSize - 1);
-                        lastReceiveTime = (uint)refTime.ElapsedMilliseconds;
+						lastReceiveTime = (uint)refTime.ElapsedMilliseconds;
+						
+						// var msg = new byte[received];
+						// ((System.Collections.Generic.IList<byte>)message).CopyTo(msg, 0);
+						// Log.Info($"KCP: raw recv {received} bytes = {BitConverter.ToString(msg, 0, received)}");
+						
                         return true;
                     }
                     else

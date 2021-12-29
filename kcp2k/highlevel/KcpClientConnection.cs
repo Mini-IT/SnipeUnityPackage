@@ -89,6 +89,9 @@ namespace kcp2k
                     while (socket.Poll(0, SelectMode.SelectRead))
                     {
                         int msgLength = ReceiveFrom(rawReceiveBuffer);
+						
+						// Log.Info($"RAW RECV {msgLength} bytes = {BitConverter.ToString(rawReceiveBuffer, 0, msgLength)}");
+						
                         // IMPORTANT: detect if buffer was too small for the
                         //            received msgLength. otherwise the excess
                         //            data would be silently lost.
