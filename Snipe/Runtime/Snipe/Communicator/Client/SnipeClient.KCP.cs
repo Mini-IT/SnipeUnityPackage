@@ -167,9 +167,7 @@ namespace MiniIT.Snipe
 			mUdpNetworkLoopCancellation?.Cancel();
 
 			mUdpNetworkLoopCancellation = new CancellationTokenSource();
-			#pragma warning disable CS4014
-			UdpNetworkLoop(mUdpNetworkLoopCancellation.Token);
-			#pragma warning restore CS4014
+			Task.Run(() => UdpNetworkLoop(mUdpNetworkLoopCancellation.Token));
 		}
 
 		private void StopUdpNetworkLoop()
