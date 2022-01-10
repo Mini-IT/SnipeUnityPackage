@@ -121,7 +121,7 @@ namespace MiniIT.Snipe
 			mHeartbeatCancellation?.Cancel();
 
 			mHeartbeatCancellation = new CancellationTokenSource();
-			_ = HeartbeatTask(mHeartbeatCancellation.Token);
+			Task.Run(() => HeartbeatTask(mHeartbeatCancellation.Token));
 		}
 
 		private void StopHeartbeat()
@@ -133,7 +133,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async Task HeartbeatTask(CancellationToken cancellation)
+		private async void HeartbeatTask(CancellationToken cancellation)
 		{
 			//ResetHeartbeatTimer();
 
