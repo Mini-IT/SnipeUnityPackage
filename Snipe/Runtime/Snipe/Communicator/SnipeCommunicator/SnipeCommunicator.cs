@@ -463,7 +463,7 @@ namespace MiniIT.Snipe
 			List<SnipeCommunicatorRequest> room_requests = null;
 			foreach (var request in Requests)
 			{
-				if (request != null && request.WaitingForRoomJoined)
+				if (request != null && request.MessageType.StartsWith(SnipeMessageTypes.PREFIX_ROOM))
 				{
 					if (room_requests == null)
 						room_requests = new List<SnipeCommunicatorRequest>();
