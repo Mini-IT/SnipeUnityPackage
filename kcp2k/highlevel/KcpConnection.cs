@@ -2,6 +2,9 @@ using System;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Collections;
+using System.Collections.Generic;
+using System.Buffers;
 
 namespace kcp2k
 {
@@ -133,6 +136,19 @@ namespace kcp2k
 
         public uint MaxReceiveRate =>
             kcp.rcv_wnd * kcp.mtu * 1000 / kcp.interval;
+		
+		private const int MAX_KCP_MESSAGE_SIZE = Kcp.MTU_DEF - Kcp.OVERHEAD;
+		private const int CHUNK_DATA_SIZE = MAX_KCP_MESSAGE_SIZE - 5; // channel (1 byte) + header (4 bytes): KcpHeader.Chunk + msg_id + chunk_id + num_chunks
+		
+		private ArrayPool<byte> mBytesPool;
+		private Dictionary<byte, ChunkedMessageItem> mChunkedMessages;
+		private byte mChunkedMessageId = 0;
+		
+		class ChunkedMessageItem
+		{
+			public byte[] buffer;
+			public int length;
+		}
 
         // SetupKcp creates and configures a new KCP instance.
         // => useful to start from a fresh state every time the client connects
@@ -160,6 +176,9 @@ namespace kcp2k
             // see comments on buffer definition for the "+1" part
             kcpMessageBuffer = new byte[1 + ReliableMaxMessageSize(receiveWindowSize)];
             kcpSendBuffer = new byte[1 + ReliableMaxMessageSize(receiveWindowSize)];
+			
+			mBytesPool = ArrayPool<byte>.Create();
+			mChunkedMessages = new Dictionary<byte, ChunkedMessageItem>(1);
 
             this.timeout = timeout;
             state = KcpState.Connected;
@@ -171,11 +190,11 @@ namespace kcp2k
         {
             // note: we are also sending a ping regularly, so timeout should
             //       only ever happen if the connection is truly gone.
-            if (time >= lastReceiveTime + timeout)
-            {
-                Log.Warning($"KCP: Connection timed out after not receiving any message for {timeout}ms. Disconnecting.");
-                Disconnect();
-            }
+            // if (time >= lastReceiveTime + timeout)
+            // {
+                // Log.Warning($"KCP: Connection timed out after not receiving any message for {timeout}ms. Disconnecting.");
+                // Disconnect();
+            // }
         }
 
         void HandleDeadLink()
@@ -245,9 +264,7 @@ namespace kcp2k
                         message = new ArraySegment<byte>(kcpMessageBuffer, 1, msgSize - 1);
 						lastReceiveTime = (uint)refTime.ElapsedMilliseconds;
 						
-						// var msg = new byte[received];
-						// ((System.Collections.Generic.IList<byte>)message).CopyTo(msg, 0);
-						// Log.Info($"KCP: raw recv {received} bytes = {BitConverter.ToString(msg, 0, received)}");
+						// Log.Info($"KCP: raw recv {received} bytes ({message.Count}) = {BitConverter.ToString(message.Array, message.Offset, message.Count)}");
 						
                         return true;
                     }
@@ -302,6 +319,7 @@ namespace kcp2k
                         break;
                     }
                     case KcpHeader.Data:
+					case KcpHeader.Chunk:
                     case KcpHeader.Disconnect:
                     {
                         // everything else is not allowed during handshake!
@@ -362,6 +380,68 @@ namespace kcp2k
                         }
                         break;
                     }
+					case KcpHeader.Chunk:
+					{
+						// call OnData IF the message contained actual data
+                        if (message.Count > 3)
+                        {
+							byte message_id = message.Array[message.Offset];
+							byte chunk_id = message.Array[message.Offset + 1];
+							byte chunks_count = message.Array[message.Offset + 2];
+							
+							// Log.Info($"[KcpConnection] CHUNK RECEIVED {message_id} - {chunk_id} / {chunks_count}  {message.Count} bytes");
+							
+							// TODO: check values
+							
+							const int INPUT_CHUNK_SIZE = Kcp.MTU_DEF - Kcp.OVERHEAD - 5; // channel (1 byte) + KcpHeader.Chunk + msg_id + chunk_id + num_chunks
+							
+							ChunkedMessageItem item;
+							if (mChunkedMessages.ContainsKey(message_id))
+							{
+								item = mChunkedMessages[message_id];
+							}
+							else
+							{
+								item = new ChunkedMessageItem()
+								{
+									buffer = mBytesPool.Rent(chunks_count * INPUT_CHUNK_SIZE + 5), // opcode (1 byte) + message length (4 bytes)
+									length = 0,
+								};
+								mChunkedMessages[message_id] = item;
+							}
+							
+							// message header (3 bytes): msg_id + chunk_id + num_chunks
+							Buffer.BlockCopy(message.Array, message.Offset + 3, item.buffer, 5 + chunk_id * INPUT_CHUNK_SIZE, message.Count - 3);
+							item.length += message.Count - 3;
+							
+							if (item.length > (1 + (chunks_count - 1) * INPUT_CHUNK_SIZE)) // all chunks
+							{
+								// Log.Info($"[KcpConnection] CHUNKED_MESSAGE received: {BitConverter.ToString(item.buffer, 0, item.buffer.Length)}");
+								
+								item.buffer[0] = 5; // opcode Snipe Response
+								// length (4 bytes int)
+								unsafe
+								{
+									fixed (byte* dataPtr = &item.buffer[1])
+									{
+										int* valuePtr = (int*)dataPtr;
+										*valuePtr = item.length;
+									}
+								}
+								
+								OnData?.Invoke(new ArraySegment<byte>(item.buffer, 0, item.length + 5), KcpChannel.Reliable);
+								mBytesPool.Return(item.buffer);
+								mChunkedMessages.Remove(message_id);
+							}
+                        }
+                        // empty data = attacker, or something went wrong
+                        else
+                        {
+                            Log.Warning("KCP: received empty Chunk message while Authenticated. Disconnecting the connection.");
+                            Disconnect();
+                        }
+						break;
+					}
                     case KcpHeader.Ping:
                     {
                         // ping keeps kcp from timing out. do nothing.
@@ -478,7 +558,7 @@ namespace kcp2k
                     {
                         // input into kcp, but skip channel byte
                         int input = kcp.Input(buffer, 1, msgLength - 1);
-                        if (input != 0)
+						if (input != 0)
                         {
                             Log.Warning($"Input failed with error={input} for buffer with length={msgLength - 1}");
                         }
@@ -557,11 +637,17 @@ namespace kcp2k
             Buffer.BlockCopy(data, 0, rawSendBuffer, 1, length);
             RawSend(rawSendBuffer, length + 1);
         }
-
-        void SendReliable(KcpHeader header, ArraySegment<byte> content)
+		
+		void SendReliable(KcpHeader header, ArraySegment<byte> content)
         {
             // 1 byte header + content needs to fit into send buffer
-            if (1 + content.Count <= kcpSendBuffer.Length) // TODO
+			int capacity = 1 + content.Count;
+			if (kcpSendBuffer.Length < capacity)
+            {
+                Array.Resize(ref kcpSendBuffer, capacity);
+            }
+			
+            //if (1 + content.Count <= kcpSendBuffer.Length) // TODO
             {
                 // copy header, content (if any) into send buffer
                 kcpSendBuffer[0] = (byte)header;
@@ -576,7 +662,7 @@ namespace kcp2k
                 }
             }
             // otherwise content is larger than MaxMessageSize. let user know!
-            else Log.Error($"Failed to send reliable message of size {content.Count} because it's larger than ReliableMaxMessageSize={ReliableMaxMessageSize(kcp.rcv_wnd)}");
+            //else Log.Error($"Failed to send reliable message of size {content.Count} because it's larger than ReliableMaxMessageSize={ReliableMaxMessageSize(kcp.rcv_wnd)}");
         }
 
         void SendUnreliable(ArraySegment<byte> message)
@@ -617,16 +703,47 @@ namespace kcp2k
                 Disconnect();
                 return;
             }
-
-            switch (channel)
-            {
-                case KcpChannel.Reliable:
-                    SendReliable(KcpHeader.Data, data);
-                    break;
-                case KcpChannel.Unreliable:
-                    SendUnreliable(data);
-                    break;
-            }
+			
+			// 1 byte header + content
+			if (1 + data.Count > MAX_KCP_MESSAGE_SIZE)
+			{
+				if (channel == KcpChannel.Reliable)
+				{
+					byte num_chunks = (byte)(data.Count / CHUNK_DATA_SIZE + 1);
+					
+					byte[] buffer = mBytesPool.Rent(Kcp.MTU_DEF - 1); // without kcp header
+					buffer[0] = (++mChunkedMessageId);
+					buffer[2] = num_chunks;
+					
+					for (int chunk_id = 0; chunk_id < num_chunks; chunk_id++)
+					{
+						int start_index = chunk_id * CHUNK_DATA_SIZE;
+						int length = (start_index + CHUNK_DATA_SIZE > data.Count) ? data.Count % CHUNK_DATA_SIZE : CHUNK_DATA_SIZE;
+						
+						buffer[1] = (byte)chunk_id;
+						Buffer.BlockCopy(data.Array, data.Offset + start_index, buffer, 3, length);
+						
+						SendReliable(KcpHeader.Chunk, new ArraySegment<byte>(buffer, 0, length + 3));
+					}
+					mBytesPool.Return(buffer);
+				}
+				else
+				{
+					Log.Warning("KcpConnection: message size is larger than MTU. This is not supported by unreliable channel.");
+				}
+			}
+			else
+			{
+				switch (channel)
+				{
+					case KcpChannel.Reliable:
+						SendReliable(KcpHeader.Data, data);
+						break;
+					case KcpChannel.Unreliable:
+						SendUnreliable(data);
+						break;
+				}
+			}
         }
 
         // ping goes through kcp to keep it from timing out, so it goes over the

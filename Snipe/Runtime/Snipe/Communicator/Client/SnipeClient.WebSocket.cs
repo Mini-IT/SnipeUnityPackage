@@ -83,11 +83,16 @@ namespace MiniIT.Snipe
 			Disconnect(true);
 		}
 		
-		private void DoSendRequestWebSocket(byte[] bytes)
+		private void DoSendRequestWebSocket(SnipeObject message)
 		{
 			lock (mWebSocketLock)
 			{
-				mWebSocket.SendRequest(bytes);
+				byte[] buffer = mBytesPool.Rent(MessagePackSerializerNonAlloc.MaxUsedBufferSize);
+				var msg_data = MessagePackSerializerNonAlloc.Serialize(ref buffer, message);
+				var data = new byte[msg_data.Count];
+				Array.ConstrainedCopy(msg_data.Array, msg_data.Offset, data, 0, msg_data.Count);
+				mWebSocket.SendRequest(data);
+				mBytesPool.Return(buffer);
 			}
 			
 			if (mServerReactionStopwatch != null)

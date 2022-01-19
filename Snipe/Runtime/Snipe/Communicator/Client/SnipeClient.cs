@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,8 +40,13 @@ namespace MiniIT.Snipe
 		private int mRequestId = 0;
 		private ConcurrentQueue<SnipeObject> mSendMessages;
 		
+		private ArrayPool<byte> mBytesPool;
+		
 		public void Connect(bool udp = true)
 		{
+			if (mBytesPool == null)
+				mBytesPool = ArrayPool<byte>.Create();
+			
 			if (udp && SnipeConfig.ServerUdpPort > 0 &&
 				!string.IsNullOrEmpty(SnipeConfig.ServerUdpAddress) &&
 				!string.IsNullOrEmpty(SnipeConfig.ServerUdpAuthKey))
@@ -171,15 +177,29 @@ namespace MiniIT.Snipe
 			
 			DebugLogger.Log($"[SnipeClient] DoSendRequest - {message.ToJSONString()}");
 
-			byte[] bytes = MessagePackSerializer.Serialize(message);
-			
 			if (UdpClientConnected)
-				DoSendRequestUdpClient(bytes);
+				DoSendRequestUdpClient(message);
 			else if (WebSocketConnected)
-				DoSendRequestWebSocket(bytes);
+				DoSendRequestWebSocket(message);
 		}
 		
 		protected void ProcessMessage(byte[] raw_data_buffer)
+		{
+			PreProcessMessage();
+			
+			var message = MessagePackDeserializer.Parse(raw_data_buffer) as SnipeObject;
+			ProcessMessage(message);
+		}
+		
+		protected void ProcessMessage(ArraySegment<byte> raw_data_buffer)
+		{
+			PreProcessMessage();
+			
+			var message = MessagePackDeserializer.Parse(raw_data_buffer) as SnipeObject;
+			ProcessMessage(message);
+		}
+		
+		private void PreProcessMessage()
 		{
 			if (mServerReactionStopwatch != null)
 			{
@@ -188,9 +208,10 @@ namespace MiniIT.Snipe
 			}
 			
 			StopCheckConnection();
-			
-			var message = MessagePackDeserializer.Parse(raw_data_buffer) as SnipeObject;
-
+		}
+		
+		private void ProcessMessage(SnipeObject message)
+		{
 			if (message != null)
 			{
 				string message_type = message.SafeGetString("t");

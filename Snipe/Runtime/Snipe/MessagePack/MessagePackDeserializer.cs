@@ -11,16 +11,27 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using MiniIT;
 
 namespace MiniIT.MessagePack
 {
 	public static class MessagePackDeserializer
 	{
+		// cached encoding
+		private static readonly Encoding ENCODING_UTF8 = Encoding.UTF8;
+
 		public static object Parse(byte[] array)
 		{
 			using (MemoryStream ms = new MemoryStream(array))
 			{
+				return Parse(ms);
+			}
+		}
+		
+		public static object Parse(ArraySegment<byte> buffer)
+		{
+			using (MemoryStream ms = new MemoryStream(buffer.Array))
+			{
+				ms.Position = buffer.Offset;
 				return Parse(ms);
 			}
 		}
@@ -217,7 +228,7 @@ namespace MiniIT.MessagePack
 		{
 			byte[] data = new byte[len];
 			ms.Read(data, 0, len);
-			return Encoding.UTF8.GetString(data);
+			return ENCODING_UTF8.GetString(data);
 		}
 
 		private static string ReadString(Stream ms)
@@ -254,7 +265,7 @@ namespace MiniIT.MessagePack
 			var string_bytes = new byte[len];
 			ms.Read(string_bytes, 0, len);
 
-			return Encoding.UTF8.GetString(string_bytes);
+			return ENCODING_UTF8.GetString(string_bytes);
 		}
 	}
 }

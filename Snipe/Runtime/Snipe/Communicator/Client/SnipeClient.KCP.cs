@@ -3,7 +3,8 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
-using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
+using MiniIT.MessagePack;
 
 using kcp2k;
 
@@ -13,8 +14,6 @@ namespace MiniIT.Snipe
 	{
 		
 		public event Action UdpConnectionFailed;
-		
-		#region UdpClient
 		
 		public int UdpClientId { get; private set; }
 		
@@ -33,20 +32,19 @@ namespace MiniIT.Snipe
 		public double UdpDnsResolveTime => mUdpClient?.connection?.DnsResolveTime ?? default;
 		public double UdpSocketConnectTime => mUdpClient?.connection?.SocketConnectTime ?? default;
 		public double UdpSendHandshakeTime => mUdpClient?.connection?.SendHandshakeTime ?? default;
-
 		
 		private void ConnectUdpClient()
 		{	
 			if (mUdpClient != null) // already connected or trying to connect
 				return;
 				
-			// kcp2k.Log.Info = DebugLogger.Log;
-			// kcp2k.Log.Warning = DebugLogger.LogWarning;
-			// kcp2k.Log.Error = DebugLogger.LogError;
+			kcp2k.Log.Info = DebugLogger.Log;
+			kcp2k.Log.Warning = DebugLogger.LogWarning;
+			kcp2k.Log.Error = DebugLogger.LogError;
 			
 			mUdpClient = new KcpClient(
 				OnUdpClientConnected,
-				(message, channel) => OnUdpClientDataReceived(message),
+				OnUdpClientDataReceived,
 				OnUdpClientDisconnected);
 				
 			UdpClientId = 0;
@@ -81,14 +79,28 @@ namespace MiniIT.Snipe
 			
 			mUdpClientConnected = true;
 			
-			var code = SnipeConfig.ServerUdpAuthKey;
-			int pos = 0;
-			byte[] data = new byte[code.Length * 2 + 5];
-			data.WriteByte(ref pos, OPCODE_AUTHENTICATION_RESPONSE);
-			data.WriteString(ref pos, code);
-			mUdpClient.Send(new ArraySegment<byte>(data, 0, pos), KcpChannel.Reliable);
+			string code = SnipeConfig.ServerUdpAuthKey;
+			int data_length = code.Length * 2 + 5; // opcode + length (4 bytes) + array of chars (2 bytes each)
+			byte[] data = mBytesPool.Rent(data_length);
+			data[0] = OPCODE_AUTHENTICATION_RESPONSE;
+			
+			// WriteString
+			WriteInt(data, 1, code.Length);
+			unsafe
+			{
+				for (int i = 0; i < code.Length; i++)
+				{
+					fixed (byte* dataPtr = &data[i + 5])
+					{
+						char* valuePtr = (char*)dataPtr;
+						*valuePtr = code[i];
+					}
+				}
+			}
+			mUdpClient.Send(new ArraySegment<byte>(data, 0, data_length), KcpChannel.Reliable);
+			mBytesPool.Return(data);
 		}
-		
+
 		private void OnUdpClientDisconnected()
 		{
 			DebugLogger.Log("[SnipeClient] OnUdpClientDisconnected");
@@ -110,21 +122,22 @@ namespace MiniIT.Snipe
 			// DebugLogger.Log($"[SnipeClient] OnUdpClientError: {err.Message}");
 		// }
 		
-		private void OnUdpClientDataReceived(ArraySegment<byte> b) //, int channel)
+		private void OnUdpClientDataReceived(ArraySegment<byte> buffer, KcpChannel channel)
 		{
-			DebugLogger.Log("[SnipeClient] OnUdpClientDataReceived");
+			DebugLogger.Log($"[SnipeClient] OnUdpClientDataReceived"); // {buffer.Count} bytes"); // {BitConverter.ToString(buffer.Array, buffer.Offset, buffer.Count)}");
 			
-			var data = b.Array;
-			int pos = b.Offset;
-				
 			// get opcode
 			
-			byte opcode = (byte)data.ReadByte(ref pos);
+			var buffer_array = buffer.Array;
+			
+			byte opcode = buffer_array[buffer.Offset];
+			
 			// kcp heartbeat
 			if (opcode == 200)
 				return;
-			// DebugLogger.Log($"[SnipeClient] : Received opcode {opcode}");
-
+			
+			//DebugLogger.Log($"[SnipeClient] : Received opcode {opcode}");
+			
 			// auth request -> auth response -> authenticated
 			// handled in OnUdpClientConnected
 			if (opcode == OPCODE_AUTHENTICATION_REQUEST)
@@ -133,7 +146,7 @@ namespace MiniIT.Snipe
 			}
 			else if (opcode == OPCODE_AUTHENTICATED)
 			{
-				UdpClientId = data.ReadInt(ref pos);
+				UdpClientId = BitConverter.ToInt32(buffer_array, buffer.Offset + 1);
 				
 				DebugLogger.Log($"[SnipeClient] UdpClientId = {UdpClientId}");
 				
@@ -141,22 +154,55 @@ namespace MiniIT.Snipe
 			}
 			else if (opcode == OPCODE_SNIPE_RESPONSE)
 			{
-				//var len = data.ReadInt(ref posin);
-				// DebugLogger.Log($"[SnipeClient] recv snipe response"); // ({len} bytes) "); // {BitConverter.ToString(b.Array, posin, len)}
-				byte[] msg = data.ReadBytes(ref pos);
-				ProcessMessage(msg);
+				int len = BitConverter.ToInt32(buffer_array, buffer.Offset + 1);
+				ProcessMessage(new ArraySegment<byte>(buffer_array, buffer.Offset + 5, len));
 			}
 		}
 		
-		private void DoSendRequestUdpClient(byte[] msg)
+		// private void DoSendRequestUdpClient(byte[] msg)
+		// {
+			// // opcode + length (4 bytes) + msg
+			// int data_length = msg.Length + 5;
+			// byte[] data = mBytesPool.Rent(data_length);
+			// data[0] = OPCODE_SNIPE_REQUEST;
+			// WriteInt(data, 1, msg.Length);
+			// Array.ConstrainedCopy(msg, 0, data, 5, msg.Length);
+			// mUdpClient.Send(new ArraySegment<byte>(data, 0, data_length), KcpChannel.Reliable);
+			// mBytesPool.Return(data);
+		// }
+		
+		private void DoSendRequestUdpClient(SnipeObject message)
 		{
-			int pos = 0;
-			// opcode + length (4 bytes) + msg
-			byte[] data = new byte[msg.Length + 5];
-			data.WriteByte(ref pos, OPCODE_SNIPE_REQUEST);
-			data.WriteBytes(ref pos, msg);
-			mUdpClient.Send(new ArraySegment<byte>(data, 0, pos), KcpChannel.Reliable);
+			byte[] buffer = mBytesPool.Rent(MessagePackSerializerNonAlloc.MaxUsedBufferSize);
+			
+			// offset = opcode + length (4 bytes) = 5
+			var msg_data = MessagePackSerializerNonAlloc.Serialize(ref buffer, 5, message);
+			
+			buffer[0] = OPCODE_SNIPE_REQUEST;
+			WriteInt(buffer, 1, msg_data.Count - 1); // msg_data.Count = opcode + length (4 bytes) + msg
+			
+			// string bytes_string = "";
+			// for(int i = 0; i < msg_data.Count; i++)
+				// bytes_string += $"{msg_data.Array[msg_data.Offset + i]} ";
+			// DebugLogger.Log($"[SnipeClient] ++++ msg_data (size = {msg_data.Count}): {bytes_string}"); //{BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count)}");
+			
+			mUdpClient.Send(msg_data, KcpChannel.Reliable);
+			
+			mBytesPool.Return(buffer);
 		}
+		
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private void WriteInt(byte[] data, int position, int value)
+        {
+            unsafe
+            {
+                fixed (byte* dataPtr = &data[position])
+                {
+                    int* valuePtr = (int*)dataPtr;
+                    *valuePtr = value;
+                }
+            }
+        }
 		
 		private CancellationTokenSource mUdpNetworkLoopCancellation;
 
@@ -195,9 +241,6 @@ namespace MiniIT.Snipe
 			
 			DebugLogger.Log("[SnipeClient] UdpNetworkLoop - finish");
 		}
-		
-		#endregion UdpClient
-		
 		
 	}
 }

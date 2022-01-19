@@ -14,6 +14,7 @@ namespace kcp2k
         // ping is only used to keep it alive, so latency doesn't matter.
         Ping = 0x02,
         Data = 0x03,
-        Disconnect = 0x04
+        Disconnect = 0x04,
+        Chunk = 0x05, // fragment of a large data packet splitted into several messages
     }
 }
