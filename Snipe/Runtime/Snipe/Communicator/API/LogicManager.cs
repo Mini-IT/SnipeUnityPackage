@@ -237,9 +237,9 @@ namespace MiniIT.Snipe
 				var logic_nodes = new List<SnipeLogicNode>();
 				if (response_data["logic"] is IList src_logic)
 				{
-					foreach (SnipeObject o in src_logic)
+					foreach (var o in src_logic)
 					{
-						if (o?["node"] is SnipeObject node)
+						if (o is SnipeObject so && so?["node"] is SnipeObject node)
 							logic_nodes.Add(new SnipeLogicNode(node, mLogicTable));
 					}
 				}
