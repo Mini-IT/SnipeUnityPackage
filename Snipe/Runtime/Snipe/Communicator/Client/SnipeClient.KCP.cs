@@ -86,17 +86,24 @@ namespace MiniIT.Snipe
 			
 			// WriteString
 			WriteInt(data, 1, code.Length);
-			unsafe
+			// unsafe
+			// {
+				// for (int i = 0; i < code.Length; i++)
+				// {
+					// fixed (byte* dataPtr = &data[i + 5])
+					// {
+						// char* valuePtr = (char*)dataPtr;
+						// *valuePtr = code[i];
+					// }
+				// }
+			// }
+			for (int i = 0; i < code.Length; i++)
 			{
-				for (int i = 0; i < code.Length; i++)
-				{
-					fixed (byte* dataPtr = &data[i + 5])
-					{
-						char* valuePtr = (char*)dataPtr;
-						*valuePtr = code[i];
-					}
-				}
+				byte[] char_bytes = BitConverter.GetBytes(code[i]);
+				data[i*2 + 5] = char_bytes[0];
+				data[i*2 + 6] = char_bytes[1];
 			}
+			
 			mUdpClient.Send(new ArraySegment<byte>(data, 0, data_length), KcpChannel.Reliable);
 			mBytesPool.Return(data);
 		}
@@ -194,14 +201,18 @@ namespace MiniIT.Snipe
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private void WriteInt(byte[] data, int position, int value)
         {
-            unsafe
-            {
-                fixed (byte* dataPtr = &data[position])
-                {
-                    int* valuePtr = (int*)dataPtr;
-                    *valuePtr = value;
-                }
-            }
+            // unsafe
+            // {
+                // fixed (byte* dataPtr = &data[position])
+                // {
+                    // int* valuePtr = (int*)dataPtr;
+                    // *valuePtr = value;
+                // }
+            // }
+			data[position] = (byte) value;
+			data[position + 1] = (byte) (value >> 8);
+			data[position + 2] = (byte) (value >> 0x10);
+			data[position + 3] = (byte) (value >> 0x18);
         }
 		
 		private CancellationTokenSource mUdpNetworkLoopCancellation;

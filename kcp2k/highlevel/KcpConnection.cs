@@ -420,14 +420,18 @@ namespace kcp2k
 								
 								item.buffer[0] = 5; // opcode Snipe Response
 								// length (4 bytes int)
-								unsafe
-								{
-									fixed (byte* dataPtr = &item.buffer[1])
-									{
-										int* valuePtr = (int*)dataPtr;
-										*valuePtr = item.length;
-									}
-								}
+								// unsafe
+								// {
+									// fixed (byte* dataPtr = &item.buffer[1])
+									// {
+										// int* valuePtr = (int*)dataPtr;
+										// *valuePtr = item.length;
+									// }
+								// }
+								item.buffer[1] = (byte) item.length;
+								item.buffer[2] = (byte) (item.length >> 8);
+								item.buffer[3] = (byte) (item.length >> 0x10);
+								item.buffer[4] = (byte) (item.length >> 0x18);
 								
 								OnData?.Invoke(new ArraySegment<byte>(item.buffer, 0, item.length + 5), KcpChannel.Reliable);
 								mBytesPool.Return(item.buffer);
