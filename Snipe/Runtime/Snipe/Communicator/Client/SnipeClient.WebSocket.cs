@@ -145,7 +145,7 @@ namespace MiniIT.Snipe
 			// await Task.Delay(HEARTBEAT_TASK_DELAY, cancellation);
 			mHeartbeatTriggerTicks = 0;
 
-			while (!cancellation.IsCancellationRequested && Connected)
+			while (cancellation != null && !cancellation.IsCancellationRequested && WebSocketConnected)
 			{
 				if (DateTime.UtcNow.Ticks >= mHeartbeatTriggerTicks)
 				{
@@ -188,7 +188,7 @@ namespace MiniIT.Snipe
 					DebugLogger.Log($"[SnipeClient] [{ConnectionId}] Heartbeat ping");
 				}
 				
-				if (cancellation.IsCancellationRequested)
+				if (cancellation == null || cancellation.IsCancellationRequested)
 				{
 					return;
 				}
