@@ -165,10 +165,7 @@ namespace MiniIT.Snipe
 		
 		private void SetConnectionAnalyticsValues()
 		{
-			Analytics.WebSocketTcpClientConstructorTime = mWebSocket.TcpClientConstructorTime.TotalMilliseconds;
-			Analytics.WebSocketTcpClientGetStreamTime = mWebSocket.TcpClientGetStreamTime.TotalMilliseconds;
-			Analytics.WebSocketDnsResolveTime = mWebSocket.DnsResolveTime.TotalMilliseconds;
-			Analytics.WebSocketConnectTime = mWebSocket.ConnectTime.TotalMilliseconds;
+			Analytics.WebSocketTcpClientConnectionTime = mWebSocket.TcpClientConnectionTime.TotalMilliseconds;
 			Analytics.WebSocketSslAuthenticateTime = mWebSocket.SslAuthenticateTime.TotalMilliseconds;
 			Analytics.WebSocketHandshakeTime = mWebSocket.HandshakeTime.TotalMilliseconds;
 		}

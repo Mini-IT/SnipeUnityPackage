@@ -2126,10 +2126,7 @@ namespace WebSocketSharp
           "The proxy has failed a connection to the requested host and port.");
     }
 
-		public TimeSpan TcpClientConstructorTime { get; private set; }
-		public TimeSpan TcpClientGetStreamTime { get; private set; }
-		public TimeSpan DnsResolveTime { get; private set; }
-		public TimeSpan ConnectTime { get; private set; }
+		public TimeSpan TcpClientConnectionTime { get; private set; }
 		public TimeSpan SslAuthenticateTime { get; private set; }
 		public TimeSpan HandshakeTime { get; private set; }
 
@@ -2146,27 +2143,12 @@ namespace WebSocketSharp
         sendProxyConnectRequest ();
       }
       else {
-				sw = System.Diagnostics.Stopwatch.StartNew();
-				//_tcpClient = new TcpClient (_uri.DnsSafeHost, _uri.Port);
-				System.Net.IPAddress ipAddress = System.Net.Dns.GetHostEntry(_uri.DnsSafeHost).AddressList[0];
-				DnsResolveTime = sw.Elapsed;
-				System.Net.IPEndPoint ipLocalEndPoint = new System.Net.IPEndPoint(ipAddress, _uri.Port);
-
-				sw.Restart();
-				_tcpClient = new TcpClient();
-				TcpClientConstructorTime = sw.Elapsed;
-
-				sw.Restart();
-				_tcpClient.Connect(ipLocalEndPoint);
-				sw.Stop();
-				ConnectTime = sw.Elapsed;
-
-				_tcpClient.NoDelay = _noDelay;
-
-				sw.Restart();
+        sw = System.Diagnostics.Stopwatch.StartNew();
+        _tcpClient = new TcpClient (_uri.DnsSafeHost, _uri.Port);
+        _tcpClient.NoDelay = _noDelay;
         _stream = _tcpClient.GetStream ();
-				TcpClientGetStreamTime = sw.Elapsed;
-				sw.Stop();
+        TcpClientConnectionTime = sw.Elapsed;
+        sw.Stop();
 
 	  }
 

@@ -13,10 +13,7 @@ namespace MiniIT.Snipe
 		
 		public static long PingTime { get; internal set; }
 		public static long ConnectionEstablishmentTime { get; internal set; }
-		public static double WebSocketTcpClientConstructorTime { get; internal set; }
-		public static double WebSocketTcpClientGetStreamTime { get; internal set; }
-		public static double WebSocketDnsResolveTime { get; internal set; }
-		public static double WebSocketConnectTime { get; internal set; }
+		public static double WebSocketTcpClientConnectionTime { get; internal set; }
 		public static double WebSocketSslAuthenticateTime { get; internal set; }
 		public static double WebSocketHandshakeTime { get; internal set; }
 		public static double WebSocketMiscTime { get; internal set; }
