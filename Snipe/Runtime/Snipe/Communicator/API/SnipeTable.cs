@@ -115,6 +115,7 @@ namespace MiniIT.Snipe
 			}
 			finally
 			{
+				mLoadingCancellation.Dispose();
 				mCancellations.Remove(mLoadingCancellation);
 			}
 		}
@@ -174,7 +175,14 @@ namespace MiniIT.Snipe
 						loader = null;
 					}
 					
-					await Task.Delay(100);
+					try
+					{
+						await Task.Delay(100, cancellation_token);
+					}
+					catch (OperationCanceledException)
+					{
+						// ignore
+					}
 					
 					if (cancellation_token.IsCancellationRequested)
 					{

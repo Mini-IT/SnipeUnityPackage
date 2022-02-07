@@ -190,10 +190,17 @@ namespace MiniIT.Snipe
 				
 				if (cancellation == null || cancellation.IsCancellationRequested)
 				{
-					return;
+					break;
 				}
-
-				await Task.Delay(HEARTBEAT_TASK_DELAY, cancellation);
+				
+				try
+				{
+					await Task.Delay(HEARTBEAT_TASK_DELAY, cancellation);
+				}
+				catch (OperationCanceledException)
+				{
+					break;
+				}
 			}
 		}
 
