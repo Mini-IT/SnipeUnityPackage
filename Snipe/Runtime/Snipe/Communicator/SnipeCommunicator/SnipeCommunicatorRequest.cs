@@ -180,7 +180,7 @@ namespace MiniIT.Snipe
 			else if (!mWaitingForResponse)
 			{
 				// keep this instance for a while to prevent duplicate requests
-				_ = DelayedDispose();
+				DelayedDispose();
 			}
 		}
 
@@ -267,7 +267,7 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		private async Task DelayedDispose()
+		private async void DelayedDispose()
 		{
 			await Task.Yield();
 			Dispose();
