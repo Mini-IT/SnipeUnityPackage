@@ -225,7 +225,7 @@ namespace MiniIT.Snipe
 			mCheckConnectionCancellation?.Cancel();
 
 			mCheckConnectionCancellation = new CancellationTokenSource();
-			_ = CheckConnectionTask(mCheckConnectionCancellation.Token);
+			Task.Run(() => CheckConnectionTask(mCheckConnectionCancellation.Token));
 		}
 
 		private void StopCheckConnection()
