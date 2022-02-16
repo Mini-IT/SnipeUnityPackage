@@ -304,7 +304,7 @@ namespace MiniIT.Snipe
 			mSendMessages = new ConcurrentQueue<SnipeObject>();
 
 			mSendTaskCancellation = new CancellationTokenSource();
-			_ = SendTask(mHeartbeatCancellation?.Token);
+			Task.Run(() => SendTask(mSendTaskCancellation?.Token));
 		}
 
 		private void StopSendTask()
