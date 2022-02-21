@@ -33,12 +33,36 @@ namespace kcp2k
                 return false;
             }
         }
+		
+		// https://docs.microsoft.com/en-us/dotnet/api/system.net.sockets.socket?view=netframework-4.8#examples
+		protected bool ConnectSocket(IPAddress[] addresses, int port)
+		{
+			socket = null;
+			
+			// Loop through the AddressList to obtain the supported AddressFamily. This is to avoid
+			// an exception that occurs when the host IP Address is not compatible with the address family
+			// (typical in the IPv6 case).
+			foreach (IPAddress address in addresses)
+			{
+				IPEndPoint ipe = new IPEndPoint(address, port);
+				Socket tempSocket = new Socket(ipe.AddressFamily, SocketType.Dgram, ProtocolType.Udp);
+				tempSocket.Connect(ipe);
+
+				if (tempSocket.Connected)
+				{
+					socket = tempSocket;
+					remoteEndPoint = ipe;
+					return true;
+				}
+			}
+			return false;
+		}
 
         // EndPoint & Receive functions can be overwritten for where-allocation:
         // https://github.com/vis2k/where-allocation
         // NOTE: Client's SendTo doesn't allocate, don't need a virtual.
-        protected virtual void CreateRemoteEndPoint(IPAddress[] addresses, ushort port) =>
-            remoteEndPoint = new IPEndPoint(addresses[0], port);
+        //protected virtual void CreateRemoteEndPoint(IPAddress[] addresses, ushort port) =>
+        //    remoteEndPoint = new IPEndPoint(addresses[0], port);
 
         protected virtual int ReceiveFrom(byte[] buffer) =>
             socket.ReceiveFrom(buffer, ref remoteEndPoint);
@@ -54,15 +78,16 @@ namespace kcp2k
 				stopwatch.Stop();
 				DnsResolveTime = stopwatch.Elapsed.TotalMilliseconds;
 				
-                // create remote endpoint
-                CreateRemoteEndPoint(addresses, port);
-
-                // create socket
-                socket = new Socket(remoteEndPoint.AddressFamily, SocketType.Dgram, ProtocolType.Udp);
 				stopwatch.Restart();
-                socket.Connect(remoteEndPoint);
+                ConnectSocket(addresses, port);
 				stopwatch.Stop();
 				SocketConnectTime = stopwatch.Elapsed.TotalMilliseconds;
+				
+				if (socket == null)
+				{
+					OnDisconnected();
+					return;
+				}
 
                 // set up kcp
                 SetupKcp(noDelay, interval, fastResend, congestionWindow, sendWindowSize, receiveWindowSize, timeout, maxRetransmits);
@@ -76,7 +101,10 @@ namespace kcp2k
                 RawReceive();
             }
             // otherwise call OnDisconnected to let the user know.
-            else OnDisconnected();
+            else
+			{
+				OnDisconnected();
+			}
         }
 
         // call from transport update
