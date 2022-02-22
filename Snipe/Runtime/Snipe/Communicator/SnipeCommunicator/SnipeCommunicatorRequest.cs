@@ -184,9 +184,9 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void OnConnectionClosed(bool will_rety = false)
+		private void OnConnectionClosed(bool will_retry = false)
 		{
-			if (will_rety)
+			if (will_retry)
 			{
 				mWaitingForResponse = false;
 
