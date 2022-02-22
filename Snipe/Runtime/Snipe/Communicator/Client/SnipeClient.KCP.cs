@@ -29,9 +29,9 @@ namespace MiniIT.Snipe
 		public bool UdpClientConnected => mUdpClient != null && mUdpClient.connected;
 		
 		public double UdpConnectionTime { get; private set; }
-		public double UdpDnsResolveTime => mUdpClient?.connection?.DnsResolveTime ?? default;
-		public double UdpSocketConnectTime => mUdpClient?.connection?.SocketConnectTime ?? default;
-		public double UdpSendHandshakeTime => mUdpClient?.connection?.SendHandshakeTime ?? default;
+		public double UdpDnsResolveTime { get; private set; }
+		public double UdpSocketConnectTime { get; private set; }
+		public double UdpSendHandshakeTime { get; private set; }
 		
 		private void ConnectUdpClient()
 		{	
@@ -74,6 +74,8 @@ namespace MiniIT.Snipe
 				mConnectionStopwatch = null;
 			}
 			
+			RefreshConnectionStats();
+			
 			// tunnel authentication
 			DebugLogger.Log("[SnipeClient] OnUdpClientConnected - Sending tunnel authentication response");
 			
@@ -112,6 +114,8 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log("[SnipeClient] OnUdpClientDisconnected");
 			
+			RefreshConnectionStats();
+			
 			UdpConnectionFailed?.Invoke();
 			
 			if (mUdpClientConnected)
@@ -128,6 +132,13 @@ namespace MiniIT.Snipe
 		// {
 			// DebugLogger.Log($"[SnipeClient] OnUdpClientError: {err.Message}");
 		// }
+		
+		private void RefreshConnectionStats()
+		{
+			UdpDnsResolveTime = mUdpClient?.connection?.DnsResolveTime ?? 0;
+			UdpSocketConnectTime = mUdpClient?.connection?.SocketConnectTime ?? 0;
+			UdpSendHandshakeTime = mUdpClient?.connection?.SendHandshakeTime ?? 0;
+		}
 		
 		private void OnUdpClientDataReceived(ArraySegment<byte> buffer, KcpChannel channel)
 		{
