@@ -258,7 +258,7 @@ namespace MiniIT.Snipe
 				mUdpClient?.TickIncoming();
 				mUdpClient?.TickOutgoing();
 				Analytics.PingTime = mUdpClient?.connection?.PingTime ?? 0;
-				await Task.Delay(30);
+				await Task.Delay(100);
 			}
 			
 			DebugLogger.Log("[SnipeClient] UdpNetworkLoop - finish");
