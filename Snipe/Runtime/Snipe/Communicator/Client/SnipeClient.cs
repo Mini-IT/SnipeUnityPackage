@@ -334,7 +334,7 @@ namespace MiniIT.Snipe
 					}
 				}
 
-				await Task.Yield();
+				await Task.Delay(100);
 			}
 			
 			mSendMessages = null;
