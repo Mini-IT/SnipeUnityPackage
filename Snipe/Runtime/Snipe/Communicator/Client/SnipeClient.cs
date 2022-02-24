@@ -313,7 +313,7 @@ namespace MiniIT.Snipe
 			mSendMessages = null;
 		}
 
-		private async Task SendTask(CancellationToken? cancellation)
+		private async void SendTask(CancellationToken? cancellation)
 		{
 			while (cancellation?.IsCancellationRequested != true && Connected)
 			{
@@ -331,6 +331,8 @@ namespace MiniIT.Snipe
 			}
 			
 			mSendMessages = null;
+			
+			DebugLogger.Log($"[SnipeClient] [{ConnectionId}] SendTask finished");
 		}
 
 		#endregion
