@@ -163,7 +163,7 @@ namespace MiniIT.Snipe
 			
 			if (mRequestId != 0)
 			{
-				DebugLogger.Log($"[SnipeCommunicatorRequest] DoSendRequest - Same request found: {MessageType}, id = {mRequestId}");
+				DebugLogger.Log($"[SnipeCommunicatorRequest] DoSendRequest - Same request found: {MessageType}, id = {mRequestId}, mWaitingForResponse = {mWaitingForResponse}");
 				
 				if (!mWaitingForResponse)
 				{
@@ -176,14 +176,15 @@ namespace MiniIT.Snipe
 			{
 				mRequestId = mCommunicator.Client.SendRequest(this.MessageType, this.Data);
 				
-				DebugLogger.Log($"[SnipeCommunicatorRequest] DoSendRequest - {MessageType}, id = {mRequestId}");
+				DebugLogger.Log($"[SnipeCommunicatorRequest] DoSendRequest - {MessageType}, id = {mRequestId}, mWaitingForResponse = {mWaitingForResponse}");
 			}
 			
 			if (mRequestId == 0)
 			{
 				InvokeCallback(SnipeErrorCodes.NOT_READY, EMPTY_DATA);
 			}
-			else if (!mWaitingForResponse)
+			
+			if (!mWaitingForResponse)
 			{
 				// keep this instance for a while to prevent duplicate requests
 				DelayedDispose();
