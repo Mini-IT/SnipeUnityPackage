@@ -153,21 +153,14 @@ namespace MiniIT.Snipe
 
 		public int SendRequest(string message_type, SnipeObject data)
 		{
-			if (data == null)
+			var message = new SnipeObject() { ["t"] = message_type };
+			
+			if (data != null)
 			{
-				return SendRequest(new SnipeObject()
-				{
-					["t"] = message_type,
-				});
+				message.Add("data", data);
 			}
-			else
-			{
-				return SendRequest(new SnipeObject()
-				{
-					["t"] = message_type,
-					["data"] = data
-				});
-			}
+			
+			return SendRequest(message);
 		}
 		
 		private void DoSendRequest(SnipeObject message)
