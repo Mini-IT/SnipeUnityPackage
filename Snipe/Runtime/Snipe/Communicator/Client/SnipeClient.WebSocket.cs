@@ -241,7 +241,7 @@ namespace MiniIT.Snipe
 			BadConnection = false;
 		}
 
-		private async Task CheckConnectionTask(CancellationToken cancellation)
+		private async void CheckConnectionTask(CancellationToken cancellation)
 		{
 			BadConnection = false;
 			
