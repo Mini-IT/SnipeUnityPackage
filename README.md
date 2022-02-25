@@ -11,9 +11,10 @@ After package import is done in Unity editor "Snipe" menu should appear.
 
 ## Updating
 
-Unity Package Manager doesn't support auto updates for git-based packages. We recommend to use the [UPM Git Extension](https://github.com/mob-sakai/UpmGitExtension).
+Unity Package Manager doesn't support auto updates for git-based packages. That is why Snipe Client Tools comes with its own Updater (<b>"Snipe/Updater"</b> menu item).
 
 Alternatively there are some other methods:
+* You may use [UPM Git Extension](https://github.com/mob-sakai/UpmGitExtension).
 * You may add the same package again using git URL. Package manager will update an existing one.
 * Or you may manually edit your project's Packages/packages-lock.json. Just remove "com.miniit.snipe.client" section.
 
