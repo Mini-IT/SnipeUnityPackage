@@ -207,11 +207,6 @@ namespace MiniIT.Snipe
 			buffer[0] = OPCODE_SNIPE_REQUEST;
 			WriteInt(buffer, 1, msg_data.Count - 1); // msg_data.Count = opcode + length (4 bytes) + msg
 			
-			// string bytes_string = "";
-			// for(int i = 0; i < msg_data.Count; i++)
-				// bytes_string += $"{msg_data.Array[msg_data.Offset + i]} ";
-			// DebugLogger.Log($"[SnipeClient] ++++ msg_data (size = {msg_data.Count}): {bytes_string}"); //{BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count)}");
-			
 			mUdpClient.Send(msg_data, KcpChannel.Reliable);
 			
 			// if buffer.Length > mBytesPool's max bucket size (1024*1024 = 1048576)
