@@ -333,8 +333,6 @@ namespace MiniIT.Snipe
 			}
 			
 			mSendMessages = null;
-			
-			DebugLogger.Log($"[SnipeClient] [{ConnectionId}] SendTask finished");
 		}
 
 		#endregion

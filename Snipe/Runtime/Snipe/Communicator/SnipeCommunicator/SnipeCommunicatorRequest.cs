@@ -47,8 +47,6 @@ namespace MiniIT.Snipe
 
 		public virtual void Request(ResponseHandler callback = null)
 		{
-			DebugLogger.Log($"[SnipeCommunicatorRequest] Request - {MessageType}, mSent = {mSent}");
-			
 			if (mSent)
 				return;
 				
@@ -65,8 +63,6 @@ namespace MiniIT.Snipe
 		
 		private void SendRequest()
 		{
-			DebugLogger.Log($"[SnipeCommunicatorRequest] SendRequest - {MessageType}");
-			
 			mSent = true;
 			
 			if (mCommunicator == null || mCommunicator.RoomJoined == false && MessageType == SnipeMessageTypes.ROOM_LEAVE)
@@ -175,8 +171,6 @@ namespace MiniIT.Snipe
 			if (mCommunicator.LoggedIn || mAuthorization)
 			{
 				mRequestId = mCommunicator.Client.SendRequest(this.MessageType, this.Data);
-				
-				DebugLogger.Log($"[SnipeCommunicatorRequest] DoSendRequest - {MessageType}, id = {mRequestId}, mWaitingForResponse = {mWaitingForResponse}");
 			}
 			
 			if (mRequestId == 0)
@@ -282,8 +276,6 @@ namespace MiniIT.Snipe
 
 		public void Dispose()
 		{
-			DebugLogger.Log($"[SnipeCommunicatorRequest] Dispose - {MessageType}, id = {mRequestId}");
-			
 			if (mCommunicator != null)
 			{
 				if (mCommunicator.Requests != null)
