@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using MiniIT.MessagePack;
 
 
@@ -41,6 +42,7 @@ namespace MiniIT.Snipe
 		private ConcurrentQueue<SnipeObject> mSendMessages;
 		
 		private ArrayPool<byte> mBytesPool;
+		private Dictionary<string, int> mSendMessageBufferSizes = new Dictionary<string, int>();
 		
 		public void Connect(bool udp = true)
 		{

@@ -85,14 +85,38 @@ namespace MiniIT.Snipe
 		
 		private void DoSendRequestWebSocket(SnipeObject message)
 		{
+			string message_type = message.SafeGetString("t");
+			
+			int buffer_size;
+			if (!mSendMessageBufferSizes.TryGetValue(message_type, out buffer_size))
+			{
+				buffer_size = 1024;
+			}
+			
 			lock (mWebSocketLock)
 			{
-				byte[] buffer = mBytesPool.Rent(MessagePackSerializerNonAlloc.MaxUsedBufferSize);
+				byte[] buffer = mBytesPool.Rent(buffer_size);
 				var msg_data = MessagePackSerializerNonAlloc.Serialize(ref buffer, message);
 				var data = new byte[msg_data.Count];
 				Array.ConstrainedCopy(msg_data.Array, msg_data.Offset, data, 0, msg_data.Count);
 				mWebSocket.SendRequest(data);
-				mBytesPool.Return(buffer);
+				
+				// if buffer.Length > mBytesPool's max bucket size (1024*1024 = 1048576)
+				// then the buffer can not be returned to the pool. It will be dropped.
+				// And ArgumentException will be thown.
+				try
+				{
+					mBytesPool.Return(buffer);
+					
+					if (buffer.Length > buffer_size)
+					{
+						mSendMessageBufferSizes[message_type] = buffer.Length;
+					}
+				}
+				catch (ArgumentException)
+				{
+					// ignore
+				}
 			}
 			
 			if (mServerReactionStopwatch != null)

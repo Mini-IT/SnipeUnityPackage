@@ -191,7 +191,15 @@ namespace MiniIT.Snipe
 		
 		private void DoSendRequestUdpClient(SnipeObject message)
 		{
-			byte[] buffer = mBytesPool.Rent(MessagePackSerializerNonAlloc.MaxUsedBufferSize);
+			string message_type = message.SafeGetString("t");
+			
+			int buffer_size;
+			if (!mSendMessageBufferSizes.TryGetValue(message_type, out buffer_size))
+			{
+				buffer_size = 1024;
+			}
+			
+			byte[] buffer = mBytesPool.Rent(buffer_size);
 			
 			// offset = opcode + length (4 bytes) = 5
 			var msg_data = MessagePackSerializerNonAlloc.Serialize(ref buffer, 5, message);
@@ -206,7 +214,22 @@ namespace MiniIT.Snipe
 			
 			mUdpClient.Send(msg_data, KcpChannel.Reliable);
 			
-			mBytesPool.Return(buffer);
+			// if buffer.Length > mBytesPool's max bucket size (1024*1024 = 1048576)
+			// then the buffer can not be returned to the pool. It will be dropped.
+			// And ArgumentException will be thown.
+			try
+			{
+				mBytesPool.Return(buffer);
+				
+				if (buffer.Length > buffer_size)
+				{
+					mSendMessageBufferSizes[message_type] = buffer.Length;
+				}
+			}
+			catch (ArgumentException)
+			{
+				// ignore
+			}
 		}
 		
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
