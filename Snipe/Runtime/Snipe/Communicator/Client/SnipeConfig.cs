@@ -17,6 +17,7 @@ public static class SnipeConfig
 	public static string ServerUdpAuthKey;
 	
 	public static SnipeObject LoginParameters;
+	public static bool TablesUpdateEnabled = true;
 	
 	public static string PersistentDataPath { get; private set; }
 	public static string StreamingAssetsPath { get; private set; }
