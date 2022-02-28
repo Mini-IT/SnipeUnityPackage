@@ -16,6 +16,8 @@ public static class SnipeConfig
 	public static ushort ServerUdpPort;
 	public static string ServerUdpAuthKey;
 	
+	public static SnipeObject LoginParameters;
+	
 	public static string PersistentDataPath { get; private set; }
 	public static string StreamingAssetsPath { get; private set; }
 	

@@ -96,14 +96,12 @@ namespace MiniIT.Snipe
 			mLogin = login;
 			mPassword = password;
 			
-			SnipeObject data = new SnipeObject()
-			{
-				["login"] = login,
-				["auth"] = password,
-				["loginGame"] = true,
-				["version"] = SnipeClient.SNIPE_VERSION,
-				["appInfo"] = SnipeConfig.AppInfo,
-			};
+			SnipeObject data = SnipeConfig.LoginParameters != null ? new SnipeObject(SnipeConfig.LoginParameters) : new SnipeObject();
+			data["login"] = login;
+			data["auth"] = password;
+			data["loginGame"] = true;
+			data["version"] = SnipeClient.SNIPE_VERSION;
+			data["appInfo"] = SnipeConfig.AppInfo;
 			
 			SnipeCommunicator.Instance.MessageReceived -= OnMessageReceived;
 			SnipeCommunicator.Instance.MessageReceived += OnMessageReceived;
