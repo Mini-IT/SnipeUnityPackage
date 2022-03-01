@@ -280,7 +280,7 @@ namespace MiniIT.Snipe
 			}
 
 			// if the connection is ok then this task should already be cancelled
-			if (cancellation.IsCancellationRequested)
+			if (cancellation == null || cancellation.IsCancellationRequested)
 				return;
 			
 			BadConnection = true;
@@ -316,32 +316,12 @@ namespace MiniIT.Snipe
 				}
 				
 				// if the connection is ok then this task should already be cancelled
-				if (cancellation.IsCancellationRequested)
+				if (cancellation == null || cancellation.IsCancellationRequested)
 				{
 					BadConnection = false;
 					return;
 				}
 			}
-			
-			// try
-			// {
-				// await Task.Delay(CHECK_CONNECTION_TIMEOUT * 2, cancellation);
-			// }
-			// catch (TaskCanceledException)
-			// {
-				// // This is OK. Just terminating the task
-				// BadConnection = false;
-				// return;
-			// }
-			
-			// // if the connection is ok then this task should already be cancelled
-			// if (cancellation.IsCancellationRequested)
-			// {
-				// BadConnection = false;
-				// return;
-			// }
-			
-			// OnDisconnectDetected();
 		}
 		
 		private void OnDisconnectDetected()
