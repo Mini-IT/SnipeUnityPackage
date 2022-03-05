@@ -117,6 +117,7 @@ namespace MiniIT.Snipe
 			{
 				mLoadingCancellation.Dispose();
 				mCancellations.Remove(mLoadingCancellation);
+				mLoadingCancellation = null;
 			}
 		}
 		
