@@ -287,8 +287,15 @@ namespace MiniIT.Snipe
 			DebugLogger.Log($"[SnipeClient] [{ConnectionId}] CheckConnectionTask - Bad connection detected");
 			
 			bool pinging = false;
-			while (Connected)
+			while (WebSocketConnected)
 			{
+				// if the connection is ok then this task should be cancelled
+				if (cancellation == null || cancellation.IsCancellationRequested)
+				{
+					BadConnection = false;
+					return;
+				}
+				
 				if (pinging)
 				{
 					await Task.Delay(100);
@@ -313,13 +320,6 @@ namespace MiniIT.Snipe
 							}
 						});
 					}
-				}
-				
-				// if the connection is ok then this task should already be cancelled
-				if (cancellation == null || cancellation.IsCancellationRequested)
-				{
-					BadConnection = false;
-					return;
 				}
 			}
 		}
