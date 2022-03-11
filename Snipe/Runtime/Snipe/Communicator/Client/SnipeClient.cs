@@ -155,6 +155,9 @@ namespace MiniIT.Snipe
 
 		public int SendRequest(string message_type, SnipeObject data)
 		{
+			if (!Connected)
+				return 0;
+			
 			var message = new SnipeObject() { ["t"] = message_type };
 			
 			if (data != null)
