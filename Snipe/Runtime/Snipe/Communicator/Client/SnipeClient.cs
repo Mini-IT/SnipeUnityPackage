@@ -108,12 +108,12 @@ namespace MiniIT.Snipe
 			
 			StopUdpNetworkLoop();
 			
-			mUdpClientConnected = false;
 			if (mUdpClient != null)
 			{
 				mUdpClient.Disconnect();
 				mUdpClient = null;
 			}
+			mUdpClientConnected = false;
 
 			if (mWebSocket != null)
 			{
