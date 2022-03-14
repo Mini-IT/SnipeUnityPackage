@@ -218,7 +218,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async void OnMessageReceived(string message_type, string error_code, SnipeObject response_data, int request_id)
+		private void OnMessageReceived(string message_type, string error_code, SnipeObject response_data, int request_id)
 		{
 			if (mCommunicator == null)
 				return;
@@ -237,11 +237,7 @@ namespace MiniIT.Snipe
 				if (error_code == SnipeErrorCodes.SERVICE_OFFLINE && mRetriesLeft > 0)
 				{
 					mRetriesLeft--;
-
-					await Task.Delay(RETRY_DELAY);
-
-					Request(mCallback);
-
+					DelayedRetryRequest();
 					return;
 				}
 
@@ -265,6 +261,16 @@ namespace MiniIT.Snipe
 				{
 					DebugLogger.Log($"[SnipeCommunicatorRequest] {MessageType} Callback invokation error: {e.Message}");
 				}
+			}
+		}
+		
+		private async void DelayedRetryRequest()
+		{
+			await Task.Delay(RETRY_DELAY);
+			
+			if (mCommunicator != null)
+			{
+				Request(mCallback);
 			}
 		}
 		
