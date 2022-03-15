@@ -21,7 +21,7 @@ namespace MiniIT.Snipe
 		private bool mUdpClientConnected;
 		
 		private const byte OPCODE_AUTHENTICATION_REQUEST = 1;
-		private const byte OPCODE_AUTHENTICATION_RESPONSE = 2;
+		// private const byte OPCODE_AUTHENTICATION_RESPONSE = 2;
 		private const byte OPCODE_AUTHENTICATED = 3;
 		private const byte OPCODE_SNIPE_REQUEST = 4;
 		private const byte OPCODE_SNIPE_RESPONSE = 5;
@@ -76,38 +76,9 @@ namespace MiniIT.Snipe
 			
 			RefreshConnectionStats();
 			
-			// tunnel authentication
-			DebugLogger.Log("[SnipeClient] OnUdpClientConnected - Sending tunnel authentication response");
-			
 			mUdpClientConnected = true;
 			
-			string code = SnipeConfig.ServerUdpAuthKey;
-			int data_length = code.Length * 2 + 5; // opcode + length (4 bytes) + array of chars (2 bytes each)
-			byte[] data = mBytesPool.Rent(data_length);
-			data[0] = OPCODE_AUTHENTICATION_RESPONSE;
-			
-			// WriteString
-			WriteInt(data, 1, code.Length);
-			// unsafe
-			// {
-				// for (int i = 0; i < code.Length; i++)
-				// {
-					// fixed (byte* dataPtr = &data[i + 5])
-					// {
-						// char* valuePtr = (char*)dataPtr;
-						// *valuePtr = code[i];
-					// }
-				// }
-			// }
-			for (int i = 0; i < code.Length; i++)
-			{
-				byte[] char_bytes = BitConverter.GetBytes(code[i]);
-				data[i*2 + 5] = char_bytes[0];
-				data[i*2 + 6] = char_bytes[1];
-			}
-			
-			mUdpClient.Send(new ArraySegment<byte>(data, 0, data_length), KcpChannel.Reliable);
-			mBytesPool.Return(data);
+			DebugLogger.Log("[SnipeClient] OnUdpClientConnected");
 		}
 
 		private void OnUdpClientDisconnected()
@@ -142,7 +113,7 @@ namespace MiniIT.Snipe
 		
 		private void OnUdpClientDataReceived(ArraySegment<byte> buffer, KcpChannel channel)
 		{
-			DebugLogger.Log($"[SnipeClient] OnUdpClientDataReceived"); // {buffer.Count} bytes"); // {BitConverter.ToString(buffer.Array, buffer.Offset, buffer.Count)}");
+			DebugLogger.Log($"[SnipeClient] OnUdpClientDataReceived");
 			
 			// get opcode
 			

@@ -50,8 +50,7 @@ namespace MiniIT.Snipe
 				mBytesPool = ArrayPool<byte>.Create();
 			
 			if (udp && SnipeConfig.ServerUdpPort > 0 &&
-				!string.IsNullOrEmpty(SnipeConfig.ServerUdpAddress) &&
-				!string.IsNullOrEmpty(SnipeConfig.ServerUdpAuthKey))
+				!string.IsNullOrEmpty(SnipeConfig.ServerUdpAddress))
 			{
 				ConnectUdpClient();
 			}
