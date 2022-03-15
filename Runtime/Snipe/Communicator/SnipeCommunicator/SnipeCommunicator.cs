@@ -546,7 +546,6 @@ namespace MiniIT.Snipe
 			{
 				["connection_type"] = "udp",
 				["connection_time"] = Client?.UdpConnectionTime,
-				["udp client id"] = Client?.UdpClientId,
 				
 				["udp dns resolve"] = Client?.UdpDnsResolveTime,
 				["udp socket connect"] = Client?.UdpSocketConnectTime,
@@ -590,7 +589,6 @@ namespace MiniIT.Snipe
 				["udp dns resolve"] = Client?.UdpDnsResolveTime,
 				["udp socket connect"] = Client?.UdpSocketConnectTime,
 				["udp handshake request"] = Client?.UdpSendHandshakeTime,
-				["udp client id"] = Client?.UdpClientId,
 			});
 		}
 		
@@ -600,7 +598,6 @@ namespace MiniIT.Snipe
 			{
 				["connection_type"] = "udp",
 				["connection_time"] = Client?.UdpConnectionTime,
-				["udp client id"] = Client?.UdpClientId,
 				
 				["udp dns resolve"] = Client?.UdpDnsResolveTime,
 				["udp socket connect"] = Client?.UdpSocketConnectTime,

@@ -15,14 +15,12 @@ namespace MiniIT.Snipe
 		
 		public event Action UdpConnectionFailed;
 		
-		public int UdpClientId { get; private set; }
-		
 		private KcpClient mUdpClient;
 		private bool mUdpClientConnected;
 		
 		private const byte OPCODE_AUTHENTICATION_REQUEST = 1;
 		// private const byte OPCODE_AUTHENTICATION_RESPONSE = 2;
-		private const byte OPCODE_AUTHENTICATED = 3;
+		// private const byte OPCODE_AUTHENTICATED = 3;
 		private const byte OPCODE_SNIPE_REQUEST = 4;
 		private const byte OPCODE_SNIPE_RESPONSE = 5;
 		
@@ -47,7 +45,6 @@ namespace MiniIT.Snipe
 				OnUdpClientDataReceived,
 				OnUdpClientDisconnected);
 				
-			UdpClientId = 0;
 			mConnectionStopwatch = Stopwatch.StartNew();
 			
 			mUdpClient.Connect(
@@ -134,14 +131,6 @@ namespace MiniIT.Snipe
 			if (opcode == OPCODE_AUTHENTICATION_REQUEST)
 			{
 				return;
-			}
-			else if (opcode == OPCODE_AUTHENTICATED)
-			{
-				UdpClientId = BitConverter.ToInt32(buffer_array, buffer.Offset + 1);
-				
-				DebugLogger.Log($"[SnipeClient] UdpClientId = {UdpClientId}");
-				
-				// OnConnected();
 			}
 			else if (opcode == OPCODE_SNIPE_RESPONSE)
 			{
