@@ -79,6 +79,8 @@ namespace MiniIT.Snipe
 			mUdpClientConnected = true;
 			
 			DebugLogger.Log("[SnipeClient] OnUdpClientConnected");
+			
+			OnConnected();
 		}
 
 		private void OnUdpClientDisconnected()
@@ -139,7 +141,7 @@ namespace MiniIT.Snipe
 				
 				DebugLogger.Log($"[SnipeClient] UdpClientId = {UdpClientId}");
 				
-				OnConnected();
+				// OnConnected();
 			}
 			else if (opcode == OPCODE_SNIPE_RESPONSE)
 			{
