@@ -129,10 +129,10 @@ namespace MiniIT.Snipe
 				mServerReactionStopwatch = Stopwatch.StartNew();
 			}
 
-			// if (mHeartbeatEnabled)
-			// {
-				// ResetHeartbeatTimer();
-			// }
+			if (mSendMessages != null && mSendMessages.IsEmpty && !message.SafeGetString("t").StartsWith("payment/"))
+			{
+				StartCheckConnection();
+			}
 		}
 		
 		#endregion // Web Socket

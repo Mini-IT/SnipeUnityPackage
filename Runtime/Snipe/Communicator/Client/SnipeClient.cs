@@ -298,10 +298,31 @@ namespace MiniIT.Snipe
 		{
 			mSendTaskCancellation?.Cancel();
 			
+#if NET5_0_OR_GREATER
+			if (mSendMessages == null)
+				mSendMessages = new ConcurrentQueue<SnipeObject>();
+			else
+				mSendMessages.Clear();
+#else
 			mSendMessages = new ConcurrentQueue<SnipeObject>();
+#endif
 
 			mSendTaskCancellation = new CancellationTokenSource();
-			Task.Run(() => SendTask(mSendTaskCancellation?.Token));
+			
+			Task.Run(() =>
+			{
+				try
+				{
+					SendTask(mSendTaskCancellation?.Token).GetAwaiter().GetResult();
+				}
+				catch (Exception task_exception)
+				{
+					var e = task_exception is AggregateException ae ? ae.InnerException : task_exception;
+					DebugLogger.Log($"[SnipeClient] [{ConnectionId}] SendTask Exception: {e}");
+					
+					StopSendTask();
+				}
+			});
 		}
 
 		private void StopSendTask()
@@ -317,24 +338,17 @@ namespace MiniIT.Snipe
 			mSendMessages = null;
 		}
 
-		private async void SendTask(CancellationToken? cancellation)
+		private async Task SendTask(CancellationToken? cancellation)
 		{
 			while (cancellation?.IsCancellationRequested != true && Connected)
 			{
 				if (mSendMessages != null && !mSendMessages.IsEmpty && mSendMessages.TryDequeue(out var message))
 				{
 					DoSendRequest(message);
-					
-					if (mSendMessages.IsEmpty && !message.SafeGetString("t").StartsWith("payment/"))
-					{
-						StartCheckConnection();
-					}
 				}
 
 				await Task.Delay(100);
 			}
-			
-			mSendMessages = null;
 		}
 
 		#endregion
