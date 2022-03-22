@@ -1,13 +1,9 @@
 using System;
-using System.Buffers;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using MiniIT.MessagePack;
-
 
 namespace MiniIT.Snipe
 {
@@ -39,16 +35,9 @@ namespace MiniIT.Snipe
 		public TimeSpan ServerReaction { get; private set; }
 
 		private int mRequestId = 0;
-		private ConcurrentQueue<SnipeObject> mSendMessages;
-		
-		private ArrayPool<byte> mBytesPool;
-		private Dictionary<string, int> mSendMessageBufferSizes = new Dictionary<string, int>();
 		
 		public void Connect(bool udp = true)
 		{
-			if (mBytesPool == null)
-				mBytesPool = ArrayPool<byte>.Create();
-			
 			if (udp && SnipeConfig.ServerUdpPort > 0 &&
 				!string.IsNullOrEmpty(SnipeConfig.ServerUdpAddress))
 			{
@@ -143,11 +132,10 @@ namespace MiniIT.Snipe
 				message["data"] = data;
 			}
 			
-			if (mSendMessages == null)
-			{
-				StartSendTask();
-			}
-			mSendMessages.Enqueue(message);
+			if (UdpClientConnected)
+				DoSendRequestUdpClient(message);
+			else if (WebSocketConnected)
+				EnqueueMessageToSendWebSocket(message);
 			
 			return mRequestId;
 		}
@@ -289,68 +277,5 @@ namespace MiniIT.Snipe
 				}
 			}
 		}
-		
-		#region Send task
-
-		private CancellationTokenSource mSendTaskCancellation;
-
-		private void StartSendTask()
-		{
-			mSendTaskCancellation?.Cancel();
-			
-#if NET5_0_OR_GREATER
-			if (mSendMessages == null)
-				mSendMessages = new ConcurrentQueue<SnipeObject>();
-			else
-				mSendMessages.Clear();
-#else
-			mSendMessages = new ConcurrentQueue<SnipeObject>();
-#endif
-
-			mSendTaskCancellation = new CancellationTokenSource();
-			
-			Task.Run(() =>
-			{
-				try
-				{
-					SendTask(mSendTaskCancellation?.Token).GetAwaiter().GetResult();
-				}
-				catch (Exception task_exception)
-				{
-					var e = task_exception is AggregateException ae ? ae.InnerException : task_exception;
-					DebugLogger.Log($"[SnipeClient] [{ConnectionId}] SendTask Exception: {e}");
-					
-					StopSendTask();
-				}
-			});
-		}
-
-		private void StopSendTask()
-		{
-			StopCheckConnection();
-			
-			if (mSendTaskCancellation != null)
-			{
-				mSendTaskCancellation.Cancel();
-				mSendTaskCancellation = null;
-			}
-			
-			mSendMessages = null;
-		}
-
-		private async Task SendTask(CancellationToken? cancellation)
-		{
-			while (cancellation?.IsCancellationRequested != true && Connected)
-			{
-				if (mSendMessages != null && !mSendMessages.IsEmpty && mSendMessages.TryDequeue(out var message))
-				{
-					DoSendRequest(message);
-				}
-
-				await Task.Delay(100);
-			}
-		}
-
-		#endregion
 	}
 }

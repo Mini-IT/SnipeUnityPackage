@@ -33,12 +33,12 @@ namespace MiniIT.Snipe
 		
 		private Stopwatch mPingStopwatch;
 		
-		#region Web Socket
-
 		private WebSocketWrapper mWebSocket = null;
 		private object mWebSocketLock = new object();
 		
 		public bool WebSocketConnected => mWebSocket != null && mWebSocket.Connected;
+		
+		private ConcurrentQueue<SnipeObject> mSendMessages;
 		
 		private void ConnectWebSocket()
 		{
@@ -81,6 +81,15 @@ namespace MiniIT.Snipe
 			}
 
 			Disconnect(true);
+		}
+		
+		private void EnqueueMessageToSendWebSocket(SnipeObject message)
+		{
+			if (mSendMessages == null)
+			{
+				StartSendTask();
+			}
+			mSendMessages.Enqueue(message);
 		}
 		
 		private void DoSendRequestWebSocket(SnipeObject message)
@@ -135,8 +144,68 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		#endregion // Web Socket
-		
+		#region Send task
+
+		private CancellationTokenSource mSendTaskCancellation;
+
+		private void StartSendTask()
+		{
+			mSendTaskCancellation?.Cancel();
+			
+#if NET5_0_OR_GREATER
+			if (mSendMessages == null)
+				mSendMessages = new ConcurrentQueue<SnipeObject>();
+			else
+				mSendMessages.Clear();
+#else
+			mSendMessages = new ConcurrentQueue<SnipeObject>();
+#endif
+
+			mSendTaskCancellation = new CancellationTokenSource();
+			
+			Task.Run(() =>
+			{
+				try
+				{
+					SendTask(mSendTaskCancellation?.Token).GetAwaiter().GetResult();
+				}
+				catch (Exception task_exception)
+				{
+					var e = task_exception is AggregateException ae ? ae.InnerException : task_exception;
+					DebugLogger.Log($"[SnipeClient] [{ConnectionId}] SendTask Exception: {e}");
+					
+					StopSendTask();
+				}
+			});
+		}
+
+		private void StopSendTask()
+		{
+			StopCheckConnection();
+			
+			if (mSendTaskCancellation != null)
+			{
+				mSendTaskCancellation.Cancel();
+				mSendTaskCancellation = null;
+			}
+			
+			mSendMessages = null;
+		}
+
+		private async Task SendTask(CancellationToken? cancellation)
+		{
+			while (cancellation?.IsCancellationRequested != true && Connected)
+			{
+				if (mSendMessages != null && !mSendMessages.IsEmpty && mSendMessages.TryDequeue(out var message))
+				{
+					DoSendRequest(message);
+				}
+
+				await Task.Delay(100);
+			}
+		}
+
+		#endregion // Send task
 		
 
 		#region Heartbeat
