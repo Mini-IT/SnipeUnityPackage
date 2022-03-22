@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -33,11 +34,16 @@ namespace MiniIT.Snipe
 		private Stopwatch mServerReactionStopwatch;
 		public TimeSpan CurrentRequestElapsed { get { return mServerReactionStopwatch?.Elapsed ?? new TimeSpan(0); } }
 		public TimeSpan ServerReaction { get; private set; }
+		
+		private ArrayPool<byte> mBytesPool;
 
 		private int mRequestId = 0;
 		
 		public void Connect(bool udp = true)
 		{
+			if (mBytesPool == null)
+				mBytesPool = ArrayPool<byte>.Create();
+			
 			if (udp && SnipeConfig.ServerUdpPort > 0 &&
 				!string.IsNullOrEmpty(SnipeConfig.ServerUdpAddress))
 			{

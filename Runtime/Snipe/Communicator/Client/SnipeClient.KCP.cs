@@ -1,5 +1,4 @@
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -25,7 +24,6 @@ namespace MiniIT.Snipe
 		private KcpClient mUdpClient;
 		private bool mUdpClientConnected;
 		
-		private ArrayPool<byte> mBytesPool;
 		private Dictionary<string, int> mSendMessageBufferSizes = new Dictionary<string, int>();
 		
 		public bool UdpClientConnected => mUdpClient != null && mUdpClient.connected;
@@ -40,9 +38,6 @@ namespace MiniIT.Snipe
 			if (mUdpClient != null) // already connected or trying to connect
 				return;
 			
-			if (mBytesPool == null)
-				mBytesPool = ArrayPool<byte>.Create();
-				
 			kcp2k.Log.Info = DebugLogger.Log;
 			kcp2k.Log.Warning = DebugLogger.LogWarning;
 			kcp2k.Log.Error = DebugLogger.LogError;

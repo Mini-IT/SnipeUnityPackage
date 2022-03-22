@@ -245,7 +245,7 @@ namespace MiniIT.Snipe
 					bool pinging = false;
 					if (pinging)
 					{
-						await Task.Yield();
+						await Task.Delay(20);
 					}
 					else
 					{
