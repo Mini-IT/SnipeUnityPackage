@@ -138,6 +138,8 @@ namespace MiniIT.Snipe
 				message["data"] = data;
 			}
 			
+			DebugLogger.Log($"[SnipeClient] SendRequest - {message.ToJSONString()}");
+			
 			if (UdpClientConnected)
 				DoSendRequestUdpClient(message);
 			else if (WebSocketConnected)
@@ -166,8 +168,6 @@ namespace MiniIT.Snipe
 			if (!Connected || message == null)
 				return;
 			
-			DebugLogger.Log($"[SnipeClient] DoSendRequest - {message.ToJSONString()}");
-
 			if (UdpClientConnected)
 				DoSendRequestUdpClient(message);
 			else if (WebSocketConnected)
