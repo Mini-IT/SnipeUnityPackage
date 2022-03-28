@@ -42,6 +42,8 @@ namespace MiniIT.Snipe
 			kcp2k.Log.Warning = DebugLogger.LogWarning;
 			kcp2k.Log.Error = DebugLogger.LogError;
 			
+			mUdpClientConnected = false;
+			
 			mUdpClient = new KcpClient(
 				OnUdpClientConnected,
 				OnUdpClientDataReceived,
@@ -85,6 +87,12 @@ namespace MiniIT.Snipe
 		private void OnUdpClientDisconnected()
 		{
 			DebugLogger.Log("[SnipeClient] OnUdpClientDisconnected");
+			
+			if (mConnectionStopwatch != null)
+			{
+				mConnectionStopwatch.Stop();
+				mConnectionStopwatch = null;
+			}
 			
 			RefreshConnectionStats();
 			
@@ -218,6 +226,7 @@ namespace MiniIT.Snipe
 
 			mUdpNetworkLoopCancellation = new CancellationTokenSource();
 			Task.Run(() => UdpNetworkLoop(mUdpNetworkLoopCancellation.Token));
+			Task.Run(() => UdpConnectionTimeout(mUdpNetworkLoopCancellation.Token));
 		}
 
 		private void StopUdpNetworkLoop()
@@ -246,5 +255,32 @@ namespace MiniIT.Snipe
 			DebugLogger.Log("[SnipeClient] UdpNetworkLoop - finish");
 		}
 		
+		private async void UdpConnectionTimeout(CancellationToken cancellation)
+		{
+			DebugLogger.Log("[SnipeClient] UdpConnectionTimeout - start");
+			
+			const int INTERVAL = 100;
+			int timeout = 2000;
+			
+			await Task.Delay(INTERVAL);
+			
+			while (cancellation != null && !cancellation.IsCancellationRequested)
+			{
+				if (mUdpClientConnected || UdpClientConnected)
+					break;
+				
+				timeout -= INTERVAL;
+				if (timeout <= 0)
+				{
+					DebugLogger.Log("[SnipeClient] UdpConnectionTimeout - Calling Disconnect");
+					OnUdpClientDisconnected();
+					break;
+				}
+				
+				await Task.Delay(INTERVAL);
+			}
+			
+			DebugLogger.Log("[SnipeClient] UdpConnectionTimeout - finish");
+		}
 	}
 }
