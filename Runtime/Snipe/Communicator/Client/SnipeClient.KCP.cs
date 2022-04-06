@@ -259,25 +259,15 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log("[SnipeClient] UdpConnectionTimeout - start");
 			
-			const int INTERVAL = 100;
-			int timeout = 2000;
+			await Task.Delay(2000, cancellation);
 			
-			await Task.Delay(INTERVAL);
+			if (cancellation == null || cancellation.IsCancellationRequested)
+				return;
 			
-			while (cancellation != null && !cancellation.IsCancellationRequested)
+			if (!(mUdpClientConnected || UdpClientConnected))
 			{
-				if (mUdpClientConnected || UdpClientConnected)
-					break;
-				
-				timeout -= INTERVAL;
-				if (timeout <= 0)
-				{
-					DebugLogger.Log("[SnipeClient] UdpConnectionTimeout - Calling Disconnect");
-					OnUdpClientDisconnected();
-					break;
-				}
-				
-				await Task.Delay(INTERVAL);
+				DebugLogger.Log("[SnipeClient] UdpConnectionTimeout - Calling Disconnect");
+				OnUdpClientDisconnected();
 			}
 			
 			DebugLogger.Log("[SnipeClient] UdpConnectionTimeout - finish");
