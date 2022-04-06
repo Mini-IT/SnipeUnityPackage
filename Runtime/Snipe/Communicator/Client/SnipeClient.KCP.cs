@@ -22,7 +22,7 @@ namespace MiniIT.Snipe
 		public event Action UdpConnectionFailed;
 		
 		private KcpClient mUdpClient;
-		private bool mUdpClientConnected;
+		private bool mUdpConnectionEstablished;
 		
 		private Dictionary<string, int> mSendMessageBufferSizes = new Dictionary<string, int>();
 		
@@ -42,7 +42,7 @@ namespace MiniIT.Snipe
 			kcp2k.Log.Warning = DebugLogger.LogWarning;
 			kcp2k.Log.Error = DebugLogger.LogError;
 			
-			mUdpClientConnected = false;
+			mUdpConnectionEstablished = false;
 			
 			mUdpClient = new KcpClient(
 				OnUdpClientConnected,
@@ -77,7 +77,7 @@ namespace MiniIT.Snipe
 			
 			RefreshConnectionStats();
 			
-			mUdpClientConnected = true;
+			mUdpConnectionEstablished = true;
 			
 			DebugLogger.Log("[SnipeClient] OnUdpClientConnected");
 			
@@ -98,7 +98,7 @@ namespace MiniIT.Snipe
 			
 			UdpConnectionFailed?.Invoke();
 			
-			if (mUdpClientConnected)
+			if (mUdpConnectionEstablished)
 			{
 				Disconnect(true);
 			}
@@ -272,7 +272,7 @@ namespace MiniIT.Snipe
 			if (cancellation == null || cancellation.IsCancellationRequested)
 				return;
 			
-			if (!(mUdpClientConnected || UdpClientConnected))
+			if (!UdpClientConnected)
 			{
 				DebugLogger.Log("[SnipeClient] UdpConnectionTimeout - Calling Disconnect");
 				OnUdpClientDisconnected();
