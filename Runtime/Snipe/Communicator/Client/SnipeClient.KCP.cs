@@ -246,10 +246,28 @@ namespace MiniIT.Snipe
 			
 			while (cancellation != null && !cancellation.IsCancellationRequested)
 			{
-				mUdpClient?.TickIncoming();
-				mUdpClient?.TickOutgoing();
-				Analytics.PingTime = mUdpClient?.connection?.PingTime ?? 0;
-				await Task.Delay(100);
+				try
+				{
+					mUdpClient?.TickIncoming();
+					mUdpClient?.TickOutgoing();
+					Analytics.PingTime = mUdpClient?.connection?.PingTime ?? 0;
+				}
+				catch (Exception e)
+				{
+					DebugLogger.Log($"[SnipeClient] UdpNetworkLoop - Exception: {e}");
+					OnUdpClientDisconnected();
+					return;
+				}
+				
+				try
+				{
+					await Task.Delay(100, cancellation);
+				}
+				catch (TaskCanceledException)
+				{
+					// This is OK. Just terminating the task
+					return;
+				}
 			}
 			
 			DebugLogger.Log("[SnipeClient] UdpNetworkLoop - finish");
