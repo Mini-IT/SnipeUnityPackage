@@ -259,7 +259,15 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log("[SnipeClient] UdpConnectionTimeout - start");
 			
-			await Task.Delay(2000, cancellation);
+			try
+			{
+				await Task.Delay(2000, cancellation);
+			}
+			catch (TaskCanceledException)
+			{
+				// This is OK. Just terminating the task
+				return;
+			}
 			
 			if (cancellation == null || cancellation.IsCancellationRequested)
 				return;
