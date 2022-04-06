@@ -107,7 +107,7 @@ namespace MiniIT.Snipe
 				mUdpClient.Disconnect();
 				mUdpClient = null;
 			}
-			mUdpClientConnected = false;
+			mUdpConnectionEstablished = false;
 
 			if (mWebSocket != null)
 			{
