@@ -356,7 +356,7 @@ namespace MiniIT.Snipe
 			DebugLogger.Log($"[SnipeClient] [{ConnectionId}] CheckConnectionTask - Bad connection detected");
 			
 			bool pinging = false;
-			while (WebSocketConnected)
+			while (WebSocketConnected && BadConnection)
 			{
 				// if the connection is ok then this task should be cancelled
 				if (cancellation == null || cancellation.IsCancellationRequested)
@@ -380,6 +380,7 @@ namespace MiniIT.Snipe
 							
 							if (pong)
 							{
+								BadConnection = false;
 								DebugLogger.Log($"[SnipeClient] [{ConnectionId}] CheckConnectionTask - pong received");
 							}
 							else
