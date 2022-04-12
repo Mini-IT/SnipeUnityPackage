@@ -190,11 +190,11 @@ namespace kcp2k
         {
             // note: we are also sending a ping regularly, so timeout should
             //       only ever happen if the connection is truly gone.
-            // if (time >= lastReceiveTime + timeout)
-            // {
-                // Log.Warning($"KCP: Connection timed out after not receiving any message for {timeout}ms. Disconnecting.");
-                // Disconnect();
-            // }
+            if (time >= lastReceiveTime + timeout)
+            {
+                Log.Warning($"KCP: Connection timed out after not receiving any message for {timeout}ms. Disconnecting.");
+                Disconnect();
+            }
         }
 
         void HandleDeadLink()
