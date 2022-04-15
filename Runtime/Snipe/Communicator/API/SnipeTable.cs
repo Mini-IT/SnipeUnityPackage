@@ -142,10 +142,10 @@ namespace MiniIT.Snipe
 						try
 						{
 							loader = new HttpClient();
-							loader.Timeout = TimeSpan.FromSeconds(10);
+							loader.Timeout = TimeSpan.FromSeconds(1);
 							
 							var load_task = loader.GetAsync(url); // , cancellation_token);
-							if (await Task.WhenAny(load_task, Task.Delay(10000)) == load_task && load_task.Result.IsSuccessStatusCode)
+							if (await Task.WhenAny(load_task, Task.Delay(1000)) == load_task && load_task.Result.IsSuccessStatusCode)
 							{
 								var content = await load_task.Result.Content.ReadAsStringAsync();
 								mVersion = content.Trim();
