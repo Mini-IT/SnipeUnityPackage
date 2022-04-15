@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using UnityEngine;
 
 namespace MiniIT
@@ -26,7 +26,7 @@ namespace MiniIT
 		}
 		
 		private static DebugLogger mInstance;
-		private List<LogMessage> mLogMessages;
+		private ConcurrentQueue<LogMessage> mLogMessages;
 		
 		public static void InitInstance()
 		{
@@ -34,7 +34,7 @@ namespace MiniIT
 			{
 				mInstance = new GameObject("SnipeDebugLogger").AddComponent<DebugLogger>();
 				GameObject.DontDestroyOnLoad(mInstance.gameObject);
-				mInstance.mLogMessages = new List<LogMessage>();
+				mInstance.mLogMessages = new ConcurrentQueue<LogMessage>();
 			}
 		}
 		
@@ -50,7 +50,7 @@ namespace MiniIT
 		
 		private void Update()
 		{
-			if (mLogMessages == null || mLogMessages.Count == 0)
+			if (mLogMessages == null || mLogMessages.IsEmpty)
 				return;
 			
 #if !UNITY_EDITOR
@@ -61,19 +61,19 @@ namespace MiniIT
 			UnityEngine.Application.SetStackTraceLogType(LogType.Warning, StackTraceLogType.None);
 			UnityEngine.Application.SetStackTraceLogType(LogType.Error, StackTraceLogType.None);
 #endif
-				
-			for (int i = 0; i < mLogMessages.Count; i++)
-			{
-				var item = mLogMessages[i];
-				if (item.MessageType == LogMessageType.Error)
-					UnityEngine.Debug.LogError(item.Text);
-				else if (item.MessageType == LogMessageType.Warning)
-					UnityEngine.Debug.LogWarning(item.Text);
-				else
-					UnityEngine.Debug.Log(item.Text);
-			}
 			
-			mLogMessages.Clear();
+			while (!mLogMessages.IsEmpty)
+			{
+				if (mLogMessages.TryDequeue(out var item))
+				{
+					if (item.MessageType == LogMessageType.Error)
+						UnityEngine.Debug.LogError(item.Text);
+					else if (item.MessageType == LogMessageType.Warning)
+						UnityEngine.Debug.LogWarning(item.Text);
+					else
+						UnityEngine.Debug.Log(item.Text);
+				}
+			}
 			
 #if !UNITY_EDITOR
 			UnityEngine.Application.SetStackTraceLogType(LogType.Log, stack_log_type_log);
@@ -109,7 +109,7 @@ namespace MiniIT
 			{
 				if (mInstance != null && mInstance.mLogMessages != null)
 				{
-					mInstance.mLogMessages.Add(new LogMessage() { MessageType = LogMessageType.Log, Text = ApplyStyle(message) });
+					mInstance.mLogMessages.Enqueue(new LogMessage() { MessageType = LogMessageType.Log, Text = ApplyStyle(message) });
 				}
 				else
 				{
@@ -124,7 +124,7 @@ namespace MiniIT
 			{
 				if (mInstance != null && mInstance.mLogMessages != null)
 				{
-					mInstance.mLogMessages.Add(new LogMessage() { MessageType = LogMessageType.Log, Text = ApplyStyle(string.Format(format, args)) });
+					mInstance.mLogMessages.Enqueue(new LogMessage() { MessageType = LogMessageType.Log, Text = ApplyStyle(string.Format(format, args)) });
 				}
 				else
 				{
@@ -139,7 +139,7 @@ namespace MiniIT
 			{
 				if (mInstance != null && mInstance.mLogMessages != null)
 				{
-					mInstance.mLogMessages.Add(new LogMessage() { MessageType = LogMessageType.Warning, Text = ApplyStyle(message) });
+					mInstance.mLogMessages.Enqueue(new LogMessage() { MessageType = LogMessageType.Warning, Text = ApplyStyle(message) });
 				}
 				else
 				{
@@ -154,7 +154,7 @@ namespace MiniIT
 			{
 				if (mInstance != null && mInstance.mLogMessages != null)
 				{
-					mInstance.mLogMessages.Add(new LogMessage() { MessageType = LogMessageType.Error, Text = ApplyStyle(message) });
+					mInstance.mLogMessages.Enqueue(new LogMessage() { MessageType = LogMessageType.Error, Text = ApplyStyle(message) });
 				}
 				else
 				{
