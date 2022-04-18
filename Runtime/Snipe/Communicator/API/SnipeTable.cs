@@ -58,7 +58,14 @@ namespace MiniIT.Snipe
 				var cancellations = new List<CancellationTokenSource>(mCancellations);
 				foreach (var cancellation in cancellations)
 				{
-					cancellation?.Cancel();
+					try
+					{
+						cancellation?.Cancel();
+					}
+					catch (ObjectDisposedException)
+					{
+						// ignore
+					}
 				}
 				mCancellations.Clear();
 			}
@@ -102,7 +109,15 @@ namespace MiniIT.Snipe
 				return;
 			}
 			
-			mLoadingCancellation?.Cancel();
+			try
+			{
+				mLoadingCancellation?.Cancel();
+			}
+			catch (ObjectDisposedException)
+			{
+				// ignore
+			}
+			
 			mLoadingCancellation = new CancellationTokenSource();
 			
 			if (mCancellations == null)
@@ -115,8 +130,8 @@ namespace MiniIT.Snipe
 			}
 			finally
 			{
-				mLoadingCancellation.Dispose();
 				mCancellations.Remove(mLoadingCancellation);
+				mLoadingCancellation.Dispose();
 				mLoadingCancellation = null;
 			}
 		}
@@ -163,13 +178,9 @@ namespace MiniIT.Snipe
 						//		DebugLogger.Log($"[SnipeTable] LoadVersion - TaskCanceled");
 						//		return;
 						// }
-						catch (HttpRequestException re)
-						{
-							DebugLogger.Log($"[SnipeTable] LoadVersion - HttpRequestException: {re.InnerException.Message}");
-						}
 						catch (Exception e)
 						{
-							DebugLogger.Log($"[SnipeTable] LoadVersion - Exception: {e.Message}");
+							DebugLogger.Log($"[SnipeTable] LoadVersion - Exception: {e}");
 						}
 						
 						if (loader != null)
@@ -255,16 +266,9 @@ namespace MiniIT.Snipe
 				await mSemaphore.WaitAsync(cancellation_token);
 				await LoadTask<WrapperType>(table_name, cancellation_token);
 			}
-			catch (AggregateException ae)
-			{
-				foreach (var inner_exception in ae.InnerExceptions)
-				{
-					DebugLogger.Log($"[SnipeTable] Load {table_name} - Exception: {inner_exception.Message}");
-				}
-			}
 			catch (Exception e)
 			{
-				DebugLogger.Log($"[SnipeTable] Load {table_name} - Exception: {e.Message}");
+				DebugLogger.Log($"[SnipeTable] Load {table_name} - Exception: {e}");
 			}
 			finally
 			{
@@ -373,13 +377,9 @@ namespace MiniIT.Snipe
 							}
 						}
 					}
-					catch (HttpRequestException re)
-					{
-						DebugLogger.Log($"[SnipeTable] Failed to load table - {table_name} - HttpRequestException: {re.InnerException.Message}");
-					}
 					catch (Exception e)
 					{
-						DebugLogger.Log($"[SnipeTable] Failed to load or parse table - {table_name} - {e.Message} {e.StackTrace}");
+						DebugLogger.Log($"[SnipeTable] Failed to load or parse table - {table_name} - {e}");
 					}
 				}
 			}
@@ -437,7 +437,7 @@ namespace MiniIT.Snipe
 					}
 					catch (Exception e)
 					{
-						DebugLogger.Log($"[SnipeTable] Failed to read file - {table_name} - {e.Message}");
+						DebugLogger.Log($"[SnipeTable] Failed to read file - {table_name} - {e}");
 					}
 				}
 				
