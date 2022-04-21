@@ -173,11 +173,17 @@ namespace MiniIT.Snipe
 								break;
 							}
 						}
-						// catch (TaskCanceledException)
-						// {
-						//		DebugLogger.Log($"[SnipeTable] LoadVersion - TaskCanceled");
-						//		return;
-						// }
+						catch (AggregateException ae)
+						{
+							if (ae.InnerException is TaskCanceledException)
+							{
+								DebugLogger.Log($"[SnipeTable] LoadVersion - TaskCanceled");
+							}
+							else
+							{
+								DebugLogger.Log($"[SnipeTable] LoadVersion - Exception: {ae.InnerException}");
+							}
+						}
 						catch (Exception e)
 						{
 							DebugLogger.Log($"[SnipeTable] LoadVersion - Exception: {e}");
@@ -189,6 +195,16 @@ namespace MiniIT.Snipe
 							loader = null;
 						}
 						
+						if (cancellation_token.IsCancellationRequested)
+						{
+							DebugLogger.Log($"[SnipeTable] LoadVersion task canceled");
+							
+							stopwatch.Stop();
+							VersionFetchingTime = stopwatch.ElapsedMilliseconds;
+							
+							return;
+						}
+						
 						try
 						{
 							await Task.Delay(100, cancellation_token);
@@ -196,6 +212,17 @@ namespace MiniIT.Snipe
 						catch (OperationCanceledException)
 						{
 							// ignore
+						}
+						catch (AggregateException ae)
+						{
+							if (ae.InnerException is OperationCanceledException)
+							{
+								DebugLogger.Log($"[SnipeTable] LoadVersion - TaskCanceled");
+							}
+							else
+							{
+								DebugLogger.Log($"[SnipeTable] LoadVersion - Exception: {ae}");
+							}
 						}
 						
 						if (cancellation_token.IsCancellationRequested)
