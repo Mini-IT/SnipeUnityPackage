@@ -241,19 +241,45 @@ namespace MiniIT.Snipe
 				{
 					DebugLogger.Log($"[SnipeTable] LoadVersion - Failed to load from URL. Trying to read from cache");
 					
-					if (File.Exists(version_file_path))
+					long builtin_version = 0;
+					long cached_version = 0;
+					string builtin_version_string = null;
+					string cached_version_string = null;
+					
+					if (BetterStreamingAssets.FileExists(VERSION_FILE_NAME))
 					{
-						mVersion = File.ReadAllText(version_file_path).Trim();
-						DebugLogger.Log($"[SnipeTable] LoadVersion - cached value - {mVersion}");
+						builtin_version_string = BetterStreamingAssets.ReadAllText(VERSION_FILE_NAME).Trim();
+						if (long.TryParse(builtin_version_string, out builtin_version))
+						{
+							DebugLogger.Log($"[SnipeTable] LoadVersion - built-in value - {builtin_version_string}");
+						}
+						else
+						{
+							builtin_version = 0;
+						}
 					}
 					
-					if (string.IsNullOrEmpty(mVersion))
+					
+					if (File.Exists(version_file_path))
 					{
-						if (BetterStreamingAssets.FileExists(VERSION_FILE_NAME))
+						cached_version_string = File.ReadAllText(version_file_path).Trim();
+						if (long.TryParse(cached_version_string, out cached_version))
 						{
-							mVersion = BetterStreamingAssets.ReadAllText(VERSION_FILE_NAME).Trim();
-							DebugLogger.Log($"[SnipeTable] LoadVersion - built-in value - {mVersion}");
+							DebugLogger.Log($"[SnipeTable] LoadVersion - cached value - {cached_version_string}");
 						}
+						else
+						{
+							cached_version = 0;
+						}
+					}
+					
+					if (builtin_version > 0 && builtin_version > cached_version)
+					{
+						mVersion = builtin_version_string;
+					}
+					else if (cached_version > 0)
+					{
+						mVersion = cached_version_string;
 					}
 				}
 				
