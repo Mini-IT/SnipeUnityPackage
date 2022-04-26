@@ -216,7 +216,7 @@ namespace MiniIT.Snipe
 				{
 					if (message_type == SnipeMessageTypes.USER_LOGIN)
 					{	
-						if (error_code == SnipeErrorCodes.OK || error_code == "alreadyLoggedIn")
+						if (error_code == SnipeErrorCodes.OK || error_code == SnipeErrorCodes.ALREADY_LOGGED_IN)
 						{
 							DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - Login Succeeded");
 							

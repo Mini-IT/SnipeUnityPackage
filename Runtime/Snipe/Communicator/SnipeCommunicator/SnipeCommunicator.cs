@@ -316,7 +316,7 @@ namespace MiniIT.Snipe
 
 			if (message_type == SnipeMessageTypes.USER_LOGIN)
 			{
-				if (error_code == SnipeErrorCodes.OK)
+				if (error_code == SnipeErrorCodes.OK || error_code == SnipeErrorCodes.ALREADY_LOGGED_IN)
 				{
 					UserName = data.SafeGetString("name");
 					mAutoLogin = true;

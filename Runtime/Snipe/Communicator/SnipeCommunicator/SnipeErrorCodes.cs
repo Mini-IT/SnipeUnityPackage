@@ -8,6 +8,7 @@ namespace MiniIT.Snipe
 		public const string WRONG_TOKEN = "wrongToken";
 		public const string USER_NOT_FOUND = "userNotFound";
 		public const string ALREADY_IN_ROOM = "alreadyInRoom";
+		public const string ALREADY_LOGGED_IN = "alreadyLoggedIn";
 		
 		// Auth
 		public const string NOT_INITIALIZED = "notInitialized";
