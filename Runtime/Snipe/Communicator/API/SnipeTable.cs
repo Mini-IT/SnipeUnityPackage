@@ -148,7 +148,6 @@ namespace MiniIT.Snipe
 				
 				if (SnipeConfig.TablesUpdateEnabled)
 				{
-					HttpClient loader = null;
 					for (int retries_count = 0; retries_count < 3; retries_count++)
 					{
 						string url = $"{SnipeConfig.GetTablesPath(true)}version.txt";
@@ -156,22 +155,26 @@ namespace MiniIT.Snipe
 					
 						try
 						{
-							loader = new HttpClient();
-							loader.Timeout = TimeSpan.FromSeconds(1);
-							
-							var load_task = loader.GetAsync(url); // , cancellation_token);
-							if (await Task.WhenAny(load_task, Task.Delay(1000)) == load_task && load_task.Result.IsSuccessStatusCode)
+							using (var loader = new HttpClient())
 							{
-								var content = await load_task.Result.Content.ReadAsStringAsync();
-								mVersion = content.Trim();
+								loader.Timeout = TimeSpan.FromSeconds(1);
 								
-								DebugLogger.Log($"[SnipeTable] LoadVersion done - {mVersion}");
-								
-								// save to file
-								File.WriteAllText(version_file_path, mVersion);
-								
-								break;
+								var load_task = loader.GetAsync(url); // , cancellation_token);
+								if (await Task.WhenAny(load_task, Task.Delay(1000)) == load_task && load_task.Result.IsSuccessStatusCode)
+								{
+									var content = await load_task.Result.Content.ReadAsStringAsync();
+									mVersion = content.Trim();
+									
+									DebugLogger.Log($"[SnipeTable] LoadVersion done - {mVersion}");
+									
+									// save to file
+									File.WriteAllText(version_file_path, mVersion);
+									
+									break;
+								}
 							}
+							
+							await Task.Delay(100, cancellation_token);
 						}
 						catch (AggregateException ae)
 						{
@@ -187,42 +190,6 @@ namespace MiniIT.Snipe
 						catch (Exception e)
 						{
 							DebugLogger.Log($"[SnipeTable] LoadVersion - Exception: {e}");
-						}
-						
-						if (loader != null)
-						{
-							loader.Dispose();
-							loader = null;
-						}
-						
-						if (cancellation_token.IsCancellationRequested)
-						{
-							DebugLogger.Log($"[SnipeTable] LoadVersion task canceled");
-							
-							stopwatch.Stop();
-							VersionFetchingTime = stopwatch.ElapsedMilliseconds;
-							
-							return;
-						}
-						
-						try
-						{
-							await Task.Delay(100, cancellation_token);
-						}
-						catch (OperationCanceledException)
-						{
-							// ignore
-						}
-						catch (AggregateException ae)
-						{
-							if (ae.InnerException is OperationCanceledException)
-							{
-								DebugLogger.Log($"[SnipeTable] LoadVersion - TaskCanceled");
-							}
-							else
-							{
-								DebugLogger.Log($"[SnipeTable] LoadVersion - Exception: {ae}");
-							}
 						}
 						
 						if (cancellation_token.IsCancellationRequested)
