@@ -189,7 +189,14 @@ namespace MiniIT.Snipe
 						}
 						catch (Exception e)
 						{
-							DebugLogger.Log($"[SnipeTable] LoadVersion - Exception: {e}");
+							if (e is TaskCanceledException)
+							{
+								DebugLogger.Log($"[SnipeTable] LoadVersion - TaskCanceled");
+							}
+							else
+							{
+								DebugLogger.Log($"[SnipeTable] LoadVersion - Exception: {e}");
+							}
 						}
 						
 						if (cancellation_token.IsCancellationRequested)
