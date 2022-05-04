@@ -286,6 +286,10 @@ namespace MiniIT.Snipe
 				await mSemaphore.WaitAsync(cancellation_token);
 				await LoadTask<WrapperType>(table_name, cancellation_token);
 			}
+			catch (TaskCanceledException)
+			{
+				// ignore
+			}
 			catch (Exception e)
 			{
 				DebugLogger.Log($"[SnipeTable] Load {table_name} - Exception: {e}");
