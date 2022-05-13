@@ -176,20 +176,10 @@ namespace MiniIT.Snipe
 							
 							await Task.Delay(100, cancellation_token);
 						}
-						catch (AggregateException ae)
-						{
-							if (ae.InnerException is TaskCanceledException)
-							{
-								DebugLogger.Log($"[SnipeTable] LoadVersion - TaskCanceled");
-							}
-							else
-							{
-								DebugLogger.Log($"[SnipeTable] LoadVersion - Exception: {ae.InnerException}");
-							}
-						}
 						catch (Exception e)
 						{
-							if (e is TaskCanceledException)
+							if (e is TaskCanceledException || 
+								e is AggregateException ae && ae.InnerException is TaskCanceledException)
 							{
 								DebugLogger.Log($"[SnipeTable] LoadVersion - TaskCanceled");
 							}
