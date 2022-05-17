@@ -259,7 +259,7 @@ namespace MiniIT.Snipe
 				}
 				catch (Exception e)
 				{
-					DebugLogger.Log($"[SnipeCommunicatorRequest] {MessageType} Callback invokation error: {e.Message}");
+					DebugLogger.Log($"[SnipeCommunicatorRequest] {MessageType} Callback invokation error: {e}");
 				}
 			}
 		}
