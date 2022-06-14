@@ -141,6 +141,11 @@ namespace MiniIT.Snipe
 				MainThreadLoopCoroutine = StartCoroutine(MainThreadLoop());
 			}
 			
+			if (PlayerPrefs.GetInt(SnipePrefs.FORCE_WEBSOCKET, 0) > 1)
+			{
+				PlayerPrefs.DeleteKey(SnipePrefs.FORCE_WEBSOCKET);
+			}
+			
 			mAutoLogin = autologin;
 			InitClient();
 		}
@@ -167,7 +172,7 @@ namespace MiniIT.Snipe
 				if (!Client.Connected)
 				{
 					mDisconnecting = false;
-					Client.Connect();
+					Client.Connect(PlayerPrefs.GetInt(SnipePrefs.FORCE_WEBSOCKET, 0) != 1);
 					
 					InvokeInMainThread(() =>
 					{
@@ -265,6 +270,12 @@ namespace MiniIT.Snipe
 			{
 				AnalyticsTrackConnectionSucceeded();
 				RaiseEvent(ConnectionSucceeded);
+				
+				// if the value == 2 then we have no idea why the previous udp connection failed
+				if (PlayerPrefs.GetInt(SnipePrefs.FORCE_WEBSOCKET, 0) == 0)
+				{
+					PlayerPrefs.SetInt(SnipePrefs.FORCE_WEBSOCKET, 1);
+				}
 			});
 		}
 		
@@ -437,6 +448,8 @@ namespace MiniIT.Snipe
 
 		private IEnumerator WaitAndInitClient()
 		{
+			PlayerPrefs.SetInt(SnipePrefs.FORCE_WEBSOCKET, 2); // both failed, don't force websocket
+			
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) WaitAndInitClient - start delay");
 			float delay = RETRY_INIT_CLIENT_DELAY * mRestoreConnectionAttempt + UnityEngine.Random.value * RETRY_INIT_CLIENT_RANDOM_DELAY;
 			yield return new WaitForSecondsRealtime(Mathf.Min(delay, RETRY_INIT_CLIENT_MAX_DELAY));

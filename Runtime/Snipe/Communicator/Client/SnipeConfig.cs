@@ -129,6 +129,11 @@ public static class SnipeConfig
 		return null;
 	}
 	
+	public static bool CheckUdpAvailable()
+	{
+		return ServerUdpPort > 0 && !string.IsNullOrEmpty(ServerUdpAddress);
+	}
+	
 	private static int GetValidIndex(IList list, int index, bool next = false)
 	{
 		if (list != null && list.Count > 0)
