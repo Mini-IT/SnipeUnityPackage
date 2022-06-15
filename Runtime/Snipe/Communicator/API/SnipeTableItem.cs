@@ -8,8 +8,12 @@ namespace MiniIT.Snipe
 	{
 		public int id;
 	}
-	
-	public interface ISnipeTableItemsListWrapper<ItemType>
+
+	public interface ISnipeTableItemsListWrapper
+	{
+	}
+
+	public interface ISnipeTableItemsListWrapper<ItemType> : ISnipeTableItemsListWrapper
 	{
 		List<ItemType> list { get; set; }
 	}

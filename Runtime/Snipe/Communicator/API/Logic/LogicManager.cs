@@ -9,14 +9,14 @@ namespace MiniIT.Snipe
 	{
 		public static float UpdateMinTimeout = 30.0f; // seconds
 
-		public delegate void LogicUpdatedHandler(Dictionary<int, SnipeLogicNode> nodes);
-		public delegate void ExitNodeHandler(SnipeLogicNode node, List<object> results);
+		public delegate void LogicUpdatedHandler(Dictionary<int, LogicNode> nodes);
+		public delegate void ExitNodeHandler(LogicNode node, List<object> results);
 
 		public event LogicUpdatedHandler LogicUpdated;
 		public event ExitNodeHandler ExitNode;
 
-		public Dictionary<int, SnipeLogicNode> Nodes { get; private set; }
-		private Dictionary<string, SnipeLogicNode> mTaggedNodes;
+		public Dictionary<int, LogicNode> Nodes { get; private set; }
+		private Dictionary<string, LogicNode> mTaggedNodes;
 		private SnipeTable<SnipeTableLogicItem> mLogicTable = null;
 
 		private SnipeCommunicator mSnipeCommunicator;
@@ -70,7 +70,7 @@ namespace MiniIT.Snipe
 			mTaggedNodes = null;
 		}
 
-		public SnipeLogicNode GetNodeById(int id)
+		public LogicNode GetNodeById(int id)
 		{
 			if (Nodes != null && Nodes.TryGetValue(id, out var node))
 			{
@@ -80,7 +80,7 @@ namespace MiniIT.Snipe
 			return null;
 		}
 		
-		public SnipeLogicNode GetNodeByTreeId(int id)
+		public LogicNode GetNodeByTreeId(int id)
 		{
 			if (Nodes != null)
 			{
@@ -96,7 +96,7 @@ namespace MiniIT.Snipe
 			return null;
 		}
 
-		public SnipeLogicNode GetNodeByName(string name)
+		public LogicNode GetNodeByName(string name)
 		{
 			if (Nodes != null)
 			{
@@ -112,7 +112,7 @@ namespace MiniIT.Snipe
 			return null;
 		}
 		
-		public SnipeLogicNode GetNodeByTreeStringID(string stringID)
+		public LogicNode GetNodeByTreeStringID(string stringID)
 		{
 			if (Nodes != null)
 			{
@@ -128,7 +128,7 @@ namespace MiniIT.Snipe
 			return null;
 		}
 
-		public SnipeLogicNode GetNodeByTag(string tag)
+		public LogicNode GetNodeByTag(string tag)
 		{
 			//if (Nodes != null)
 			//{
@@ -149,7 +149,7 @@ namespace MiniIT.Snipe
 			return null;
 		}
 
-		//public SnipeLogicNode FindNodeByProductSku(string sku)
+		//public LogicNode FindNodeByProductSku(string sku)
 		//{
 		//	if (Nodes != null)
 		//	{
@@ -183,7 +183,7 @@ namespace MiniIT.Snipe
 			request?.Request();
 		}
 
-		public void IncVar(SnipeLogicNode node, string name)
+		public void IncVar(LogicNode node, string name)
 		{
 			IncVar(name, node?.tree?.id ?? 0);
 		}
@@ -234,13 +234,13 @@ namespace MiniIT.Snipe
 
 			if (error_code == "ok")
 			{
-				var logic_nodes = new List<SnipeLogicNode>();
+				var logic_nodes = new List<LogicNode>();
 				if (response_data["logic"] is IList src_logic)
 				{
 					foreach (var o in src_logic)
 					{
 						if (o is SnipeObject so && so?["node"] is SnipeObject node)
-							logic_nodes.Add(new SnipeLogicNode(node, mLogicTable));
+							logic_nodes.Add(new LogicNode(node, mLogicTable));
 					}
 				}
 				
@@ -248,8 +248,8 @@ namespace MiniIT.Snipe
 
 				if (Nodes == null)
 				{
-					Nodes = new Dictionary<int, SnipeLogicNode>();
-					mTaggedNodes = new Dictionary<string, SnipeLogicNode>();
+					Nodes = new Dictionary<int, LogicNode>();
+					mTaggedNodes = new Dictionary<string, LogicNode>();
 					foreach (var node in logic_nodes)
 					{
 						if (node == null)
@@ -329,7 +329,7 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		private void AddTaggedNode(SnipeLogicNode node)
+		private void AddTaggedNode(LogicNode node)
 		{
 			if (node?.tree?.tags != null)
 			{

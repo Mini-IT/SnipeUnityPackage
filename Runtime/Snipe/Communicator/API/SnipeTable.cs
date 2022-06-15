@@ -505,24 +505,19 @@ namespace MiniIT.Snipe
 					string json_string = reader.ReadToEnd();
 					
 					WrapperType list_wrapper = default;
-					
-					if (typeof(WrapperType) == typeof(SnipeTableLogicItemsWrapper))
+					var type_of_wrapper = typeof(WrapperType);
+
+					if (type_of_wrapper == typeof(SnipeTableLogicItemsWrapper))
 					{
 						DebugLogger.Log("[SnipeTable] SnipeTableLogicItemsWrapper");
-						
-						Dictionary<string, object> parsed_data = null;
-						lock (mParseJSONLocker)
-						{
-							//parsed_data = (Dictionary<string, object>)fastJSON.JSON.ToObject(json_string);
-							parsed_data = SnipeObject.FromJSONString(json_string);
-						}
-						
-						list_wrapper = SnipeTableLogicItemsWrapper.FromTableData(parsed_data) as WrapperType;
-						
-						if (list_wrapper == null)
-						{
-							DebugLogger.Log("[SnipeTable] parsed_data is null");
-						}
+
+						list_wrapper = ParseListWrapper(json_string, SnipeTableLogicItemsWrapper.FromTableData) as WrapperType;
+					}
+					else if (type_of_wrapper == typeof(SnipeTableCalendarItemsWrapper))
+					{
+						DebugLogger.Log("[SnipeTable] SnipeTableCalendarItemsWrapper");
+
+						list_wrapper = ParseListWrapper(json_string, SnipeTableCalendarItemsWrapper.FromTableData) as WrapperType;
 					}
 					else
 					{
@@ -543,6 +538,24 @@ namespace MiniIT.Snipe
 					this.Loaded = true;
 				}
 			}
+		}
+
+		private ISnipeTableItemsListWrapper ParseListWrapper(string json_string, Func<Dictionary<string, object>, ISnipeTableItemsListWrapper> parse_func)
+		{
+			Dictionary<string, object> parsed_data = null;
+			lock (mParseJSONLocker)
+			{
+				parsed_data = SnipeObject.FromJSONString(json_string);
+			}
+
+			var list_wrapper = parse_func.Invoke(parsed_data);
+
+			if (list_wrapper == null)
+			{
+				DebugLogger.Log("[SnipeTable] parsed_data is null");
+			}
+
+			return list_wrapper;
 		}
 	}
 }

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeLogicNode
+	public class LogicNode
 	{
 		public int id;
 
@@ -19,7 +19,7 @@ namespace MiniIT.Snipe
 		public int timeleft = -1; // seconds left. (-1) means that the node does not have a timer
 		public bool isTimeout { get; private set; }
 
-		public SnipeLogicNode(SnipeObject data, SnipeTable<SnipeTableLogicItem> logic_table)
+		public LogicNode(SnipeObject data, SnipeTable<SnipeTableLogicItem> logic_table)
 		{
 			id = data.SafeGetValue<int>("id");
 			
@@ -41,7 +41,7 @@ namespace MiniIT.Snipe
 
 			if (node == null)
 			{
-				DebugLogger.LogError($"[SnipeLogicNode] Table node not found. id = {id}");
+				DebugLogger.LogError($"[LogicNode] Table node not found. id = {id}");
 				return;
 			}
 			
@@ -146,7 +146,7 @@ namespace MiniIT.Snipe
 			return null;
 		}
 
-		public void CopyVars(SnipeLogicNode src_node)
+		public void CopyVars(LogicNode src_node)
 		{
 			if (src_node?.vars == null)
 				return;
