@@ -141,9 +141,10 @@ namespace MiniIT.Snipe
 				MainThreadLoopCoroutine = StartCoroutine(MainThreadLoop());
 			}
 			
-			if (PlayerPrefs.GetInt(SnipePrefs.FORCE_WEBSOCKET, 0) > 1)
+			// If both connection types failed last session (value == 2), then try both again
+			if (PlayerPrefs.GetInt(SnipePrefs.SKIP_UDP, 0) > 1)
 			{
-				PlayerPrefs.DeleteKey(SnipePrefs.FORCE_WEBSOCKET);
+				PlayerPrefs.DeleteKey(SnipePrefs.SKIP_UDP);
 			}
 			
 			mAutoLogin = autologin;
@@ -172,7 +173,7 @@ namespace MiniIT.Snipe
 				if (!Client.Connected)
 				{
 					mDisconnecting = false;
-					Client.Connect(PlayerPrefs.GetInt(SnipePrefs.FORCE_WEBSOCKET, 0) != 1);
+					Client.Connect(PlayerPrefs.GetInt(SnipePrefs.SKIP_UDP, 0) != 1);
 					
 					InvokeInMainThread(() =>
 					{
@@ -271,11 +272,24 @@ namespace MiniIT.Snipe
 				AnalyticsTrackConnectionSucceeded();
 				RaiseEvent(ConnectionSucceeded);
 				
-				// if the value == 2 then we have no idea why the previous udp connection failed
-				if (PlayerPrefs.GetInt(SnipePrefs.FORCE_WEBSOCKET, 0) == 0)
+				if (Client.WebSocketConnected)
 				{
-					PlayerPrefs.SetInt(SnipePrefs.FORCE_WEBSOCKET, 1);
+					// if the value == 2 then both UDP and websocket connections failed.
+					// We'll save the flag only if the first attempt to connect to UDP failed and websocket succeeded.
+					// Otherwise we should try both connection types next time
+					if (PlayerPrefs.GetInt(SnipePrefs.SKIP_UDP, 0) == 0)
+					{
+						PlayerPrefs.SetInt(SnipePrefs.SKIP_UDP, 1);
+					}
 				}
+				// else // successfully connected via UDP
+				// {
+				//		// if SKIP_UDP is not set (0) then no action needed.
+				//		// if SKIP_UDP is set to 2, then connection troubles were observed.
+				//		// Keep this value until next session to force try both connection types.
+				//		// In this case SKIP_UDP will be deleted when StartCommunicator is invoked.
+				//		// So no action needed in any case.
+				// }
 			});
 		}
 		
@@ -448,7 +462,9 @@ namespace MiniIT.Snipe
 
 		private IEnumerator WaitAndInitClient()
 		{
-			PlayerPrefs.SetInt(SnipePrefs.FORCE_WEBSOCKET, 2); // both failed, don't force websocket
+			// Both connection types failed.
+			// Don't force websocket - try both again next time
+			PlayerPrefs.SetInt(SnipePrefs.SKIP_UDP, 2);
 			
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) WaitAndInitClient - start delay");
 			float delay = RETRY_INIT_CLIENT_DELAY * mRestoreConnectionAttempt + UnityEngine.Random.value * RETRY_INIT_CLIENT_RANDOM_DELAY;

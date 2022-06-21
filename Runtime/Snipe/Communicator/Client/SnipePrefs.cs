@@ -15,6 +15,6 @@ namespace MiniIT.Snipe
 
 		public static string AUTH_BIND_DONE { get { return PREFIX + "AuthBinded_"; } }
 		
-		public static string FORCE_WEBSOCKET { get { return PREFIX + "ForceWebSocket"; } } // 0 - udp allowed; 1 - skip udp; 2 - both failed
+		public static string SKIP_UDP { get { return PREFIX + "SkipUDP"; } } // 0 - udp allowed; 1 - skip udp; 2 - both failed
 	}
 }
