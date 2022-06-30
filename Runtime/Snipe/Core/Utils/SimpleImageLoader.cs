@@ -197,10 +197,6 @@ namespace MiniIT.Utils
 
 				if (string.IsNullOrEmpty(loader.error))
 				{
-					DebugLogger.Log($"[SimpleImageLoader] Error loading image: {url} - {loader.error}");
-				}
-				else
-				{
 					Texture2D texture = ((DownloadHandlerTexture)loader.downloadHandler).texture;
 
 					if (mUseCache)
@@ -211,6 +207,10 @@ namespace MiniIT.Utils
 					}
 
 					InvokeCallback(texture);
+				}
+				else
+				{
+					DebugLogger.Log($"[SimpleImageLoader] Error loading image: {url} - {loader.error}");
 				}
 			}
 
