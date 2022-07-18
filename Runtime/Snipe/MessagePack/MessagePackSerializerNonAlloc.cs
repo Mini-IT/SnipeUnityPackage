@@ -135,7 +135,7 @@ namespace MiniIT.MessagePack
 			}
 			else
 			{
-				buffer[mPosition] = (byte)0xDB;
+				buffer[mPosition++] = (byte)0xDB;
 				CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes(Convert.ToUInt32(len)), 4);
 			}
 			
