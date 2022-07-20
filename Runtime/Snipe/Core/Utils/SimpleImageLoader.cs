@@ -9,10 +9,6 @@ namespace MiniIT.Utils
 {
 	public class SimpleImageLoaderComponent : MonoBehaviour
 	{
-#if UNITY_EDITOR
-		public string Url;
-#endif
-		
 		internal void Dispose()
 		{
 			StopAllCoroutines();
@@ -179,9 +175,6 @@ namespace MiniIT.Utils
 			
 			var component = GetComponent();
 			component.StartCoroutine(LoadCoroutine(url));
-#if UNITY_EDITOR
-			component.Url = url;
-#endif
 		}
 
 		private IEnumerator LoadCoroutine(string url)
