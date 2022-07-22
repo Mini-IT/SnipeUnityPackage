@@ -139,7 +139,10 @@ namespace kcp2k
 		
 		private const int MAX_KCP_MESSAGE_SIZE = Kcp.MTU_DEF - Kcp.OVERHEAD;
 		private const int CHUNK_DATA_SIZE = MAX_KCP_MESSAGE_SIZE - 5; // channel (1 byte) + header (4 bytes): KcpHeader.Chunk + msg_id + chunk_id + num_chunks
-		
+
+		private const byte OPCODE_SNIPE_RESPONSE = 5;
+		private const byte OPCODE_SNIPE_RESPONSE_COMPRESSED = 7;
+
 		private ArrayPool<byte> mBytesPool;
 		private Dictionary<byte, ChunkedMessageItem> mChunkedMessages;
 		private byte mChunkedMessageId = 0;
@@ -381,6 +384,7 @@ namespace kcp2k
                         break;
                     }
 					case KcpHeader.Chunk:
+					case KcpHeader.CompressedChunk:
 					{
 						// call OnData IF the message contained actual data
                         if (message.Count > 3)
@@ -418,7 +422,9 @@ namespace kcp2k
 							{
 								// Log.Info($"[KcpConnection] CHUNKED_MESSAGE received: {BitConverter.ToString(item.buffer, 0, item.buffer.Length)}");
 								
-								item.buffer[0] = 5; // opcode Snipe Response
+								// opcode Snipe Response
+								item.buffer[0] = (header == KcpHeader.CompressedChunk) ? OPCODE_SNIPE_RESPONSE_COMPRESSED : OPCODE_SNIPE_RESPONSE;
+
 								// length (4 bytes int)
 								// unsafe
 								// {
@@ -726,8 +732,9 @@ namespace kcp2k
 						
 						buffer[1] = (byte)chunk_id;
 						Buffer.BlockCopy(data.Array, data.Offset + start_index, buffer, 3, length);
-						
-						SendReliable(KcpHeader.Chunk, new ArraySegment<byte>(buffer, 0, length + 3));
+
+						var chunk_data = new ArraySegment<byte>(buffer, 0, length + 3);
+						SendReliable(KcpHeader.Chunk, chunk_data);
 					}
 					mBytesPool.Return(buffer);
 				}

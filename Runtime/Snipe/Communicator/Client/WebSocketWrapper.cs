@@ -130,6 +130,19 @@ namespace MiniIT.Snipe
 				mWebSocket.SendAsync(bytes, null);
 			}
 		}
+		
+		public void SendRequest(ArraySegment<byte> data)
+		{
+			if (!Connected)
+				return;
+
+			lock (mWebSocket)
+			{
+				var bytes = new byte[data.Count];
+				Array.ConstrainedCopy(data.Array, data.Offset, bytes, 0, data.Count);
+				mWebSocket.SendAsync(bytes, null);
+			}
+		}
 
 		public void Ping(Action<bool> callback = null)
 		{

@@ -1,9 +1,7 @@
 using System;
 using System.Buffers;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using MiniIT.MessagePack;
 
 namespace MiniIT.Snipe
@@ -281,6 +279,25 @@ namespace MiniIT.Snipe
 					ResetHeartbeatTimer();
 				}
 			}
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private bool TryReturnMessageBuffer(byte[] buffer)
+		{
+			// if buffer.Length > mBytesPool's max bucket size (1024*1024 = 1048576)
+			// then the buffer can not be returned to the pool. It will be dropped.
+			// And ArgumentException will be thown.
+			try
+			{
+				mBytesPool.Return(buffer);
+			}
+			catch (ArgumentException)
+			{
+				// ignore
+				return false;
+			}
+
+			return true;
 		}
 	}
 }

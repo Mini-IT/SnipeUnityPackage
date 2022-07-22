@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
@@ -54,7 +53,7 @@ namespace MiniIT.Snipe
 			mWebSocket = new WebSocketWrapper();
 			mWebSocket.OnConnectionOpened += OnWebSocketConnected;
 			mWebSocket.OnConnectionClosed += OnWebSocketClosed;
-			mWebSocket.ProcessMessage += ProcessMessage;
+			mWebSocket.ProcessMessage += ProcessWebSocketMessage;
 			
 			mConnectionStopwatch = Stopwatch.StartNew();
 			
@@ -106,25 +105,36 @@ namespace MiniIT.Snipe
 			{
 				byte[] buffer = mBytesPool.Rent(buffer_size);
 				var msg_data = MessagePackSerializerNonAlloc.Serialize(ref buffer, message);
-				var data = new byte[msg_data.Count];
-				Array.ConstrainedCopy(msg_data.Array, msg_data.Offset, data, 0, msg_data.Count);
-				mWebSocket.SendRequest(data);
-				
-				// if buffer.Length > mBytesPool's max bucket size (1024*1024 = 1048576)
-				// then the buffer can not be returned to the pool. It will be dropped.
-				// And ArgumentException will be thown.
-				try
+
+				if (msg_data.Count < 200)
 				{
-					mBytesPool.Return(buffer);
-					
-					if (buffer.Length > buffer_size)
+					mWebSocket.SendRequest(msg_data);
+
+					if (TryReturnMessageBuffer(buffer) && buffer.Length > buffer_size)
 					{
 						mSendMessageBufferSizes[message_type] = buffer.Length;
 					}
 				}
-				catch (ArgumentException)
+				else // compression needed
 				{
-					// ignore
+					UnityEngine.Debug.Log("[SnipeClient] compress message");
+					UnityEngine.Debug.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
+
+					ArraySegment<byte> compressed = SnipeMessageCompressor.Compress(msg_data);
+
+					UnityEngine.Debug.Log("Compressed:   " + BitConverter.ToString(compressed.Array, compressed.Offset, compressed.Count));
+
+					if (TryReturnMessageBuffer(buffer) && buffer.Length > buffer_size)
+					{
+						mSendMessageBufferSizes[message_type] = buffer.Length;
+					}
+
+					buffer = new byte[compressed.Count + 2];
+					buffer[0] = 0xAA;
+					buffer[1] = 0xBB;
+					Array.ConstrainedCopy(compressed.Array, compressed.Offset, buffer, 2, compressed.Count);
+
+					mWebSocket.SendRequest(buffer);
 				}
 			}
 			
@@ -143,7 +153,27 @@ namespace MiniIT.Snipe
 				StartCheckConnection();
 			}
 		}
-		
+
+		protected void ProcessWebSocketMessage(byte[] raw_data)
+		{
+			if (raw_data.Length < 2)
+				return;
+
+			if (raw_data[0] == 0xAA && raw_data[1] == 0xBB) // compressed message
+			{
+				byte[] buffer = mBytesPool.Rent(raw_data.Length * 2);
+				var decompressed = SnipeMessageCompressor.Decompress(ref buffer, new ArraySegment<byte>(raw_data, 0, raw_data.Length));
+
+				ProcessMessage(decompressed);
+
+				TryReturnMessageBuffer(buffer);
+			}
+			else // uncompressed
+			{
+				ProcessMessage(raw_data);
+			}
+		}
+
 		#region Send task
 
 		private CancellationTokenSource mSendTaskCancellation;

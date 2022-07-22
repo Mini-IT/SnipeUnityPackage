@@ -16,5 +16,6 @@ namespace kcp2k
         Data = 0x03,
         Disconnect = 0x04,
         Chunk = 0x05, // fragment of a large data packet splitted into several messages
-    }
+		CompressedChunk = 0x06, // fragment of a large data packet splitted into several messages
+	}
 }
