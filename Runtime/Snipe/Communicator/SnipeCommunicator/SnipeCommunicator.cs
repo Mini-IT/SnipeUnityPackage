@@ -11,6 +11,7 @@ namespace MiniIT.Snipe
 		private readonly int INSTANCE_ID = new System.Random().Next();
 		
 		private const float RETRY_INIT_CLIENT_DELAY = 0.75f; // seconds
+		private const float RETRY_INIT_CLIENT_MIN_DELAY = 1.0f; // seconds
 		private const float RETRY_INIT_CLIENT_MAX_DELAY = 60.0f; // seconds
 		private const float RETRY_INIT_CLIENT_RANDOM_DELAY = 0.5f; // seconds
 		
@@ -468,6 +469,8 @@ namespace MiniIT.Snipe
 			
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) WaitAndInitClient - start delay");
 			float delay = RETRY_INIT_CLIENT_DELAY * mRestoreConnectionAttempt + UnityEngine.Random.value * RETRY_INIT_CLIENT_RANDOM_DELAY;
+			if (delay < RETRY_INIT_CLIENT_MIN_DELAY)
+				delay = RETRY_INIT_CLIENT_MIN_DELAY;
 			yield return new WaitForSecondsRealtime(Mathf.Min(delay, RETRY_INIT_CLIENT_MAX_DELAY));
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) WaitAndInitClient - delay finished");
 			InitClient();
