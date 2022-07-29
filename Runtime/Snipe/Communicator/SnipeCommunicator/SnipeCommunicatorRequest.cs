@@ -126,11 +126,29 @@ namespace MiniIT.Snipe
 			{
 				for (int i = 0; i < mCommunicator.mDontMergeRequests.Count; i++)
 				{
-					string skip_message_type = mCommunicator.mDontMergeRequests[i];
+					SnipeRequestDescriptor descriptor = mCommunicator.mDontMergeRequests[i];
+					string skip_message_type = descriptor?.MessageType;
 					if (skip_message_type != null && string.Equals(skip_message_type, this.MessageType, StringComparison.Ordinal))
 					{
-						check_duplication = false;
-						break;
+						bool matched = true;
+						
+						if (descriptor.Data != null && this.Data != null)
+						{
+							foreach (var pair in descriptor.Data)
+							{
+								if (this.Data[pair.Key] != pair.Value)
+								{
+									matched = false;
+									break;
+								}
+							}
+						}
+						
+						if (matched)
+						{
+							check_duplication = false;
+							break;
+						}
 					}
 				}
 			}
