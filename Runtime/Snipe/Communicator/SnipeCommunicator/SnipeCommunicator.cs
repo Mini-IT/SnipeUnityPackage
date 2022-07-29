@@ -54,13 +54,13 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		internal List<string> mDontMergeRequests;
-		public List<string> DontMergeRequests
+		internal List<SnipeRequestDescriptor> mDontMergeRequests;
+		public List<SnipeRequestDescriptor> DontMergeRequests
 		{
 			get
 			{
 				if (mDontMergeRequests == null)
-					mDontMergeRequests = new List<string>();
+					mDontMergeRequests = new List<SnipeRequestDescriptor>();
 				return mDontMergeRequests;
 			}
 		}
