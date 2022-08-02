@@ -121,7 +121,12 @@ public class AmazonAuthProvider : BindProvider
 	
 	public bool CheckUserIdValid()
 	{
-		return !string.IsNullOrEmpty(mUserId) && mUserId.ToLower() != "fakeid";
+		return CheckUserIdValid(mUserId);
+	}
+	
+	public static bool CheckUserIdValid(string user_id)
+	{
+		return !string.IsNullOrEmpty(user_id) && user_id.ToLower() != "fakeid";
 	}
 
 	public override bool CheckAuthExists(CheckAuthExistsCallback callback = null)
