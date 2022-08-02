@@ -122,13 +122,13 @@ public class FacebookAuthProvider : BindProvider
 
 	public override bool CheckAuthExists(CheckAuthExistsCallback callback = null)
 	{
-		if (FB.IsLoggedIn && AccessToken.CurrentAccessToken != null)
-		{
-			CheckAuthExists(GetUserId(), callback);
-			return true;
-		}
-
-		return false;
+		string user_id = GetUserId();
+		
+		if (string.IsNullOrEmpty(user_id))
+			return false;
+		
+		CheckAuthExists(user_id, callback);
+		return true;
 	}
 
 	protected override void OnBindDone()
