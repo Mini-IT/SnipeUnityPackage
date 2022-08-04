@@ -5,9 +5,11 @@ using System.IO.Compression;
 
 namespace MiniIT.Snipe
 {
-	public static class SnipeMessageCompressor
+	public class SnipeMessageCompressor
 	{
-		public static ArraySegment<byte> Compress(ArraySegment<byte> msg_data)
+		private byte[] mDecompressionBuffer;
+		
+		public ArraySegment<byte> Compress(ArraySegment<byte> msg_data)
 		{
 			using (var stream = new MemoryStream())
 			{
@@ -20,7 +22,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		public static ArraySegment<byte> Decompress(ref byte[] buffer, ArraySegment<byte> compressed)
+		public ArraySegment<byte> Decompress(ArraySegment<byte> compressed)
 		{
 			int length = 0;
 
@@ -31,10 +33,12 @@ namespace MiniIT.Snipe
 					const int portion_size = 1024;
 					while (gzip.CanRead)
 					{
-						if (buffer.Length < length + portion_size)
-							Array.Resize(ref buffer, length + portion_size);
+						if (mDecompressionBuffer == null)
+							mDecompressionBuffer = new byte[portion_size];
+						else if (mDecompressionBuffer.Length < length + portion_size)
+							Array.Resize(ref mDecompressionBuffer, length + portion_size);
 
-						int bytes_read = gzip.Read(buffer, length, portion_size);
+						int bytes_read = gzip.Read(mDecompressionBuffer, length, portion_size);
 						if (bytes_read == 0)
 							break;
 
@@ -43,7 +47,7 @@ namespace MiniIT.Snipe
 				}
 			}
 
-			return new ArraySegment<byte>(buffer, 0, length);
+			return new ArraySegment<byte>(mDecompressionBuffer, 0, length);
 		}
 	}
 }

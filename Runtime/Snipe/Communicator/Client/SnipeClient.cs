@@ -34,6 +34,7 @@ namespace MiniIT.Snipe
 		public TimeSpan ServerReaction { get; private set; }
 		
 		private ArrayPool<byte> mBytesPool;
+		private SnipeMessageCompressor mMessageCompressor;
 
 		private int mRequestId = 0;
 		
@@ -41,6 +42,8 @@ namespace MiniIT.Snipe
 		{
 			if (mBytesPool == null)
 				mBytesPool = ArrayPool<byte>.Create();
+			if (mMessageCompressor == null)
+				mMessageCompressor = new SnipeMessageCompressor();
 			
 			if (udp && SnipeConfig.CheckUdpAvailable())
 			{

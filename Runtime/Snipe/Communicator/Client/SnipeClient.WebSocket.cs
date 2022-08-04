@@ -120,7 +120,7 @@ namespace MiniIT.Snipe
 					UnityEngine.Debug.Log("[SnipeClient] compress message");
 					UnityEngine.Debug.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
 
-					ArraySegment<byte> compressed = SnipeMessageCompressor.Compress(msg_data);
+					ArraySegment<byte> compressed = mMessageCompressor.Compress(msg_data);
 
 					UnityEngine.Debug.Log("Compressed:   " + BitConverter.ToString(compressed.Array, compressed.Offset, compressed.Count));
 
@@ -161,12 +161,9 @@ namespace MiniIT.Snipe
 
 			if (raw_data[0] == 0xAA && raw_data[1] == 0xBB) // compressed message
 			{
-				byte[] buffer = mBytesPool.Rent(raw_data.Length * 2);
-				var decompressed = SnipeMessageCompressor.Decompress(ref buffer, new ArraySegment<byte>(raw_data, 0, raw_data.Length));
+				var decompressed = mMessageCompressor.Decompress(new ArraySegment<byte>(raw_data, 0, raw_data.Length));
 
 				ProcessMessage(decompressed);
-
-				TryReturnMessageBuffer(buffer);
 			}
 			else // uncompressed
 			{

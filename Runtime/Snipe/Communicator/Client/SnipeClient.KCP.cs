@@ -153,13 +153,9 @@ namespace MiniIT.Snipe
 				int len = BitConverter.ToInt32(buffer_array, buffer.Offset + 1);
 
 				var compressed_data = new ArraySegment<byte>(buffer_array, buffer.Offset + 5, len);
-
-				var decompression_buffer = mBytesPool.Rent(len);
-				var decompressed_data = SnipeMessageCompressor.Decompress(ref decompression_buffer, compressed_data);
+				var decompressed_data = mMessageCompressor.Decompress(compressed_data);
 
 				ProcessMessage(decompressed_data);
-
-				TryReturnMessageBuffer(decompression_buffer);
 			}
 		}
 		
@@ -208,7 +204,7 @@ namespace MiniIT.Snipe
 				UnityEngine.Debug.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
 
 				ArraySegment<byte> msg_content = new ArraySegment<byte>(buffer, 5, msg_data.Count - 5);
-				ArraySegment<byte> compressed = SnipeMessageCompressor.Compress(msg_content);
+				ArraySegment<byte> compressed = mMessageCompressor.Compress(msg_content);
 
 				if (TryReturnMessageBuffer(buffer) && buffer.Length > buffer_size)
 				{
