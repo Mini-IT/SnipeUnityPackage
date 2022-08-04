@@ -200,8 +200,8 @@ namespace MiniIT.Snipe
 			}
 			else // compression needed
 			{
-				UnityEngine.Debug.Log("[SnipeClient] compress message");
-				UnityEngine.Debug.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
+				DebugLogger.Log("[SnipeClient] compress message");
+				DebugLogger.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
 
 				ArraySegment<byte> msg_content = new ArraySegment<byte>(buffer, 5, msg_data.Count - 5);
 				ArraySegment<byte> compressed = mMessageCompressor.Compress(msg_content);
@@ -218,7 +218,7 @@ namespace MiniIT.Snipe
 
 				msg_data = new ArraySegment<byte>(buffer, 0, compressed.Count + 5);
 
-				UnityEngine.Debug.Log("Compressed:   " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
+				DebugLogger.Log("Compressed:   " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
 
 				mUdpClient.Send(msg_data, KcpChannel.Reliable);
 				TryReturnMessageBuffer(buffer);
@@ -227,7 +227,7 @@ namespace MiniIT.Snipe
 			
 
 			//----
-			//UnityEngine.Debug.Log(BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
+			//DebugLogger.Log(BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
 
 			//ArraySegment<byte> msg_content = new ArraySegment<byte>(buffer, 5, msg_data.Count - 5);
 			//ArraySegment<byte> compressed = SnipeMessageCompressor.Compress(msg_content);
@@ -244,15 +244,15 @@ namespace MiniIT.Snipe
 			//Array.ConstrainedCopy(compressed.Array, compressed.Offset, buffer, 5, compressed.Count);
 
 			//msg_data = new ArraySegment<byte>(buffer, 0, compressed.Count + 5);
-			//UnityEngine.Debug.Log(BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
-			//UnityEngine.Debug.Log(BitConverter.ToString(compressed.Array, compressed.Offset, compressed.Count));
+			//DebugLogger.Log(BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
+			//DebugLogger.Log(BitConverter.ToString(compressed.Array, compressed.Offset, compressed.Count));
 
 			// test decompression
 			//var decompression_buffer = mBytesPool.Rent(buffer_size);
 			//var decompressed_data = SnipeMessageCompressor.Decompress(ref decompression_buffer, compressed);
-			//UnityEngine.Debug.Log(BitConverter.ToString(decompressed_data.Array, decompressed_data.Offset, decompressed_data.Count));
+			//DebugLogger.Log(BitConverter.ToString(decompressed_data.Array, decompressed_data.Offset, decompressed_data.Count));
 			//var decompressed_message = MessagePackDeserializer.Parse(decompressed_data) as SnipeObject;
-			//UnityEngine.Debug.Log($"decompressed_message: {decompressed_message.ToJSONString()}");
+			//DebugLogger.Log($"decompressed_message: {decompressed_message.ToJSONString()}");
 			//try
 			//{
 			//	mBytesPool.Return(decompression_buffer);

@@ -102,6 +102,7 @@ namespace MiniIT.Snipe
 			data["loginGame"] = true;
 			data["version"] = SnipeClient.SNIPE_VERSION;
 			data["appInfo"] = SnipeConfig.AppInfo;
+			data["flagCanPack"] = true;
 			
 			SnipeCommunicator.Instance.MessageReceived -= OnMessageReceived;
 			SnipeCommunicator.Instance.MessageReceived += OnMessageReceived;

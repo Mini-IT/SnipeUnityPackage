@@ -13,9 +13,9 @@ namespace MiniIT.Snipe
 		{
 			using (var stream = new MemoryStream())
 			{
-				using (GZipStream gzip = new GZipStream(stream, CompressionLevel.Fastest))
+				using (var deflate = new DeflateStream(stream, CompressionLevel.Fastest))
 				{
-					gzip.Write(msg_data.Array, msg_data.Offset, msg_data.Count);
+					deflate.Write(msg_data.Array, msg_data.Offset, msg_data.Count);
 				}
 
 				return new ArraySegment<byte>(stream.ToArray());
@@ -28,17 +28,17 @@ namespace MiniIT.Snipe
 
 			using (var stream = new MemoryStream(compressed.Array, compressed.Offset, compressed.Count))
 			{
-				using (GZipStream gzip = new GZipStream(stream, CompressionMode.Decompress))
+				using (var deflate = new DeflateStream(stream, CompressionMode.Decompress))
 				{
 					const int portion_size = 1024;
-					while (gzip.CanRead)
+					while (deflate.CanRead)
 					{
 						if (mDecompressionBuffer == null)
 							mDecompressionBuffer = new byte[portion_size];
 						else if (mDecompressionBuffer.Length < length + portion_size)
 							Array.Resize(ref mDecompressionBuffer, length + portion_size);
 
-						int bytes_read = gzip.Read(mDecompressionBuffer, length, portion_size);
+						int bytes_read = deflate.Read(mDecompressionBuffer, length, portion_size);
 						if (bytes_read == 0)
 							break;
 

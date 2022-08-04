@@ -117,12 +117,12 @@ namespace MiniIT.Snipe
 				}
 				else // compression needed
 				{
-					UnityEngine.Debug.Log("[SnipeClient] compress message");
-					UnityEngine.Debug.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
+					DebugLogger.Log("[SnipeClient] compress message");
+					DebugLogger.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
 
 					ArraySegment<byte> compressed = mMessageCompressor.Compress(msg_data);
 
-					UnityEngine.Debug.Log("Compressed:   " + BitConverter.ToString(compressed.Array, compressed.Offset, compressed.Count));
+					DebugLogger.Log("Compressed:   " + BitConverter.ToString(compressed.Array, compressed.Offset, compressed.Count));
 
 					if (TryReturnMessageBuffer(buffer) && buffer.Length > buffer_size)
 					{
@@ -158,10 +158,12 @@ namespace MiniIT.Snipe
 		{
 			if (raw_data.Length < 2)
 				return;
+			
+			DebugLogger.Log("ProcessWebSocketMessage:   " + BitConverter.ToString(raw_data, 0, raw_data.Length));
 
 			if (raw_data[0] == 0xAA && raw_data[1] == 0xBB) // compressed message
 			{
-				var decompressed = mMessageCompressor.Decompress(new ArraySegment<byte>(raw_data, 0, raw_data.Length));
+				var decompressed = mMessageCompressor.Decompress(new ArraySegment<byte>(raw_data, 2, raw_data.Length - 2));
 
 				ProcessMessage(decompressed);
 			}
