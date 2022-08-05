@@ -173,6 +173,7 @@ namespace MiniIT.Snipe
 				{
 					var e = task_exception is AggregateException ae ? ae.InnerException : task_exception;
 					DebugLogger.Log($"[SnipeClient] [{ConnectionId}] SendTask Exception: {e}");
+					Analytics.TrackError("WebSocket SendTask error", e);
 					
 					StopSendTask();
 				}

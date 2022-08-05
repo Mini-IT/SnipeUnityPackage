@@ -255,6 +255,7 @@ namespace MiniIT.Snipe
 				catch (Exception e)
 				{
 					DebugLogger.Log($"[SnipeClient] UdpNetworkLoop - Exception: {e}");
+					Analytics.TrackError("UdpNetworkLoop error", e);
 					OnUdpClientDisconnected();
 					return;
 				}
