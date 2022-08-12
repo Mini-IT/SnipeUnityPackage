@@ -106,16 +106,7 @@ namespace MiniIT.Snipe
 				byte[] buffer = mBytesPool.Rent(buffer_size);
 				var msg_data = MessagePackSerializerNonAlloc.Serialize(ref buffer, message);
 
-				if (msg_data.Count < 200)
-				{
-					mWebSocket.SendRequest(msg_data);
-
-					if (TryReturnMessageBuffer(buffer) && buffer.Length > buffer_size)
-					{
-						mSendMessageBufferSizes[message_type] = buffer.Length;
-					}
-				}
-				else // compression needed
+				if (SnipeConfig.CompressionEnabled && msg_data.Count >= SnipeConfig.MinMessageSizeToCompress) // compression needed
 				{
 					DebugLogger.Log("[SnipeClient] compress message");
 					DebugLogger.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
@@ -135,6 +126,15 @@ namespace MiniIT.Snipe
 					Array.ConstrainedCopy(compressed.Array, compressed.Offset, buffer, 2, compressed.Count);
 
 					mWebSocket.SendRequest(buffer);
+				}
+				else // compression not needed
+				{
+					mWebSocket.SendRequest(msg_data);
+
+					if (TryReturnMessageBuffer(buffer) && buffer.Length > buffer_size)
+					{
+						mSendMessageBufferSizes[message_type] = buffer.Length;
+					}
 				}
 			}
 			

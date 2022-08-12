@@ -186,19 +186,7 @@ namespace MiniIT.Snipe
 			// offset = opcode (1 byte) + length (4 bytes) = 5
 			ArraySegment<byte> msg_data = MessagePackSerializerNonAlloc.Serialize(ref buffer, 5, message);
 
-			if (msg_data.Count < 200)
-			{
-				buffer[0] = OPCODE_SNIPE_REQUEST;
-				WriteInt(buffer, 1, msg_data.Count - 1); // msg_data.Count = opcode (1 byte) + length (4 bytes) + msg.Lenght
-
-				mUdpClient.Send(msg_data, KcpChannel.Reliable);
-
-				if (TryReturnMessageBuffer(buffer) && buffer.Length > buffer_size)
-				{
-					mSendMessageBufferSizes[message_type] = buffer.Length;
-				}
-			}
-			else // compression needed
+			if (SnipeConfig.CompressionEnabled && msg_data.Count >= SnipeConfig.MinMessageSizeToCompress) // compression needed
 			{
 				DebugLogger.Log("[SnipeClient] compress message");
 				DebugLogger.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
@@ -223,7 +211,18 @@ namespace MiniIT.Snipe
 				mUdpClient.Send(msg_data, KcpChannel.Reliable);
 				TryReturnMessageBuffer(buffer);
 			}
+			else // compression not needed
+			{
+				buffer[0] = OPCODE_SNIPE_REQUEST;
+				WriteInt(buffer, 1, msg_data.Count - 1); // msg_data.Count = opcode (1 byte) + length (4 bytes) + msg.Lenght
 
+				mUdpClient.Send(msg_data, KcpChannel.Reliable);
+
+				if (TryReturnMessageBuffer(buffer) && buffer.Length > buffer_size)
+				{
+					mSendMessageBufferSizes[message_type] = buffer.Length;
+				}
+			}
 			
 
 			//----
