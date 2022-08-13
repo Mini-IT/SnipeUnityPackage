@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using MiniIT;
@@ -152,6 +153,14 @@ namespace MiniIT.Snipe
 			}
 		}
 		
+		public static void TrackError(string name, Exception exception = null)
+		{
+			if (CheckReady())
+			{
+				GetInstance().EnqueueError(name, exception);
+			}
+		}
+		
 		#endregion AnalyticsTracker
 		
 		#region Constants
@@ -202,10 +211,18 @@ namespace MiniIT.Snipe
 		
 		#region EventsQueue
 		
+		enum EventsQueueItemType
+		{
+			Event,
+			Error,
+		}
+		
 		class EventsQueueItem
 		{
+			internal EventsQueueItemType type;
 			internal string name;
 			internal IDictionary<string, object> properties;
+			internal Exception exception;
 		}
 		
 		private List<EventsQueueItem> mEventsQueue;
@@ -216,7 +233,27 @@ namespace MiniIT.Snipe
 				mEventsQueue = new List<EventsQueueItem>();
 			lock (mEventsQueue)
 			{
-				mEventsQueue.Add(new EventsQueueItem() { name = name, properties = properties });
+				mEventsQueue.Add(new EventsQueueItem()
+				{
+					type = EventsQueueItemType.Event,
+					name = name,
+					properties = properties,
+				});
+			}
+		}
+		
+		private void EnqueueError(string name, Exception exception = null)
+		{
+			if (mEventsQueue == null)
+				mEventsQueue = new List<EventsQueueItem>();
+			lock (mEventsQueue)
+			{
+				mEventsQueue.Add(new EventsQueueItem()
+				{
+					type = EventsQueueItemType.Error,
+					name = name,
+					exception = exception,
+				});
 			}
 		}
 		
@@ -230,13 +267,20 @@ namespace MiniIT.Snipe
 					{
 						foreach (var item in mEventsQueue)
 						{
-							var event_properties = item.properties;
-							if (event_properties == null)
-								event_properties = new Dictionary<string, object>() { ["event_type"] = item.name };
+							if (item.type == EventsQueueItemType.Error)
+							{
+								mTracker.TrackError(item.name, item.exception);
+							}
 							else
-								event_properties["event_type"] = item.name;
-							
-							mTracker.TrackEvent(EVENT_NAME, event_properties);
+							{
+								var event_properties = item.properties;
+								if (event_properties == null)
+									event_properties = new Dictionary<string, object>() { ["event_type"] = item.name };
+								else
+									event_properties["event_type"] = item.name;
+								
+								mTracker.TrackEvent(EVENT_NAME, event_properties);
+							}
 						}
 						mEventsQueue.Clear();
 					}

@@ -66,7 +66,8 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception e)
 			{
-				DebugLogger.Log("[SnipeClient] ConnectionOpened invokation error: " + e.Message);
+				DebugLogger.Log($"[SnipeClient] ConnectionOpened invokation error: {e}");
+				Analytics.TrackError("ConnectionOpened invokation error", e);
 			}
 		}
 
@@ -78,7 +79,8 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception e)
 			{
-				DebugLogger.Log($"[SnipeClient] ConnectionClosed invokation error: {e.Message}\n{e.StackTrace}");
+				DebugLogger.Log($"[SnipeClient] ConnectionClosed invokation error: {e}");
+				Analytics.TrackError("ConnectionClosed invokation error", e);
 			}
 		}
 
@@ -237,7 +239,8 @@ namespace MiniIT.Snipe
 							}
 							catch (Exception e)
 							{
-								DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginSucceeded invokation error: " + e.Message);
+								DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginSucceeded invokation error: {e}");
+								Analytics.TrackError("LoginSucceeded invokation error", e);
 							}
 
 							if (mHeartbeatEnabled)
@@ -255,7 +258,8 @@ namespace MiniIT.Snipe
 							}
 							catch (Exception e)
 							{
-								DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginFailed invokation error: " + e.Message);
+								DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginFailed invokation error: {e}");
+								Analytics.TrackError("LoginFailed invokation error", e);
 							}
 						}
 					}
@@ -269,7 +273,8 @@ namespace MiniIT.Snipe
 					}
 					catch (Exception e)
 					{
-						DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - MessageReceived invokation error: " + e.Message + "\n" + e.StackTrace);
+						DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - MessageReceived invokation error: {e}");
+						Analytics.TrackError("MessageReceived invokation error", e);
 					}
 				}
 				else

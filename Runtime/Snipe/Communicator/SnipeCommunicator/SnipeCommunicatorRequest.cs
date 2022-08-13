@@ -120,15 +120,15 @@ namespace MiniIT.Snipe
 		{
 			mRequestId = 0;
 			
-			bool check_duplication = !string.Equals(this.MessageType, SnipeMessageTypes.LOGIC_INC_VAR, StringComparison.Ordinal);
-			
-			if (check_duplication && mCommunicator.mDontMergeRequests != null)
+			bool check_duplication = false;
+			if (mCommunicator.mMergeableRequestTypes != null)
 			{
-				for (int i = 0; i < mCommunicator.mDontMergeRequests.Count; i++)
+				for (int i = 0; i < mCommunicator.mMergeableRequestTypes.Count; i++)
 				{
-					SnipeRequestDescriptor descriptor = mCommunicator.mDontMergeRequests[i];
-					string skip_message_type = descriptor?.MessageType;
-					if (skip_message_type != null && string.Equals(skip_message_type, this.MessageType, StringComparison.Ordinal))
+					SnipeRequestDescriptor descriptor = mCommunicator.mMergeableRequestTypes[i];
+					string mergeble_type = descriptor?.MessageType;
+					
+					if (mergeble_type != null && string.Equals(mergeble_type, this.MessageType, StringComparison.Ordinal))
 					{
 						bool matched = true;
 						
@@ -146,7 +146,7 @@ namespace MiniIT.Snipe
 						
 						if (matched)
 						{
-							check_duplication = false;
+							check_duplication = true;
 							break;
 						}
 					}
