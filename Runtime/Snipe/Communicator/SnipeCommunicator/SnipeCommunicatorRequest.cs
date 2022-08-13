@@ -125,11 +125,30 @@ namespace MiniIT.Snipe
 			{
 				for (int i = 0; i < mCommunicator.mMergeableRequestTypes.Count; i++)
 				{
-					string mergeble_type = mCommunicator.mMergeableRequestTypes[i];
+					SnipeRequestDescriptor descriptor = mCommunicator.mMergeableRequestTypes[i];
+					string mergeble_type = descriptor?.MessageType;
+					
 					if (mergeble_type != null && string.Equals(mergeble_type, this.MessageType, StringComparison.Ordinal))
 					{
-						check_duplication = true;
-						break;
+						bool matched = true;
+						
+						if (descriptor.Data != null && this.Data != null)
+						{
+							foreach (var pair in descriptor.Data)
+							{
+								if (this.Data[pair.Key] != pair.Value)
+								{
+									matched = false;
+									break;
+								}
+							}
+						}
+						
+						if (matched)
+						{
+							check_duplication = true;
+							break;
+						}
 					}
 				}
 			}
