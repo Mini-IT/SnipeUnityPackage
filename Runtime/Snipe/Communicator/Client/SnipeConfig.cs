@@ -15,7 +15,7 @@ public static class SnipeConfig
 	public static string ServerUdpAddress;
 	public static ushort ServerUdpPort;
 	
-	public static bool CompressionEnabled = true;
+	public static bool CompressionEnabled = false;
 	public static int MinMessageSizeToCompress = 1024; // bytes
 	
 	public static SnipeObject LoginParameters;
