@@ -33,7 +33,7 @@ namespace MiniIT.Social
 
 		protected const string PROFILE_FIELDS = "id,first_name,last_name,picture"; //,link,gender";
 		
-		protected readonly string[] SUPPORTED_READ_PERMISSIONS = new string[] { "public_profile" };//, "email", "user_link", "user_friends", "user_photos" };
+		protected readonly string[] SUPPORTED_READ_PERMISSIONS = new string[] { "gaming_profile" };//, "email", "user_link", "user_friends", "user_photos" };
 
 		// вспомогательные поля для обеспечения возможности запрашивать
 		// данные нескольких пользователей (см. метод DoRequestProfiles)
@@ -272,8 +272,15 @@ namespace MiniIT.Social
 			SocialUserProfile profile = new FacebookUserProfile(profile_id, this.NetworkType);
 			profile.FirstName   = data.SafeGetString("first_name");
 			profile.LastName    = data.SafeGetString("last_name");
-			profile.PhotoSmallURL = "https://graph.facebook.com/" + profile.Id + "/picture/?width=50&height=50";
-			profile.PhotoMediumURL = "https://graph.facebook.com/" + profile.Id + "/picture/?width=100&height=100";
+			if (data["picture"] is SnipeObject picture && picture["data"] is SnipeObject picture_data)
+			{
+				profile.PhotoSmallURL = picture_data.SafeGetString("url");
+				profile.PhotoMediumURL = profile.PhotoSmallURL;
+			}
+			if (string.IsNullOrEmpty(profile.PhotoSmallURL))
+			{	profile.PhotoSmallURL = "https://graph.facebook.com/" + profile.Id + "/picture/?width=50&height=50";
+				profile.PhotoMediumURL = "https://graph.facebook.com/" + profile.Id + "/picture/?width=100&height=100";
+			}
 			//profile.Link         = data.ContainsKey("link") ? Convert.ToString(data["link"]) : data.ContainsKey("profile_url") ? Convert.ToString(data["profile_url"]) : ("http://www.facebook.com/" + profile.Id);
 			//profile.Gender       = (((string)(data.ContainsKey("sex") ? data["sex"] : data["gender"]) != "female")) ? 1 : 2;  // 1-male, 2-female
 			//profile.Online       = Convert.ToBoolean( data["online"] );
