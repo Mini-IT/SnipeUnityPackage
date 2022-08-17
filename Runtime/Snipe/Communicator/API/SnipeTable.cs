@@ -109,19 +109,26 @@ namespace MiniIT.Snipe
 				return;
 			}
 			
-			try
+			if (mLoadingCancellation != null)
 			{
-				mLoadingCancellation?.Cancel();
-			}
-			catch (ObjectDisposedException)
-			{
-				// ignore
+				try
+				{
+					mLoadingCancellation.Cancel();
+				}
+				catch (ObjectDisposedException)
+				{
+					// ignore
+				}
+				
+				if (mCancellations != null)
+					mCancellations.Remove(mLoadingCancellation);
 			}
 			
 			mLoadingCancellation = new CancellationTokenSource();
 			
 			if (mCancellations == null)
 				mCancellations = new List<CancellationTokenSource>();
+			
 			mCancellations.Add(mLoadingCancellation);
 			
 			try
