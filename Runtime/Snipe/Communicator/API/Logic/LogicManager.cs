@@ -15,7 +15,7 @@ namespace MiniIT.Snipe
 		public event LogicUpdatedHandler LogicUpdated;
 		public event ExitNodeHandler ExitNode;
 
-		public Dictionary<int, LogicNode> Nodes { get; private set; }
+		public Dictionary<int, LogicNode> Nodes { get; private set; } = new Dictionary<int, LogicNode>();
 		private Dictionary<string, LogicNode> mTaggedNodes;
 		private SnipeTable<SnipeTableLogicItem> mLogicTable = null;
 
@@ -66,13 +66,13 @@ namespace MiniIT.Snipe
 			}
 
 			mLogicTable = null;
-			Nodes = null;
+			Nodes.Clear();
 			mTaggedNodes = null;
 		}
 
 		public LogicNode GetNodeById(int id)
 		{
-			if (Nodes != null && Nodes.TryGetValue(id, out var node))
+			if (Nodes.TryGetValue(id, out var node))
 			{
 				return node;
 			}
@@ -82,14 +82,11 @@ namespace MiniIT.Snipe
 		
 		public LogicNode GetNodeByTreeId(int id)
 		{
-			if (Nodes != null)
+			foreach (var node in Nodes.Values)
 			{
-				foreach (var node in Nodes.Values)
+				if (node?.tree != null && node.tree.id == id)
 				{
-					if (node?.tree != null && node.tree.id == id)
-					{
-						return node;
-					}
+					return node;
 				}
 			}
 
@@ -98,14 +95,11 @@ namespace MiniIT.Snipe
 
 		public LogicNode GetNodeByName(string name)
 		{
-			if (Nodes != null)
+			foreach (var node in Nodes.Values)
 			{
-				foreach (var node in Nodes.Values)
+				if (string.Equals(node?.name, name, StringComparison.Ordinal))
 				{
-					if (string.Equals(node?.name, name, StringComparison.Ordinal))
-					{
-						return node;
-					}
+					return node;
 				}
 			}
 
@@ -114,14 +108,11 @@ namespace MiniIT.Snipe
 		
 		public LogicNode GetNodeByTreeStringID(string stringID)
 		{
-			if (Nodes != null)
+			foreach (var node in Nodes.Values)
 			{
-				foreach (var node in Nodes.Values)
+				if (string.Equals(node?.tree?.stringID, stringID, StringComparison.Ordinal))
 				{
-					if (string.Equals(node?.tree?.stringID, stringID, StringComparison.Ordinal))
-					{
-						return node;
-					}
+					return node;
 				}
 			}
 
@@ -130,17 +121,6 @@ namespace MiniIT.Snipe
 
 		public LogicNode GetNodeByTag(string tag)
 		{
-			//if (Nodes != null)
-			//{
-			//	foreach (var node in Nodes.Values)
-			//	{
-			//		if (node != null && node.tree.tags.Contains(tag))
-			//		{
-			//			return node;
-			//		}
-			//	}
-			//}
-
 			if (mTaggedNodes != null && mTaggedNodes.TryGetValue(tag, out var node))
 			{
 				return node;
@@ -148,22 +128,6 @@ namespace MiniIT.Snipe
 
 			return null;
 		}
-
-		//public LogicNode FindNodeByProductSku(string sku)
-		//{
-		//	if (Nodes != null)
-		//	{
-		//		foreach (var node in Nodes.Values)
-		//		{
-		//			if (node != null && node.PurchaseProductSku == sku)
-		//			{
-		//				return node;
-		//			}
-		//		}
-		//	}
-
-		//	return null;
-		//}
 
 		public void RequestLogicGet(bool force = false)
 		{
@@ -246,9 +210,8 @@ namespace MiniIT.Snipe
 				
 				bool timer_finished = false;
 
-				if (Nodes == null)
+				if (Nodes.Count == 0)
 				{
-					Nodes = new Dictionary<int, LogicNode>();
 					mTaggedNodes = new Dictionary<string, LogicNode>();
 					foreach (var node in logic_nodes)
 					{
@@ -370,7 +333,7 @@ namespace MiniIT.Snipe
 
 		private void OnSecondsTimerTick(object state = null)
 		{
-			if (Nodes != null)
+			if (Nodes.Count > 0)
 			{
 				bool finished = false;
 
