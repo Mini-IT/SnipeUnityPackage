@@ -28,7 +28,8 @@ namespace MiniIT.Snipe
 		public event PreDestroyHandler PreDestroy;
 		
 		public AuthSubsystem Auth { get; private set; }
-
+		
+		public int UserID => Auth?.UserID ?? 0;
 		public string UserName { get; private set; }
 		public string ConnectionId { get { return Client?.ConnectionId; } }
 		public TimeSpan ServerReaction { get { return Client?.ServerReaction ?? new TimeSpan(0); } }
