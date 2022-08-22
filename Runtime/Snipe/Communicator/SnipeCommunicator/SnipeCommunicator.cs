@@ -27,7 +27,7 @@ namespace MiniIT.Snipe
 		public event MessageReceivedHandler MessageReceived;
 		public event PreDestroyHandler PreDestroy;
 		
-		public SnipeAuthCommunicator Auth { get; private set; }
+		public AuthSubsystem Auth { get; private set; }
 
 		public string UserName { get; private set; }
 		public string ConnectionId { get { return Client?.ConnectionId; } }
@@ -99,7 +99,7 @@ namespace MiniIT.Snipe
 					var game_object = new GameObject("[SnipeCommunicator]");
 					//game_object.hideFlags = HideFlags.HideAndDontSave;
 					mInstance = game_object.AddComponent<SnipeCommunicator>();
-					mInstance.Auth = new SnipeAuthCommunicator();
+					mInstance.Auth = new AuthSubsystem(mInstance);
 					DontDestroyOnLoad(game_object);
 					
 					DebugLogger.InitInstance();
@@ -192,25 +192,25 @@ namespace MiniIT.Snipe
 			InvokeInMainThread(() =>
 			{
 				DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Authorize");
-				Auth.Authorize(OnAuthResult);
+				Auth.Authorize();
 			});
 		}
 
-		private void OnAuthResult(string error_code, int user_id)
-		{
-			if (user_id != 0)  // authorization succeeded
-				return;
+		// private void OnAuthResult(string error_code, int user_id)
+		// {
+			// if (user_id != 0)  // authorization succeeded
+				// return;
 
-			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) OnAuthResult - authorization failed");
+			// DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) OnAuthResult - authorization failed");
 
-			if (ConnectionFailed != null)
-			{
-				InvokeInMainThread(() =>
-				{
-					RaiseEvent(ConnectionFailed, false);
-				});
-			}
-		}
+			// if (ConnectionFailed != null)
+			// {
+				// InvokeInMainThread(() =>
+				// {
+					// RaiseEvent(ConnectionFailed, false);
+				// });
+			// }
+		// }
 		
 		public void Disconnect()
 		{

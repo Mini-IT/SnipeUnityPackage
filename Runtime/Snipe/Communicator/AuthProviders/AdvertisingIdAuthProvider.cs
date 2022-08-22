@@ -54,6 +54,16 @@ public class AdvertisingIdAuthProvider : BindProvider
 #endif
 	}
 	
+	// private void GetAdvertisingId(Action<string> callback)
+	// {
+// #if MINI_IT_ADVERTISING_ID
+		// MiniIT.Utils.AdvertisingIdFetcher.RequestAdvertisingId(callback);
+// #else
+		// if (!Application.RequestAdvertisingIdentifierAsync((advertising_id, tracking_enabled, error) => callback?.Invoke(advertising_id)))
+			// callback?.Invoke(string.Empty);
+// #endif
+	// }
+	
 	private void EnqueueAdvertisingIdReadyAction(Action action)
 	{
 		if (mAdvertisingIdReadyActions == null)
@@ -114,7 +124,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 		}
 	}
 
-	private bool CheckAdvertisingId(string advertising_id)
+	private static bool CheckAdvertisingId(string advertising_id)
 	{
 		if (string.IsNullOrEmpty(advertising_id))
 			return false;

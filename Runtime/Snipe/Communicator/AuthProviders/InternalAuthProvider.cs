@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace MiniIT.Snipe
 {
-	public class DefaultAuthProvider : AuthProvider
+	public class InternalAuthProvider : AuthProvider
 	{
 		public const string PROVIDER_ID = "__";
 		public override string ProviderId { get { return PROVIDER_ID; } }

@@ -152,7 +152,7 @@ namespace MiniIT.Snipe
 
 		public void SwitchToDefaultProvider()
 		{
-			SwitchToDefaultAuthProvider();
+			SwitchToInternalAuthProvider();
 		}
 
 		public void BindAllProviders(bool force_all = false, BindProvider.BindResultCallback single_bind_callback = null)
@@ -321,11 +321,11 @@ namespace MiniIT.Snipe
 
 		private void CurrentProviderRequestAuth()
 		{
-			bool reset_auth = !(mCurrentProvider is DefaultAuthProvider) || string.IsNullOrEmpty(PlayerPrefs.GetString(SnipePrefs.AUTH_KEY));
+			bool reset_auth = !(mCurrentProvider is InternalAuthProvider) || string.IsNullOrEmpty(PlayerPrefs.GetString(SnipePrefs.AUTH_KEY));
 			mCurrentProvider.RequestAuth(OnCurrentProviderAuthResult, reset_auth);
 		}
 
-		private void SwitchToNextAuthProvider(bool create_default = true)
+		private void SwitchToNextAuthProvider(bool create_internal = true)
 		{
 			AuthProvider prev_provider = mCurrentProvider;
 			mCurrentProvider = null;
@@ -344,21 +344,21 @@ namespace MiniIT.Snipe
 				}
 			}
 
-			if (mCurrentProvider == null && create_default)
+			if (mCurrentProvider == null && create_internal)
 			{
-				mCurrentProvider = new DefaultAuthProvider();
+				mCurrentProvider = new InternalAuthProvider();
 			}
 		}
 
-		private void SwitchToDefaultAuthProvider()
+		private void SwitchToInternalAuthProvider()
 		{
-			if (mCurrentProvider != null && !(mCurrentProvider is DefaultAuthProvider))
+			if (mCurrentProvider != null && !(mCurrentProvider is InternalAuthProvider))
 			{
 				mCurrentProvider.DisposeCallbacks();
 				mCurrentProvider = null;
 			}
 			if (mCurrentProvider == null)
-				mCurrentProvider = new DefaultAuthProvider();
+				mCurrentProvider = new InternalAuthProvider();
 		}
 
 		private void OnCurrentProviderAuthResult(string error_code, int user_id = 0)
@@ -450,7 +450,7 @@ namespace MiniIT.Snipe
 							["request_time"] = stopwatch.ElapsedMilliseconds,
 						});
 
-						SwitchToDefaultAuthProvider();
+						SwitchToInternalAuthProvider();
 						mCurrentProvider.RequestAuth(OnCurrentProviderAuthResult);
 
 						BindAllProviders(false);

@@ -113,12 +113,12 @@ namespace MiniIT.Snipe
 			
 			mLoginStopwatch = Stopwatch.StartNew();
 			
-			SnipeCommunicator.Instance.Client.SendRequest(SnipeMessageTypes.AUTH_USER_LOGIN, data);
+			SnipeCommunicator.Instance.Client.SendRequest(SnipeMessageTypes.USER_LOGIN, data);
 		}
 		
 		private void OnMessageReceived(string message_type, string error_code, SnipeObject response_data, int request_id)
 		{
-			if (message_type == SnipeMessageTypes.AUTH_USER_LOGIN)
+			if (message_type == SnipeMessageTypes.USER_LOGIN)
 			{
 				SnipeCommunicator.Instance.MessageReceived -= OnMessageReceived;
 				OnAuthLoginResponse(error_code, response_data);
@@ -131,7 +131,7 @@ namespace MiniIT.Snipe
 			
 			DebugLogger.Log($"[AuthProvider] OnAuthLoginResponse {error_code} {data?.ToJSONString()}");
 			
-			Analytics.TrackEvent(SnipeMessageTypes.AUTH_USER_LOGIN, new SnipeObject()
+			Analytics.TrackEvent(SnipeMessageTypes.USER_LOGIN, new SnipeObject()
 				{
 					["request_time"] = mLoginStopwatch?.ElapsedMilliseconds,
 				});
