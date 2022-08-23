@@ -79,6 +79,7 @@ namespace MiniIT.Snipe
 			
 			if (mAdvertisingIdFetcher == null)
 				mAdvertisingIdFetcher = new AdvertisingIdFetcher();
+			
 			mAdvertisingIdFetcher.Fetch(adid =>
 			{
 				if (mDeviceIdFetcher == null)
