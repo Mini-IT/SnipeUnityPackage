@@ -404,7 +404,7 @@ namespace kcp2k
                             
                             // TODO: check values
                             
-                            const int INPUT_CHUNK_SIZE = Kcp.MTU_DEF - Kcp.OVERHEAD - 5; // channel (1 byte) + KcpHeader.Chunk + msg_id + chunk_id + num_chunks
+                            const int MAX_CHUNK_SIZE = Kcp.MTU_DEF - Kcp.OVERHEAD - 5; // channel (1 byte) + KcpHeader.Chunk + msg_id + chunk_id + num_chunks
                             
                             ChunkedMessageItem item;
                             if (mChunkedMessages.ContainsKey(message_id))
@@ -415,17 +415,17 @@ namespace kcp2k
                             {
                                 item = new ChunkedMessageItem()
                                 {
-                                    buffer = mBytesPool.Rent(chunks_count * INPUT_CHUNK_SIZE + 5), // opcode (1 byte) + message length (4 bytes)
+                                    buffer = mBytesPool.Rent(chunks_count * MAX_CHUNK_SIZE + 5), // opcode (1 byte) + message length (4 bytes)
                                     length = 0,
                                 };
                                 mChunkedMessages[message_id] = item;
                             }
                             
                             // message header (3 bytes): msg_id + chunk_id + num_chunks
-                            Buffer.BlockCopy(message.Array, message.Offset + 3, item.buffer, 5 + chunk_id * INPUT_CHUNK_SIZE, message.Count - 3);
+                            Buffer.BlockCopy(message.Array, message.Offset + 3, item.buffer, 5 + chunk_id * MAX_CHUNK_SIZE, message.Count - 3);
                             item.length += message.Count - 3;
                             
-                            if (item.length > (1 + (chunks_count - 1) * INPUT_CHUNK_SIZE)) // all chunks
+                            if (item.length > (1 + (chunks_count - 1) * MAX_CHUNK_SIZE)) // all chunks
                             {
                                 // Log.Info($"[KcpConnection] CHUNKED_MESSAGE received: {BitConverter.ToString(item.buffer, 0, item.buffer.Length)}");
                                 
@@ -565,33 +565,11 @@ namespace kcp2k
 
         public void RawInput(byte[] buffer, int msgLength)
         {
-            if (msgLength > 0)
-            {
-                // HACK: We don't expect unreliable messages.
-                // If the channel header is invalid we consider it missing
-                // and the whole message interprets as reliable
-                
-                byte channel = buffer[0];
-                int offset = (channel == (byte)KcpChannel.Reliable) ? 1 : 0;
-                if (offset == 0)
-                {
-                    Log.Warning($"KCP Channel header not found");
-                }
-                int input = kcp.Input(buffer, offset, msgLength - offset);
-                if (input == 0)
-                {
-                    UpdateLastReceiveTime();
-                }
-                else
-                {
-                    Log.Warning($"Input failed with error={input} for buffer with length={msgLength - offset}");
-                }
-            }
-            
-            /*
             // parse channel
             if (msgLength > 0)
             {
+                // Log.Info($"KCP RawInput {msgLength} / {buffer.Length}\n{BitConverter.ToString(buffer, 0, buffer.Length)}");
+                
                 byte channel = buffer[0];
                 switch (channel)
                 {
@@ -646,7 +624,7 @@ namespace kcp2k
                             //    otherwise a connection might time out even
                             //    though unreliable were received, but no
                             //    reliable was received.
-                            UpdateLastReceiveTime();
+                            //UpdateLastReceiveTime();
                         }
                         else
                         {
@@ -659,14 +637,15 @@ namespace kcp2k
                     default:
                     {
                         // not a valid channel. random data or attacks.
-                        Log.Info($"Disconnecting connection because of invalid channel header: {channel}");
-                        // Log.Info($"msgLength = {msgLength}; buffer: " + BitConverter.ToString(buffer, 0, buffer.Length));
-                        Disconnect();
+                        Log.Warning($"Invalid KCP channel header: {channel}");
+                        //Log.Info($"Disconnecting connection because of invalid channel header: {channel}");
+                        //Disconnect();
                         break;
                     }
                 }
+                
+                UpdateLastReceiveTime();
             }
-            */
         }
 
         // raw send puts the data into the socket
