@@ -1,3 +1,5 @@
+#if SNIPE_FACEBOOK
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -48,3 +50,4 @@ namespace MiniIT.Social
 	}
 }
 
+#endif

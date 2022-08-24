@@ -1,3 +1,5 @@
+#if SNIPE_FACEBOOK
+
 using System;
 using System.Text.RegularExpressions;
 using System.Collections;
@@ -309,3 +311,5 @@ namespace MiniIT.Social
 		}
 	}
 }
+
+#endif

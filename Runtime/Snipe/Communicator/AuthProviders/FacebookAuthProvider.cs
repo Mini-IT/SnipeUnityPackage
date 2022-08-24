@@ -1,4 +1,6 @@
-﻿using System;
+﻿#if SNIPE_FACEBOOK
+
+using System;
 using UnityEngine;
 using MiniIT;
 using MiniIT.Snipe;
@@ -141,3 +143,5 @@ public class FacebookAuthProvider : BindProvider
 		};
 	}
 }
+
+#endif
