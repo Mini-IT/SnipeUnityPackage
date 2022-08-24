@@ -51,43 +51,39 @@ namespace MiniIT
 			GC.SuppressFinalize(this);
 		}
 		
-		public bool TryGetValue<T>(string field_name, ref T result)
-		{
-			object res;
-			if (TryGetValue(field_name, out res))
-			{
+		public bool TryGetValue<T>(string key, out T value)
+        {
+            if (this.TryGetValue(key, out var result))
+            {
 				try
 				{
-					result = (T)res;
+					value = (T)result;
+					return true;
 				}
 				catch (InvalidCastException)
 				{
 					try
 					{
-						result = (T)Convert.ChangeType(res, typeof(T), CultureInfo.InvariantCulture);
+						value = (T)Convert.ChangeType(result, typeof(T), CultureInfo.InvariantCulture);
+						return true;
 					}
 					catch (Exception)
 					{
-						return false;
 					}
 				}
 				catch (NullReferenceException) // field exists but res is null
 				{
-					return false;
 				}
+            }
 
-				return true;
-			}
-			else
-			{
-				return false;
-			}
-		}
+            value = default;
+            return false;
+        }
 
 		public T SafeGetValue<T>(string key, T default_value = default)
 		{
-			T result = default_value;
-			this.TryGetValue<T>((string)key, ref result);
+			if (TryGetValue<T>((string)key, out var result))
+				return result;
 			return result;
 		}
 
