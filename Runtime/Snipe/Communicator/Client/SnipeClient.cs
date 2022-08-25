@@ -102,6 +102,8 @@ namespace MiniIT.Snipe
 			StopHeartbeat();
 			StopCheckConnection();
 			
+			StopResponseMonitoring();
+			
 			StopUdpNetworkLoop();
 			
 			if (mUdpClient != null)
@@ -130,7 +132,7 @@ namespace MiniIT.Snipe
 		{
 			if (!Connected || message == null)
 				return 0;
-				
+			
 			message["id"] = ++mRequestId;
 			
 			if (!mLoggedIn)
@@ -146,6 +148,8 @@ namespace MiniIT.Snipe
 				DoSendRequestUdpClient(message);
 			else if (WebSocketConnected)
 				EnqueueMessageToSendWebSocket(message);
+			
+			AddResponseMonitoringItem(mRequestId, message.SafeGetString("t"));
 			
 			return mRequestId;
 		}
@@ -211,6 +215,8 @@ namespace MiniIT.Snipe
 				string error_code =  message.SafeGetString("errorCode");
 				int request_id = message.SafeGetValue<int>("id");
 				SnipeObject response_data = message.SafeGetValue<SnipeObject>("data");
+				
+				RemoveResponseMonitoringItem(request_id, message_type);
 				
 				DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - {request_id} - {message_type} {error_code} {response_data?.ToJSONString()}");
 
