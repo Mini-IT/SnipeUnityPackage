@@ -13,10 +13,10 @@ namespace kcp2k
         //            silently drop excess data.
         //            => we need the MTU to fit channel + message!
         readonly byte[] rawReceiveBuffer = new byte[Kcp.MTU_DEF];
-		
-		public double DnsResolveTime { get; private set; }
-		public double SocketConnectTime { get; private set; }
-		public double SendHandshakeTime { get; private set; }
+        
+        public double DnsResolveTime { get; private set; }
+        public double SocketConnectTime { get; private set; }
+        public double SendHandshakeTime { get; private set; }
 
         // helper function to resolve host to IPAddress
         public static bool ResolveHostname(string hostname, out IPAddress[] addresses)
@@ -33,30 +33,30 @@ namespace kcp2k
                 return false;
             }
         }
-		
-		// https://docs.microsoft.com/en-us/dotnet/api/system.net.sockets.socket?view=netframework-4.8#examples
-		protected bool ConnectSocket(IPAddress[] addresses, int port)
-		{
-			socket = null;
-			
-			// Loop through the AddressList to obtain the supported AddressFamily. This is to avoid
-			// an exception that occurs when the host IP Address is not compatible with the address family
-			// (typical in the IPv6 case).
-			foreach (IPAddress address in addresses)
-			{
-				IPEndPoint ipe = new IPEndPoint(address, port);
-				Socket tempSocket = new Socket(ipe.AddressFamily, SocketType.Dgram, ProtocolType.Udp);
-				tempSocket.Connect(ipe);
+        
+        // https://docs.microsoft.com/en-us/dotnet/api/system.net.sockets.socket?view=netframework-4.8#examples
+        protected bool ConnectSocket(IPAddress[] addresses, int port)
+        {
+            socket = null;
+            
+            // Loop through the AddressList to obtain the supported AddressFamily. This is to avoid
+            // an exception that occurs when the host IP Address is not compatible with the address family
+            // (typical in the IPv6 case).
+            foreach (IPAddress address in addresses)
+            {
+                IPEndPoint ipe = new IPEndPoint(address, port);
+                Socket tempSocket = new Socket(ipe.AddressFamily, SocketType.Dgram, ProtocolType.Udp);
+                tempSocket.Connect(ipe);
 
-				if (tempSocket.Connected)
-				{
-					socket = tempSocket;
-					remoteEndPoint = ipe;
-					return true;
-				}
-			}
-			return false;
-		}
+                if (tempSocket.Connected)
+                {
+                    socket = tempSocket;
+                    remoteEndPoint = ipe;
+                    return true;
+                }
+            }
+            return false;
+        }
 
         // EndPoint & Receive functions can be overwritten for where-allocation:
         // https://github.com/vis2k/where-allocation
@@ -65,46 +65,47 @@ namespace kcp2k
         //    remoteEndPoint = new IPEndPoint(addresses[0], port);
 
         protected virtual int ReceiveFrom(byte[] buffer) =>
-            socket.ReceiveFrom(buffer, ref remoteEndPoint);
+            //socket.ReceiveFrom(buffer, ref remoteEndPoint);
+            socket.Receive(buffer);
 
         public void Connect(string host, ushort port, bool noDelay, uint interval = Kcp.INTERVAL, int fastResend = 0, bool congestionWindow = true, uint sendWindowSize = Kcp.WND_SND, uint receiveWindowSize = Kcp.WND_RCV, int timeout = DEFAULT_TIMEOUT, uint maxRetransmits = Kcp.DEADLINK)
         {
             Log.Info($"KcpClient: connect to {host}:{port}");
 
             // try resolve host name
-			var stopwatch = Stopwatch.StartNew();
+            var stopwatch = Stopwatch.StartNew();
             if (ResolveHostname(host, out IPAddress[] addresses))
             {
-				stopwatch.Stop();
-				DnsResolveTime = stopwatch.Elapsed.TotalMilliseconds;
-				
-				stopwatch.Restart();
+                stopwatch.Stop();
+                DnsResolveTime = stopwatch.Elapsed.TotalMilliseconds;
+                
+                stopwatch.Restart();
                 ConnectSocket(addresses, port);
-				stopwatch.Stop();
-				SocketConnectTime = stopwatch.Elapsed.TotalMilliseconds;
-				
-				if (socket == null)
-				{
-					OnDisconnected();
-					return;
-				}
+                stopwatch.Stop();
+                SocketConnectTime = stopwatch.Elapsed.TotalMilliseconds;
+                
+                if (socket == null)
+                {
+                    OnDisconnected();
+                    return;
+                }
 
                 // set up kcp
                 SetupKcp(noDelay, interval, fastResend, congestionWindow, sendWindowSize, receiveWindowSize, timeout, maxRetransmits);
 
                 // client should send handshake to server as very first message
-				stopwatch.Restart();
+                stopwatch.Restart();
                 SendHandshake();
-				stopwatch.Stop();
-				SendHandshakeTime = stopwatch.Elapsed.TotalMilliseconds;
+                stopwatch.Stop();
+                SendHandshakeTime = stopwatch.Elapsed.TotalMilliseconds;
 
                 RawReceive();
             }
             // otherwise call OnDisconnected to let the user know.
             else
-			{
-				OnDisconnected();
-			}
+            {
+                OnDisconnected();
+            }
         }
 
         // call from transport update
@@ -117,9 +118,9 @@ namespace kcp2k
                     while (socket.Poll(0, SelectMode.SelectRead))
                     {
                         int msgLength = ReceiveFrom(rawReceiveBuffer);
-						
-						// Log.Info($"RAW RECV {msgLength} bytes = {BitConverter.ToString(rawReceiveBuffer, 0, msgLength)}");
-						
+                        
+                        // Log.Info($"RAW RECV {msgLength} bytes = {BitConverter.ToString(rawReceiveBuffer, 0, msgLength)}");
+                        
                         // IMPORTANT: detect if buffer was too small for the
                         //            received msgLength. otherwise the excess
                         //            data would be silently lost.

@@ -28,18 +28,6 @@ public class AmazonAuthProvider : BindProvider
 		InvokeAuthFailCallback(SnipeErrorCodes.NOT_INITIALIZED);
 	}
 
-	private void OnFacebookProviderInitializationComplete()
-	{
-		DebugLogger.Log("[AmazonAuthProvider] OnFacebookProviderInitializationComplete");
-
-		FacebookProvider.InstanceInitializationComplete -= OnFacebookProviderInitializationComplete;
-
-		if (SnipeCommunicator.Instance.LoggedIn && !AccountExists.HasValue)
-		{
-			CheckAuthExists(null);
-		}
-	}
-
 	public override void RequestBind(BindResultCallback bind_callback = null)
 	{
 		DebugLogger.Log("[AmazonAuthProvider] RequestBind");
