@@ -15,13 +15,13 @@ public class AmazonAuthProvider : BindProvider
 	{
 	}
 
-	public override void RequestAuth(AuthResultCallback callback = null, bool reset_auth = false)
+	public override void RequestAuth(AuthResultCallback callback = null)
 	{
 		mAuthResultCallback = callback;
 
 		if (CheckUserIdValid())
 		{
-			RequestLogin(ProviderId, mUserId, "", reset_auth);
+			ResetAuthAndLogin(ProviderId, mUserId, "");
 			return;
 		}
 

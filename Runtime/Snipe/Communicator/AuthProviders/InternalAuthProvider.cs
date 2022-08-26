@@ -8,7 +8,7 @@ namespace MiniIT.Snipe
 		public const string PROVIDER_ID = "__";
 		public override string ProviderId { get { return PROVIDER_ID; } }
 
-		public override void RequestAuth(AuthResultCallback callback = null, bool reset_auth = false)
+		public override void RequestAuth(AuthResultCallback callback = null)
 		{
 			mAuthResultCallback = callback;
 

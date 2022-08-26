@@ -20,13 +20,13 @@ public class FacebookAuthProvider : BindProvider
 		}
 	}
 
-	public override void RequestAuth(AuthResultCallback callback = null, bool reset_auth = false)
+	public override void RequestAuth(AuthResultCallback callback = null)
 	{
 		mAuthResultCallback = callback;
 
 		if (FB.IsLoggedIn && AccessToken.CurrentAccessToken != null)
 		{
-			RequestLogin(ProviderId, AccessToken.CurrentAccessToken.UserId, AccessToken.CurrentAccessToken.TokenString, reset_auth);
+			ResetAuthAndLogin(ProviderId, AccessToken.CurrentAccessToken.UserId, AccessToken.CurrentAccessToken.TokenString);
 			return;
 		}
 		

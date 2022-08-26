@@ -92,7 +92,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 		}
 	}
 
-	public override void RequestAuth(AuthResultCallback callback = null, bool reset_auth = false)
+	public override void RequestAuth(AuthResultCallback callback = null)
 	{
 		DebugLogger.Log("[AdvertisingIdAuthProvider] RequestAuth");
 		
@@ -104,7 +104,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 			
 			if (CheckAdvertisingId(AdvertisingId))
 			{
-				RequestLogin(ProviderId, AdvertisingId, "", reset_auth);
+				ResetAuthAndLogin(ProviderId, AdvertisingId, "");
 			}
 			else
 			{

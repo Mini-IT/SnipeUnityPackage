@@ -22,7 +22,7 @@ namespace MiniIT.Snipe
 			mAuthResultCallback = null;
 		}
 
-		public virtual void RequestAuth(AuthResultCallback callback = null, bool reset_auth = false)
+		public virtual void RequestAuth(AuthResultCallback callback = null)
 		{
 			// Override this method.
 
@@ -32,19 +32,7 @@ namespace MiniIT.Snipe
 			InvokeAuthFailCallback(SnipeErrorCodes.NOT_INITIALIZED);
 		}
 
-		protected void RequestLogin(string provider, string login, string password, bool reset_auth = false)
-		{
-			if (reset_auth)
-			{
-				ResetAuthAndLogin(provider, login, password);
-			}
-			else
-			{
-				DoRequestLogin(login, password);
-			}
-		}
-		
-		private void ResetAuthAndLogin(string provider, string login, string password)
+		protected void ResetAuthAndLogin(string provider, string login, string password)
 		{
 			SnipeObject data = new SnipeObject()
 			{

@@ -10,7 +10,7 @@ public class DeviceIdAuthProvider : BindProvider
 	public const string PROVIDER_ID = "dvid";
 	public override string ProviderId { get { return PROVIDER_ID; } }
 
-	public override void RequestAuth(AuthResultCallback callback = null, bool reset_auth = false)
+	public override void RequestAuth(AuthResultCallback callback = null)
 	{
 		DebugLogger.Log("[DeviceIdAuthProvider] RequestAuth");
 		
@@ -18,7 +18,7 @@ public class DeviceIdAuthProvider : BindProvider
 		
 		if (SystemInfo.unsupportedIdentifier != SystemInfo.deviceUniqueIdentifier)
 		{
-			RequestLogin(ProviderId, GetUserId(), "", reset_auth);
+			ResetAuthAndLogin(ProviderId, GetUserId(), "");
 		}
 		else
 		{

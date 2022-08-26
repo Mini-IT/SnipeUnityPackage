@@ -72,8 +72,7 @@ namespace MiniIT.Snipe
 			mInternalAuthProvider.RequestAuth();
 		}
 		
-		
-		public void RegisterAndLogin()
+		private void RegisterAndLogin()
 		{
 			if (mCommunicator == null)
 			{
