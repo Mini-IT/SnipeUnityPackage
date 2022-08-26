@@ -8,6 +8,10 @@ namespace MiniIT.Snipe
 {
 	public class AuthSubsystem
 	{
+		public delegate void AccountBindingCollisionHandler(BindProvider provider, string user_name = null);
+
+		public event AccountBindingCollisionHandler AccountBindingCollision;
+				
 		private int mUserID = 0;
 		public int UserID
 		{
@@ -239,6 +243,11 @@ namespace MiniIT.Snipe
 
 			return result_provider;
 		}
-
+		
+		// Called by BindProvider
+		internal void InvokeAccountBindingCollisionEvent(BindProvider provider, string user_name = null)
+		{
+			AccountBindingCollision?.Invoke(provider, user_name);
+		}
 	}
 }
