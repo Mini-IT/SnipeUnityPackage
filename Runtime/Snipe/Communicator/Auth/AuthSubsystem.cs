@@ -184,6 +184,9 @@ namespace MiniIT.Snipe
 				// });
 		// }
 		
+		/// <summary>
+		/// Gets or creates a new instance of <c>AuthProvider</c>
+		/// </summary>
 		public ProviderType GetProvider<ProviderType>() where ProviderType : AuthProvider, new()
 		{
 			var target_provider_type = typeof(ProviderType);
