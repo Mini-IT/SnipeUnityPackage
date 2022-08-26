@@ -2,7 +2,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using MiniIT;
 
 namespace MiniIT.Snipe
@@ -42,6 +41,7 @@ namespace MiniIT.Snipe
 		private DeviceIdFetcher mDeviceIdFetcher;
 		
 		private InternalAuthProvider mInternalAuthProvider;
+		private static List<AuthProvider> mAuthProviders;
 		
 		public AuthSubsystem(SnipeCommunicator communicator)
 		{
@@ -184,7 +184,58 @@ namespace MiniIT.Snipe
 				// });
 		// }
 		
-		
+		public ProviderType GetProvider<ProviderType>() where ProviderType : AuthProvider, new()
+		{
+			var target_provider_type = typeof(ProviderType);
+			
+			if (target_provider_type == typeof(InternalAuthProvider))
+			{
+				if (mInternalAuthProvider == null)
+					mInternalAuthProvider = new InternalAuthProvider();
+				return mInternalAuthProvider as ProviderType;
+			}
+			
+			ProviderType result_provider = null;
+			if (mAuthProviders == null)
+			{
+				result_provider = new ProviderType();
+				mAuthProviders = new List<AuthProvider>()
+				{
+					result_provider,
+				};
+			}
+			else
+			{
+				foreach (AuthProvider provider in mAuthProviders)
+				{
+					if (provider != null && provider.GetType() == target_provider_type)
+					{
+						result_provider = provider as ProviderType;
+						break;
+					}
+				}
+				
+				// if no exact type match found, try base classes
+				if (result_provider == null)
+				{
+					foreach (AuthProvider provider in mAuthProviders)
+					{
+						if (provider != null && provider is ProviderType)
+						{
+							result_provider = provider as ProviderType;
+							break;
+						}
+					}
+				}
+			}
+			
+			if (result_provider == null)
+			{
+				result_provider = new ProviderType();
+			}
+
+			return result_provider;
+		}
 
 	}
 }
