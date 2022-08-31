@@ -27,7 +27,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 			
-			mCommunicator.CreateRequest(SnipeMessageTypes.AUTH_ATTR_GET)?.RequestAuth(
+			mCommunicator.CreateRequest(SnipeMessageTypes.AUTH_ATTR_GET)?.RequestUnauthorized(
 				new SnipeObject()
 				{
 					["provider"] = provider_id,

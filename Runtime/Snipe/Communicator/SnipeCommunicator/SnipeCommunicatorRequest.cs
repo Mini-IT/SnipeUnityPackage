@@ -26,7 +26,7 @@ namespace MiniIT.Snipe
 		
 		private bool mSent = false;
 		private bool mWaitingForResponse = false;
-		private bool mAuthorization = false;
+		private bool mUnauthorized = false;
 
 		public SnipeCommunicatorRequest(SnipeCommunicator communicator, string message_type = null)
 		{
@@ -54,9 +54,9 @@ namespace MiniIT.Snipe
 			SendRequest();
 		}
 		
-		internal void RequestAuth(SnipeObject data, ResponseHandler callback = null)
+		internal void RequestUnauthorized(SnipeObject data, ResponseHandler callback = null)
 		{
-			mAuthorization = true;
+			mUnauthorized = true;
 			Data = data;
 			Request(callback);
 		}
@@ -80,7 +80,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 			
-			if (mCommunicator.LoggedIn || (mAuthorization && mCommunicator.Connected))
+			if (mCommunicator.LoggedIn || (mUnauthorized && mCommunicator.Connected))
 			{
 				OnCommunicatorReady();
 			}
@@ -165,7 +165,7 @@ namespace MiniIT.Snipe
 					if (request == this)
 						break;
 					
-					if (request.mAuthorization == this.mAuthorization &&
+					if (request.mUnauthorized == this.mUnauthorized &&
 						string.Equals(request.MessageType, this.MessageType, StringComparison.Ordinal) &&
 						SnipeObject.ContentEquals(request.Data, this.Data))
 					{
@@ -186,7 +186,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 			
-			if (mCommunicator.LoggedIn || mAuthorization)
+			if (mCommunicator.LoggedIn || mUnauthorized)
 			{
 				mRequestId = mCommunicator.Client.SendRequest(this.MessageType, this.Data);
 			}
@@ -213,7 +213,7 @@ namespace MiniIT.Snipe
 				mCommunicator.LoginSucceeded -= OnCommunicatorReady;
 				mCommunicator.MessageReceived -= OnMessageReceived;
 				
-				if (mAuthorization)
+				if (mUnauthorized)
 				{
 					DebugLogger.Log($"[SnipeCommunicatorRequest] Waiting for connection - {MessageType}");
 					

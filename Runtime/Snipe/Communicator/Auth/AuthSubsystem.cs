@@ -3,12 +3,13 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using MiniIT;
+using System.Diagnostics;
 
 namespace MiniIT.Snipe
 {
 	public class AuthSubsystem
 	{
-		public delegate void AccountBindingCollisionHandler(BindProvider provider, string user_name = null);
+		public delegate void AccountBindingCollisionHandler(AuthBinding binding, string user_name = null);
 
 		public event AccountBindingCollisionHandler AccountBindingCollision;
 				
@@ -44,32 +45,76 @@ namespace MiniIT.Snipe
 		private AdvertisingIdFetcher mAdvertisingIdFetcher;
 		private DeviceIdFetcher mDeviceIdFetcher;
 		
-		private InternalAuthProvider mInternalAuthProvider;
-		private static List<AuthProvider> mAuthProviders;
+		private static List<AuthBinding> mBindings;
 		
 		public AuthSubsystem(SnipeCommunicator communicator)
 		{
 			mCommunicator = communicator;
+
+			mBindings = new List<AuthBinding>()
+			{
+				new AuthBinding<AdvertisingIdFetcher>("adid"),
+				new AuthBinding<FacebookIdFetcher>("fb"),
+				new AmazonIdBinding(), //new AuthBinding<AmazonIdFetcher>("amzn"),
+			};
 		}
 
-		public void Authorize()//AuthResultCallback callback = null)
+		public void Authorize()
 		{
-			// if (mCurrentProvider == null)
-			//{
-				if (!string.IsNullOrEmpty(PlayerPrefs.GetString(SnipePrefs.AUTH_KEY)))
-					LoginWithInternalAuthData();
-				else
-					RegisterAndLogin();
-			//}
-
-			//AuthorizeWithCurrentProvider(callback);
+			if (!LoginWithInternalAuthData())
+			{
+				RegisterAndLogin();
+			}
 		}
 		
-		public void LoginWithInternalAuthData()
+		private bool LoginWithInternalAuthData()
 		{
-			if (mInternalAuthProvider == null)
-				mInternalAuthProvider = new InternalAuthProvider();
-			mInternalAuthProvider.RequestAuth();
+			string login = PlayerPrefs.GetString(SnipePrefs.AUTH_UID);
+			string password = PlayerPrefs.GetString(SnipePrefs.AUTH_KEY);
+
+			if (string.IsNullOrEmpty(login) || string.IsNullOrEmpty(password))
+			{
+				return false;
+			}
+			
+			SnipeObject data = SnipeConfig.LoginParameters != null ? new SnipeObject(SnipeConfig.LoginParameters) : new SnipeObject();
+			data["login"] = login;
+			data["auth"] = password;
+			//data["loginGame"] = true;
+			data["version"] = SnipeClient.SNIPE_VERSION;
+			data["appInfo"] = SnipeConfig.AppInfo;
+			
+			if (SnipeConfig.CompressionEnabled)
+			{
+				data["flagCanPack"] = true;
+			}
+			
+			var stopwatch = Stopwatch.StartNew();
+			
+			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.USER_LOGIN)?.RequestUnauthorized(data,
+				(error_code, response) =>
+				{
+					stopwatch?.Stop();
+					
+					Analytics.TrackEvent(SnipeMessageTypes.USER_LOGIN, new SnipeObject()
+						{
+							["request_time"] = stopwatch?.ElapsedMilliseconds,
+						});
+					
+					if (error_code == SnipeErrorCodes.OK)
+					{
+						UserID = response.SafeGetValue<int>("id");
+						StartBindings();
+					}
+					else if (error_code == SnipeErrorCodes.NO_SUCH_USER)
+					{
+						PlayerPrefs.DeleteKey(SnipePrefs.AUTH_UID);
+						PlayerPrefs.DeleteKey(SnipePrefs.AUTH_KEY);
+					}
+				}
+			);
+			
+			return true;
 		}
 		
 		private void RegisterAndLogin()
@@ -83,11 +128,11 @@ namespace MiniIT.Snipe
 			if (mAdvertisingIdFetcher == null)
 				mAdvertisingIdFetcher = new AdvertisingIdFetcher();
 			
-			mAdvertisingIdFetcher.Fetch(adid =>
+			mAdvertisingIdFetcher.Fetch(false, adid =>
 			{
 				if (mDeviceIdFetcher == null)
 					mDeviceIdFetcher = new DeviceIdFetcher();
-				mDeviceIdFetcher.Fetch(dvid =>
+				mDeviceIdFetcher.Fetch(false, dvid =>
 				{
 					var providers = new List<SnipeObject>();
 					if (!string.IsNullOrEmpty(adid))
@@ -108,7 +153,7 @@ namespace MiniIT.Snipe
 						});
 					}
 					
-					mCommunicator.CreateRequest(SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN)?.RequestAuth(
+					mCommunicator.CreateRequest(SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN)?.RequestUnauthorized(
 						new SnipeObject()
 						{
 							["ckey"] = SnipeConfig.ClientKey,
@@ -116,13 +161,11 @@ namespace MiniIT.Snipe
 						},
 						(error_code, response) =>
 						{
-							if (error_code == "ok")
+							if (error_code == SnipeErrorCodes.OK)
 							{
 								//ClearAllBindings();
 								UserID = response.SafeGetValue<int>("id");
-								PlayerPrefs.SetString(SnipePrefs.AUTH_UID, response.SafeGetString("uid"));
-								PlayerPrefs.SetString(SnipePrefs.AUTH_KEY, response.SafeGetString("password"));
-								PlayerPrefs.Save();
+								SetAuthData(response.SafeGetString("uid"), response.SafeGetString("password"));
 								
 								JustRegistered = response.SafeGetValue<bool>("registrationDone", false);
 								
@@ -141,7 +184,9 @@ namespace MiniIT.Snipe
 										}
 									}
 								}
-								
+
+								StartBindings();
+
 								//callback?.Invoke(true);
 							}
 							// else
@@ -153,100 +198,126 @@ namespace MiniIT.Snipe
 			});
 		}
 		
-
-
-		// public void ClaimRestoreToken(string token, Action<bool> callback)
-		// {
-			// if (mCommunicator == null)
-			// {
-				// callback?.Invoke(false);
-				// return;
-			// }
-			
-			// mCommunicator.CreateRequest(SnipeMessageTypes.AUTH_RESTORE)?.RequestAuth(
-				// new SnipeObject()
-				// {
-					// ["ckey"] = SnipeConfig.ClientKey,
-					// ["token"] = token,
-				// },
-				// (error_code, response) =>
-				// {
-					// if (error_code == "ok")
-					// {
-						// ClearAllBindings();
-						// UserID = 0;
-						// PlayerPrefs.SetString(SnipePrefs.AUTH_UID, response.SafeGetString("uid"));
-						// PlayerPrefs.SetString(SnipePrefs.AUTH_KEY, response.SafeGetString("password"));
-						// PlayerPrefs.Save();
-						// callback?.Invoke(true);
-					// }
-					// else
-					// {
-						// callback?.Invoke(false);
-					// }
-				// });
-		// }
-		
-		/// <summary>
-		/// Gets or creates a new instance of <c>AuthProvider</c>
-		/// </summary>
-		public ProviderType GetProvider<ProviderType>() where ProviderType : AuthProvider, new()
+		private void SetAuthData(string uid, string password)
 		{
-			var target_provider_type = typeof(ProviderType);
-			
-			if (target_provider_type == typeof(InternalAuthProvider))
+			PlayerPrefs.SetString(SnipePrefs.AUTH_UID, uid);
+			PlayerPrefs.SetString(SnipePrefs.AUTH_KEY, password);
+			PlayerPrefs.Save();
+		}
+
+		private void StartBindings()
+		{
+			foreach (var binding in mBindings)
 			{
-				if (mInternalAuthProvider == null)
-					mInternalAuthProvider = new InternalAuthProvider();
-				return mInternalAuthProvider as ProviderType;
+				binding?.Start();
 			}
-			
-			ProviderType result_provider = null;
-			if (mAuthProviders == null)
+		}
+
+		public void ClaimRestoreToken(string token, Action<bool> callback)
+		{
+			if (mCommunicator == null)
 			{
-				result_provider = new ProviderType();
-				mAuthProviders = new List<AuthProvider>()
+				callback?.Invoke(false);
+				return;
+			}
+
+			mCommunicator.CreateRequest(SnipeMessageTypes.AUTH_RESTORE)?.RequestUnauthorized(
+				new SnipeObject()
 				{
-					result_provider,
+					["ckey"] = SnipeConfig.ClientKey,
+					["token"] = token,
+				},
+				(error_code, response) =>
+				{
+					if (error_code == "ok")
+					{
+						ClearAllBindings();
+						UserID = 0;
+						PlayerPrefs.SetString(SnipePrefs.AUTH_UID, response.SafeGetString("uid"));
+						PlayerPrefs.SetString(SnipePrefs.AUTH_KEY, response.SafeGetString("password"));
+						PlayerPrefs.Save();
+						callback?.Invoke(true);
+					}
+					else
+					{
+						callback?.Invoke(false);
+					}
+				});
+		}
+
+		/// <summary>
+		/// Gets or creates a new instance of <c>AuthBinding</c>
+		/// </summary>
+		public BindingType GetBinding<BindingType>() where BindingType : AuthBinding, new()
+		{
+			var target_binding_type = typeof(BindingType);
+			
+			//if (target_binding_type == typeof(InternalAuthProvider))
+			//{
+			//	if (mInternalAuthProvider == null)
+			//		mInternalAuthProvider = new InternalAuthProvider();
+			//	return mInternalAuthProvider as ProviderType;
+			//}
+			
+			BindingType result_binding = null;
+			if (mBindings == null)
+			{
+				result_binding = new BindingType();
+				mBindings = new List<AuthBinding>()
+				{
+					result_binding,
 				};
 			}
 			else
 			{
-				foreach (AuthProvider provider in mAuthProviders)
+				foreach (var binding in mBindings)
 				{
-					if (provider != null && provider.GetType() == target_provider_type)
+					if (binding != null && binding.GetType() == target_binding_type)
 					{
-						result_provider = provider as ProviderType;
+						result_binding = binding as BindingType;
 						break;
 					}
 				}
 				
 				// if no exact type match found, try base classes
-				if (result_provider == null)
+				if (result_binding == null)
 				{
-					foreach (AuthProvider provider in mAuthProviders)
+					foreach (var binding in mBindings)
 					{
-						if (provider != null && provider is ProviderType)
+						if (binding != null && binding is BindingType)
 						{
-							result_provider = provider as ProviderType;
+							result_binding = binding as BindingType;
 							break;
 						}
 					}
 				}
 			}
 			
-			if (result_provider == null)
+			if (result_binding == null)
 			{
-				result_provider = new ProviderType();
+				result_binding = new BindingType();
 			}
 
-			return result_provider;
+			return result_binding;
 		}
-		
-		// Called by BindProvider
-		internal void InvokeAccountBindingCollisionEvent(BindProvider provider, string user_name = null)
+
+		private void ClearAllBindings()
 		{
-			AccountBindingCollision?.Invoke(provider, user_name);
+			PlayerPrefs.DeleteKey(SnipePrefs.AUTH_BIND_DONE + "dvid");
+
+			if (mBindings != null)
+			{
+				foreach (var binding in mBindings)
+				{
+					PlayerPrefs.DeleteKey(binding.BindDonePrefsKey);
+				}
+			}
+		}
+
+		// Called by BindProvider
+		internal void InvokeAccountBindingCollisionEvent(AuthBinding binding, string user_name = null)
+		{
+			AccountBindingCollision?.Invoke(binding, user_name);
 		}
 	}
 }

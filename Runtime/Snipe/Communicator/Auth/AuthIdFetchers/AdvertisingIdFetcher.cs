@@ -1,20 +1,17 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using UnityEngine;
-using MiniIT;
 
 namespace MiniIT.Snipe
 {
 	public class AdvertisingIdFetcher : AuthIdFetcher
 	{
-		private static string mAdvertisingId = null;
-		
-		public override void Fetch(Action<string> callback = null)
+		public override void Fetch(bool wait_initialization, Action<string> callback = null)
 		{
-			if (!string.IsNullOrEmpty(mAdvertisingId))
+			if (!string.IsNullOrEmpty(Value))
 			{
-				callback?.Invoke(mAdvertisingId);
+				callback?.Invoke(Value);
 				return;
 			}
 			
@@ -22,26 +19,44 @@ namespace MiniIT.Snipe
 			MiniIT.Utils.AdvertisingIdFetcher.RequestAdvertisingId((advertising_id) =>
 			{
 				SetAdvertisingId(advertising_id);
-				callback?.Invoke(mAdvertisingId);
+				callback?.Invoke(Value);
 			});
 #else
 			if (!Application.RequestAdvertisingIdentifierAsync((advertising_id, tracking_enabled, error) =>
 				{
-					mAdvertisingId = advertising_id;
-					callback?.Invoke(mAdvertisingId);
+					SetAdvertisingId(advertising_id);
+					callback?.Invoke(Value);
 				}))
 			{
+#if UNITY_IOS
+				if (wait_initialization && string.IsNullOrEmpty(Value))
+				{
+					Task.Run(() => WaitForInitialization(callback));
+					return;
+				}
+#endif
 				callback?.Invoke(null);
 			}
 #endif
 		}
-		
-		private static void SetAdvertisingId(string advertising_id)
+
+#if UNITY_IOS
+		private async Task WaitForInitialization(Action<string> callback)
+		{
+			while (string.IsNullOrEmpty(Value))
+			{
+				await Task.Delay(100);
+			}
+			callback?.Invoke(Value);
+		}
+#endif
+
+		private void SetAdvertisingId(string advertising_id)
 		{
 			if (CheckAdvertisingIdValid(advertising_id))
-				mAdvertisingId = advertising_id;
+				Value = advertising_id;
 			else
-				mAdvertisingId = "";
+				Value = "";
 		}
 		
 		private static bool CheckAdvertisingIdValid(string advertising_id)
