@@ -80,7 +80,6 @@ namespace MiniIT.Snipe
 			SnipeObject data = SnipeConfig.LoginParameters != null ? new SnipeObject(SnipeConfig.LoginParameters) : new SnipeObject();
 			data["login"] = login;
 			data["auth"] = password;
-			//data["loginGame"] = true;
 			data["version"] = SnipeClient.SNIPE_VERSION;
 			data["appInfo"] = SnipeConfig.AppInfo;
 			
