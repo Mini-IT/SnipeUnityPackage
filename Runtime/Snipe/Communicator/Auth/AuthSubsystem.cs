@@ -155,6 +155,7 @@ namespace MiniIT.Snipe
 					mCommunicator.CreateRequest(SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN)?.RequestUnauthorized(
 						new SnipeObject()
 						{
+							["version"] = SnipeClient.SNIPE_VERSION,
 							["ckey"] = SnipeConfig.ClientKey,
 							["auths"] = providers,
 						},
