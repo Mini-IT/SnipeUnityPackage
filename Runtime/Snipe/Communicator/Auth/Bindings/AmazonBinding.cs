@@ -3,9 +3,9 @@ using UnityEngine;
 
 namespace MiniIT.Snipe
 {
-	public class AmazonIdBinding : AuthBinding<AmazonIdFetcher>
+	public class AmazonBinding : AuthBinding<AmazonIdFetcher>
 	{
-		public AmazonIdBinding() : base("amzn")
+		public AmazonBinding() : base("amzn")
 		{
 		}
 

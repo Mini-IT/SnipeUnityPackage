@@ -54,8 +54,8 @@ namespace MiniIT.Snipe
 			mBindings = new List<AuthBinding>()
 			{
 				new AuthBinding<AdvertisingIdFetcher>("adid"),
-				new AuthBinding<FacebookIdFetcher>("fb"),
-				new AmazonIdBinding(), //new AuthBinding<AmazonIdFetcher>("amzn"),
+				new FacebookBinding(), // AuthBinding<FacebookIdFetcher>("fb"),
+				new AmazonBinding(), // AuthBinding<AmazonIdFetcher>("amzn"),
 			};
 		}
 

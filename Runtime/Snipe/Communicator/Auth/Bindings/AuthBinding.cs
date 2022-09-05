@@ -70,13 +70,42 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		public virtual void RequestBind(BindResultCallback bind_callback = null)
+		public void Bind(BindResultCallback bind_callback = null)
 		{
 			// Override this method.
 
 			mBindResultCallback = bind_callback;
 
-			InvokeBindResultCallback(IsBindDone ? SnipeErrorCodes.OK : SnipeErrorCodes.NOT_INITIALIZED);
+			if (IsBindDone)
+			{
+				InvokeBindResultCallback(SnipeErrorCodes.OK);// IsBindDone ? SnipeErrorCodes.OK : SnipeErrorCodes.NOT_INITIALIZED);
+				return;
+			}
+
+			string auth_login = PlayerPrefs.GetString(SnipePrefs.AUTH_UID);
+			string auth_token = PlayerPrefs.GetString(SnipePrefs.AUTH_KEY);
+			string uid = GetUserId();
+
+			if (!string.IsNullOrEmpty(auth_login) && !string.IsNullOrEmpty(auth_token) && !string.IsNullOrEmpty(uid))
+			{
+				SnipeObject data = new SnipeObject()
+				{
+					["ckey"] = SnipeConfig.ClientKey,
+					["provider"] = ProviderId,
+					["login"] = uid,
+					["loginInt"] = auth_login,
+					["authInt"] = auth_token,
+				};
+
+				var pass = GetAuthPassword();
+				if (!string.IsNullOrEmpty(pass))
+					data["auth"] = pass;
+
+				DebugLogger.Log($"[AuthBinding] ({ProviderId}) send user.bind " + data.ToJSONString());
+				SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_BIND)?.RequestUnauthorized(data, OnBindResponse);
+
+				return;
+			}
 		}
 
 		public string GetUserId()
@@ -84,12 +113,39 @@ namespace MiniIT.Snipe
 			return mFetcher?.Value ?? "";
 		}
 
-		// protected override void OnAuthResetResponse(string error_code, SnipeObject response_data)
-		// {
-		// if (error_code == SnipeErrorCodes.NO_SUCH_AUTH)
-		// {
-		// AccountExists = false;
-		// }
+		protected virtual string GetAuthPassword()
+		{
+			return "";
+		}
+		
+		public void ResetAuth(Action<string> callback)
+		{
+			SnipeObject data = new SnipeObject()
+			{
+				["ckey"] = SnipeConfig.ClientKey,
+				["provider"] = ProviderId,
+				["login"] = GetUserId(),
+				["auth"] = GetAuthPassword(),
+			};
+			
+			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_RESET)?.RequestUnauthorized(data,
+				(string error_code, SnipeObject response_data) =>
+				{
+					if (error_code == SnipeErrorCodes.OK)
+					{
+						string auth_login = response_data.SafeGetString("uid");
+						string auth_token = response_data.SafeGetString("password");
+						
+						if (!string.IsNullOrEmpty(auth_login) && !string.IsNullOrEmpty(auth_token))
+						{
+							PlayerPrefs.SetString(SnipePrefs.AUTH_UID, auth_login);
+							PlayerPrefs.SetString(SnipePrefs.AUTH_KEY, auth_token);
+						}
+					}
+					
+					callback?.Invoke(error_code);
+				});
+		}
 
 		// base.OnAuthResetResponse(error_code, response_data);
 		// }
@@ -142,7 +198,7 @@ namespace MiniIT.Snipe
 
 		protected virtual void OnBindResponse(string error_code, SnipeObject data)
 		{
-			DebugLogger.Log($"[BindProvider] ({ProviderId}) OnBindResponse - {error_code}");
+			DebugLogger.Log($"[AuthBinding] ({ProviderId}) OnBindResponse - {error_code}");
 
 			if (error_code == SnipeErrorCodes.OK)
 			{
@@ -173,7 +229,7 @@ namespace MiniIT.Snipe
 			{
 				if (!account_exists) //(AccountExists == false)
 				{
-					RequestBind();
+					Bind();
 				}
 				else if (!is_me)
 				{
