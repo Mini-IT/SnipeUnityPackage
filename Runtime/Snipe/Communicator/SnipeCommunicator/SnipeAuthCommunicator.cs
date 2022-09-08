@@ -378,29 +378,29 @@ namespace MiniIT.Snipe
 			else
 			{
 				DebugLogger.Log("[SnipeAuthCommunicator] OnCurrentProviderAuthFail (" + (mCurrentProvider != null ? mCurrentProvider.ProviderId : "null") + ") error_code: " + error_code);
-
+				
 				mRebindAllProviders = false;
 				
-				if (mAuthProviders != null && mAuthProviders.Count > mAuthProviders.IndexOf(mCurrentProvider) + 1)
+				if (error_code == SnipeErrorCodes.NOT_INITIALIZED ||
+					error_code == SnipeErrorCodes.NO_SUCH_USER ||
+					error_code == SnipeErrorCodes.NO_SUCH_AUTH)
 				{
-					// try next provider
-					mCurrentProvider?.DisposeCallbacks();
+					if (mAuthProviders != null && mAuthProviders.Count > mAuthProviders.IndexOf(mCurrentProvider) + 1)
+					{
+						// try next provider
+						mCurrentProvider?.DisposeCallbacks();
 
-					SwitchToNextAuthProvider();
-					CurrentProviderRequestAuth();
-				}
-				else // all providers failed
-				{
-					if (error_code == SnipeErrorCodes.NOT_INITIALIZED ||
-						error_code == SnipeErrorCodes.NO_SUCH_USER ||
-						error_code == SnipeErrorCodes.NO_SUCH_AUTH)
+						SwitchToNextAuthProvider();
+						CurrentProviderRequestAuth();
+					}
+					else // all providers failed
 					{
 						RequestRegister();
 					}
-					else
-					{
-						InvokeAuthFailCallback(error_code);
-					}
+				}
+				else
+				{
+					InvokeAuthFailCallback(error_code);
 				}
 			}
 		}
