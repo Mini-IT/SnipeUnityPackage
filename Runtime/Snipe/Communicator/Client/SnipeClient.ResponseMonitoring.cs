@@ -46,7 +46,7 @@ namespace MiniIT.Snipe
 		{
 			try
 			{
-				if (mResponseMonitoringItems.TryGetValue(request_id, out var item))
+				if (mResponseMonitoringItems.TryGetValue(request_id, out var item) && item != null)
 				{
 					if (item.message_type != message_type)
 					{
@@ -58,12 +58,14 @@ namespace MiniIT.Snipe
 							});
 					}
 				}
-				
-				mResponseMonitoringItems?.Remove(request_id);
 			}
 			catch (Exception)
 			{
 				// ignore
+			}
+			finally
+			{
+				mResponseMonitoringItems?.Remove(request_id);
 			}
 		}
 		
