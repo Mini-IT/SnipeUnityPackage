@@ -25,6 +25,9 @@ namespace MiniIT.Snipe
 		
 		private void AddResponseMonitoringItem(int request_id, string message_type)
 		{
+			if (message_type == SnipeMessageTypes.USER_LOGIN)
+				return;
+				
 			if (mResponseMonitoringItems == null)
 				mResponseMonitoringItems = new Dictionary<int, ResponseMonitoringItem>();
 			if (mResponseMonitoringStopwatch == null)
@@ -110,7 +113,8 @@ namespace MiniIT.Snipe
 					for (int key_index = keys.Count - 1; key_index >= 0; key_index--)
 					{
 						var request_id = keys[key_index];
-						var request_time = mResponseMonitoringItems[request_id].time;
+						var item = mResponseMonitoringItems[request_id];
+						var request_time = item.time;
 						
 						if (time_now - request_time > RESPONSE_MONITORING_MAX_DELAY)
 						{
@@ -119,6 +123,7 @@ namespace MiniIT.Snipe
 							Analytics.TrackEvent("Response not found", new SnipeObject()
 								{
 									["request_id"] = request_id,
+									["message_type"] = item.message_type,
 								});
 						}
 					}
