@@ -52,7 +52,6 @@ namespace MiniIT.Snipe
 		private AuthResultCallback mAuthResultCallback;
 
 		private static bool mRebindAllProviders = false;
-		private static bool mAuthNotFound = false;
 
 		public ProviderType AddAuthProvider<ProviderType>() where ProviderType : AuthProvider, new()
 		{
@@ -316,7 +315,6 @@ namespace MiniIT.Snipe
 		private void AuthorizeWithCurrentProvider(AuthResultCallback callback = null)
 		{
 			JustRegistered = false;
-			mAuthNotFound = false;
 			mAuthResultCallback = callback;
 			CurrentProviderRequestAuth();
 		}
@@ -361,8 +359,6 @@ namespace MiniIT.Snipe
 			}
 			if (mCurrentProvider == null)
 				mCurrentProvider = new DefaultAuthProvider();
-			
-			mAuthNotFound = false;
 		}
 
 		private void OnCurrentProviderAuthResult(string error_code, int user_id = 0)
@@ -385,10 +381,9 @@ namespace MiniIT.Snipe
 				
 				mRebindAllProviders = false;
 				
-				bool user_not_found = (error_code == SnipeErrorCodes.NO_SUCH_USER || error_code == SnipeErrorCodes.NO_SUCH_AUTH);
-				mAuthNotFound |= user_not_found;
-				
-				if (user_not_found || error_code == SnipeErrorCodes.NOT_INITIALIZED)
+				if (error_code == SnipeErrorCodes.NO_SUCH_USER ||
+					error_code == SnipeErrorCodes.NO_SUCH_AUTH ||
+					error_code == SnipeErrorCodes.NOT_INITIALIZED)
 				{
 					if (mAuthProviders != null && mAuthProviders.Count > mAuthProviders.IndexOf(mCurrentProvider) + 1)
 					{
@@ -398,7 +393,7 @@ namespace MiniIT.Snipe
 						SwitchToNextAuthProvider();
 						CurrentProviderRequestAuth();
 					}
-					else if (mAuthNotFound || mCurrentProvider is DefaultAuthProvider) // all providers failed
+					else // all providers failed
 					{
 						RequestRegister();
 					}
