@@ -84,7 +84,7 @@ namespace MiniIT
 		{
 			if (TryGetValue<T>((string)key, out var result))
 				return result;
-			return result;
+			return default_value;
 		}
 
 		public string SafeGetString(string key, string default_value = "")
