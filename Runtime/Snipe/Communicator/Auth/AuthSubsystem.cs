@@ -136,6 +136,8 @@ namespace MiniIT.Snipe
 				mDeviceIdFetcher.Fetch(false, dvid =>
 				{
 					var providers = new List<SnipeObject>();
+					
+#if !BINDING_DISABLED
 					if (!string.IsNullOrEmpty(adid))
 					{
 						providers.Add(new SnipeObject()
@@ -153,51 +155,59 @@ namespace MiniIT.Snipe
 							["login"] = dvid,
 						});
 					}
+#endif
 					
-					mCommunicator.CreateRequest(SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN)?.RequestUnauthorized(
-						new SnipeObject()
-						{
-							["version"] = SnipeClient.SNIPE_VERSION,
-							["ckey"] = SnipeConfig.ClientKey,
-							["auths"] = providers,
-						},
-						(error_code, response) =>
-						{
-							if (error_code == SnipeErrorCodes.OK)
-							{
-								//ClearAllBindings();
-								UserID = response.SafeGetValue<int>("id");
-								SetAuthData(response.SafeGetString("uid"), response.SafeGetString("password"));
-								
-								JustRegistered = response.SafeGetValue<bool>("registrationDone", false);
-								
-								if (response["authsBinded"] is IList list)
-								{	
-									for (int i = 0; i < list.Count; i++)
-									{
-										var item = list[i] as SnipeObject;
-										if (item != null)
-										{
-											string provider = item.SafeGetString("provider");
-											if (!string.IsNullOrEmpty(provider))
-											{
-												PlayerPrefs.SetInt(SnipePrefs.AUTH_BIND_DONE + provider, 1);
-											}
-										}
-									}
-								}
-
-								StartBindings();
-
-								//callback?.Invoke(true);
-							}
-							// else
-							// {
-								// callback?.Invoke(false);
-							// }
-						});
+					RequestRegisterAndLogin(providers);
 				});
 			});
+		}
+		
+		private void RequestRegisterAndLogin(List<SnipeObject> providers)
+		{
+			mCommunicator.CreateRequest(SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN)?.RequestUnauthorized(
+				new SnipeObject()
+				{
+					["version"] = SnipeClient.SNIPE_VERSION,
+					["ckey"] = SnipeConfig.ClientKey,
+					["auths"] = providers,
+				},
+				(error_code, response) =>
+				{
+					if (error_code == SnipeErrorCodes.OK)
+					{
+						//ClearAllBindings();
+						UserID = response.SafeGetValue<int>("id");
+						SetAuthData(response.SafeGetString("uid"), response.SafeGetString("password"));
+						
+						JustRegistered = response.SafeGetValue<bool>("registrationDone", false);
+						
+						if (response["authsBinded"] is IList list)
+						{	
+							for (int i = 0; i < list.Count; i++)
+							{
+								var item = list[i] as SnipeObject;
+								if (item != null)
+								{
+									string provider = item.SafeGetString("provider");
+									if (!string.IsNullOrEmpty(provider))
+									{
+										PlayerPrefs.SetInt(SnipePrefs.AUTH_BIND_DONE + provider, 1);
+									}
+								}
+							}
+						}
+						
+#if !BINDING_DISABLED
+						StartBindings();
+#endif
+
+						//callback?.Invoke(true);
+					}
+					// else
+					// {
+						// callback?.Invoke(false);
+					// }
+				});
 		}
 		
 		private void SetAuthData(string uid, string password)
