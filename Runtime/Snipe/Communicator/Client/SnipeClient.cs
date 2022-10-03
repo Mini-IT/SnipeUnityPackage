@@ -2,6 +2,7 @@ using System;
 using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using MiniIT.MessagePack;
 
 namespace MiniIT.Snipe
@@ -145,7 +146,7 @@ namespace MiniIT.Snipe
 			DebugLogger.Log($"[SnipeClient] SendRequest - {message.ToJSONString()}");
 			
 			if (UdpClientConnected)
-				DoSendRequestUdpClient(message);
+				Task.Run(() => DoSendRequestUdpClient(message));
 			else if (WebSocketConnected)
 				EnqueueMessageToSendWebSocket(message);
 			
@@ -175,24 +176,24 @@ namespace MiniIT.Snipe
 				return;
 			
 			if (UdpClientConnected)
-				DoSendRequestUdpClient(message);
+				Task.Run(() => DoSendRequestUdpClient(message));
 			else if (WebSocketConnected)
-				DoSendRequestWebSocket(message);
+				Task.Run(() => DoSendRequestWebSocket(message));
 		}
 		
-		protected void ProcessMessage(byte[] raw_data_buffer)
+		protected async void ProcessMessage(byte[] raw_data_buffer)
 		{
 			PreProcessMessage();
 			
-			var message = MessagePackDeserializer.Parse(raw_data_buffer) as SnipeObject;
+			var message = await Task.Run(() => MessagePackDeserializer.Parse(raw_data_buffer) as SnipeObject);
 			ProcessMessage(message);
 		}
 		
-		protected void ProcessMessage(ArraySegment<byte> raw_data_buffer)
+		protected async void ProcessMessage(ArraySegment<byte> raw_data_buffer)
 		{
 			PreProcessMessage();
 			
-			var message = MessagePackDeserializer.Parse(raw_data_buffer) as SnipeObject;
+			var message = await Task.Run(() => MessagePackDeserializer.Parse(raw_data_buffer) as SnipeObject);
 			ProcessMessage(message);
 		}
 		
@@ -209,89 +210,89 @@ namespace MiniIT.Snipe
 		
 		private void ProcessMessage(SnipeObject message)
 		{
-			if (message != null)
+			if (message == null)
+				return;
+			
+			string message_type = message.SafeGetString("t");
+			string error_code =  message.SafeGetString("errorCode");
+			int request_id = message.SafeGetValue<int>("id");
+			SnipeObject response_data = message.SafeGetValue<SnipeObject>("data");
+			
+			RemoveResponseMonitoringItem(request_id, message_type);
+			
+			DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - {request_id} - {message_type} {error_code} {response_data?.ToJSONString()}");
+
+			if (!mLoggedIn)
 			{
-				string message_type = message.SafeGetString("t");
-				string error_code =  message.SafeGetString("errorCode");
-				int request_id = message.SafeGetValue<int>("id");
-				SnipeObject response_data = message.SafeGetValue<SnipeObject>("data");
-				
-				RemoveResponseMonitoringItem(request_id, message_type);
-				
-				DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - {request_id} - {message_type} {error_code} {response_data?.ToJSONString()}");
+				if (message_type == SnipeMessageTypes.USER_LOGIN)
+				{	
+					if (error_code == SnipeErrorCodes.OK || error_code == SnipeErrorCodes.ALREADY_LOGGED_IN)
+					{
+						DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - Login Succeeded");
+						
+						mLoggedIn = true;
 
-				if (!mLoggedIn)
-				{
-					if (message_type == SnipeMessageTypes.USER_LOGIN)
-					{	
-						if (error_code == SnipeErrorCodes.OK || error_code == SnipeErrorCodes.ALREADY_LOGGED_IN)
+						if (response_data != null)
 						{
-							DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - Login Succeeded");
-							
-							mLoggedIn = true;
-
-							if (response_data != null)
-							{
-								this.ConnectionId = response_data.SafeGetString("connectionID");
-							}
-							else
-							{
-								this.ConnectionId = "";
-							}
-
-							try
-							{
-								LoginSucceeded?.Invoke();
-							}
-							catch (Exception e)
-							{
-								DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginSucceeded invokation error: {e}");
-								Analytics.TrackError("LoginSucceeded invokation error", e);
-							}
-
-							if (mHeartbeatEnabled)
-							{
-								StartHeartbeat();
-							}
+							this.ConnectionId = response_data.SafeGetString("connectionID");
 						}
 						else
 						{
-							DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - Login Failed");
-							
-							try
-							{
-								LoginFailed?.Invoke(error_code);
-							}
-							catch (Exception e)
-							{
-								DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginFailed invokation error: {e}");
-								Analytics.TrackError("LoginFailed invokation error", e);
-							}
+							this.ConnectionId = "";
+						}
+
+						try
+						{
+							LoginSucceeded?.Invoke();
+						}
+						catch (Exception e)
+						{
+							DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginSucceeded invokation error: {e}");
+							Analytics.TrackError("LoginSucceeded invokation error", e);
+						}
+
+						if (mHeartbeatEnabled)
+						{
+							StartHeartbeat();
+						}
+					}
+					else
+					{
+						DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - Login Failed");
+						
+						try
+						{
+							LoginFailed?.Invoke(error_code);
+						}
+						catch (Exception e)
+						{
+							DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginFailed invokation error: {e}");
+							Analytics.TrackError("LoginFailed invokation error", e);
 						}
 					}
 				}
+			}
 
-				if (MessageReceived != null)
+			if (MessageReceived != null)
+			{
+				try
 				{
-					try
-					{
-						MessageReceived.Invoke(message_type, error_code, response_data, request_id);
-					}
-					catch (Exception e)
-					{
-						DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - MessageReceived invokation error: {e}");
-						Analytics.TrackError("MessageReceived invokation error", e);
-					}
+					MessageReceived.Invoke(message_type, error_code, response_data, request_id);
 				}
-				else
+				catch (Exception e)
 				{
-					DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - no MessageReceived listeners");
+					DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - MessageReceived invokation error: {e}");
+					Analytics.TrackError("MessageReceived invokation error", e);
 				}
+			}
+			else
+			{
+				DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - no MessageReceived listeners");
+			}
 
-				if (mHeartbeatEnabled)
-				{
-					ResetHeartbeatTimer();
-				}
+			if (mHeartbeatEnabled)
+			{
+				ResetHeartbeatTimer();
 			}
 		}
 

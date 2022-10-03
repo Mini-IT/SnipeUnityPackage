@@ -57,7 +57,7 @@ namespace MiniIT.Snipe
 			
 			mConnectionStopwatch = Stopwatch.StartNew();
 			
-			mWebSocket.Connect(url);
+			Task.Run(() => mWebSocket.Connect(url));
 		}
 
 		private void OnWebSocketConnected()
