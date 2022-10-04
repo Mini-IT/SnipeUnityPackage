@@ -185,7 +185,7 @@ namespace MiniIT.Snipe
 		{
 			PreProcessMessage();
 			
-			var message = await Task.Run(() => MessagePackDeserializer.Parse(raw_data_buffer) as SnipeObject);
+			var message = MessagePackDeserializer.Parse(raw_data_buffer) as SnipeObject;
 			ProcessMessage(message);
 		}
 		
@@ -193,7 +193,7 @@ namespace MiniIT.Snipe
 		{
 			PreProcessMessage();
 			
-			var message = await Task.Run(() => MessagePackDeserializer.Parse(raw_data_buffer) as SnipeObject);
+			var message = MessagePackDeserializer.Parse(raw_data_buffer) as SnipeObject;
 			ProcessMessage(message);
 		}
 		
