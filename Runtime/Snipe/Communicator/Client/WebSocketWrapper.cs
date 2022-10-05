@@ -38,7 +38,9 @@ namespace MiniIT.Snipe
 			mWebSocket.OnOpen += OnWebSocketConnected;
 			mWebSocket.OnClose += OnWebSocketClosed;
 			mWebSocket.OnMessage += OnWebSocketMessage;
+			mWebSocket.OnError += OnWebSocketError;
 			mWebSocket.NoDelay = true;
+			//mWebSocket.SslConfiguration.EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls12;
 			mWebSocket.ConnectAsync();
 			
 			mConnectionWaitingCancellation = new CancellationTokenSource();
@@ -97,8 +99,10 @@ namespace MiniIT.Snipe
 			OnConnectionOpened?.Invoke();
 		}
 
-		protected void OnWebSocketClosed(object sender, EventArgs e)
+		protected void OnWebSocketClosed(object sender, CloseEventArgs e)
 		{
+			DebugLogger.Log($"[WebSocketWrapper] OnWebSocketClosed: {e.Reason}");
+			
 			Disconnect();
 
 			OnConnectionClosed?.Invoke();
@@ -107,6 +111,11 @@ namespace MiniIT.Snipe
 		private void OnWebSocketMessage(object sender, MessageEventArgs e)
 		{
 			ProcessMessage(e.RawData);
+		}
+		
+		protected void OnWebSocketError(object sender, WebSocketSharp.ErrorEventArgs e)
+		{
+			DebugLogger.Log($"[WebSocketWrapper] OnWebSocketError: {e}");
 		}
 		
 		public void SendRequest(string message)
