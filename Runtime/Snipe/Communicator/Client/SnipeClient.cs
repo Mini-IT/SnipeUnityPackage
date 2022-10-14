@@ -39,6 +39,8 @@ namespace MiniIT.Snipe
 
 		private int mRequestId = 0;
 		
+		private readonly object mSendLock = new object();
+		
 		public void Connect(bool udp = true)
 		{
 			if (mBytesPool == null)
@@ -146,9 +148,19 @@ namespace MiniIT.Snipe
 			DebugLogger.Log($"[SnipeClient] SendRequest - {message.ToJSONString()}");
 			
 			if (UdpClientConnected)
-				Task.Run(() => DoSendRequestUdpClient(message));
+			{
+				Task.Run(() =>
+				{
+					lock(mSendLock)
+					{
+						DoSendRequestUdpClient(message);
+					}
+				});
+			}
 			else if (WebSocketConnected)
+			{
 				EnqueueMessageToSendWebSocket(message);
+			}
 			
 			AddResponseMonitoringItem(mRequestId, message.SafeGetString("t"));
 			
@@ -176,9 +188,25 @@ namespace MiniIT.Snipe
 				return;
 			
 			if (UdpClientConnected)
-				Task.Run(() => DoSendRequestUdpClient(message));
+			{
+				Task.Run(() =>
+				{
+					lock(mSendLock)
+					{
+						DoSendRequestUdpClient(message);
+					}
+				});
+			}
 			else if (WebSocketConnected)
-				Task.Run(() => DoSendRequestWebSocket(message));
+			{
+				Task.Run(() =>
+				{
+					lock(mSendLock)
+					{
+						DoSendRequestWebSocket(message);
+					}
+				});
+			}
 		}
 		
 		protected async void ProcessMessage(byte[] raw_data_buffer)
