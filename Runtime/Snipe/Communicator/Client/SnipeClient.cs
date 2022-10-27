@@ -1,8 +1,8 @@
 using System;
-using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using kcp2k;
 using MiniIT.MessagePack;
 
 namespace MiniIT.Snipe
@@ -18,23 +18,34 @@ namespace MiniIT.Snipe
 		public event Action LoginSucceeded;
 		public event Action<string> LoginFailed;
 		//public event Action UdpConnectionFailed;
-		
-		private bool mConnected = false;
+
+		private WebSocketConnection mWebSocketConnection;
+		private KcpConnection mKcpConnection;
+
+		//private bool mConnected = false;
 		protected bool mLoggedIn = false;
+
+		private bool mUdpConnectionEstablished;
 
 		public bool Connected => UdpClientConnected || WebSocketConnected;
 		public bool LoggedIn { get { return mLoggedIn && Connected; } }
+		public bool WebSocketConnected => mWebSocketConnection != null && mWebSocketConnection.Connected;
+		public bool UdpClientConnected => mKcpConnection != null && mKcpConnection.Connected;
 
 		public string ConnectionId { get; private set; }
-		public bool BadConnection { get; private set; } = false;
-		
+
+		public event Action UdpConnectionFailed;
+
 		private Stopwatch mConnectionStopwatch;
 		
 		private Stopwatch mServerReactionStopwatch;
 		public TimeSpan CurrentRequestElapsed { get { return mServerReactionStopwatch?.Elapsed ?? new TimeSpan(0); } }
 		public TimeSpan ServerReaction { get; private set; }
-		
-		private ArrayPool<byte> mBytesPool;
+		public double UdpConnectionTime { get; private set; }
+		public double UdpDnsResolveTime => mKcpConnection?.UdpDnsResolveTime ?? 0;
+		public double UdpSocketConnectTime => mKcpConnection?.UdpSocketConnectTime ?? 0;
+		public double UdpSendHandshakeTime => mKcpConnection?.UdpSendHandshakeTime ?? 0;
+
 		private SnipeMessageCompressor mMessageCompressor;
 
 		private int mRequestId = 0;
@@ -43,8 +54,6 @@ namespace MiniIT.Snipe
 		
 		public void Connect(bool udp = true)
 		{
-			if (mBytesPool == null)
-				mBytesPool = ArrayPool<byte>.Shared;
 			if (mMessageCompressor == null)
 				mMessageCompressor = new SnipeMessageCompressor();
 			
@@ -57,12 +66,68 @@ namespace MiniIT.Snipe
 				ConnectWebSocket();
 			}
 		}
-		
-		
+
+		private void ConnectUdpClient()
+		{
+			if (mKcpConnection != null && mKcpConnection.Started)  // already connected or trying to connect
+				return;
+
+			if (mKcpConnection == null)
+			{
+				mKcpConnection = new KcpConnection();
+				mKcpConnection.ConnectionOpenedHandler = () =>
+				{
+					mUdpConnectionEstablished = true;
+					UdpConnectionTime = mConnectionStopwatch.Elapsed.TotalMilliseconds;
+					OnConnected();
+				};
+				mKcpConnection.ConnectionClosedHandler = () =>
+				{
+					if (mUdpConnectionEstablished)
+					{
+						Disconnect(true);
+					}
+					else // not connected yet, try websocket
+					{
+						ConnectWebSocket();
+					}
+				};
+				mKcpConnection.MessageReceivedHandler = ProcessMessage;
+			}
+
+			mConnectionStopwatch = Stopwatch.StartNew();
+
+			mUdpConnectionEstablished = false;
+			mKcpConnection.Connect();
+		}
+
+		private void ConnectWebSocket()
+		{
+			if (mWebSocketConnection != null && mWebSocketConnection.Started)  // already connected or trying to connect
+				return;
+
+			Disconnect(false); // clean up
+
+			if (mWebSocketConnection == null)
+			{
+				mWebSocketConnection = new WebSocketConnection();
+				mWebSocketConnection.ConnectionOpenedHandler = OnConnected;
+				mWebSocketConnection.ConnectionClosedHandler = () => Disconnect(true);
+				mWebSocketConnection.MessageReceivedHandler = ProcessMessage;
+			}
+
+			mConnectionStopwatch = Stopwatch.StartNew();
+
+			mWebSocketConnection.Connect();
+		}
+
 		private void OnConnected()
 		{
-			mConnected = true;
-			
+			//mConnected = true;
+
+			mConnectionStopwatch?.Stop();
+			Analytics.ConnectionEstablishmentTime = mConnectionStopwatch?.ElapsedMilliseconds ?? 0;
+
 			try
 			{
 				ConnectionOpened?.Invoke();
@@ -94,35 +159,26 @@ namespace MiniIT.Snipe
 
 		private void Disconnect(bool raise_event)
 		{
-			mConnected = false;
+			//mConnected = false;
 			mLoggedIn = false;
 			ConnectionId = "";
 			
 			mConnectionStopwatch?.Stop();
 			Analytics.PingTime = 0;
 			
-			StopSendTask();
-			StopHeartbeat();
-			StopCheckConnection();
+			//StopSendTask();
+			//StopHeartbeat();
+			//StopCheckConnection();
 			
 			StopResponseMonitoring();
-			
-			StopUdpNetworkLoop();
-			
-			if (mUdpClient != null)
-			{
-				mUdpClient.Disconnect();
-				mUdpClient = null;
-			}
+
+			mKcpConnection?.Disconnect();
 			mUdpConnectionEstablished = false;
 
-			if (mWebSocket != null)
+			if (mWebSocketConnection != null)
 			{
-				mWebSocket.OnConnectionOpened -= OnWebSocketConnected;
-				mWebSocket.OnConnectionClosed -= OnWebSocketClosed;
-				mWebSocket.ProcessMessage -= ProcessMessage;
-				mWebSocket.Disconnect();
-				mWebSocket = null;
+				mWebSocketConnection.Disconnect();
+				mWebSocketConnection = null;
 			}
 
 			if (raise_event)
@@ -149,17 +205,11 @@ namespace MiniIT.Snipe
 			
 			if (UdpClientConnected)
 			{
-				Task.Run(() =>
-				{
-					lock(mSendLock)
-					{
-						DoSendRequestUdpClient(message);
-					}
-				});
+				mKcpConnection.SendMessage(message);
 			}
 			else if (WebSocketConnected)
 			{
-				EnqueueMessageToSendWebSocket(message);
+				mWebSocketConnection.SendMessage(message);
 			}
 			
 			AddResponseMonitoringItem(mRequestId, message.SafeGetString("t"));
@@ -182,32 +232,32 @@ namespace MiniIT.Snipe
 			return SendRequest(message);
 		}
 		
-		private void DoSendRequest(SnipeObject message)
-		{
-			if (!Connected || message == null)
-				return;
+		//private void DoSendRequest(SnipeObject message)
+		//{
+		//	if (!Connected || message == null)
+		//		return;
 			
-			if (UdpClientConnected)
-			{
-				Task.Run(() =>
-				{
-					lock(mSendLock)
-					{
-						DoSendRequestUdpClient(message);
-					}
-				});
-			}
-			else if (WebSocketConnected)
-			{
-				Task.Run(() =>
-				{
-					lock(mSendLock)
-					{
-						DoSendRequestWebSocket(message);
-					}
-				});
-			}
-		}
+		//	if (UdpClientConnected)
+		//	{
+		//		Task.Run(() =>
+		//		{
+		//			lock(mSendLock)
+		//			{
+		//				DoSendRequestUdpClient(message);
+		//			}
+		//		});
+		//	}
+		//	else if (WebSocketConnected)
+		//	{
+		//		Task.Run(() =>
+		//		{
+		//			lock(mSendLock)
+		//			{
+		//				DoSendRequestWebSocket(message);
+		//			}
+		//		});
+		//	}
+		//}
 		
 		protected void ProcessMessage(byte[] raw_data_buffer)
 		{
@@ -233,7 +283,7 @@ namespace MiniIT.Snipe
 				ServerReaction = mServerReactionStopwatch.Elapsed;
 			}
 			
-			StopCheckConnection();
+			//StopCheckConnection();
 		}
 		
 		private void ProcessMessage(SnipeObject message)
@@ -260,6 +310,8 @@ namespace MiniIT.Snipe
 							
 						mLoggedIn = true;
 
+						mWebSocketConnection?.SetLoggedIn(true);
+
 						if (response_data != null)
 						{
 							this.ConnectionId = response_data.SafeGetString("connectionID");
@@ -277,11 +329,6 @@ namespace MiniIT.Snipe
 						{
 							DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginSucceeded invokation error: {e}");
 							Analytics.TrackError("LoginSucceeded invokation error", e);
-						}
-
-						if (mHeartbeatEnabled)
-						{
-							StartHeartbeat();
 						}
 					}
 					else
@@ -317,30 +364,25 @@ namespace MiniIT.Snipe
 			{
 				DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - no MessageReceived listeners");
 			}
-
-			if (mHeartbeatEnabled)
-			{
-				ResetHeartbeatTimer();
-			}
 		}
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private bool TryReturnMessageBuffer(byte[] buffer)
-		{
-			// if buffer.Length > mBytesPool's max bucket size (1024*1024 = 1048576)
-			// then the buffer can not be returned to the pool. It will be dropped.
-			// And ArgumentException will be thown.
-			try
-			{
-				mBytesPool.Return(buffer);
-			}
-			catch (ArgumentException)
-			{
-				// ignore
-				return false;
-			}
+		//[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		//private bool TryReturnMessageBuffer(byte[] buffer)
+		//{
+		//	// if buffer.Length > mBytesPool's max bucket size (1024*1024 = 1048576)
+		//	// then the buffer can not be returned to the pool. It will be dropped.
+		//	// And ArgumentException will be thown.
+		//	try
+		//	{
+		//		mBytesPool.Return(buffer);
+		//	}
+		//	catch (ArgumentException)
+		//	{
+		//		// ignore
+		//		return false;
+		//	}
 
-			return true;
-		}
+		//	return true;
+		//}
 	}
 }

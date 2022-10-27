@@ -7,10 +7,12 @@ using System.Runtime.CompilerServices;
 using MiniIT.MessagePack;
 
 using kcp2k;
+using System.Buffers;
+using System.Net.Sockets;
 
 namespace MiniIT.Snipe
 {
-	public partial class SnipeClient
+	public class KcpConnection : SnipeConnection
 	{
 		private const byte OPCODE_AUTHENTICATION_REQUEST = 1;
 		// private const byte OPCODE_AUTHENTICATION_RESPONSE = 2;
@@ -20,21 +22,20 @@ namespace MiniIT.Snipe
 		private const byte OPCODE_SNIPE_REQUEST_COMPRESSED = 6;
 		private const byte OPCODE_SNIPE_RESPONSE_COMPRESSED = 7;
 
-		public event Action UdpConnectionFailed;
-		
 		private KcpClient mUdpClient;
-		private bool mUdpConnectionEstablished;
 		
 		private Dictionary<string, int> mSendMessageBufferSizes = new Dictionary<string, int>();
+
+		public bool Started => mUdpClient != null;
+		public bool Connected => mUdpClient != null && mUdpClient.connected;
 		
-		public bool UdpClientConnected => mUdpClient != null && mUdpClient.connected;
-		
-		public double UdpConnectionTime { get; private set; }
 		public double UdpDnsResolveTime { get; private set; }
 		public double UdpSocketConnectTime { get; private set; }
 		public double UdpSendHandshakeTime { get; private set; }
-		
-		private async void ConnectUdpClient()
+
+		private readonly object mSendLock = new object();
+
+		public async void Connect()
 		{	
 			if (mUdpClient != null) // already connected or trying to connect
 				return;
@@ -43,15 +44,11 @@ namespace MiniIT.Snipe
 			kcp2k.Log.Warning = DebugLogger.LogWarning;
 			kcp2k.Log.Error = DebugLogger.LogError;
 			
-			mUdpConnectionEstablished = false;
-			
 			mUdpClient = new KcpClient(
-				OnUdpClientConnected,
-				OnUdpClientDataReceived,
-				OnUdpClientDisconnected);
+				OnClientConnected,
+				OnClientDataReceived,
+				OnClientDisconnected);
 				
-			mConnectionStopwatch = Stopwatch.StartNew();
-			
 			await Task.Run(() =>
 				mUdpClient.Connect(
 					SnipeConfig.ServerUdpAddress,
@@ -66,52 +63,50 @@ namespace MiniIT.Snipe
 					Kcp.DEADLINK * 2) // KCP will try to retransmit lost messages up to MaxRetransmit (aka dead_link) before disconnecting. default prematurely disconnects a lot of people (#3022). use 2x
 			);
 			
-			StartUdpNetworkLoop();
-		}
-		
-		private void OnUdpClientConnected() 
-		{
-			if (mConnectionStopwatch != null)
-			{
-				mConnectionStopwatch.Stop();
-				UdpConnectionTime = mConnectionStopwatch.Elapsed.TotalMilliseconds;
-				mConnectionStopwatch = null;
-			}
-			
-			RefreshConnectionStats();
-			
-			mUdpConnectionEstablished = true;
-			
-			DebugLogger.Log("[SnipeClient] OnUdpClientConnected");
-			
-			OnConnected();
+			StartNetworkLoop();
 		}
 
-		private void OnUdpClientDisconnected()
+		public void Disconnect()
+		{
+			if (mUdpClient != null)
+			{
+				mUdpClient.Disconnect();
+				mUdpClient = null;
+			}
+		}
+
+		public void SendMessage(SnipeObject message)
+		{
+			Task.Run(() =>
+			{
+				lock (mSendLock)
+				{
+					DoSendRequest(message);
+				}
+			});
+		}
+
+
+		private void OnClientConnected() 
+		{
+			RefreshConnectionStats();
+			
+			DebugLogger.Log("[SnipeClient] OnUdpClientConnected");
+
+			ConnectionOpenedHandler?.Invoke();
+		}
+
+		private void OnClientDisconnected()
 		{
 			DebugLogger.Log("[SnipeClient] OnUdpClientDisconnected");
 			
-			if (mConnectionStopwatch != null)
-			{
-				mConnectionStopwatch.Stop();
-				mConnectionStopwatch = null;
-			}
-			
 			RefreshConnectionStats();
-			
-			UdpConnectionFailed?.Invoke();
-			
-			if (mUdpConnectionEstablished)
-			{
-				Disconnect(true);
-			}
-			else // not connected yet, try websocket
-			{
-				ConnectWebSocket();
-			}
+
+			mUdpClient = null;
+			ConnectionClosedHandler?.Invoke();
 		}
 		
-		// private void OnUdpClientError(Exception err)
+		// private void OnClientError(Exception err)
 		// {
 			// DebugLogger.Log($"[SnipeClient] OnUdpClientError: {err.Message}");
 		// }
@@ -123,7 +118,7 @@ namespace MiniIT.Snipe
 			UdpSendHandshakeTime = mUdpClient?.connection?.SendHandshakeTime ?? 0;
 		}
 		
-		private void OnUdpClientDataReceived(ArraySegment<byte> buffer, KcpChannel channel)
+		private void OnClientDataReceived(ArraySegment<byte> buffer, KcpChannel channel)
 		{
 			DebugLogger.Log($"[SnipeClient] OnUdpClientDataReceived");
 			
@@ -148,7 +143,8 @@ namespace MiniIT.Snipe
 			else if (opcode == OPCODE_SNIPE_RESPONSE)
 			{
 				int len = BitConverter.ToInt32(buffer_array, buffer.Offset + 1);
-				ProcessMessage(new ArraySegment<byte>(buffer_array, buffer.Offset + 5, len));
+				var message = MessagePackDeserializer.Parse(new ArraySegment<byte>(buffer_array, buffer.Offset + 5, len)) as SnipeObject;
+				MessageReceivedHandler?.Invoke(message);
 			}
 			else if (opcode == OPCODE_SNIPE_RESPONSE_COMPRESSED)
 			{
@@ -157,7 +153,8 @@ namespace MiniIT.Snipe
 				var compressed_data = new ArraySegment<byte>(buffer_array, buffer.Offset + 5, len);
 				var decompressed_data = mMessageCompressor.Decompress(compressed_data);
 
-				ProcessMessage(decompressed_data);
+				var message = MessagePackDeserializer.Parse(decompressed_data) as SnipeObject;
+				MessageReceivedHandler?.Invoke(message);
 			}
 		}
 		
@@ -173,17 +170,11 @@ namespace MiniIT.Snipe
 			// mBytesPool.Return(data);
 		// }
 		
-		private void DoSendRequestUdpClient(SnipeObject message)
+		private void DoSendRequest(SnipeObject message)
 		{
 			string message_type = message.SafeGetString("t");
 			
-			int buffer_size;
-			if (!mSendMessageBufferSizes.TryGetValue(message_type, out buffer_size))
-			{
-				buffer_size = 1024;
-			}
-			
-			byte[] buffer = mBytesPool.Rent(buffer_size);
+			byte[] buffer = mMessageBufferProvider.GetBuffer(message_type);
 
 			// offset = opcode (1 byte) + length (4 bytes) = 5
 			ArraySegment<byte> msg_data = MessagePackSerializerNonAlloc.Serialize(ref buffer, 5, message);
@@ -196,12 +187,9 @@ namespace MiniIT.Snipe
 				ArraySegment<byte> msg_content = new ArraySegment<byte>(buffer, 5, msg_data.Count - 5);
 				ArraySegment<byte> compressed = mMessageCompressor.Compress(msg_content);
 
-				if (TryReturnMessageBuffer(buffer) && buffer.Length > buffer_size)
-				{
-					mSendMessageBufferSizes[message_type] = buffer.Length;
-				}
+				mMessageBufferProvider.ReturnBuffer(message_type, buffer);
 
-				buffer = mBytesPool.Rent(compressed.Count + 5);
+				buffer = ArrayPool<byte>.Shared.Rent(compressed.Count + 5);
 				buffer[0] = OPCODE_SNIPE_REQUEST_COMPRESSED;
 				WriteInt(buffer, 1, compressed.Count + 4); // msg_data = opcode + length (4 bytes) + msg
 				Array.ConstrainedCopy(compressed.Array, compressed.Offset, buffer, 5, compressed.Count);
@@ -211,7 +199,7 @@ namespace MiniIT.Snipe
 				DebugLogger.Log("Compressed:   " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
 
 				mUdpClient.Send(msg_data, KcpChannel.Reliable);
-				TryReturnMessageBuffer(buffer);
+				ArrayPool<byte>.Shared.Return(buffer);
 			}
 			else // compression not needed
 			{
@@ -220,10 +208,7 @@ namespace MiniIT.Snipe
 
 				mUdpClient.Send(msg_data, KcpChannel.Reliable);
 
-				if (TryReturnMessageBuffer(buffer) && buffer.Length > buffer_size)
-				{
-					mSendMessageBufferSizes[message_type] = buffer.Length;
-				}
+				mMessageBufferProvider.ReturnBuffer(message_type, buffer);
 			}
 			
 
@@ -283,33 +268,33 @@ namespace MiniIT.Snipe
 			data[position + 3] = (byte) (value >> 0x18);
         }
 		
-		private CancellationTokenSource mUdpNetworkLoopCancellation;
+		private CancellationTokenSource mNetworkLoopCancellation;
 
-		private void StartUdpNetworkLoop()
+		private void StartNetworkLoop()
 		{
-			DebugLogger.Log("[SnipeClient] StartUdpNetworkLoop");
+			DebugLogger.Log("[SnipeClient] StartNetworkLoop");
 			
-			mUdpNetworkLoopCancellation?.Cancel();
+			mNetworkLoopCancellation?.Cancel();
 
-			mUdpNetworkLoopCancellation = new CancellationTokenSource();
-			Task.Run(() => UdpNetworkLoop(mUdpNetworkLoopCancellation.Token));
-			Task.Run(() => UdpConnectionTimeout(mUdpNetworkLoopCancellation.Token));
+			mNetworkLoopCancellation = new CancellationTokenSource();
+			Task.Run(() => NetworkLoop(mNetworkLoopCancellation.Token));
+			Task.Run(() => UdpConnectionTimeout(mNetworkLoopCancellation.Token));
 		}
 
-		private void StopUdpNetworkLoop()
+		public void StopNetworkLoop()
 		{
-			DebugLogger.Log("[SnipeClient] StopUdpNetworkLoop");
+			DebugLogger.Log("[SnipeClient] StopNetworkLoop");
 			
-			if (mUdpNetworkLoopCancellation != null)
+			if (mNetworkLoopCancellation != null)
 			{
-				mUdpNetworkLoopCancellation.Cancel();
-				mUdpNetworkLoopCancellation = null;
+				mNetworkLoopCancellation.Cancel();
+				mNetworkLoopCancellation = null;
 			}
 		}
 
-		private async void UdpNetworkLoop(CancellationToken cancellation)
+		private async void NetworkLoop(CancellationToken cancellation)
 		{
-			DebugLogger.Log("[SnipeClient] UdpNetworkLoop - start");
+			DebugLogger.Log("[SnipeClient] NetworkLoop - start");
 			
 			while (cancellation != null && !cancellation.IsCancellationRequested)
 			{
@@ -321,9 +306,9 @@ namespace MiniIT.Snipe
 				}
 				catch (Exception e)
 				{
-					DebugLogger.Log($"[SnipeClient] UdpNetworkLoop - Exception: {e}");
-					Analytics.TrackError("UdpNetworkLoop error", e);
-					OnUdpClientDisconnected();
+					DebugLogger.Log($"[SnipeClient] NetworkLoop - Exception: {e}");
+					Analytics.TrackError("NetworkLoop error", e);
+					OnClientDisconnected();
 					return;
 				}
 				
@@ -338,7 +323,7 @@ namespace MiniIT.Snipe
 				}
 			}
 			
-			DebugLogger.Log("[SnipeClient] UdpNetworkLoop - finish");
+			DebugLogger.Log("[SnipeClient] NetworkLoop - finish");
 		}
 		
 		private async void UdpConnectionTimeout(CancellationToken cancellation)
@@ -358,10 +343,10 @@ namespace MiniIT.Snipe
 			if (cancellation == null || cancellation.IsCancellationRequested)
 				return;
 			
-			if (!UdpClientConnected)
+			if (!Connected)
 			{
 				DebugLogger.Log("[SnipeClient] UdpConnectionTimeout - Calling Disconnect");
-				OnUdpClientDisconnected();
+				OnClientDisconnected();
 			}
 			
 			DebugLogger.Log("[SnipeClient] UdpConnectionTimeout - finish");
