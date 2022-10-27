@@ -160,16 +160,6 @@ namespace MiniIT.Snipe
 				mMessageBufferProvider.ReturnBuffer(message_type, buffer);
 			}
 			
-			//if (mServerReactionStopwatch != null)
-			//{
-			//	mServerReactionStopwatch.Reset();
-			//	mServerReactionStopwatch.Start();
-			//}
-			//else
-			//{
-			//	mServerReactionStopwatch = Stopwatch.StartNew();
-			//}
-
 			if (mSendMessages != null && mSendMessages.IsEmpty && !message.SafeGetString("t").StartsWith("payment/"))
 			{
 				StartCheckConnection();

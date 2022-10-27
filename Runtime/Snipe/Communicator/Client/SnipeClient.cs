@@ -209,7 +209,17 @@ namespace MiniIT.Snipe
 			{
 				mWebSocketConnection.SendMessage(message);
 			}
-			
+
+			if (mServerReactionStopwatch != null)
+			{
+				mServerReactionStopwatch.Reset();
+				mServerReactionStopwatch.Start();
+			}
+			else
+			{
+				mServerReactionStopwatch = Stopwatch.StartNew();
+			}
+
 			AddResponseMonitoringItem(mRequestId, message.SafeGetString("t"));
 			
 			return mRequestId;
@@ -229,60 +239,6 @@ namespace MiniIT.Snipe
 			
 			return SendRequest(message);
 		}
-		
-		//private void DoSendRequest(SnipeObject message)
-		//{
-		//	if (!Connected || message == null)
-		//		return;
-			
-		//	if (UdpClientConnected)
-		//	{
-		//		Task.Run(() =>
-		//		{
-		//			lock(mSendLock)
-		//			{
-		//				DoSendRequestUdpClient(message);
-		//			}
-		//		});
-		//	}
-		//	else if (WebSocketConnected)
-		//	{
-		//		Task.Run(() =>
-		//		{
-		//			lock(mSendLock)
-		//			{
-		//				DoSendRequestWebSocket(message);
-		//			}
-		//		});
-		//	}
-		//}
-		
-		//protected void ProcessMessage(byte[] raw_data_buffer)
-		//{
-		//	PreProcessMessage();
-			
-		//	var message = MessagePackDeserializer.Parse(raw_data_buffer) as SnipeObject;
-		//	ProcessMessage(message);
-		//}
-		
-		//protected void ProcessMessage(ArraySegment<byte> raw_data_buffer)
-		//{
-		//	PreProcessMessage();
-			
-		//	var message = MessagePackDeserializer.Parse(raw_data_buffer) as SnipeObject;
-		//	ProcessMessage(message);
-		//}
-		
-		//private void PreProcessMessage()
-		//{
-		//	if (mServerReactionStopwatch != null)
-		//	{
-		//		mServerReactionStopwatch.Stop();
-		//		ServerReaction = mServerReactionStopwatch.Elapsed;
-		//	}
-			
-		//	//StopCheckConnection();
-		//}
 		
 		private void ProcessMessage(SnipeObject message)
 		{
