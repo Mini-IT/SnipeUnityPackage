@@ -32,7 +32,7 @@ namespace MiniIT.Snipe
 
 		private readonly object mSendLock = new object();
 
-		public async void Connect()
+		public void Connect()
 		{	
 			if (mUdpClient != null) // already connected or trying to connect
 				return;
@@ -45,20 +45,18 @@ namespace MiniIT.Snipe
 				OnClientConnected,
 				OnClientDataReceived,
 				OnClientDisconnected);
-				
-			await Task.Run(() =>
-				mUdpClient.Connect(
-					SnipeConfig.ServerUdpAddress,
-					SnipeConfig.ServerUdpPort,
-					true,  // NoDelay is recommended to reduce latency
-					10,    // KCP internal update interval. 100ms is KCP default, but a lower interval is recommended to minimize latency and to scale to more networked entities
-					2,     // KCP fastresend parameter. Faster resend for the cost of higher bandwidth. 0 in normal mode, 2 in turbo mode
-					false, // KCP congestion window. Enabled in normal mode, disabled in turbo mode. Disable this for high scale games if connections get choked regularly
-					4096,  // SendWindowSize    - KCP window size can be modified to support higher loads
-					4096,  // ReceiveWindowSize - KCP window size can be modified to support higher loads. This also increases max message size
-					3000,  // KCP timeout in milliseconds. Note that KCP sends a ping automatically
-					Kcp.DEADLINK * 2) // KCP will try to retransmit lost messages up to MaxRetransmit (aka dead_link) before disconnecting. default prematurely disconnects a lot of people (#3022). use 2x
-			);
+
+			mUdpClient.Connect(
+				SnipeConfig.ServerUdpAddress,
+				SnipeConfig.ServerUdpPort,
+				true,  // NoDelay is recommended to reduce latency
+				10,    // KCP internal update interval. 100ms is KCP default, but a lower interval is recommended to minimize latency and to scale to more networked entities
+				2,     // KCP fastresend parameter. Faster resend for the cost of higher bandwidth. 0 in normal mode, 2 in turbo mode
+				false, // KCP congestion window. Enabled in normal mode, disabled in turbo mode. Disable this for high scale games if connections get choked regularly
+				4096,  // SendWindowSize    - KCP window size can be modified to support higher loads
+				4096,  // ReceiveWindowSize - KCP window size can be modified to support higher loads. This also increases max message size
+				3000,  // KCP timeout in milliseconds. Note that KCP sends a ping automatically
+				Kcp.DEADLINK * 2); // KCP will try to retransmit lost messages up to MaxRetransmit (aka dead_link) before disconnecting. default prematurely disconnects a lot of people (#3022). use 2x
 			
 			StartNetworkLoop();
 		}

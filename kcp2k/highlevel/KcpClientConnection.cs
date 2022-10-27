@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using System;
 using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace kcp2k
 {
@@ -68,7 +69,7 @@ namespace kcp2k
             //socket.ReceiveFrom(buffer, ref remoteEndPoint);
             socket.Receive(buffer);
 
-        public void Connect(string host, ushort port, bool noDelay, uint interval = Kcp.INTERVAL, int fastResend = 0, bool congestionWindow = true, uint sendWindowSize = Kcp.WND_SND, uint receiveWindowSize = Kcp.WND_RCV, int timeout = DEFAULT_TIMEOUT, uint maxRetransmits = Kcp.DEADLINK)
+        public async void Connect(string host, ushort port, bool noDelay, uint interval = Kcp.INTERVAL, int fastResend = 0, bool congestionWindow = true, uint sendWindowSize = Kcp.WND_SND, uint receiveWindowSize = Kcp.WND_RCV, int timeout = DEFAULT_TIMEOUT, uint maxRetransmits = Kcp.DEADLINK)
         {
             Log.Info($"KcpClient: connect to {host}:{port}");
 
@@ -80,7 +81,9 @@ namespace kcp2k
                 DnsResolveTime = stopwatch.Elapsed.TotalMilliseconds;
                 
                 stopwatch.Restart();
-                ConnectSocket(addresses, port);
+
+                await Task.Run(() => ConnectSocket(addresses, port));
+                
                 stopwatch.Stop();
                 SocketConnectTime = stopwatch.Elapsed.TotalMilliseconds;
                 
