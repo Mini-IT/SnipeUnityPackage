@@ -83,6 +83,8 @@ namespace MiniIT.Snipe
 				};
 				mKcpConnection.ConnectionClosedHandler = () =>
 				{
+					UdpConnectionFailed?.Invoke();
+
 					if (mUdpConnectionEstablished)
 					{
 						Disconnect(true);
@@ -165,10 +167,6 @@ namespace MiniIT.Snipe
 			
 			mConnectionStopwatch?.Stop();
 			Analytics.PingTime = 0;
-			
-			//StopSendTask();
-			//StopHeartbeat();
-			//StopCheckConnection();
 			
 			StopResponseMonitoring();
 
@@ -259,37 +257,43 @@ namespace MiniIT.Snipe
 		//	}
 		//}
 		
-		protected void ProcessMessage(byte[] raw_data_buffer)
-		{
-			PreProcessMessage();
+		//protected void ProcessMessage(byte[] raw_data_buffer)
+		//{
+		//	PreProcessMessage();
 			
-			var message = MessagePackDeserializer.Parse(raw_data_buffer) as SnipeObject;
-			ProcessMessage(message);
-		}
+		//	var message = MessagePackDeserializer.Parse(raw_data_buffer) as SnipeObject;
+		//	ProcessMessage(message);
+		//}
 		
-		protected void ProcessMessage(ArraySegment<byte> raw_data_buffer)
-		{
-			PreProcessMessage();
+		//protected void ProcessMessage(ArraySegment<byte> raw_data_buffer)
+		//{
+		//	PreProcessMessage();
 			
-			var message = MessagePackDeserializer.Parse(raw_data_buffer) as SnipeObject;
-			ProcessMessage(message);
-		}
+		//	var message = MessagePackDeserializer.Parse(raw_data_buffer) as SnipeObject;
+		//	ProcessMessage(message);
+		//}
 		
-		private void PreProcessMessage()
-		{
-			if (mServerReactionStopwatch != null)
-			{
-				mServerReactionStopwatch.Stop();
-				ServerReaction = mServerReactionStopwatch.Elapsed;
-			}
+		//private void PreProcessMessage()
+		//{
+		//	if (mServerReactionStopwatch != null)
+		//	{
+		//		mServerReactionStopwatch.Stop();
+		//		ServerReaction = mServerReactionStopwatch.Elapsed;
+		//	}
 			
-			//StopCheckConnection();
-		}
+		//	//StopCheckConnection();
+		//}
 		
 		private void ProcessMessage(SnipeObject message)
 		{
 			if (message == null)
 				return;
+
+			if (mServerReactionStopwatch != null)
+			{
+				mServerReactionStopwatch.Stop();
+				ServerReaction = mServerReactionStopwatch.Elapsed;
+			}
 
 			string message_type = message.SafeGetString("t");
 			string error_code =  message.SafeGetString("errorCode");
@@ -365,24 +369,5 @@ namespace MiniIT.Snipe
 				DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - no MessageReceived listeners");
 			}
 		}
-
-		//[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		//private bool TryReturnMessageBuffer(byte[] buffer)
-		//{
-		//	// if buffer.Length > mBytesPool's max bucket size (1024*1024 = 1048576)
-		//	// then the buffer can not be returned to the pool. It will be dropped.
-		//	// And ArgumentException will be thown.
-		//	try
-		//	{
-		//		mBytesPool.Return(buffer);
-		//	}
-		//	catch (ArgumentException)
-		//	{
-		//		// ignore
-		//		return false;
-		//	}
-
-		//	return true;
-		//}
 	}
 }

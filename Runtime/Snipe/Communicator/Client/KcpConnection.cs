@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
@@ -8,7 +7,6 @@ using MiniIT.MessagePack;
 
 using kcp2k;
 using System.Buffers;
-using System.Net.Sockets;
 
 namespace MiniIT.Snipe
 {

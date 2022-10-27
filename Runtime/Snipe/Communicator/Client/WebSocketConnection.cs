@@ -4,10 +4,6 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Collections.Concurrent;
 using MiniIT.MessagePack;
-using System.Net.Sockets;
-using UnityEditor.MemoryProfiler;
-using System.Buffers;
-using System.Collections.Generic;
 
 namespace MiniIT.Snipe
 {
