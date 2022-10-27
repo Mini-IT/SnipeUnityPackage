@@ -33,14 +33,12 @@ namespace MiniIT.Snipe
 		private Stopwatch mPingStopwatch;
 		
 		private WebSocketWrapper mWebSocket = null;
-		private object mWebSocketLock = new object();
+		private readonly object mWebSocketLock = new object();
 		
 		public bool Started => mWebSocket != null;
 		public bool Connected => mWebSocket != null && mWebSocket.Connected;
 		
 		private ConcurrentQueue<SnipeObject> mSendMessages;
-
-		private readonly object mSendLock = new object();
 
 		protected bool mConnected;
 		protected bool mLoggedIn;
@@ -121,30 +119,16 @@ namespace MiniIT.Snipe
 			mSendMessages.Enqueue(message);
 		}
 
-		private void DoSendRequest(SnipeObject message)
-		{
-			if (!Connected || message == null)
-				return;
-
-			Task.Run(() =>
-			{
-				lock (mSendLock)
-				{
-					DoSendRequestWebSocket(message);
-				}
-			});
-		}
-
-		private void DoSendRequestWebSocket(SnipeObject message)
+		private async void DoSendRequest(SnipeObject message)
 		{
 			string message_type = message.SafeGetString("t");
-			
-			lock (mWebSocketLock)
-			{
-				byte[] buffer = mMessageBufferProvider.GetBuffer(message_type);
-				var msg_data = MessagePackSerializerNonAlloc.Serialize(ref buffer, message);
 
-				if (SnipeConfig.CompressionEnabled && msg_data.Count >= SnipeConfig.MinMessageSizeToCompress) // compression needed
+			byte[] buffer = mMessageBufferProvider.GetBuffer(message_type);
+			var msg_data = await Task.Run(() => MessagePackSerializerNonAlloc.Serialize(ref buffer, message));
+
+			if (SnipeConfig.CompressionEnabled && msg_data.Count >= SnipeConfig.MinMessageSizeToCompress) // compression needed
+			{
+				await Task.Run(() =>
 				{
 					DebugLogger.Log("[SnipeClient] compress message");
 					DebugLogger.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
@@ -159,15 +143,21 @@ namespace MiniIT.Snipe
 					buffer[0] = 0xAA;
 					buffer[1] = 0xBB;
 					Array.ConstrainedCopy(compressed.Array, compressed.Offset, buffer, 2, compressed.Count);
+				});
 
+				lock (mWebSocketLock)
+				{
 					mWebSocket.SendRequest(buffer);
 				}
-				else // compression not needed
+			}
+			else // compression not needed
+			{
+				lock (mWebSocketLock)
 				{
 					mWebSocket.SendRequest(msg_data);
-
-					mMessageBufferProvider.ReturnBuffer(message_type, buffer);
 				}
+
+				mMessageBufferProvider.ReturnBuffer(message_type, buffer);
 			}
 			
 			//if (mServerReactionStopwatch != null)
@@ -193,19 +183,29 @@ namespace MiniIT.Snipe
 
 			StopCheckConnection();
 
+			ProcessMessage(raw_data);
+		}
+
+		private async void ProcessMessage(byte[] raw_data)
+		{
 			DebugLogger.Log("ProcessWebSocketMessage:   " + BitConverter.ToString(raw_data, 0, raw_data.Length));
 
 			SnipeObject message;
 
 			if (raw_data[0] == 0xAA && raw_data[1] == 0xBB) // compressed message
 			{
-				var decompressed = mMessageCompressor.Decompress(new ArraySegment<byte>(raw_data, 2, raw_data.Length - 2));
-
-				message = MessagePackDeserializer.Parse(decompressed) as SnipeObject;
+				message = await Task.Run(() =>
+				{
+					var decompressed = mMessageCompressor.Decompress(new ArraySegment<byte>(raw_data, 2, raw_data.Length - 2));
+					return MessagePackDeserializer.Parse(decompressed) as SnipeObject;
+				});
 			}
 			else // uncompressed
 			{
-				message = MessagePackDeserializer.Parse(raw_data) as SnipeObject;
+				message = await Task.Run(() =>
+				{
+					return MessagePackDeserializer.Parse(raw_data) as SnipeObject;
+				});
 			}
 
 			MessageReceivedHandler?.Invoke(message);
@@ -269,7 +269,7 @@ namespace MiniIT.Snipe
 		{
 			while (cancellation?.IsCancellationRequested != true && Connected)
 			{
-				if (mSendMessages != null && !mSendMessages.IsEmpty && mSendMessages.TryDequeue(out var message))
+				if (mSendMessages != null && !mSendMessages.IsEmpty && mSendMessages.TryDequeue(out var message) && message != null)
 				{
 					DoSendRequest(message);
 				}
