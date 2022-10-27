@@ -54,7 +54,7 @@ namespace MiniIT.Snipe
 			mWebSocket.OnConnectionClosed += OnWebSocketClosed;
 			mWebSocket.ProcessMessage += ProcessWebSocketMessage;
 			
-			Task.Run(() => mWebSocket.Connect(url));
+			mWebSocket.Connect(url);
 		}
 
 		public void Disconnect()
