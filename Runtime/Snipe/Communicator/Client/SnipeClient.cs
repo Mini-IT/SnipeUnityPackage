@@ -44,7 +44,7 @@ namespace MiniIT.Snipe
 		public void Connect(bool udp = true)
 		{
 			if (mBytesPool == null)
-				mBytesPool = ArrayPool<byte>.Create();
+				mBytesPool = ArrayPool<byte>.Shared;
 			if (mMessageCompressor == null)
 				mMessageCompressor = new SnipeMessageCompressor();
 			
@@ -209,7 +209,7 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		protected async void ProcessMessage(byte[] raw_data_buffer)
+		protected void ProcessMessage(byte[] raw_data_buffer)
 		{
 			PreProcessMessage();
 			
@@ -217,7 +217,7 @@ namespace MiniIT.Snipe
 			ProcessMessage(message);
 		}
 		
-		protected async void ProcessMessage(ArraySegment<byte> raw_data_buffer)
+		protected void ProcessMessage(ArraySegment<byte> raw_data_buffer)
 		{
 			PreProcessMessage();
 			
