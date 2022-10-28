@@ -9,7 +9,7 @@ using System.Buffers;
 
 namespace MiniIT.Snipe
 {
-	public class KcpConnection : SnipeConnection
+	public class KcpTransport : Transport
 	{
 		internal const byte OPCODE_AUTHENTICATION_REQUEST = 1;
 		// internal const byte OPCODE_AUTHENTICATION_RESPONSE = 2;

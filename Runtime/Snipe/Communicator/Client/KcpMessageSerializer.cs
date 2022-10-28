@@ -44,7 +44,7 @@ namespace MiniIT.Snipe
 					mMessageType = null; // for correct disposing
 
 					mBuffer = mMessageBufferProvider.GetBuffer(compressed.Count + 5);
-					mBuffer[0] = KcpConnection.OPCODE_SNIPE_REQUEST_COMPRESSED;
+					mBuffer[0] = KcpTransport.OPCODE_SNIPE_REQUEST_COMPRESSED;
 					WriteInt(mBuffer, 1, compressed.Count + 4); // msg_data = opcode + length (4 bytes) + msg
 					Array.ConstrainedCopy(compressed.Array, compressed.Offset, mBuffer, 5, compressed.Count);
 
@@ -55,7 +55,7 @@ namespace MiniIT.Snipe
 			}
 			else // compression not needed
 			{
-				mBuffer[0] = KcpConnection.OPCODE_SNIPE_REQUEST;
+				mBuffer[0] = KcpTransport.OPCODE_SNIPE_REQUEST;
 				WriteInt(mBuffer, 1, msg_data.Count - 1); // msg_data.Count = opcode (1 byte) + length (4 bytes) + msg.Lenght
 			}
 

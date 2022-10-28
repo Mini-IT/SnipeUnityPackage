@@ -2,7 +2,7 @@ using System;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeConnection
+	public class Transport
 	{
 		public Action ConnectionOpenedHandler;
 		public Action ConnectionClosedHandler;
