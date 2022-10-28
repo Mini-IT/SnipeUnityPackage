@@ -121,8 +121,24 @@ namespace MiniIT.Snipe
 
 		private async void DoSendRequest(SnipeObject message)
 		{
+			byte[] data = await SerializeMessage(message);
+
+			lock (mWebSocketLock)
+			{
+				mWebSocket.SendRequest(data);
+			}
+
+			if (mSendMessages != null && mSendMessages.IsEmpty && !message.SafeGetString("t").StartsWith("payment/"))
+			{
+				StartCheckConnection();
+			}
+		}
+
+		private async Task<byte[]> SerializeMessage(SnipeObject message)
+		{
 			string message_type = message.SafeGetString("t");
 
+			byte[] result = null;
 			byte[] buffer = mMessageBufferProvider.GetBuffer(message_type);
 			var msg_data = await Task.Run(() => MessagePackSerializerNonAlloc.Serialize(ref buffer, message));
 
@@ -139,31 +155,21 @@ namespace MiniIT.Snipe
 
 					mMessageBufferProvider.ReturnBuffer(message_type, buffer);
 
-					buffer = new byte[compressed.Count + 2];
-					buffer[0] = 0xAA;
-					buffer[1] = 0xBB;
-					Array.ConstrainedCopy(compressed.Array, compressed.Offset, buffer, 2, compressed.Count);
+					result = new byte[compressed.Count + 2];
+					result[0] = 0xAA;
+					result[1] = 0xBB;
+					Array.ConstrainedCopy(compressed.Array, compressed.Offset, result, 2, compressed.Count);
 				});
-
-				lock (mWebSocketLock)
-				{
-					mWebSocket.SendRequest(buffer);
-				}
 			}
 			else // compression not needed
 			{
-				lock (mWebSocketLock)
-				{
-					mWebSocket.SendRequest(msg_data);
-				}
-
 				mMessageBufferProvider.ReturnBuffer(message_type, buffer);
+
+				result = new byte[msg_data.Count];
+				Array.ConstrainedCopy(msg_data.Array, msg_data.Offset, result, 0, msg_data.Count);
 			}
-			
-			if (mSendMessages != null && mSendMessages.IsEmpty && !message.SafeGetString("t").StartsWith("payment/"))
-			{
-				StartCheckConnection();
-			}
+
+			return result;
 		}
 
 		protected void ProcessWebSocketMessage(byte[] raw_data)

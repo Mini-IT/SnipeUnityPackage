@@ -19,7 +19,17 @@ namespace MiniIT.Snipe
 			
 			return ArrayPool<byte>.Shared.Rent(buffer_size);
 		}
-		
+
+		public byte[] GetBuffer(int buffer_size)
+		{
+			return ArrayPool<byte>.Shared.Rent(buffer_size);
+		}
+
+		public void ReturnBuffer(byte[] buffer)
+		{
+			ReturnBuffer(null, buffer);
+		}
+
 		public void ReturnBuffer(string message_type, byte[] buffer)
 		{
 			// if buffer.Length > mBytesPool's max bucket size (1024*1024 = 1048576)
@@ -30,9 +40,12 @@ namespace MiniIT.Snipe
 			
 			if (buffer.Length > MAX_SIZE)
 			{
-				lock (mDictionaryLock)
+				if (!string.IsNullOrEmpty(message_type))
 				{
-					mBufferSizes[message_type] = MAX_SIZE;
+					lock (mDictionaryLock)
+					{
+						mBufferSizes[message_type] = MAX_SIZE;
+					}
 				}
 				return;
 			}
@@ -41,11 +54,14 @@ namespace MiniIT.Snipe
 			{
 				ArrayPool<byte>.Shared.Return(buffer);
 
-				lock (mDictionaryLock)
+				if (!string.IsNullOrEmpty(message_type))
 				{
-					if (mBufferSizes.TryGetValue(message_type, out int buffer_size) && buffer.Length > buffer_size)
+					lock (mDictionaryLock)
 					{
-						mBufferSizes[message_type] = buffer.Length;
+						if (mBufferSizes.TryGetValue(message_type, out int buffer_size) && buffer.Length > buffer_size)
+						{
+							mBufferSizes[message_type] = buffer.Length;
+						}
 					}
 				}
 			}

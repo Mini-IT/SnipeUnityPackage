@@ -2,24 +2,22 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Runtime.CompilerServices;
 using MiniIT.MessagePack;
 
 using kcp2k;
 using System.Buffers;
-using System.Reflection.Emit;
 
 namespace MiniIT.Snipe
 {
 	public class KcpConnection : SnipeConnection
 	{
-		private const byte OPCODE_AUTHENTICATION_REQUEST = 1;
-		// private const byte OPCODE_AUTHENTICATION_RESPONSE = 2;
-		// private const byte OPCODE_AUTHENTICATED = 3;
-		private const byte OPCODE_SNIPE_REQUEST = 4;
-		private const byte OPCODE_SNIPE_RESPONSE = 5;
-		private const byte OPCODE_SNIPE_REQUEST_COMPRESSED = 6;
-		private const byte OPCODE_SNIPE_RESPONSE_COMPRESSED = 7;
+		internal const byte OPCODE_AUTHENTICATION_REQUEST = 1;
+		// internal const byte OPCODE_AUTHENTICATION_RESPONSE = 2;
+		// internal const byte OPCODE_AUTHENTICATED = 3;
+		internal const byte OPCODE_SNIPE_REQUEST = 4;
+		internal const byte OPCODE_SNIPE_RESPONSE = 5;
+		internal const byte OPCODE_SNIPE_REQUEST_COMPRESSED = 6;
+		internal const byte OPCODE_SNIPE_RESPONSE_COMPRESSED = 7;
 
 		public bool ConnectionEstablished { get; private set; } = false;
 		
@@ -202,104 +200,12 @@ namespace MiniIT.Snipe
 		
 		private async void DoSendRequest(SnipeObject message)
 		{
-			string message_type = message.SafeGetString("t");
-			
-			byte[] buffer = mMessageBufferProvider.GetBuffer(message_type);
-
-			// offset = opcode (1 byte) + length (4 bytes) = 5
-			ArraySegment<byte> msg_data = await Task.Run(() => MessagePackSerializerNonAlloc.Serialize(ref buffer, 5, message));
-
-			if (SnipeConfig.CompressionEnabled && msg_data.Count >= SnipeConfig.MinMessageSizeToCompress) // compression needed
+			using (var serializer = new KcpMessageSerializer(message, mMessageCompressor, mMessageBufferProvider))
 			{
-				await Task.Run(() =>
-				{
-					DebugLogger.Log("[SnipeClient] compress message");
-					DebugLogger.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
-
-					ArraySegment<byte> msg_content = new ArraySegment<byte>(buffer, 5, msg_data.Count - 5);
-					ArraySegment<byte> compressed = mMessageCompressor.Compress(msg_content);
-
-					mMessageBufferProvider.ReturnBuffer(message_type, buffer);
-
-					buffer = ArrayPool<byte>.Shared.Rent(compressed.Count + 5);
-					buffer[0] = OPCODE_SNIPE_REQUEST_COMPRESSED;
-					WriteInt(buffer, 1, compressed.Count + 4); // msg_data = opcode + length (4 bytes) + msg
-					Array.ConstrainedCopy(compressed.Array, compressed.Offset, buffer, 5, compressed.Count);
-
-					msg_data = new ArraySegment<byte>(buffer, 0, compressed.Count + 5);
-
-					DebugLogger.Log("Compressed:   " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
-				});
-
+				ArraySegment<byte> msg_data = await serializer.Run();
 				mUdpClient.Send(msg_data, KcpChannel.Reliable);
-				ArrayPool<byte>.Shared.Return(buffer);
 			}
-			else // compression not needed
-			{
-				buffer[0] = OPCODE_SNIPE_REQUEST;
-				WriteInt(buffer, 1, msg_data.Count - 1); // msg_data.Count = opcode (1 byte) + length (4 bytes) + msg.Lenght
-
-				mUdpClient.Send(msg_data, KcpChannel.Reliable);
-
-				mMessageBufferProvider.ReturnBuffer(message_type, buffer);
-			}
-			
-
-			//----
-			//DebugLogger.Log(BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
-
-			//ArraySegment<byte> msg_content = new ArraySegment<byte>(buffer, 5, msg_data.Count - 5);
-			//ArraySegment<byte> compressed = SnipeMessageCompressor.Compress(msg_content);
-
-			//TryReturnMessageBuffer(buffer, message_type, buffer_size);
-
-			//---
-
-			//if (compressed.Count < msg_data.Count - 5)
-			//{
-			//buffer = mBytesPool.Rent(compressed.Count + 5);
-			//buffer[0] = OPCODE_SNIPE_REQUEST_COMPRESSED;
-			//WriteInt(buffer, 1, compressed.Count + 4); // msg_data = opcode + length (4 bytes) + msg
-			//Array.ConstrainedCopy(compressed.Array, compressed.Offset, buffer, 5, compressed.Count);
-
-			//msg_data = new ArraySegment<byte>(buffer, 0, compressed.Count + 5);
-			//DebugLogger.Log(BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
-			//DebugLogger.Log(BitConverter.ToString(compressed.Array, compressed.Offset, compressed.Count));
-
-			// test decompression
-			//var decompression_buffer = mBytesPool.Rent(buffer_size);
-			//var decompressed_data = SnipeMessageCompressor.Decompress(ref decompression_buffer, compressed);
-			//DebugLogger.Log(BitConverter.ToString(decompressed_data.Array, decompressed_data.Offset, decompressed_data.Count));
-			//var decompressed_message = MessagePackDeserializer.Parse(decompressed_data) as SnipeObject;
-			//DebugLogger.Log($"decompressed_message: {decompressed_message.ToJSONString()}");
-			//try
-			//{
-			//	mBytesPool.Return(decompression_buffer);
-			//}
-			//catch (ArgumentException)
-			//{
-			//	// ignore
-			//}
-			//}
-			//----
 		}
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private void WriteInt(byte[] data, int position, int value)
-        {
-            // unsafe
-            // {
-                // fixed (byte* dataPtr = &data[position])
-                // {
-                    // int* valuePtr = (int*)dataPtr;
-                    // *valuePtr = value;
-                // }
-            // }
-			data[position] = (byte) value;
-			data[position + 1] = (byte) (value >> 8);
-			data[position + 2] = (byte) (value >> 0x10);
-			data[position + 3] = (byte) (value >> 0x18);
-        }
 		
 		private CancellationTokenSource mNetworkLoopCancellation;
 
