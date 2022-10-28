@@ -45,7 +45,7 @@ namespace MiniIT.Snipe
 
 		public void Connect()
 		{
-			string url = SnipeConfig.GetServerUrl();
+			string url = SnipeConfig.GetWebSocketUrl();
 
 			DebugLogger.Log("[SnipeClient] WebSocket Connect to " + url);
 			
@@ -104,7 +104,7 @@ namespace MiniIT.Snipe
 
 			if (!mConnected) // failed to establish connection
 			{
-				SnipeConfig.NextServerUrl();
+				SnipeConfig.NextWebSocketUrl();
 			}
 
 			ConnectionClosedHandler?.Invoke(); // Disconnect(true);

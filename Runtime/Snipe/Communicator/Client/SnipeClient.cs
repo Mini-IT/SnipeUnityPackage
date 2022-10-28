@@ -22,10 +22,7 @@ namespace MiniIT.Snipe
 		private WebSocketConnection mWebSocketConnection;
 		private KcpConnection mKcpConnection;
 
-		//private bool mConnected = false;
 		protected bool mLoggedIn = false;
-
-		private bool mUdpConnectionEstablished;
 
 		public bool Connected => UdpClientConnected || WebSocketConnected;
 		public bool LoggedIn { get { return mLoggedIn && Connected; } }
@@ -77,7 +74,6 @@ namespace MiniIT.Snipe
 				mKcpConnection = new KcpConnection();
 				mKcpConnection.ConnectionOpenedHandler = () =>
 				{
-					mUdpConnectionEstablished = true;
 					UdpConnectionTime = mConnectionStopwatch.Elapsed.TotalMilliseconds;
 					OnConnected();
 				};
@@ -85,7 +81,7 @@ namespace MiniIT.Snipe
 				{
 					UdpConnectionFailed?.Invoke();
 
-					if (mUdpConnectionEstablished)
+					if (mKcpConnection.ConnectionEstablished)
 					{
 						Disconnect(true);
 					}
@@ -99,7 +95,6 @@ namespace MiniIT.Snipe
 
 			mConnectionStopwatch = Stopwatch.StartNew();
 
-			mUdpConnectionEstablished = false;
 			mKcpConnection.Connect();
 		}
 
@@ -125,8 +120,6 @@ namespace MiniIT.Snipe
 
 		private void OnConnected()
 		{
-			//mConnected = true;
-
 			mConnectionStopwatch?.Stop();
 			Analytics.ConnectionEstablishmentTime = mConnectionStopwatch?.ElapsedMilliseconds ?? 0;
 
@@ -171,7 +164,6 @@ namespace MiniIT.Snipe
 			StopResponseMonitoring();
 
 			mKcpConnection?.Disconnect();
-			mUdpConnectionEstablished = false;
 
 			if (mWebSocketConnection != null)
 			{

@@ -21,7 +21,7 @@ namespace MiniIT.Snipe
 		private const byte OPCODE_SNIPE_REQUEST_COMPRESSED = 6;
 		private const byte OPCODE_SNIPE_RESPONSE_COMPRESSED = 7;
 
-		private KcpClient mUdpClient;
+		public bool ConnectionEstablished { get; private set; } = false;
 		
 		public bool Started => mUdpClient != null;
 		public bool Connected => mUdpClient != null && mUdpClient.connected;
@@ -30,13 +30,15 @@ namespace MiniIT.Snipe
 		public double UdpSocketConnectTime { get; private set; }
 		public double UdpSendHandshakeTime { get; private set; }
 
-		private readonly object mSendLock = new object();
+		private KcpClient mUdpClient;
 
 		public void Connect()
 		{	
 			if (mUdpClient != null) // already connected or trying to connect
 				return;
-			
+
+			ConnectionEstablished = false;
+
 			kcp2k.Log.Info = DebugLogger.Log;
 			kcp2k.Log.Warning = DebugLogger.LogWarning;
 			kcp2k.Log.Error = DebugLogger.LogError;
@@ -46,9 +48,11 @@ namespace MiniIT.Snipe
 				OnClientDataReceived,
 				OnClientDisconnected);
 
+			var address = SnipeConfig.GetUdpAddress();
+
 			mUdpClient.Connect(
-				SnipeConfig.ServerUdpAddress,
-				SnipeConfig.ServerUdpPort,
+				address.Host,
+				address.Port,
 				true,  // NoDelay is recommended to reduce latency
 				10,    // KCP internal update interval. 100ms is KCP default, but a lower interval is recommended to minimize latency and to scale to more networked entities
 				2,     // KCP fastresend parameter. Faster resend for the cost of higher bandwidth. 0 in normal mode, 2 in turbo mode
@@ -68,6 +72,7 @@ namespace MiniIT.Snipe
 				mUdpClient.Disconnect();
 				mUdpClient = null;
 			}
+			ConnectionEstablished = false;
 		}
 
 		public void SendMessage(SnipeObject message)
@@ -77,6 +82,8 @@ namespace MiniIT.Snipe
 
 		private void OnClientConnected() 
 		{
+			ConnectionEstablished = true;
+
 			RefreshConnectionStats();
 			
 			DebugLogger.Log("[SnipeClient] OnUdpClientConnected");
@@ -90,7 +97,19 @@ namespace MiniIT.Snipe
 			
 			RefreshConnectionStats();
 
+			StopNetworkLoop();
 			mUdpClient = null;
+
+			if (!ConnectionEstablished) // failed to establish connection
+			{
+				if (SnipeConfig.NextUdpUrl())
+				{
+					DebugLogger.Log("[SnipeClient] Next udp url");
+					Connect();
+					return;
+				}
+			}
+
 			ConnectionClosedHandler?.Invoke();
 		}
 		
@@ -355,6 +374,8 @@ namespace MiniIT.Snipe
 			}
 			
 			if (cancellation == null || cancellation.IsCancellationRequested)
+				return;
+			if (cancellation != mNetworkLoopCancellation?.Token)
 				return;
 			
 			if (!Connected)

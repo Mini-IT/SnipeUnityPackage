@@ -3,17 +3,22 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using MiniIT;
+using WebSocketSharp;
 
 public static class SnipeConfig
 {
+	public class UdpAddress
+	{
+		public string Host;
+		public ushort Port;
+	}
+
 	public static string ClientKey;
 	public static string AppInfo;
 
-	public static List<string> ServerUrls = new List<string>();
+	public static List<string> ServerWebSocketUrls = new List<string>();
+	public static List<UdpAddress> ServerUdpUrls = new List<UdpAddress>();
 	public static List<string> TablesUrls = new List<string>();
-	
-	public static string ServerUdpAddress;
-	public static ushort ServerUdpPort;
 	
 	public static bool CompressionEnabled = false;
 	public static int MinMessageSizeToCompress = 1024; // bytes
@@ -24,7 +29,8 @@ public static class SnipeConfig
 	public static string PersistentDataPath { get; private set; }
 	public static string StreamingAssetsPath { get; private set; }
 	
-	private static int mServerUrlIndex = 0;
+	private static int mServerWebSocketUrlIndex = 0;
+	private static int mServerUdpUrlIndex = 0;
 	private static int mTablesUrlIndex = 0;
 
 	/// <summary>
@@ -42,13 +48,10 @@ public static class SnipeConfig
 	{
 		ClientKey = data.SafeGetString("client_key");
 		
-		ServerUdpAddress = data.SafeGetString("server_udp_address");
-		ServerUdpPort = data.SafeGetValue<ushort>("server_udp_port");
-		
-		if (ServerUrls == null)
-			ServerUrls = new List<string>();
+		if (ServerWebSocketUrls == null)
+			ServerWebSocketUrls = new List<string>();
 		else
-			ServerUrls.Clear();
+			ServerWebSocketUrls.Clear();
 		
 		if (data["server_urls"] is IList server_ulrs_list)
 		{
@@ -56,20 +59,61 @@ public static class SnipeConfig
 			{
 				if (!string.IsNullOrEmpty(url))
 				{
-					ServerUrls.Add(url);
+					ServerWebSocketUrls.Add(url);
 				}
 			}
 		}
 		
-		if (ServerUrls.Count < 1)
+		if (ServerWebSocketUrls.Count < 1)
 		{
 			// "service_websocket" field for backward compatibility
 			var service_url = data.SafeGetString("service_websocket");
 			if (!string.IsNullOrEmpty(service_url))
-				ServerUrls.Add(service_url);
+			{
+				ServerWebSocketUrls.Add(service_url);
+			}
 		}
-		
- 		if (TablesUrls == null)
+
+		//ServerUdpAddress = data.SafeGetString("server_udp_address");
+		//ServerUdpPort = data.SafeGetValue<ushort>("server_udp_port");
+
+		if (ServerUdpUrls == null)
+			ServerUdpUrls = new List<UdpAddress>();
+		else
+			ServerUdpUrls.Clear();
+
+		if (data["server_udp_urls"] is IList server_udp_list)
+		{
+			foreach (string url in server_udp_list)
+			{
+				if (!string.IsNullOrEmpty(url))
+				{
+					string[] address = url.Split(':');
+					if (address.Length == 2 && ushort.TryParse(address[1], out ushort port))
+					{
+						ServerUdpUrls.Add(new UdpAddress() { Host = address[0], Port = port });
+					}
+				}
+			}
+		}
+
+		if (ServerUdpUrls.Count < 1)
+		{
+			// backward compatibility
+
+			var address = new UdpAddress()
+			{
+				Host = data.SafeGetString("server_udp_address"),
+				Port = data.SafeGetValue<ushort>("server_udp_port"),
+			};
+
+			if (address.Port > 0 && !string.IsNullOrEmpty(address.Host))
+			{
+				ServerUdpUrls.Add(address);
+			}
+		}
+
+		if (TablesUrls == null)
 			TablesUrls = new List<string>();
 		else
 			TablesUrls.Clear();
@@ -86,7 +130,7 @@ public static class SnipeConfig
 			}
 		}
 		
-		mServerUrlIndex = 0;
+		mServerWebSocketUrlIndex = 0;
 		mTablesUrlIndex = -1;
 
 		PersistentDataPath = Application.persistentDataPath;
@@ -105,20 +149,38 @@ public static class SnipeConfig
 		}.ToJSONString();
 	}
 	
-	public static string GetServerUrl()
+	public static string GetWebSocketUrl()
 	{
-		mServerUrlIndex = GetValidIndex(ServerUrls, mServerUrlIndex, false);
-		if (mServerUrlIndex >= 0)
+		mServerWebSocketUrlIndex = GetValidIndex(ServerWebSocketUrls, mServerWebSocketUrlIndex, false);
+		if (mServerWebSocketUrlIndex >= 0)
 		{
-			return ServerUrls[mServerUrlIndex];
+			return ServerWebSocketUrls[mServerWebSocketUrlIndex];
 		}
 
 		return null;
 	}
-	
-	public static void NextServerUrl()
+
+	public static UdpAddress GetUdpAddress()
 	{
-		mServerUrlIndex = GetValidIndex(ServerUrls, mServerUrlIndex, true);
+		mServerUdpUrlIndex = GetValidIndex(ServerUdpUrls, mServerUdpUrlIndex, false);
+		if (mServerUdpUrlIndex >= 0)
+		{
+			return ServerUdpUrls[mServerUdpUrlIndex];
+		}
+
+		return null;
+	}
+
+	public static void NextWebSocketUrl()
+	{
+		mServerWebSocketUrlIndex = GetValidIndex(ServerWebSocketUrls, mServerWebSocketUrlIndex, true);
+	}
+
+	public static bool NextUdpUrl()
+	{
+		int prev = mServerUdpUrlIndex;
+		mServerUdpUrlIndex = GetValidIndex(ServerUdpUrls, mServerUdpUrlIndex, true);
+		return mServerUdpUrlIndex > prev;
 	}
 
 	public static string GetTablesPath(bool next = false)
@@ -134,7 +196,10 @@ public static class SnipeConfig
 	
 	public static bool CheckUdpAvailable()
 	{
-		return ServerUdpPort > 0 && !string.IsNullOrEmpty(ServerUdpAddress);
+		if (ServerUdpUrls == null || ServerUdpUrls.Count < 1)
+			return false;
+		var address = ServerUdpUrls[0];
+		return !string.IsNullOrEmpty(address?.Host) && address.Port > 0;
 	}
 	
 	private static int GetValidIndex(IList list, int index, bool next = false)
