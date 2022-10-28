@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using MiniIT;
-using WebSocketSharp;
 
 public static class SnipeConfig
 {
@@ -74,9 +73,6 @@ public static class SnipeConfig
 			}
 		}
 
-		//ServerUdpAddress = data.SafeGetString("server_udp_address");
-		//ServerUdpPort = data.SafeGetValue<ushort>("server_udp_port");
-
 		if (ServerUdpUrls == null)
 			ServerUdpUrls = new List<UdpAddress>();
 		else
@@ -84,14 +80,34 @@ public static class SnipeConfig
 
 		if (data["server_udp_urls"] is IList server_udp_list)
 		{
-			foreach (string url in server_udp_list)
+			foreach (string item in server_udp_list)
 			{
+				string url = item;
+
 				if (!string.IsNullOrEmpty(url))
 				{
-					string[] address = url.Split(':');
-					if (address.Length == 2 && ushort.TryParse(address[1], out ushort port))
+					int index = url.IndexOf("://");
+					if (index >= 0)
 					{
-						ServerUdpUrls.Add(new UdpAddress() { Host = address[0], Port = port });
+						url = url.Substring(index + 3);
+					}
+
+					index = url.IndexOf("?");
+					if (index >= 0)
+					{
+						url = url.Substring(0, index);
+					}
+
+					string[] address = url.Split(':');
+					if (address.Length >= 2)
+					{
+						string port_string = address[address.Length - 1];
+
+						if (ushort.TryParse(port_string, out ushort port) && port > 0)
+						{
+							string host = url.Substring(0, url.Length - port_string.Length - 1);
+							ServerUdpUrls.Add(new UdpAddress() { Host = host, Port = port });
+						}
 					}
 				}
 			}
