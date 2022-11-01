@@ -33,7 +33,7 @@ namespace MiniIT.Snipe
 		private Stopwatch mPingStopwatch;
 		
 		private WebSocketWrapper mWebSocket = null;
-		private readonly object mWebSocketLock = new object();
+		private readonly object mLock = new object();
 		
 		public bool Started => mWebSocket != null;
 		public bool Connected => mWebSocket != null && mWebSocket.Connected;
@@ -44,6 +44,17 @@ namespace MiniIT.Snipe
 		protected bool mLoggedIn;
 
 		public void Connect()
+		{
+            Task.Run((Action)(() =>
+			{
+				lock (this.mLock)
+				{
+                    ConnectTask();
+				}
+			}));
+		}
+
+		private void ConnectTask()
 		{
 			string url = SnipeConfig.GetWebSocketUrl();
 
@@ -61,18 +72,21 @@ namespace MiniIT.Snipe
 		{
 			mConnected = false;
 			mLoggedIn = false;
-			
-			StopSendTask();
-			StopHeartbeat();
-			StopCheckConnection();
 
-			if (mWebSocket != null)
+			lock (mLock)
 			{
-				mWebSocket.OnConnectionOpened -= OnWebSocketConnected;
-				mWebSocket.OnConnectionClosed -= OnWebSocketClosed;
-				mWebSocket.ProcessMessage -= ProcessWebSocketMessage;
-				mWebSocket.Disconnect();
-				mWebSocket = null;
+				StopSendTask();
+				StopHeartbeat();
+				StopCheckConnection();
+
+				if (mWebSocket != null)
+				{
+					mWebSocket.OnConnectionOpened -= OnWebSocketConnected;
+					mWebSocket.OnConnectionClosed -= OnWebSocketClosed;
+					mWebSocket.ProcessMessage -= ProcessWebSocketMessage;
+					mWebSocket.Disconnect();
+					mWebSocket = null;
+				}
 			}
 		}
 
@@ -92,8 +106,11 @@ namespace MiniIT.Snipe
 		private void OnWebSocketConnected()
 		{
 			DebugLogger.Log($"[SnipeClient] OnWebSocketConnected");
-			
-			ConnectionOpenedHandler?.Invoke();
+
+			mMainThreadActions.Enqueue(() =>
+			{
+				ConnectionOpenedHandler?.Invoke();
+			});
 		}
 		
 		protected void OnWebSocketClosed()
@@ -107,7 +124,10 @@ namespace MiniIT.Snipe
 				SnipeConfig.NextWebSocketUrl();
 			}
 
-			ConnectionClosedHandler?.Invoke(); // Disconnect(true);
+			mMainThreadActions.Enqueue(() =>
+			{
+				ConnectionClosedHandler?.Invoke();
+			});
 		}
 		
 		public void SendMessage(SnipeObject message)
@@ -123,7 +143,7 @@ namespace MiniIT.Snipe
 		{
 			byte[] data = await SerializeMessage(message);
 
-			lock (mWebSocketLock)
+			lock (mLock)
 			{
 				mWebSocket.SendRequest(data);
 			}
@@ -204,7 +224,10 @@ namespace MiniIT.Snipe
 				});
 			}
 
-			MessageReceivedHandler?.Invoke(message);
+			mMainThreadActions.Enqueue(() =>
+			{
+				MessageReceivedHandler?.Invoke(message);
+			});
 
 			if (mHeartbeatEnabled)
 			{
@@ -276,7 +299,6 @@ namespace MiniIT.Snipe
 
 		#endregion // Send task
 
-
 		#region Heartbeat
 
 		private long mHeartbeatTriggerTicks = 0;
@@ -318,7 +340,7 @@ namespace MiniIT.Snipe
 					}
 					else
 					{
-						lock (mWebSocketLock)
+						lock (mLock)
 						{
 							pinging = true;
 							
@@ -442,7 +464,7 @@ namespace MiniIT.Snipe
 				}
 				else
 				{
-					lock (mWebSocketLock)
+					lock (mLock)
 					{
 						pinging = true;
 						mWebSocket.Ping(pong =>

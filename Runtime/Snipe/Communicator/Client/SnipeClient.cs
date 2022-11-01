@@ -1,9 +1,5 @@
 using System;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
-using kcp2k;
-using MiniIT.MessagePack;
 
 namespace MiniIT.Snipe
 {
@@ -17,7 +13,7 @@ namespace MiniIT.Snipe
 		public event Action ConnectionClosed;
 		public event Action LoginSucceeded;
 		public event Action<string> LoginFailed;
-		//public event Action UdpConnectionFailed;
+		public event Action UdpConnectionFailed;
 
 		private WebSocketTransport mWebSocket;
 		private KcpTransport mKcp;
@@ -30,8 +26,6 @@ namespace MiniIT.Snipe
 		public bool UdpClientConnected => mKcp != null && mKcp.Connected;
 
 		public string ConnectionId { get; private set; }
-
-		public event Action UdpConnectionFailed;
 
 		private Stopwatch mConnectionStopwatch;
 		
@@ -46,8 +40,6 @@ namespace MiniIT.Snipe
 		private SnipeMessageCompressor mMessageCompressor;
 
 		private int mRequestId = 0;
-		
-		private readonly object mSendLock = new object();
 		
 		public void Connect(bool udp = true)
 		{
@@ -249,7 +241,7 @@ namespace MiniIT.Snipe
 			SnipeObject response_data = message.SafeGetValue<SnipeObject>("data");
 				
 			RemoveResponseMonitoringItem(request_id, message_type);
-				
+			
 			DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - {request_id} - {message_type} {error_code} {response_data?.ToJSONString()}");
 
 			if (!mLoggedIn)

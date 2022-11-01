@@ -29,9 +29,23 @@ namespace MiniIT.Snipe
 		public double UdpSendHandshakeTime { get; private set; }
 
 		private KcpClient mUdpClient;
+		private CancellationTokenSource mNetworkLoopCancellation;
+
+		private readonly object mLock = new object();
 
 		public void Connect()
-		{	
+		{
+			Task.Run(() =>
+			{
+				lock (mLock)
+				{
+					ConnectTask();
+				}
+			});
+		}
+
+		private void ConnectTask()
+		{
 			if (mUdpClient != null) // already connected or trying to connect
 				return;
 
@@ -86,7 +100,10 @@ namespace MiniIT.Snipe
 			
 			DebugLogger.Log("[SnipeClient] OnUdpClientConnected");
 
-			ConnectionOpenedHandler?.Invoke();
+			mMainThreadActions.Enqueue(() =>
+			{
+				ConnectionOpenedHandler?.Invoke();
+			});
 		}
 
 		private void OnClientDisconnected()
@@ -108,7 +125,10 @@ namespace MiniIT.Snipe
 				}
 			}
 
-			ConnectionClosedHandler?.Invoke();
+			mMainThreadActions.Enqueue(() =>
+			{
+				ConnectionClosedHandler?.Invoke();
+			});
 		}
 		
 		// private void OnClientError(Exception err)
@@ -174,7 +194,10 @@ namespace MiniIT.Snipe
 				return MessagePackDeserializer.Parse(raw_data) as SnipeObject;
 			});
 
-			MessageReceivedHandler?.Invoke(message);
+			mMainThreadActions.Enqueue(() =>
+			{
+				MessageReceivedHandler?.Invoke(message);
+			});
 
 			try
 			{
@@ -203,12 +226,13 @@ namespace MiniIT.Snipe
 			using (var serializer = new KcpMessageSerializer(message, mMessageCompressor, mMessageBufferProvider))
 			{
 				ArraySegment<byte> msg_data = await serializer.Run();
-				mUdpClient.Send(msg_data, KcpChannel.Reliable);
+				lock (mLock)
+				{
+					mUdpClient.Send(msg_data, KcpChannel.Reliable);
+				}
 			}
 		}
 		
-		private CancellationTokenSource mNetworkLoopCancellation;
-
 		private void StartNetworkLoop()
 		{
 			DebugLogger.Log("[SnipeClient] StartNetworkLoop");
@@ -267,7 +291,7 @@ namespace MiniIT.Snipe
 		
 		private async void UdpConnectionTimeout(CancellationToken cancellation)
 		{
-			DebugLogger.Log("[SnipeClient] UdpConnectionTimeout - start");
+			DebugLogger.Log("[SnipeClient] UdpConnectionTimeoutTask - start");
 			
 			try
 			{
@@ -286,11 +310,11 @@ namespace MiniIT.Snipe
 			
 			if (!Connected)
 			{
-				DebugLogger.Log("[SnipeClient] UdpConnectionTimeout - Calling Disconnect");
+				DebugLogger.Log("[SnipeClient] UdpConnectionTimeoutTask - Calling Disconnect");
 				OnClientDisconnected();
 			}
 			
-			DebugLogger.Log("[SnipeClient] UdpConnectionTimeout - finish");
+			DebugLogger.Log("[SnipeClient] UdpConnectionTimeoutTask - finish");
 		}
 	}
 }
