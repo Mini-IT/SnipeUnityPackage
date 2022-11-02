@@ -144,15 +144,14 @@ namespace kcp2k
         private const byte OPCODE_SNIPE_RESPONSE = 5;
         private const byte OPCODE_SNIPE_RESPONSE_COMPRESSED = 7;
 
-        private ArrayPool<byte> mBytesPool;
-        private Dictionary<byte, ChunkedMessageItem> mChunkedMessages;
-        private byte mChunkedMessageId = 0;
-        
         class ChunkedMessageItem
         {
             public byte[] buffer;
             public int length;
         }
+		
+		private Dictionary<byte, ChunkedMessageItem> _chunkedMessages;
+        private byte _chunkedMessageId = 0;
 
         // SetupKcp creates and configures a new KCP instance.
         // => useful to start from a fresh state every time the client connects
@@ -181,8 +180,7 @@ namespace kcp2k
             kcpMessageBuffer = new byte[1 + ReliableMaxMessageSize(receiveWindowSize)];
             kcpSendBuffer = new byte[1 + ReliableMaxMessageSize(receiveWindowSize)];
             
-            mBytesPool = ArrayPool<byte>.Create();
-            mChunkedMessages = new Dictionary<byte, ChunkedMessageItem>(1);
+            _chunkedMessages = new Dictionary<byte, ChunkedMessageItem>(1);
 
             this.timeout = timeout;
             state = KcpState.Connected;
@@ -330,6 +328,7 @@ namespace kcp2k
                     }
                     case KcpHeader.Data:
                     case KcpHeader.Chunk:
+                    case KcpHeader.CompressedChunk:
                     case KcpHeader.Disconnect:
                     {
                         // everything else is not allowed during handshake!
@@ -376,87 +375,14 @@ namespace kcp2k
                     }
                     case KcpHeader.Data:
                     {
-                        // call OnData IF the message contained actual data
-                        if (message.Count > 0)
-                        {
-                            //Log.Warning($"Kcp recv msg: {BitConverter.ToString(message.Array, message.Offset, message.Count)}");
-                            OnData?.Invoke(message, KcpChannel.Reliable);
-                        }
-                        // empty data = attacker, or something went wrong
-                        else
-                        {
-                            Log.Warning("KCP: received empty Data message while Authenticated. Disconnecting the connection.");
-                            Disconnect();
-                        }
+                        HandleReliableData(message);
                         break;
                     }
                     case KcpHeader.Chunk:
                     case KcpHeader.CompressedChunk:
                     {
-                        // call OnData IF the message contained actual data
-                        if (message.Count > 3)
-                        {
-                            byte message_id = message.Array[message.Offset];
-                            byte chunk_id = message.Array[message.Offset + 1];
-                            byte chunks_count = message.Array[message.Offset + 2];
-                            
-                            // Log.Info($"[KcpConnection] CHUNK RECEIVED {message_id} - {chunk_id} / {chunks_count}  {message.Count} bytes");
-                            
-                            // TODO: check values
-                            
-                            const int MAX_CHUNK_SIZE = Kcp.MTU_DEF - Kcp.OVERHEAD - 5; // channel (1 byte) + KcpHeader.Chunk + msg_id + chunk_id + num_chunks
-                            
-                            ChunkedMessageItem item;
-                            if (mChunkedMessages.ContainsKey(message_id))
-                            {
-                                item = mChunkedMessages[message_id];
-                            }
-                            else
-                            {
-                                item = new ChunkedMessageItem()
-                                {
-                                    buffer = mBytesPool.Rent(chunks_count * MAX_CHUNK_SIZE + 5), // opcode (1 byte) + message length (4 bytes)
-                                    length = 0,
-                                };
-                                mChunkedMessages[message_id] = item;
-                            }
-                            
-                            // message header (3 bytes): msg_id + chunk_id + num_chunks
-                            Buffer.BlockCopy(message.Array, message.Offset + 3, item.buffer, 5 + chunk_id * MAX_CHUNK_SIZE, message.Count - 3);
-                            item.length += message.Count - 3;
-                            
-                            if (item.length > (1 + (chunks_count - 1) * MAX_CHUNK_SIZE)) // all chunks
-                            {
-                                // Log.Info($"[KcpConnection] CHUNKED_MESSAGE received: {BitConverter.ToString(item.buffer, 0, item.buffer.Length)}");
-                                
-                                // opcode Snipe Response
-                                item.buffer[0] = (header == KcpHeader.CompressedChunk) ? OPCODE_SNIPE_RESPONSE_COMPRESSED : OPCODE_SNIPE_RESPONSE;
-
-                                // length (4 bytes int)
-                                // unsafe
-                                // {
-                                    // fixed (byte* dataPtr = &item.buffer[1])
-                                    // {
-                                        // int* valuePtr = (int*)dataPtr;
-                                        // *valuePtr = item.length;
-                                    // }
-                                // }
-                                item.buffer[1] = (byte) item.length;
-                                item.buffer[2] = (byte) (item.length >> 8);
-                                item.buffer[3] = (byte) (item.length >> 0x10);
-                                item.buffer[4] = (byte) (item.length >> 0x18);
-                                
-                                OnData?.Invoke(new ArraySegment<byte>(item.buffer, 0, item.length + 5), KcpChannel.Reliable);
-                                mBytesPool.Return(item.buffer);
-                                mChunkedMessages.Remove(message_id);
-                            }
-                        }
-                        // empty data = attacker, or something went wrong
-                        else
-                        {
-                            Log.Warning("KCP: received empty Chunk message while Authenticated. Disconnecting the connection.");
-                            Disconnect();
-                        }
+						byte opcode = (header == KcpHeader.CompressedChunk) ? OPCODE_SNIPE_RESPONSE_COMPRESSED : OPCODE_SNIPE_RESPONSE;
+                        HandleReliableChunk(message, opcode);
                         break;
                     }
                     case KcpHeader.Ping:
@@ -475,6 +401,90 @@ namespace kcp2k
                 }
             }
         }
+		
+		private void HandleReliableData(ArraySegment<byte> message)
+		{
+			// call OnData IF the message contained actual data
+			if (message.Count > 0)
+			{
+				//Log.Warning($"Kcp recv msg: {BitConverter.ToString(message.Array, message.Offset, message.Count)}");
+				OnData?.Invoke(message, KcpChannel.Reliable);
+			}
+			// empty data = attacker, or something went wrong
+			else
+			{
+				Log.Warning("KCP: received empty Data message while Authenticated. Disconnecting the connection.");
+				Disconnect();
+			}
+		}
+		
+		private void HandleReliableChunk(ArraySegment<byte> message, byte opcode)
+		{
+			// call OnData IF the message contained actual data
+			if (message.Count > 3)
+			{
+				byte message_id = message.Array[message.Offset];
+				byte chunk_id = message.Array[message.Offset + 1];
+				byte chunks_count = message.Array[message.Offset + 2];
+				
+				// Log.Info($"[KcpConnection] CHUNK RECEIVED {message_id} - {chunk_id} / {chunks_count}  {message.Count} bytes");
+				
+				// TODO: check values
+				
+				const int MAX_CHUNK_SIZE = Kcp.MTU_DEF - Kcp.OVERHEAD - 5; // channel (1 byte) + KcpHeader.Chunk + msg_id + chunk_id + num_chunks
+				
+				ChunkedMessageItem item;
+				if (_chunkedMessages.ContainsKey(message_id))
+				{
+					item = _chunkedMessages[message_id];
+				}
+				else
+				{
+					item = new ChunkedMessageItem()
+					{
+						buffer = ArrayPool<byte>.Shared.Rent(chunks_count * MAX_CHUNK_SIZE + 5), // opcode (1 byte) + message length (4 bytes)
+						length = 0,
+					};
+					_chunkedMessages[message_id] = item;
+				}
+				
+				// message header (3 bytes): msg_id + chunk_id + num_chunks
+				Buffer.BlockCopy(message.Array, message.Offset + 3, item.buffer, 5 + chunk_id * MAX_CHUNK_SIZE, message.Count - 3);
+				item.length += message.Count - 3;
+				
+				if (item.length > (1 + (chunks_count - 1) * MAX_CHUNK_SIZE)) // all chunks
+				{
+					// Log.Info($"[KcpConnection] CHUNKED_MESSAGE received: {BitConverter.ToString(item.buffer, 0, item.buffer.Length)}");
+					
+					// opcode Snipe Response
+					item.buffer[0] = opcode;
+
+					// length (4 bytes int)
+					// unsafe
+					// {
+						// fixed (byte* dataPtr = &item.buffer[1])
+						// {
+							// int* valuePtr = (int*)dataPtr;
+							// *valuePtr = item.length;
+						// }
+					// }
+					item.buffer[1] = (byte) item.length;
+					item.buffer[2] = (byte) (item.length >> 8);
+					item.buffer[3] = (byte) (item.length >> 0x10);
+					item.buffer[4] = (byte) (item.length >> 0x18);
+					
+					OnData?.Invoke(new ArraySegment<byte>(item.buffer, 0, item.length + 5), KcpChannel.Reliable);
+					ArrayPool<byte>.Shared.Return(item.buffer);
+					_chunkedMessages.Remove(message_id);
+				}
+			}
+			// empty data = attacker, or something went wrong
+			else
+			{
+				Log.Warning("KCP: received empty Chunk message while Authenticated. Disconnecting the connection.");
+				Disconnect();
+			}
+		}
 
         public void TickIncoming()
         {
@@ -733,8 +743,8 @@ namespace kcp2k
                 {
                     byte num_chunks = (byte)(data.Count / CHUNK_DATA_SIZE + 1);
                     
-                    byte[] buffer = mBytesPool.Rent(Kcp.MTU_DEF - 1); // without kcp header
-                    buffer[0] = (++mChunkedMessageId);
+                    byte[] buffer = ArrayPool<byte>.Shared.Rent(Kcp.MTU_DEF - 1); // without kcp header
+                    buffer[0] = (++_chunkedMessageId);
                     buffer[2] = num_chunks;
                     
                     for (int chunk_id = 0; chunk_id < num_chunks; chunk_id++)
@@ -748,7 +758,7 @@ namespace kcp2k
                         var chunk_data = new ArraySegment<byte>(buffer, 0, length + 3);
                         SendReliable(KcpHeader.Chunk, chunk_data);
                     }
-                    mBytesPool.Return(buffer);
+                    ArrayPool<byte>.Shared.Return(buffer);
                 }
                 else
                 {

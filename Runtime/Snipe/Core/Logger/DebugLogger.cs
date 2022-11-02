@@ -109,7 +109,14 @@ namespace MiniIT
 			{
 				if (mInstance != null && mInstance.mLogMessages != null)
 				{
-					mInstance.mLogMessages.Enqueue(new LogMessage() { MessageType = LogMessageType.Log, Text = ApplyStyle(message) });
+					mInstance.mLogMessages.Enqueue(new LogMessage()
+						{
+							MessageType = LogMessageType.Log,
+							Text = ApplyStyle(message)
+#if UNITY_EDITOR
+							+ "\n\n" + new System.Diagnostics.StackTrace().ToString(),
+#endif
+						});
 				}
 				else
 				{

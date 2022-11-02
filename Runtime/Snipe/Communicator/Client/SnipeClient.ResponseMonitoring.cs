@@ -19,7 +19,7 @@ namespace MiniIT.Snipe
 		}
 		
 		private Stopwatch mResponseMonitoringStopwatch;
-		private IDictionary<int, ResponseMonitoringItem> mResponseMonitoringItems; // key is request_id; value is time
+		private IDictionary<int, ResponseMonitoringItem> mResponseMonitoringItems; // key is request_id
 		
 		private CancellationTokenSource mResponseMonitoringCancellation;
 		
@@ -107,26 +107,36 @@ namespace MiniIT.Snipe
 					return;
 				}
 				
+				List<int> keys_to_remove = null;
+				
 				if (mResponseMonitoringItems != null && mResponseMonitoringStopwatch != null)
 				{
 					var time_now = mResponseMonitoringStopwatch.ElapsedMilliseconds;
 					
-					var keys = new List<int>(mResponseMonitoringItems.Keys);
-					for (int key_index = keys.Count - 1; key_index >= 0; key_index--)
+					foreach (var pair in mResponseMonitoringItems)
 					{
-						var request_id = keys[key_index];
-						var item = mResponseMonitoringItems[request_id];
-						var request_time = item.time;
+						var request_id = pair.Key;
+						var item = pair.Value;
 						
-						if (time_now - request_time > RESPONSE_MONITORING_MAX_DELAY)
+						if (time_now - item.time > RESPONSE_MONITORING_MAX_DELAY)
 						{
-							mResponseMonitoringItems.Remove(request_id);
+							if (keys_to_remove == null)
+								keys_to_remove = new List<int>();
+							keys_to_remove.Add(request_id);
 							
 							Analytics.TrackEvent("Response not found", new SnipeObject()
 								{
 									["request_id"] = request_id,
 									["message_type"] = item.message_type,
 								});
+						}
+					}
+					
+					if (keys_to_remove != null)
+					{
+						for (int i = 0; i < keys_to_remove.Count; i++)
+						{
+							mResponseMonitoringItems.Remove(keys_to_remove[i]);
 						}
 					}
 				}				

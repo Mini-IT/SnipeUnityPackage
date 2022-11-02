@@ -7,7 +7,7 @@ using MiniIT.MessagePack;
 
 namespace MiniIT.Snipe
 {
-	public partial class SnipeClient
+	public class WebSocketTransport : Transport
 	{
 		private const double HEARTBEAT_INTERVAL = 30; // seconds
 		private const int HEARTBEAT_TASK_DELAY = 5000; //milliseconds
@@ -24,7 +24,7 @@ namespace MiniIT.Snipe
 					mHeartbeatEnabled = value;
 					if (!mHeartbeatEnabled)
 						StopHeartbeat();
-					else if (LoggedIn)
+					else if (mLoggedIn)
 						StartHeartbeat();
 				}
 			}
@@ -33,20 +33,30 @@ namespace MiniIT.Snipe
 		private Stopwatch mPingStopwatch;
 		
 		private WebSocketWrapper mWebSocket = null;
-		private object mWebSocketLock = new object();
+		private readonly object mLock = new object();
 		
-		public bool WebSocketConnected => mWebSocket != null && mWebSocket.Connected;
+		public bool Started => mWebSocket != null;
+		public bool Connected => mWebSocket != null && mWebSocket.Connected;
 		
 		private ConcurrentQueue<SnipeObject> mSendMessages;
-		
-		private void ConnectWebSocket()
+
+		protected bool mConnected;
+		protected bool mLoggedIn;
+
+		public void Connect()
 		{
-			if (mWebSocket != null)  // already connected or trying to connect
-				return;
+            Task.Run((Action)(() =>
+			{
+				lock (this.mLock)
+				{
+                    ConnectTask();
+				}
+			}));
+		}
 
-			Disconnect(false); // clean up
-
-			string url = SnipeConfig.GetServerUrl();
+		private void ConnectTask()
+		{
+			string url = SnipeConfig.GetWebSocketUrl();
 
 			DebugLogger.Log("[SnipeClient] WebSocket Connect to " + url);
 			
@@ -55,34 +65,72 @@ namespace MiniIT.Snipe
 			mWebSocket.OnConnectionClosed += OnWebSocketClosed;
 			mWebSocket.ProcessMessage += ProcessWebSocketMessage;
 			
-			mConnectionStopwatch = Stopwatch.StartNew();
-			
-			Task.Run(() => mWebSocket.Connect(url));
+			mWebSocket.Connect(url);
+		}
+
+		public void Disconnect()
+		{
+			mConnected = false;
+			mLoggedIn = false;
+
+			lock (mLock)
+			{
+				StopSendTask();
+				StopHeartbeat();
+				StopCheckConnection();
+
+				if (mWebSocket != null)
+				{
+					mWebSocket.OnConnectionOpened -= OnWebSocketConnected;
+					mWebSocket.OnConnectionClosed -= OnWebSocketClosed;
+					mWebSocket.ProcessMessage -= ProcessWebSocketMessage;
+					mWebSocket.Disconnect();
+					mWebSocket = null;
+				}
+			}
+		}
+
+		public void SetLoggedIn(bool value)
+		{
+			if (mLoggedIn == value)
+				return;
+
+			mLoggedIn = value;
+
+			if (mLoggedIn && mHeartbeatEnabled)
+			{
+				StartHeartbeat();
+			}
 		}
 
 		private void OnWebSocketConnected()
 		{
 			DebugLogger.Log($"[SnipeClient] OnWebSocketConnected");
-			
-			mConnectionStopwatch?.Stop();
-			Analytics.ConnectionEstablishmentTime = mConnectionStopwatch?.ElapsedMilliseconds ?? 0;
-			
-			OnConnected();
+
+			mMainThreadActions.Enqueue(() =>
+			{
+				ConnectionOpenedHandler?.Invoke();
+			});
 		}
 		
 		protected void OnWebSocketClosed()
 		{
 			DebugLogger.Log("[SnipeClient] OnWebSocketClosed");
-			
+
+			mLoggedIn = false;
+
 			if (!mConnected) // failed to establish connection
 			{
-				SnipeConfig.NextServerUrl();
+				SnipeConfig.NextWebSocketUrl();
 			}
 
-			Disconnect(true);
+			mMainThreadActions.Enqueue(() =>
+			{
+				ConnectionClosedHandler?.Invoke();
+			});
 		}
 		
-		private void EnqueueMessageToSendWebSocket(SnipeObject message)
+		public void SendMessage(SnipeObject message)
 		{
 			if (mSendMessages == null)
 			{
@@ -90,62 +138,14 @@ namespace MiniIT.Snipe
 			}
 			mSendMessages.Enqueue(message);
 		}
-		
-		private void DoSendRequestWebSocket(SnipeObject message)
+
+		private async void DoSendRequest(SnipeObject message)
 		{
-			string message_type = message.SafeGetString("t");
-			
-			int buffer_size;
-			if (!mSendMessageBufferSizes.TryGetValue(message_type, out buffer_size))
+			byte[] data = await SerializeMessage(message);
+
+			lock (mLock)
 			{
-				buffer_size = 1024;
-			}
-			
-			lock (mWebSocketLock)
-			{
-				byte[] buffer = mBytesPool.Rent(buffer_size);
-				var msg_data = MessagePackSerializerNonAlloc.Serialize(ref buffer, message);
-
-				if (SnipeConfig.CompressionEnabled && msg_data.Count >= SnipeConfig.MinMessageSizeToCompress) // compression needed
-				{
-					DebugLogger.Log("[SnipeClient] compress message");
-					DebugLogger.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
-
-					ArraySegment<byte> compressed = mMessageCompressor.Compress(msg_data);
-
-					DebugLogger.Log("Compressed:   " + BitConverter.ToString(compressed.Array, compressed.Offset, compressed.Count));
-
-					if (TryReturnMessageBuffer(buffer) && buffer.Length > buffer_size)
-					{
-						mSendMessageBufferSizes[message_type] = buffer.Length;
-					}
-
-					buffer = new byte[compressed.Count + 2];
-					buffer[0] = 0xAA;
-					buffer[1] = 0xBB;
-					Array.ConstrainedCopy(compressed.Array, compressed.Offset, buffer, 2, compressed.Count);
-
-					mWebSocket.SendRequest(buffer);
-				}
-				else // compression not needed
-				{
-					mWebSocket.SendRequest(msg_data);
-
-					if (TryReturnMessageBuffer(buffer) && buffer.Length > buffer_size)
-					{
-						mSendMessageBufferSizes[message_type] = buffer.Length;
-					}
-				}
-			}
-			
-			if (mServerReactionStopwatch != null)
-			{
-				mServerReactionStopwatch.Reset();
-				mServerReactionStopwatch.Start();
-			}
-			else
-			{
-				mServerReactionStopwatch = Stopwatch.StartNew();
+				mWebSocket.SendRequest(data);
 			}
 
 			if (mSendMessages != null && mSendMessages.IsEmpty && !message.SafeGetString("t").StartsWith("payment/"))
@@ -154,22 +154,84 @@ namespace MiniIT.Snipe
 			}
 		}
 
+		private async Task<byte[]> SerializeMessage(SnipeObject message)
+		{
+			string message_type = message.SafeGetString("t");
+
+			byte[] result = null;
+			byte[] buffer = mMessageBufferProvider.GetBuffer(message_type);
+			var msg_data = await Task.Run(() => MessagePackSerializerNonAlloc.Serialize(ref buffer, message));
+
+			if (SnipeConfig.CompressionEnabled && msg_data.Count >= SnipeConfig.MinMessageSizeToCompress) // compression needed
+			{
+				await Task.Run(() =>
+				{
+					DebugLogger.Log("[SnipeClient] compress message");
+					DebugLogger.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
+
+					ArraySegment<byte> compressed = mMessageCompressor.Compress(msg_data);
+
+					DebugLogger.Log("Compressed:   " + BitConverter.ToString(compressed.Array, compressed.Offset, compressed.Count));
+
+					mMessageBufferProvider.ReturnBuffer(message_type, buffer);
+
+					result = new byte[compressed.Count + 2];
+					result[0] = 0xAA;
+					result[1] = 0xBB;
+					Array.ConstrainedCopy(compressed.Array, compressed.Offset, result, 2, compressed.Count);
+				});
+			}
+			else // compression not needed
+			{
+				mMessageBufferProvider.ReturnBuffer(message_type, buffer);
+
+				result = new byte[msg_data.Count];
+				Array.ConstrainedCopy(msg_data.Array, msg_data.Offset, result, 0, msg_data.Count);
+			}
+
+			return result;
+		}
+
 		protected void ProcessWebSocketMessage(byte[] raw_data)
 		{
 			if (raw_data.Length < 2)
 				return;
-			
+
+			StopCheckConnection();
+
+			ProcessMessage(raw_data);
+		}
+
+		private async void ProcessMessage(byte[] raw_data)
+		{
 			DebugLogger.Log("ProcessWebSocketMessage:   " + BitConverter.ToString(raw_data, 0, raw_data.Length));
+
+			SnipeObject message;
 
 			if (raw_data[0] == 0xAA && raw_data[1] == 0xBB) // compressed message
 			{
-				var decompressed = mMessageCompressor.Decompress(new ArraySegment<byte>(raw_data, 2, raw_data.Length - 2));
-
-				ProcessMessage(decompressed);
+				message = await Task.Run(() =>
+				{
+					var decompressed = mMessageCompressor.Decompress(new ArraySegment<byte>(raw_data, 2, raw_data.Length - 2));
+					return MessagePackDeserializer.Parse(decompressed) as SnipeObject;
+				});
 			}
 			else // uncompressed
 			{
-				ProcessMessage(raw_data);
+				message = await Task.Run(() =>
+				{
+					return MessagePackDeserializer.Parse(raw_data) as SnipeObject;
+				});
+			}
+
+			mMainThreadActions.Enqueue(() =>
+			{
+				MessageReceivedHandler?.Invoke(message);
+			});
+
+			if (mHeartbeatEnabled)
+			{
+				ResetHeartbeatTimer();
 			}
 		}
 
@@ -201,7 +263,7 @@ namespace MiniIT.Snipe
 				catch (Exception task_exception)
 				{
 					var e = task_exception is AggregateException ae ? ae.InnerException : task_exception;
-					DebugLogger.Log($"[SnipeClient] [{ConnectionId}] SendTask Exception: {e}");
+					DebugLogger.Log($"[SnipeClient] [] SendTask Exception: {e}");
 					Analytics.TrackError("WebSocket SendTask error", e);
 					
 					StopSendTask();
@@ -226,7 +288,7 @@ namespace MiniIT.Snipe
 		{
 			while (cancellation?.IsCancellationRequested != true && Connected)
 			{
-				if (mSendMessages != null && !mSendMessages.IsEmpty && mSendMessages.TryDequeue(out var message))
+				if (mSendMessages != null && !mSendMessages.IsEmpty && mSendMessages.TryDequeue(out var message) && message != null)
 				{
 					DoSendRequest(message);
 				}
@@ -236,7 +298,6 @@ namespace MiniIT.Snipe
 		}
 
 		#endregion // Send task
-		
 
 		#region Heartbeat
 
@@ -268,7 +329,7 @@ namespace MiniIT.Snipe
 			// await Task.Delay(HEARTBEAT_TASK_DELAY, cancellation);
 			mHeartbeatTriggerTicks = 0;
 
-			while (cancellation != null && !cancellation.IsCancellationRequested && WebSocketConnected)
+			while (cancellation != null && !cancellation.IsCancellationRequested && Connected)
 			{
 				if (DateTime.UtcNow.Ticks >= mHeartbeatTriggerTicks)
 				{
@@ -279,7 +340,7 @@ namespace MiniIT.Snipe
 					}
 					else
 					{
-						lock (mWebSocketLock)
+						lock (mLock)
 						{
 							pinging = true;
 							
@@ -299,16 +360,16 @@ namespace MiniIT.Snipe
 								Analytics.PingTime = pong && mPingStopwatch != null ? mPingStopwatch.ElapsedMilliseconds : 0;
 								
 								if (pong)
-									DebugLogger.Log($"[SnipeClient] [{ConnectionId}] Heartbeat pong {Analytics.PingTime} ms");
+									DebugLogger.Log($"[SnipeClient] [] Heartbeat pong {Analytics.PingTime} ms");
 								else
-									DebugLogger.Log($"[SnipeClient] [{ConnectionId}] Heartbeat pong NOT RECEIVED");
+									DebugLogger.Log($"[SnipeClient] [] Heartbeat pong NOT RECEIVED");
 							});
 						}
 					}
 					
 					ResetHeartbeatTimer();
 
-					DebugLogger.Log($"[SnipeClient] [{ConnectionId}] Heartbeat ping");
+					DebugLogger.Log($"[SnipeClient] [] Heartbeat ping");
 				}
 				
 				if (cancellation == null || cancellation.IsCancellationRequested)
@@ -333,8 +394,10 @@ namespace MiniIT.Snipe
 		}
 
 		#endregion
-		
+
 		#region CheckConnection
+
+		public bool BadConnection { get; private set; } = false;
 
 		private CancellationTokenSource mCheckConnectionCancellation;
 		
@@ -343,7 +406,7 @@ namespace MiniIT.Snipe
 			if (!mLoggedIn)
 				return;
 			
-			// DebugLogger.Log($"[SnipeClient] [{ConnectionId}] StartCheckConnection");
+			// DebugLogger.Log($"[SnipeClient] [] StartCheckConnection");
 
 			mCheckConnectionCancellation?.Cancel();
 
@@ -358,7 +421,7 @@ namespace MiniIT.Snipe
 				mCheckConnectionCancellation.Cancel();
 				mCheckConnectionCancellation = null;
 
-				// DebugLogger.Log($"[SnipeClient] [{ConnectionId}] StopCheckConnection");
+				// DebugLogger.Log($"[SnipeClient] [] StopCheckConnection");
 			}
 			
 			BadConnection = false;
@@ -383,10 +446,10 @@ namespace MiniIT.Snipe
 				return;
 			
 			BadConnection = true;
-			DebugLogger.Log($"[SnipeClient] [{ConnectionId}] CheckConnectionTask - Bad connection detected");
+			DebugLogger.Log($"[SnipeClient] [] CheckConnectionTask - Bad connection detected");
 			
 			bool pinging = false;
-			while (WebSocketConnected && BadConnection)
+			while (Connected && BadConnection)
 			{
 				// if the connection is ok then this task should be cancelled
 				if (cancellation == null || cancellation.IsCancellationRequested)
@@ -401,7 +464,7 @@ namespace MiniIT.Snipe
 				}
 				else
 				{
-					lock (mWebSocketLock)
+					lock (mLock)
 					{
 						pinging = true;
 						mWebSocket.Ping(pong =>
@@ -411,11 +474,11 @@ namespace MiniIT.Snipe
 							if (pong)
 							{
 								BadConnection = false;
-								DebugLogger.Log($"[SnipeClient] [{ConnectionId}] CheckConnectionTask - pong received");
+								DebugLogger.Log($"[SnipeClient] [] CheckConnectionTask - pong received");
 							}
 							else
 							{
-								DebugLogger.Log($"[SnipeClient] [{ConnectionId}] CheckConnectionTask - pong NOT received");
+								DebugLogger.Log($"[SnipeClient] [] CheckConnectionTask - pong NOT received");
 								OnDisconnectDetected();
 							}
 						});
@@ -429,7 +492,7 @@ namespace MiniIT.Snipe
 			if (Connected)
 			{
 				// Disconnect detected
-				DebugLogger.Log($"[SnipeClient] [{ConnectionId}] CheckConnectionTask - Disconnect detected");
+				DebugLogger.Log($"[SnipeClient] [] CheckConnectionTask - Disconnect detected");
 
 				OnWebSocketClosed();
 			}
