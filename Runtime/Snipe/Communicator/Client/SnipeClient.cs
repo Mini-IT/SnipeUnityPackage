@@ -120,7 +120,7 @@ namespace MiniIT.Snipe
 			{
 				mWebSocket.OnConnectionOpened -= OnWebSocketConnected;
 				mWebSocket.OnConnectionClosed -= OnWebSocketClosed;
-				mWebSocket.ProcessMessage -= ProcessMessage;
+				mWebSocket.ProcessMessage -= ProcessWebSocketMessage;
 				mWebSocket.Disconnect();
 				mWebSocket = null;
 			}
