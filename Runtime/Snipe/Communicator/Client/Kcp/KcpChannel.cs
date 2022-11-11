@@ -1,4 +1,4 @@
-namespace kcp2k
+namespace MiniIT.Snipe
 {
     // channel type and header for raw messages
     public enum KcpChannel : byte

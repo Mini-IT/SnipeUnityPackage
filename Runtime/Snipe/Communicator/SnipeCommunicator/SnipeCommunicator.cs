@@ -566,9 +566,14 @@ namespace MiniIT.Snipe
 				}
 			}
 		}
-		
+
+		private void OnApplicationQuit()
+		{
+			DestroyInstance();
+		}
+
 		#region Analytics
-		
+
 		private void AnalyticsTrackStartConnection()
 		{
 			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_START_CONNECTION);

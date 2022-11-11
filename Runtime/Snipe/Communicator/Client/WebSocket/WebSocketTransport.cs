@@ -167,11 +167,11 @@ namespace MiniIT.Snipe
 				await Task.Run(() =>
 				{
 					DebugLogger.Log("[SnipeClient] compress message");
-					DebugLogger.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
+					//DebugLogger.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
 
 					ArraySegment<byte> compressed = mMessageCompressor.Compress(msg_data);
 
-					DebugLogger.Log("Compressed:   " + BitConverter.ToString(compressed.Array, compressed.Offset, compressed.Count));
+					//DebugLogger.Log("Compressed:   " + BitConverter.ToString(compressed.Array, compressed.Offset, compressed.Count));
 
 					mMessageBufferProvider.ReturnBuffer(message_type, buffer);
 
@@ -204,7 +204,7 @@ namespace MiniIT.Snipe
 
 		private async void ProcessMessage(byte[] raw_data)
 		{
-			DebugLogger.Log("ProcessWebSocketMessage:   " + BitConverter.ToString(raw_data, 0, raw_data.Length));
+			DebugLogger.Log("ProcessWebSocketMessage"); //   " + BitConverter.ToString(raw_data, 0, raw_data.Length));
 
 			SnipeObject message;
 
