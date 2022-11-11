@@ -1,7 +1,5 @@
 ﻿#if SNIPE_FACEBOOK
 
-using System;
-using UnityEngine;
 using Facebook.Unity;
 
 namespace MiniIT.Snipe
