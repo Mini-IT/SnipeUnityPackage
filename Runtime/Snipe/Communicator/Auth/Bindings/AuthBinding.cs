@@ -166,10 +166,7 @@ namespace MiniIT.Snipe
 
 		public void CheckAuthExists(CheckAuthExistsCallback callback = null)
 		{
-			if (mFetcher == null)
-				return;
-
-			mFetcher.Fetch(false, uid =>
+			mFetcher?.Fetch(false, uid =>
 			{
 				CheckAuthExists(uid, callback);
 			});
@@ -177,7 +174,7 @@ namespace MiniIT.Snipe
 
 		protected virtual void CheckAuthExists(string user_id, CheckAuthExistsCallback callback = null)
 		{
-			DebugLogger.Log($"[BindProvider] ({ProviderId}) CheckAuthExists {user_id}");
+			DebugLogger.Log($"[AuthBinding] ({ProviderId}) CheckAuthExists {user_id}");
 
 			SnipeObject data = new SnipeObject()
 			{
@@ -233,7 +230,7 @@ namespace MiniIT.Snipe
 				}
 				else if (!is_me)
 				{
-					DebugLogger.Log($"[BindProvider] ({ProviderId}) OnCheckAuthExistsResponse - another account found - InvokeAccountBindingCollisionEvent");
+					DebugLogger.Log($"[AuthBinding] ({ProviderId}) OnCheckAuthExistsResponse - another account found - InvokeAccountBindingCollisionEvent");
 					SnipeCommunicator.Instance.Auth.InvokeAccountBindingCollisionEvent(this, data.SafeGetString("name"));
 				}
 			}
@@ -241,7 +238,7 @@ namespace MiniIT.Snipe
 
 		protected virtual void InvokeBindResultCallback(string error_code)
 		{
-			DebugLogger.Log($"[BindProvider] ({ProviderId}) InvokeBindResultCallback - {error_code}");
+			DebugLogger.Log($"[AuthBinding] ({ProviderId}) InvokeBindResultCallback - {error_code}");
 
 			if (mBindResultCallback != null)
 				mBindResultCallback.Invoke(this, error_code);
@@ -254,7 +251,7 @@ namespace MiniIT.Snipe
 			bool current_value = PlayerPrefs.GetInt(BindDonePrefsKey, 0) == 1;
 			if (value != current_value)
 			{
-				DebugLogger.Log($"[BindProvider] ({ProviderId}) Set bind done flag to {value}");
+				DebugLogger.Log($"[AuthBinding] ({ProviderId}) Set bind done flag to {value}");
 
 				PlayerPrefs.SetInt(BindDonePrefsKey, value ? 1 : 0);
 
