@@ -3,12 +3,12 @@ using UnityEngine;
 
 namespace MiniIT.Snipe
 {
-	public class AuthBinding<T> : AuthBinding where T : AuthIdFetcher, new()
+	public class AuthBinding<FetcherType> : AuthBinding where FetcherType : AuthIdFetcher, new()
 	{
 		public AuthBinding(string provider_id) : base()
 		{
 			ProviderId = provider_id;
-			mFetcher = new T();
+			mFetcher = new FetcherType();
 		}
 	}
 
