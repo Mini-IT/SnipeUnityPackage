@@ -4,7 +4,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using MiniIT.MessagePack;
 
-using kcp2k;
 using System.Buffers;
 
 namespace MiniIT.Snipe
@@ -22,13 +21,13 @@ namespace MiniIT.Snipe
 		public bool ConnectionEstablished { get; private set; } = false;
 		
 		public bool Started => mUdpClient != null;
-		public bool Connected => mUdpClient != null && mUdpClient.connected;
+		public bool Connected => mUdpClient != null && mUdpClient.Connected;
 		
 		public double UdpDnsResolveTime { get; private set; }
 		public double UdpSocketConnectTime { get; private set; }
 		public double UdpSendHandshakeTime { get; private set; }
 
-		private KcpClient mUdpClient;
+		private KcpConnection mUdpClient;
 		private CancellationTokenSource mNetworkLoopCancellation;
 
 		private readonly object mLock = new object();
@@ -51,28 +50,14 @@ namespace MiniIT.Snipe
 
 			ConnectionEstablished = false;
 
-			kcp2k.Log.Info = DebugLogger.Log;
-			kcp2k.Log.Warning = DebugLogger.LogWarning;
-			kcp2k.Log.Error = DebugLogger.LogError;
-			
-			mUdpClient = new KcpClient(
-				OnClientConnected,
-				OnClientDataReceived,
-				OnClientDisconnected);
+			mUdpClient = new KcpConnection();
+			mUdpClient.OnAuthenticated = OnClientConnected;
+			mUdpClient.OnData = OnClientDataReceived;
+			mUdpClient.OnDisconnected = OnClientDisconnected;
 
 			var address = SnipeConfig.GetUdpAddress();
 
-			mUdpClient.Connect(
-				address.Host,
-				address.Port,
-				true,  // NoDelay is recommended to reduce latency
-				10,    // KCP internal update interval. 100ms is KCP default, but a lower interval is recommended to minimize latency and to scale to more networked entities
-				2,     // KCP fastresend parameter. Faster resend for the cost of higher bandwidth. 0 in normal mode, 2 in turbo mode
-				false, // KCP congestion window. Enabled in normal mode, disabled in turbo mode. Disable this for high scale games if connections get choked regularly
-				4096,  // SendWindowSize    - KCP window size can be modified to support higher loads
-				4096,  // ReceiveWindowSize - KCP window size can be modified to support higher loads. This also increases max message size
-				3000,  // KCP timeout in milliseconds. Note that KCP sends a ping automatically
-				Kcp.DEADLINK * 2); // KCP will try to retransmit lost messages up to MaxRetransmit (aka dead_link) before disconnecting. default prematurely disconnects a lot of people (#3022). use 2x
+			mUdpClient.Connect(address.Host, address.Port, 3000);
 			
 			StartNetworkLoop();
 		}
@@ -138,12 +123,12 @@ namespace MiniIT.Snipe
 		
 		private void RefreshConnectionStats()
 		{
-			UdpDnsResolveTime = mUdpClient?.connection?.DnsResolveTime ?? 0;
-			UdpSocketConnectTime = mUdpClient?.connection?.SocketConnectTime ?? 0;
-			UdpSendHandshakeTime = mUdpClient?.connection?.SendHandshakeTime ?? 0;
+			//UdpDnsResolveTime = mUdpClient?.connection?.DnsResolveTime ?? 0;
+			//UdpSocketConnectTime = mUdpClient?.connection?.SocketConnectTime ?? 0;
+			//UdpSendHandshakeTime = mUdpClient?.connection?.SendHandshakeTime ?? 0;
 		}
 		
-		private void OnClientDataReceived(ArraySegment<byte> buffer, KcpChannel channel)
+		private void OnClientDataReceived(ArraySegment<byte> buffer, KcpChannel channel, bool compressed)
 		{
 			DebugLogger.Log($"[SnipeClient] OnUdpClientDataReceived");
 			
@@ -166,11 +151,11 @@ namespace MiniIT.Snipe
 
 			if (opcode == OPCODE_SNIPE_RESPONSE || opcode == OPCODE_SNIPE_RESPONSE_COMPRESSED)
 			{
-				ProcessMessage(buffer);
+				ProcessMessage(buffer, compressed || (opcode == OPCODE_SNIPE_RESPONSE_COMPRESSED));
 			}
 		}
 
-		private async void ProcessMessage(ArraySegment<byte> buffer)
+		private async void ProcessMessage(ArraySegment<byte> buffer, bool compressed)
 		{
 			// local copy for thread safety
 			byte[] data = ArrayPool<byte>.Shared.Rent(buffer.Count);
@@ -184,7 +169,7 @@ namespace MiniIT.Snipe
 				int len = BitConverter.ToInt32(buffer.Array, buffer.Offset + 1);
 				var raw_data = new ArraySegment<byte>(buffer.Array, buffer.Offset + 5, len);
 
-				if (opcode == OPCODE_SNIPE_RESPONSE_COMPRESSED)
+				if (compressed)
 				{
 					var decompressed_data = mMessageCompressor.Decompress(raw_data);
 
@@ -228,7 +213,7 @@ namespace MiniIT.Snipe
 				ArraySegment<byte> msg_data = await serializer.Run();
 				lock (mLock)
 				{
-					mUdpClient.Send(msg_data, KcpChannel.Reliable);
+					mUdpClient.SendData(msg_data, KcpChannel.Reliable);
 				}
 			}
 		}
@@ -257,15 +242,12 @@ namespace MiniIT.Snipe
 
 		private async void NetworkLoop(CancellationToken cancellation)
 		{
-			DebugLogger.Log("[SnipeClient] NetworkLoop - start");
-			
 			while (cancellation != null && !cancellation.IsCancellationRequested)
 			{
 				try
 				{
-					mUdpClient?.TickIncoming();
-					mUdpClient?.TickOutgoing();
-					Analytics.PingTime = mUdpClient?.connection?.PingTime ?? 0;
+					mUdpClient?.Tick();
+					//Analytics.PingTime = mUdpClient?.connection?.PingTime ?? 0;
 				}
 				catch (Exception e)
 				{
@@ -285,8 +267,6 @@ namespace MiniIT.Snipe
 					return;
 				}
 			}
-			
-			DebugLogger.Log("[SnipeClient] NetworkLoop - finish");
 		}
 		
 		private async void UdpConnectionTimeout(CancellationToken cancellation)

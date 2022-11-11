@@ -65,7 +65,7 @@ namespace kcp2k
         internal bool updated;
         internal uint ts_probe;      // timestamp probe
         internal uint probe_wait;
-        internal uint dead_link;     // maximum amount of 'xmit' retransmissions until a segment is considered lost
+        public uint dead_link;     // maximum amount of 'xmit' retransmissions until a segment is considered lost
         internal uint incr;
         internal uint current;       // current time (milliseconds). set by Update.
 
@@ -88,9 +88,16 @@ namespace kcp2k
         // get how many packet is waiting to be sent
         public int WaitSnd => snd_buf.Count + snd_queue.Count;
 
-        // segment pool to avoid allocations in C#.
-        // this is not part of the original C code.
-        readonly Pool<Segment> SegmentPool = new Pool<Segment>(
+        public int GetState() => state;
+		public int GetRcvBufCount() => rcv_buf.Count;
+		public int GetSndBufCount() => snd_buf.Count;
+		public int GetRcvQueueCount() => rcv_queue.Count;
+        public int GetSndQueueCount() => snd_queue.Count;
+        public void ClearSndQueue() => snd_queue.Clear();
+
+		// segment pool to avoid allocations in C#.
+		// this is not part of the original C code.
+		readonly Pool<Segment> SegmentPool = new Pool<Segment>(
             // create new segment
             () => new Segment(),
             // reset segment before reuse
