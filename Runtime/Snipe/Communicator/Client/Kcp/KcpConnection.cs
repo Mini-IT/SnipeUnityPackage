@@ -4,9 +4,7 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net.Sockets;
-using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
-using UnityEditor.VersionControl;
 
 namespace MiniIT.Snipe
 {
