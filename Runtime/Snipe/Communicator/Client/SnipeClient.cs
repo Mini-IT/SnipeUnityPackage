@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 
 namespace MiniIT.Snipe
@@ -6,6 +8,7 @@ namespace MiniIT.Snipe
 	public partial class SnipeClient
 	{
 		public const int SNIPE_VERSION = 6;
+		public const int MAX_BATCH_SIZE = 5;
 		
 		public delegate void MessageReceivedHandler(string message_type, string error_code, SnipeObject data, int request_id);
 		public event MessageReceivedHandler MessageReceived;
@@ -36,6 +39,33 @@ namespace MiniIT.Snipe
 		public double UdpDnsResolveTime => _kcp?.UdpDnsResolveTime ?? 0;
 		public double UdpSocketConnectTime => _kcp?.UdpSocketConnectTime ?? 0;
 		public double UdpSendHandshakeTime => _kcp?.UdpSendHandshakeTime ?? 0;
+
+		private bool _batchMode = false;
+		public bool BatchMode
+		{
+			get => _batchMode;
+			set
+			{
+				if (value != _batchMode)
+				{
+					_batchMode = value;
+					if (_batchMode)
+					{
+						_batchedRequests ??= new ConcurrentQueue<SnipeObject>();
+					}
+					else
+					{
+						FlushBatchedRequests();
+						_batchedRequests = null;
+					}
+
+					DebugLogger.Log($"[SnipeClient] BatchMode = {value}");
+				}
+			}
+		}
+
+		private ConcurrentQueue<SnipeObject> _batchedRequests;
+		private readonly object _batchLock = new object();
 
 		private SnipeMessageCompressor _messageCompressor;
 
@@ -169,19 +199,57 @@ namespace MiniIT.Snipe
 			}
 		}
 
+		public int SendRequest(string message_type, SnipeObject data)
+		{
+			if (!Connected)
+				return 0;
+
+			var message = new SnipeObject() { ["t"] = message_type };
+
+			if (data != null)
+			{
+				message.Add("data", data);
+			}
+
+			return SendRequest(message);
+		}
+
 		public int SendRequest(SnipeObject message)
 		{
 			if (!Connected || message == null)
 				return 0;
-			
-			message["id"] = ++mRequestId;
-			
+
+			int request_id = ++mRequestId;
+			message["id"] = request_id;
+
 			if (!_loggedIn)
 			{
 				var data = message["data"] as SnipeObject ?? new SnipeObject();
 				data["ckey"] = SnipeConfig.ClientKey;
 				message["data"] = data;
 			}
+
+			if (BatchMode)
+			{
+				_batchedRequests.Enqueue(message);
+
+				if (_batchedRequests.Count >= MAX_BATCH_SIZE)
+				{
+					FlushBatchedRequests();
+				}
+			}
+			else
+			{
+				DoSendRequest(message);
+			}
+
+			return request_id;
+		}
+
+		private void DoSendRequest(SnipeObject message)
+		{
+			if (!Connected || message == null)
+				return;
 			
 			DebugLogger.Log($"[SnipeClient] SendRequest - {message.ToJSONString()}");
 			
@@ -205,25 +273,25 @@ namespace MiniIT.Snipe
 			}
 
 			AddResponseMonitoringItem(mRequestId, message.SafeGetString("t"));
-			
-			return mRequestId;
 		}
 
-		public int SendRequest(string message_type, SnipeObject data)
+		private void DoSendBatch(List<SnipeObject> messages)
 		{
-			if (!Connected)
-				return 0;
-			
-			var message = new SnipeObject() { ["t"] = message_type };
-			
-			if (data != null)
+			if (!Connected || messages == null || messages.Count == 0)
+				return;
+
+			DebugLogger.Log($"[SnipeClient] DoSendBatch - {messages.Count} items");
+
+			if (UdpClientConnected)
 			{
-				message.Add("data", data);
+				_kcp.SendBatch(messages);
 			}
-			
-			return SendRequest(message);
+			else if (WebSocketConnected)
+			{
+				_webSocket.SendBatch(messages);
+			}
 		}
-		
+
 		private void ProcessMessage(SnipeObject message)
 		{
 			if (message == null)
@@ -307,6 +375,22 @@ namespace MiniIT.Snipe
 			else
 			{
 				DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - no MessageReceived listeners");
+			}
+		}
+
+		private void FlushBatchedRequests()
+		{
+			if (_batchedRequests == null || _batchedRequests.IsEmpty)
+				return;
+
+			lock (_batchLock)
+			{
+				List<SnipeObject> messages = new List<SnipeObject>(MAX_BATCH_SIZE);
+				while (_batchedRequests.TryDequeue(out SnipeObject message))
+				{
+					messages.Add(message);
+				}
+				DoSendBatch(messages);
 			}
 		}
 	}

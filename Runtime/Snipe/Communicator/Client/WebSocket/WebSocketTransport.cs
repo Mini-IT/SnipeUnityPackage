@@ -3,7 +3,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using MiniIT.MessagePack;
+using System.Buffers;
+using System.Runtime.CompilerServices;
 
 namespace MiniIT.Snipe
 {
@@ -12,6 +15,8 @@ namespace MiniIT.Snipe
 		private const double HEARTBEAT_INTERVAL = 30; // seconds
 		private const int HEARTBEAT_TASK_DELAY = 5000; //milliseconds
 		private const int CHECK_CONNECTION_TIMEOUT = 5000; // milliseconds
+		private readonly byte[] COMPRESSED_HEADER = new byte[] { 0xAA, 0xBB };
+		private readonly byte[] BATCH_HEADER = new byte[] { 0xAA, 0xBC };
 
 		protected bool _heartbeatEnabled = true;
 		public bool HeartbeatEnabled
@@ -39,19 +44,20 @@ namespace MiniIT.Snipe
 		public bool Connected => _webSocket != null && _webSocket.Connected;
 		
 		private ConcurrentQueue<SnipeObject> _sendMessages;
+		private ConcurrentQueue<List<SnipeObject>> _batchMessages;
 
 		protected bool _connected;
 		protected bool _loggedIn;
 
 		public void Connect()
 		{
-            Task.Run((Action)(() =>
+            Task.Run(() =>
 			{
 				lock (this._lock)
 				{
                     ConnectTask();
 				}
-			}));
+			});
 		}
 
 		private void ConnectTask()
@@ -139,6 +145,16 @@ namespace MiniIT.Snipe
 			_sendMessages.Enqueue(message);
 		}
 
+		public void SendBatch(List<SnipeObject> messages)
+		{
+			lock (this._lock)
+			{
+				if (_batchMessages == null)
+					_batchMessages = new ConcurrentQueue<List<SnipeObject>>();
+				_batchMessages.Enqueue(messages);
+			}
+		}
+
 		private async void DoSendRequest(SnipeObject message)
 		{
 			byte[] data = await SerializeMessage(message);
@@ -151,6 +167,34 @@ namespace MiniIT.Snipe
 			if (_sendMessages != null && _sendMessages.IsEmpty && !message.SafeGetString("t").StartsWith("payment/"))
 			{
 				StartCheckConnection();
+			}
+		}
+
+		private async void DoSendBatch(List<SnipeObject> messages)
+		{
+			byte[][] data = new byte[messages.Count][];
+			int length = 2; // 2 bytes for batch header
+			for (int i = 0; i < messages.Count; i++)
+			{
+				data[i] = await SerializeMessage(messages[i]);
+				length += data[i].Length + 3; // 3 bytes for serialized message size
+			}
+
+			byte[] request = new byte[length]; // don't use ArrayPool<byte> here
+			request[0] = BATCH_HEADER[0];
+			request[1] = BATCH_HEADER[1];
+			int offset = 2;
+			for (int i = 0; i < data.Length; i++)
+			{
+				WriteInt3(request, offset, data[i].Length);
+				offset += 3;
+				Array.ConstrainedCopy(data[i], 0, request, offset, data[i].Length);
+				offset += data[i].Length;
+			}
+
+			lock (_lock)
+			{
+				_webSocket.SendRequest(request);
 			}
 		}
 
@@ -176,8 +220,8 @@ namespace MiniIT.Snipe
 					_messageBufferProvider.ReturnBuffer(message_type, buffer);
 
 					result = new byte[compressed.Count + 2];
-					result[0] = 0xAA;
-					result[1] = 0xBB;
+					result[0] = COMPRESSED_HEADER[0];
+					result[1] = COMPRESSED_HEADER[1];
 					Array.ConstrainedCopy(compressed.Array, compressed.Offset, result, 2, compressed.Count);
 				});
 			}
@@ -288,6 +332,11 @@ namespace MiniIT.Snipe
 		{
 			while (cancellation?.IsCancellationRequested != true && Connected)
 			{
+				if (_batchMessages != null && !_batchMessages.IsEmpty && _batchMessages.TryDequeue(out var messages) && messages != null && messages.Count > 0)
+				{
+					DoSendBatch(messages);
+				}
+
 				if (_sendMessages != null && !_sendMessages.IsEmpty && _sendMessages.TryDequeue(out var message) && message != null)
 				{
 					DoSendRequest(message);

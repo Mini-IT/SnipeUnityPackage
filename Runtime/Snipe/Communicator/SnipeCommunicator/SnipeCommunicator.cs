@@ -74,6 +74,16 @@ namespace MiniIT.Snipe
 			get { return (Client != null && Client.LoggedIn) ? mRoomJoined : null; }
 		}
 
+		public bool BatchMode
+		{
+			get => Client?.BatchMode ?? false;
+			set
+			{
+				if (Client != null)
+					Client.BatchMode = value;
+			}
+		}
+
 		private bool mDisconnecting = false;
 		
 		private /*readonly*/ ConcurrentQueue<Action> mMainThreadActions = new ConcurrentQueue<Action>();

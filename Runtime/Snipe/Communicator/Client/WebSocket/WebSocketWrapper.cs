@@ -20,10 +20,6 @@ namespace MiniIT.Snipe
 		private WebSocket _webSocket = null;
 		private CancellationTokenSource _connectionWaitingCancellation;
 
-		public WebSocketWrapper()
-		{
-		}
-
 		public async void Connect(string url)
 		{
 			Disconnect();

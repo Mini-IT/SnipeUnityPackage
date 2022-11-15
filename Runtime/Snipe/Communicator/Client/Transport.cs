@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -41,6 +42,14 @@ namespace MiniIT.Snipe
 		{
 			_mainThreadLoopCancellation?.Cancel();
 			_mainThreadLoopCancellation = null;
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		protected void WriteInt3(byte[] buffer, int offset, int value)
+		{
+			buffer[offset + 0] = (byte)(value >> 8);
+			buffer[offset + 1] = (byte)(value >> 0x10);
+			buffer[offset + 2] = (byte)(value >> 0x18);
 		}
 	}
 }

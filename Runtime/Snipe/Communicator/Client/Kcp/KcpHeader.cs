@@ -9,5 +9,6 @@ namespace MiniIT.Snipe
 		Disconnect = 0x04,
 		Chunk = 0x05, // fragment of a large data packet splitted into several messages
 		CompressedChunk = 0x06,
+		Batch = 0x07,
 	}
 }

@@ -77,6 +77,11 @@ namespace MiniIT.Snipe
 			DoSendRequest(message);
 		}
 
+		public void SendBatch(List<SnipeObject> messages)
+		{
+			DoSendBatch(messages);
+		}
+
 		private void OnClientConnected() 
 		{
 			ConnectionEstablished = true;
@@ -217,7 +222,26 @@ namespace MiniIT.Snipe
 				}
 			}
 		}
-		
+
+		private async void DoSendBatch(List<SnipeObject> messages)
+		{
+			var data = new List<ArraySegment<byte>>(messages.Count);
+
+			foreach (var message in messages)
+			{
+				using (var serializer = new KcpMessageSerializer(message, _messageCompressor, _messageBufferProvider))
+				{
+					ArraySegment<byte> msg_data = await serializer.Run();
+					data.Add(msg_data);
+				}
+			}
+
+			lock (_lock)
+			{
+				_kcpConnection.SendBatchReliable(data);
+			}
+		}
+
 		private void StartNetworkLoop()
 		{
 			DebugLogger.Log("[SnipeClient] StartNetworkLoop");

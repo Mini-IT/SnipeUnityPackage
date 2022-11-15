@@ -239,6 +239,74 @@ namespace MiniIT.Snipe
 			}
 		}
 
+		public void SendBatchReliable(List<ArraySegment<byte>> data)
+		{
+			int length = 0;
+			int startMessageIndex = 0;
+			for (int i = 0; i < data.Count; i++)
+			{
+				int msgLen = data[i].Count + 3; // 3 bytes for length
+
+				// 1 byte header + content
+				if (1 + length + msgLen <= MAX_KCP_MESSAGE_SIZE)
+				{
+					length += msgLen;
+				}
+				else
+				{
+					DebugLogger.LogWarning("KcpConnection - SendBatchReliable: batch size is larger than MTU");
+
+					if (length > 0) // if there is any cumulated data to send
+					{
+						int messagesCount = i - startMessageIndex + 1;
+						SendBatchData(data, startMessageIndex, messagesCount, length);
+					}
+					else // the first message in the batch is larger than MTU
+					{
+						SendData(data[startMessageIndex], KcpChannel.Reliable);
+					}
+
+					startMessageIndex = i + 1;
+					length = 0;
+				}
+			}
+
+			if (length > 0) // if there is any cumulated data to send
+			{
+				int messagesCount = data.Count - startMessageIndex;
+				SendBatchData(data, startMessageIndex, messagesCount, length);
+			}
+		}
+
+		private void SendBatchData(List<ArraySegment<byte>> data, int startIndex, int count, int bufferLength)
+		{
+			if (count > 1)
+			{
+				byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferLength);
+				int offset = 0;
+				
+				for (int i = 0; i < count; i++)
+				{
+					int index = startIndex + i;
+					var messageData = data[index];
+					WriteInt3(buffer, offset, messageData.Count);
+					offset += 3;
+					Buffer.BlockCopy(messageData.Array, messageData.Offset, buffer, offset, messageData.Count);
+					offset += messageData.Count;
+				}
+
+				// NOTE: at this point offset must be equal to bufferLength
+
+				SendReliable(KcpHeader.Batch, new ArraySegment<byte>(buffer, 0, offset));
+				
+				ArrayPool<byte>.Shared.Return(buffer);
+			}
+			else
+			{
+				SendReliable(KcpHeader.Data, data[startIndex]);
+			}
+		}
+
 		public void Tick()
 		{
 			TickIncoming();
@@ -667,6 +735,14 @@ namespace MiniIT.Snipe
 			buffer[offset + 1] = (byte)(value >> 8);
 			buffer[offset + 2] = (byte)(value >> 0x10);
 			buffer[offset + 3] = (byte)(value >> 0x18);
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		protected void WriteInt3(byte[] buffer, int offset, int value)
+		{
+			buffer[offset + 0] = (byte)(value >> 8);
+			buffer[offset + 1] = (byte)(value >> 0x10);
+			buffer[offset + 2] = (byte)(value >> 0x18);
 		}
 
 		void HandleTimeout(uint time)
