@@ -97,7 +97,7 @@ namespace MiniIT.Snipe
 				if (mInstance == null)
 				{
 					var game_object = new GameObject("[SnipeCommunicator]");
-					//game_object.hideFlags = HideFlags.HideAndDontSave;
+					game_object.hideFlags = HideFlags.DontSave; // HideFlags.HideAndDontSave;
 					mInstance = game_object.AddComponent<SnipeCommunicator>();
 					mInstance.Auth = new SnipeAuthCommunicator();
 					DontDestroyOnLoad(game_object);
