@@ -24,6 +24,9 @@ public static class SnipeConfig
 	
 	public static SnipeObject LoginParameters;
 	public static bool TablesUpdateEnabled = true;
+
+	public static string LogReporterKey;
+	public static string LogReporterUrl;
 	
 	public static string PersistentDataPath { get; private set; }
 	public static string StreamingAssetsPath { get; private set; }
@@ -144,6 +147,12 @@ public static class SnipeConfig
 				
 				TablesUrls.Add(corrected_path);
 			}
+		}
+
+		if (data["log_reporter"] is SnipeObject log_reporter)
+		{
+			LogReporterKey = log_reporter.SafeGetString("key");
+			LogReporterUrl = log_reporter.SafeGetString("url");
 		}
 		
 		mServerWebSocketUrlIndex = 0;
