@@ -19,15 +19,15 @@ namespace MiniIT.Snipe
 		public static double WebSocketHandshakeTime { get; internal set; }
 		public static double WebSocketMiscTime { get; internal set; }
 		
-		private static IAnalyticsTracker mTracker;
+		private static IAnalyticsTracker _tracker;
 		
-		private static string mUserId = null;
+		private static string _userId = null;
 		
 		public static void SetTracker(IAnalyticsTracker tracker)
 		{
-			mTracker = tracker;
+			_tracker = tracker;
 			
-			if (!string.IsNullOrEmpty(mUserId))
+			if (!string.IsNullOrEmpty(_userId))
 			{
 				CheckReady();
 			}
@@ -35,12 +35,12 @@ namespace MiniIT.Snipe
 		
 		private static bool CheckReady()
 		{
-			bool ready = mTracker != null && mTracker.IsInitialized && IsEnabled;
+			bool ready = _tracker != null && _tracker.IsInitialized && IsEnabled;
 			
-			if (ready && !string.IsNullOrEmpty(mUserId))
+			if (ready && !string.IsNullOrEmpty(_userId))
 			{
-				mTracker.SetUserId(mUserId);
-				mUserId = null;
+				_tracker.SetUserId(_userId);
+				_userId = null;
 			}
 			
 			return ready;
@@ -48,7 +48,7 @@ namespace MiniIT.Snipe
 		
 		public static void SetUserId(string uid)
 		{
-			mUserId = uid;
+			_userId = uid;
 			CheckReady();
 		}
 
@@ -56,49 +56,49 @@ namespace MiniIT.Snipe
 		{
 			if (CheckReady())
 			{
-				mTracker.SetUserProperty(name, value);
+				_tracker.SetUserProperty(name, value);
 			}
 		}
 		public static void SetUserProperty(string name, int value)
 		{
 			if (CheckReady())
 			{
-				mTracker.SetUserProperty(name, value);
+				_tracker.SetUserProperty(name, value);
 			}
 		}
 		public static void SetUserProperty(string name, float value)
 		{
 			if (CheckReady())
 			{
-				mTracker.SetUserProperty(name, value);
+				_tracker.SetUserProperty(name, value);
 			}
 		}
 		public static void SetUserProperty(string name, double value)
 		{
 			if (CheckReady())
 			{
-				mTracker.SetUserProperty(name, value);
+				_tracker.SetUserProperty(name, value);
 			}
 		}
 		public static void SetUserProperty(string name, bool value)
 		{
 			if (CheckReady())
 			{
-				mTracker.SetUserProperty(name, value);
+				_tracker.SetUserProperty(name, value);
 			}
 		}
 		public static void SetUserProperty<T>(string name, IList<T> value)
 		{
 			if (CheckReady())
 			{
-				mTracker.SetUserProperty(name, value);
+				_tracker.SetUserProperty(name, value);
 			}
 		}
 		public static void SetUserProperty(string name, IDictionary<string, object> value)
 		{
 			if (CheckReady())
 			{
-				mTracker.SetUserProperty(name, value);
+				_tracker.SetUserProperty(name, value);
 			}
 		}
 
@@ -143,7 +143,7 @@ namespace MiniIT.Snipe
 		
 		public static void TrackErrorCodeNotOk(string message_type, string error_code, SnipeObject data)
 		{
-			if (CheckReady() && mTracker.CheckErrorCodeTracking(message_type, error_code))
+			if (CheckReady() && _tracker.CheckErrorCodeTracking(message_type, error_code))
 			{
 				Dictionary<string, object> properties = new Dictionary<string, object>(5);
 				properties["message_type"] = message_type;
@@ -187,19 +187,19 @@ namespace MiniIT.Snipe
 		
 		#region MonoBehaviour
 		
-		private static Analytics mInstance;
+		private static Analytics _instance;
 		private static Analytics GetInstance()
 		{
-			if (mInstance == null)
+			if (_instance == null)
 			{
-				mInstance = new GameObject("SnipeAnalyticsTracker").AddComponent<Analytics>();
+				_instance = new GameObject("SnipeAnalyticsTracker").AddComponent<Analytics>();
 			}
-			return mInstance;
+			return _instance;
 		}
 		
 		private void Awake()
 		{
-			if (mInstance != null && mInstance != this)
+			if (_instance != null && _instance != this)
 			{
 				Destroy(this.gameObject);
 				return;
@@ -225,15 +225,15 @@ namespace MiniIT.Snipe
 			internal Exception exception;
 		}
 		
-		private List<EventsQueueItem> mEventsQueue;
+		private List<EventsQueueItem> _eventsQueue;
 		
 		private void EnqueueEvent(string name, IDictionary<string, object> properties = null)
 		{
-			if (mEventsQueue == null)
-				mEventsQueue = new List<EventsQueueItem>();
-			lock (mEventsQueue)
+			if (_eventsQueue == null)
+				_eventsQueue = new List<EventsQueueItem>();
+			lock (_eventsQueue)
 			{
-				mEventsQueue.Add(new EventsQueueItem()
+				_eventsQueue.Add(new EventsQueueItem()
 				{
 					type = EventsQueueItemType.Event,
 					name = name,
@@ -244,11 +244,11 @@ namespace MiniIT.Snipe
 		
 		private void EnqueueError(string name, Exception exception = null)
 		{
-			if (mEventsQueue == null)
-				mEventsQueue = new List<EventsQueueItem>();
-			lock (mEventsQueue)
+			if (_eventsQueue == null)
+				_eventsQueue = new List<EventsQueueItem>();
+			lock (_eventsQueue)
 			{
-				mEventsQueue.Add(new EventsQueueItem()
+				_eventsQueue.Add(new EventsQueueItem()
 				{
 					type = EventsQueueItemType.Error,
 					name = name,
@@ -261,15 +261,15 @@ namespace MiniIT.Snipe
 		{
 			while (true)
 			{
-				if (mEventsQueue != null && mEventsQueue.Count > 0)
+				if (_eventsQueue != null && _eventsQueue.Count > 0)
 				{
-					lock (mEventsQueue)
+					lock (_eventsQueue)
 					{
-						foreach (var item in mEventsQueue)
+						foreach (var item in _eventsQueue)
 						{
 							if (item.type == EventsQueueItemType.Error)
 							{
-								mTracker.TrackError(item.name, item.exception);
+								_tracker.TrackError(item.name, item.exception);
 							}
 							else
 							{
@@ -279,10 +279,10 @@ namespace MiniIT.Snipe
 								else
 									event_properties["event_type"] = item.name;
 								
-								mTracker.TrackEvent(EVENT_NAME, event_properties);
+								_tracker.TrackEvent(EVENT_NAME, event_properties);
 							}
 						}
-						mEventsQueue.Clear();
+						_eventsQueue.Clear();
 					}
 				}
 				

@@ -18,24 +18,24 @@ namespace MiniIT.Snipe
 			internal string message_type;
 		}
 		
-		private Stopwatch mResponseMonitoringStopwatch;
-		private IDictionary<int, ResponseMonitoringItem> mResponseMonitoringItems; // key is request_id
+		private Stopwatch _responseMonitoringStopwatch;
+		private IDictionary<int, ResponseMonitoringItem> _responseMonitoringItems; // key is request_id
 		
-		private CancellationTokenSource mResponseMonitoringCancellation;
+		private CancellationTokenSource _responseMonitoringCancellation;
 		
 		private void AddResponseMonitoringItem(int request_id, string message_type)
 		{
 			if (message_type == SnipeMessageTypes.USER_LOGIN)
 				return;
 				
-			if (mResponseMonitoringItems == null)
-				mResponseMonitoringItems = new Dictionary<int, ResponseMonitoringItem>();
-			if (mResponseMonitoringStopwatch == null)
-				mResponseMonitoringStopwatch = Stopwatch.StartNew();
+			if (_responseMonitoringItems == null)
+				_responseMonitoringItems = new Dictionary<int, ResponseMonitoringItem>();
+			if (_responseMonitoringStopwatch == null)
+				_responseMonitoringStopwatch = Stopwatch.StartNew();
 			
-			mResponseMonitoringItems[request_id] = new ResponseMonitoringItem()
+			_responseMonitoringItems[request_id] = new ResponseMonitoringItem()
 			{
-				time = mResponseMonitoringStopwatch.ElapsedMilliseconds,
+				time = _responseMonitoringStopwatch.ElapsedMilliseconds,
 				message_type = message_type,
 			};
 			
@@ -46,7 +46,7 @@ namespace MiniIT.Snipe
 		{
 			try
 			{
-				if (mResponseMonitoringItems.TryGetValue(request_id, out var item) && item != null)
+				if (_responseMonitoringItems.TryGetValue(request_id, out var item) && item != null)
 				{
 					if (item.message_type != message_type)
 					{
@@ -65,31 +65,31 @@ namespace MiniIT.Snipe
 			}
 			finally
 			{
-				mResponseMonitoringItems?.Remove(request_id);
+				_responseMonitoringItems?.Remove(request_id);
 			}
 		}
 		
 		private void StartResponseMonitoring()
 		{
-			if (mResponseMonitoringCancellation != null)
+			if (_responseMonitoringCancellation != null)
 				return;
 			
-			if (mResponseMonitoringItems != null)
-				mResponseMonitoringItems.Clear();
+			if (_responseMonitoringItems != null)
+				_responseMonitoringItems.Clear();
 			
-			mResponseMonitoringCancellation = new CancellationTokenSource();
-			Task.Run(() => ResponseMonitoring(mResponseMonitoringCancellation.Token));
+			_responseMonitoringCancellation = new CancellationTokenSource();
+			Task.Run(() => ResponseMonitoring(_responseMonitoringCancellation.Token));
 		}
 
 		private void StopResponseMonitoring()
 		{
-			if (mResponseMonitoringItems != null)
-				mResponseMonitoringItems.Clear();
+			if (_responseMonitoringItems != null)
+				_responseMonitoringItems.Clear();
 			
-			if (mResponseMonitoringCancellation != null)
+			if (_responseMonitoringCancellation != null)
 			{
-				mResponseMonitoringCancellation.Cancel();
-				mResponseMonitoringCancellation = null;
+				_responseMonitoringCancellation.Cancel();
+				_responseMonitoringCancellation = null;
 			}
 		}
 
@@ -109,11 +109,11 @@ namespace MiniIT.Snipe
 				
 				List<int> keys_to_remove = null;
 				
-				if (mResponseMonitoringItems != null && mResponseMonitoringStopwatch != null)
+				if (_responseMonitoringItems != null && _responseMonitoringStopwatch != null)
 				{
-					var time_now = mResponseMonitoringStopwatch.ElapsedMilliseconds;
+					var time_now = _responseMonitoringStopwatch.ElapsedMilliseconds;
 					
-					foreach (var pair in mResponseMonitoringItems)
+					foreach (var pair in _responseMonitoringItems)
 					{
 						var request_id = pair.Key;
 						var item = pair.Value;
@@ -136,7 +136,7 @@ namespace MiniIT.Snipe
 					{
 						for (int i = 0; i < keys_to_remove.Count; i++)
 						{
-							mResponseMonitoringItems.Remove(keys_to_remove[i]);
+							_responseMonitoringItems.Remove(keys_to_remove[i]);
 						}
 					}
 				}				

@@ -37,33 +37,23 @@ namespace MiniIT.Snipe
 		internal SnipeClient Client { get; private set; }
 
 		public int RestoreConnectionAttempts = 10;
-		private int mRestoreConnectionAttempt;
+		private int _restoreConnectionAttempt;
 		
 		public bool AllowRequestsToWaitForLogin = true;
 		
-		private bool mAutoLogin = true;
-		
-		private List<SnipeCommunicatorRequest> mRequests;
+		private bool _autoLogin = true;
+
+		private List<SnipeCommunicatorRequest> _requests;
 		public List<SnipeCommunicatorRequest> Requests
 		{
 			get
 			{
-				if (mRequests == null)
-					mRequests = new List<SnipeCommunicatorRequest>();
-				return mRequests;
+				_requests ??= new List<SnipeCommunicatorRequest>();
+				return _requests;
 			}
 		}
-		
-		internal List<SnipeRequestDescriptor> mMergeableRequestTypes;
-		public List<SnipeRequestDescriptor> MergeableRequestTypes
-		{
-			get
-			{
-				if (mMergeableRequestTypes == null)
-					mMergeableRequestTypes = new List<SnipeRequestDescriptor>();
-				return mMergeableRequestTypes;
-			}
-		}
+
+		public readonly List<SnipeRequestDescriptor> MergeableRequestTypes = new List<SnipeRequestDescriptor>();
 
 		public bool Connected
 		{
@@ -146,7 +136,7 @@ namespace MiniIT.Snipe
 				PlayerPrefs.DeleteKey(SnipePrefs.SKIP_UDP);
 			}
 			
-			mAutoLogin = autologin;
+			_autoLogin = autologin;
 			InitClient();
 		}
 		
@@ -258,10 +248,10 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Client connection opened");
 
-			mRestoreConnectionAttempt = 0;
+			_restoreConnectionAttempt = 0;
 			mDisconnecting = false;
 			
-			if (mAutoLogin)
+			if (_autoLogin)
 			{
 				Authorize();
 			}
@@ -318,12 +308,12 @@ namespace MiniIT.Snipe
 		{	
 			//ClearMainThreadActionsQueue();
 
-			if (mRestoreConnectionAttempt < RestoreConnectionAttempts && !mDisconnecting)
+			if (_restoreConnectionAttempt < RestoreConnectionAttempts && !mDisconnecting)
 			{
 				RaiseEvent(ConnectionFailed, true);
 				
-				mRestoreConnectionAttempt++;
-				DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Attempt to restore connection {mRestoreConnectionAttempt}");
+				_restoreConnectionAttempt++;
+				DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Attempt to restore connection {_restoreConnectionAttempt}");
 				
 				StartCoroutine(WaitAndInitClient());
 			}
@@ -343,7 +333,7 @@ namespace MiniIT.Snipe
 				if (error_code == SnipeErrorCodes.OK || error_code == SnipeErrorCodes.ALREADY_LOGGED_IN)
 				{
 					UserName = data.SafeGetString("name");
-					mAutoLogin = true;
+					_autoLogin = true;
 
 					if (LoginSucceeded != null)
 					{
@@ -466,7 +456,7 @@ namespace MiniIT.Snipe
 			PlayerPrefs.SetInt(SnipePrefs.SKIP_UDP, 2);
 			
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) WaitAndInitClient - start delay");
-			float delay = RETRY_INIT_CLIENT_DELAY * mRestoreConnectionAttempt + UnityEngine.Random.value * RETRY_INIT_CLIENT_RANDOM_DELAY;
+			float delay = RETRY_INIT_CLIENT_DELAY * _restoreConnectionAttempt + UnityEngine.Random.value * RETRY_INIT_CLIENT_RANDOM_DELAY;
 			if (delay < RETRY_INIT_CLIENT_MIN_DELAY)
 				delay = RETRY_INIT_CLIENT_MIN_DELAY;
 			yield return new WaitForSecondsRealtime(Mathf.Min(delay, RETRY_INIT_CLIENT_MAX_DELAY));
@@ -552,10 +542,10 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) DisposeRequests");
 			
-			if (mRequests != null)
+			if (_requests != null)
 			{
-				var temp_requests = mRequests;
-				mRequests = null;
+				var temp_requests = _requests;
+				_requests = null;
 				foreach (var request in temp_requests)
 				{
 					request?.Dispose();

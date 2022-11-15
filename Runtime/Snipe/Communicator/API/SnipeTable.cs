@@ -19,14 +19,14 @@ namespace MiniIT.Snipe
 		
 		public static long VersionFetchingTime { get; protected set; }
 		
-		protected static string mVersion = null;
-		protected static bool mVersionRequested = false;
-		protected static List<CancellationTokenSource> mCancellations;
+		protected static string _version = null;
+		protected static bool _versionRequested = false;
+		protected static List<CancellationTokenSource> _cancellations;
 		
-		protected static SemaphoreSlim mSemaphore;
+		protected static SemaphoreSlim _semaphore;
 		
-		protected static readonly object mCacheIOLocker = new object();
-		protected static readonly object mParseJSONLocker = new object();
+		protected static readonly object _cacheIOLock = new object();
+		protected static readonly object _parseJSONLock = new object();
 		
 		public delegate void LoadingFinishedHandler(bool success);
 		
@@ -41,7 +41,7 @@ namespace MiniIT.Snipe
 		}
 		public LoadingLocation LoadedFrom { get; protected set; } = LoadingLocation.Network;
 		
-		protected CancellationTokenSource mLoadingCancellation;
+		protected CancellationTokenSource _loadingCancellation;
 		
 		public static void Initialize()
 		{
@@ -52,10 +52,10 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log("[SnipeTable] ResetVersion");
 			
-			if (mCancellations != null)
+			if (_cancellations != null)
 			{
 				// clone the list for thread safety
-				var cancellations = new List<CancellationTokenSource>(mCancellations);
+				var cancellations = new List<CancellationTokenSource>(_cancellations);
 				foreach (var cancellation in cancellations)
 				{
 					try
@@ -67,11 +67,11 @@ namespace MiniIT.Snipe
 						// ignore
 					}
 				}
-				mCancellations.Clear();
+				_cancellations.Clear();
 			}
 			
-			mVersion = null;
-			mVersionRequested = false;
+			_version = null;
+			_versionRequested = false;
 		}
 	}
 	
@@ -109,45 +109,45 @@ namespace MiniIT.Snipe
 				return;
 			}
 			
-			if (mLoadingCancellation != null)
+			if (_loadingCancellation != null)
 			{
 				try
 				{
-					mLoadingCancellation.Cancel();
+					_loadingCancellation.Cancel();
 				}
 				catch (ObjectDisposedException)
 				{
 					// ignore
 				}
 				
-				if (mCancellations != null)
-					mCancellations.Remove(mLoadingCancellation);
+				if (_cancellations != null)
+					_cancellations.Remove(_loadingCancellation);
 			}
 			
-			mLoadingCancellation = new CancellationTokenSource();
+			_loadingCancellation = new CancellationTokenSource();
 			
-			if (mCancellations == null)
-				mCancellations = new List<CancellationTokenSource>();
+			if (_cancellations == null)
+				_cancellations = new List<CancellationTokenSource>();
 			
-			mCancellations.Add(mLoadingCancellation);
+			_cancellations.Add(_loadingCancellation);
 			
 			try
 			{
-				await LoadAsync<WrapperType>(table_name, mLoadingCancellation.Token);
+				await LoadAsync<WrapperType>(table_name, _loadingCancellation.Token);
 			}
 			finally
 			{
-				mCancellations.Remove(mLoadingCancellation);
-				mLoadingCancellation.Dispose();
-				mLoadingCancellation = null;
+				_cancellations.Remove(_loadingCancellation);
+				_loadingCancellation.Dispose();
+				_loadingCancellation = null;
 			}
 		}
 
 		private async Task LoadVersion(CancellationToken cancellation_token)
 		{
-			if (!mVersionRequested)
+			if (!_versionRequested)
 			{
-				mVersionRequested = true;
+				_versionRequested = true;
 
 				string version_file_path = Path.Combine(SnipeConfig.PersistentDataPath, VERSION_FILE_NAME);
 
@@ -170,12 +170,12 @@ namespace MiniIT.Snipe
 								if (await Task.WhenAny(load_task, Task.Delay(1000)) == load_task && load_task.Result.IsSuccessStatusCode)
 								{
 									var content = await load_task.Result.Content.ReadAsStringAsync();
-									mVersion = content.Trim();
+									_version = content.Trim();
 
-									DebugLogger.Log($"[SnipeTable] LoadVersion done - {mVersion}");
+									DebugLogger.Log($"[SnipeTable] LoadVersion done - {_version}");
 
 									// save to file
-									File.WriteAllText(version_file_path, mVersion);
+									File.WriteAllText(version_file_path, _version);
 
 									break;
 								}
@@ -208,7 +208,7 @@ namespace MiniIT.Snipe
 					}
 				}
 
-				if (string.IsNullOrEmpty(mVersion))
+				if (string.IsNullOrEmpty(_version))
 				{
 					DebugLogger.Log($"[SnipeTable] LoadVersion - Failed to load from URL. Trying to read from cache");
 
@@ -246,18 +246,18 @@ namespace MiniIT.Snipe
 
 					if (builtin_version > 0 && builtin_version > cached_version)
 					{
-						mVersion = builtin_version_string;
+						_version = builtin_version_string;
 					}
 					else if (cached_version > 0)
 					{
-						mVersion = cached_version_string;
+						_version = cached_version_string;
 					}
 				}
 
 				stopwatch.Stop();
 				VersionFetchingTime = stopwatch.ElapsedMilliseconds;
 
-				if (string.IsNullOrEmpty(mVersion))
+				if (string.IsNullOrEmpty(_version))
 				{
 					DebugLogger.Log($"[SnipeTable] LoadVersion Failed");
 					return;
@@ -265,7 +265,7 @@ namespace MiniIT.Snipe
 			}
 			else
 			{
-				while (string.IsNullOrEmpty(mVersion))
+				while (string.IsNullOrEmpty(_version))
 				{
 					await Task.Delay(50, cancellation_token);
 
@@ -281,15 +281,15 @@ namespace MiniIT.Snipe
 		{
 			await LoadVersion(cancellation_token);
 
-			if (string.IsNullOrEmpty(mVersion) || cancellation_token.IsCancellationRequested)
+			if (string.IsNullOrEmpty(_version) || cancellation_token.IsCancellationRequested)
 			{
 				DebugLogger.Log($"[SnipeTable] Load {table_name} task canceled");
 				return;
 			}
 
-			if (mSemaphore == null)
+			if (_semaphore == null)
 			{
-				mSemaphore = new SemaphoreSlim(MAX_LOADERS_COUNT);
+				_semaphore = new SemaphoreSlim(MAX_LOADERS_COUNT);
 			}
 			
 			Loaded = false;
@@ -297,7 +297,7 @@ namespace MiniIT.Snipe
 			
 			try
 			{
-				await mSemaphore.WaitAsync(cancellation_token);
+				await _semaphore.WaitAsync(cancellation_token);
 				await LoadTask<WrapperType>(table_name, cancellation_token);
 			}
 			catch (TaskCanceledException)
@@ -310,20 +310,20 @@ namespace MiniIT.Snipe
 			}
 			finally
 			{
-				mSemaphore.Release();
+				_semaphore.Release();
 			}
 		}
 
 		protected string GetCachePath(string table_name)
 		{
-			return Path.Combine(SnipeConfig.PersistentDataPath, $"{mVersion}_{table_name}.json.gz");
+			return Path.Combine(SnipeConfig.PersistentDataPath, $"{_version}_{table_name}.json.gz");
 		}
 		
 		protected string GetBuiltInPath(string table_name)
 		{
 			// NOTE: There is a bug - only lowercase works
 			// (https://issuetracker.unity3d.com/issues/android-loading-assets-from-assetbundles-takes-significantly-more-time-when-the-project-is-built-as-an-aab)
-			return $"{mVersion}_{table_name}.jsongz".ToLower();
+			return $"{_version}_{table_name}.jsongz".ToLower();
 		}
 		
 		protected string GetTableUrl(string table_name)
@@ -342,7 +342,7 @@ namespace MiniIT.Snipe
 			DebugLogger.Log($"[SnipeTable] LoadTask start - {table_name}");
 
 			// Try to load from cache
-			if (!string.IsNullOrEmpty(mVersion))
+			if (!string.IsNullOrEmpty(_version))
 			{
 				string cache_path = GetCachePath(table_name);
 				ReadFile<WrapperType>(table_name, cache_path);
@@ -428,7 +428,7 @@ namespace MiniIT.Snipe
 		
 		private void ReadFile<WrapperType>(string table_name, string file_path) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
 		{
-			lock (mCacheIOLocker)
+			lock (_cacheIOLock)
 			{
 				if (File.Exists(file_path))
 				{
@@ -491,7 +491,7 @@ namespace MiniIT.Snipe
 		{
 			string cache_path = GetCachePath(table_name);
 			
-			lock (mCacheIOLocker)
+			lock (_cacheIOLock)
 			{
 				try
 				{
@@ -538,7 +538,7 @@ namespace MiniIT.Snipe
 					}
 					else
 					{
-						lock (mParseJSONLocker)
+						lock (_parseJSONLock)
 						{
 							list_wrapper = fastJSON.JSON.ToObject<WrapperType>(json_string);
 						}
@@ -560,7 +560,7 @@ namespace MiniIT.Snipe
 		private ISnipeTableItemsListWrapper ParseListWrapper(string json_string, Func<Dictionary<string, object>, ISnipeTableItemsListWrapper> parse_func)
 		{
 			Dictionary<string, object> parsed_data = null;
-			lock (mParseJSONLocker)
+			lock (_parseJSONLock)
 			{
 				parsed_data = SnipeObject.FromJSONString(json_string);
 			}

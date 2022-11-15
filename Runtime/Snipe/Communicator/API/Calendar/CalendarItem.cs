@@ -1,5 +1,3 @@
-using System;
-using System.Collections;
 using System.Collections.Generic;
 
 namespace MiniIT.Snipe
@@ -20,8 +18,6 @@ namespace MiniIT.Snipe
 		public CalendarItem(SnipeObject data, SnipeTable<SnipeTableCalendarItem> logic_table)
 		{
 			id = data.SafeGetValue<int>("id");
-			
-			
 		}
 	}
 }

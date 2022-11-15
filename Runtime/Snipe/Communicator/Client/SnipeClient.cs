@@ -15,36 +15,36 @@ namespace MiniIT.Snipe
 		public event Action<string> LoginFailed;
 		public event Action UdpConnectionFailed;
 
-		private WebSocketTransport mWebSocket;
-		private KcpTransport mKcp;
+		private WebSocketTransport _webSocket;
+		private KcpTransport _kcp;
 
-		protected bool mLoggedIn = false;
+		protected bool _loggedIn = false;
 
 		public bool Connected => UdpClientConnected || WebSocketConnected;
-		public bool LoggedIn { get { return mLoggedIn && Connected; } }
-		public bool WebSocketConnected => mWebSocket != null && mWebSocket.Connected;
-		public bool UdpClientConnected => mKcp != null && mKcp.Connected;
+		public bool LoggedIn { get { return _loggedIn && Connected; } }
+		public bool WebSocketConnected => _webSocket != null && _webSocket.Connected;
+		public bool UdpClientConnected => _kcp != null && _kcp.Connected;
 
 		public string ConnectionId { get; private set; }
 
-		private Stopwatch mConnectionStopwatch;
+		private Stopwatch _connectionStopwatch;
 		
-		private Stopwatch mServerReactionStopwatch;
-		public TimeSpan CurrentRequestElapsed { get { return mServerReactionStopwatch?.Elapsed ?? new TimeSpan(0); } }
+		private Stopwatch _serverReactionStopwatch;
+		public TimeSpan CurrentRequestElapsed { get { return _serverReactionStopwatch?.Elapsed ?? new TimeSpan(0); } }
 		public TimeSpan ServerReaction { get; private set; }
 		public double UdpConnectionTime { get; private set; }
-		public double UdpDnsResolveTime => mKcp?.UdpDnsResolveTime ?? 0;
-		public double UdpSocketConnectTime => mKcp?.UdpSocketConnectTime ?? 0;
-		public double UdpSendHandshakeTime => mKcp?.UdpSendHandshakeTime ?? 0;
+		public double UdpDnsResolveTime => _kcp?.UdpDnsResolveTime ?? 0;
+		public double UdpSocketConnectTime => _kcp?.UdpSocketConnectTime ?? 0;
+		public double UdpSendHandshakeTime => _kcp?.UdpSendHandshakeTime ?? 0;
 
-		private SnipeMessageCompressor mMessageCompressor;
+		private SnipeMessageCompressor _messageCompressor;
 
 		private int mRequestId = 0;
 		
 		public void Connect(bool udp = true)
 		{
-			if (mMessageCompressor == null)
-				mMessageCompressor = new SnipeMessageCompressor();
+			if (_messageCompressor == null)
+				_messageCompressor = new SnipeMessageCompressor();
 			
 			if (udp && SnipeConfig.CheckUdpAvailable())
 			{
@@ -58,22 +58,22 @@ namespace MiniIT.Snipe
 
 		private void ConnectUdpClient()
 		{
-			if (mKcp != null && mKcp.Started)  // already connected or trying to connect
+			if (_kcp != null && _kcp.Started)  // already connected or trying to connect
 				return;
 
-			if (mKcp == null)
+			if (_kcp == null)
 			{
-				mKcp = new KcpTransport();
-				mKcp.ConnectionOpenedHandler = () =>
+				_kcp = new KcpTransport();
+				_kcp.ConnectionOpenedHandler = () =>
 				{
-					UdpConnectionTime = mConnectionStopwatch.Elapsed.TotalMilliseconds;
+					UdpConnectionTime = _connectionStopwatch.Elapsed.TotalMilliseconds;
 					OnConnected();
 				};
-				mKcp.ConnectionClosedHandler = () =>
+				_kcp.ConnectionClosedHandler = () =>
 				{
 					UdpConnectionFailed?.Invoke();
 
-					if (mKcp.ConnectionEstablished)
+					if (_kcp.ConnectionEstablished)
 					{
 						Disconnect(true);
 					}
@@ -82,38 +82,38 @@ namespace MiniIT.Snipe
 						ConnectWebSocket();
 					}
 				};
-				mKcp.MessageReceivedHandler = ProcessMessage;
+				_kcp.MessageReceivedHandler = ProcessMessage;
 			}
 
-			mConnectionStopwatch = Stopwatch.StartNew();
+			_connectionStopwatch = Stopwatch.StartNew();
 
-			mKcp.Connect();
+			_kcp.Connect();
 		}
 
 		private void ConnectWebSocket()
 		{
-			if (mWebSocket != null && mWebSocket.Started)  // already connected or trying to connect
+			if (_webSocket != null && _webSocket.Started)  // already connected or trying to connect
 				return;
 
 			Disconnect(false); // clean up
 
-			if (mWebSocket == null)
+			if (_webSocket == null)
 			{
-				mWebSocket = new WebSocketTransport();
-				mWebSocket.ConnectionOpenedHandler = OnConnected;
-				mWebSocket.ConnectionClosedHandler = () => Disconnect(true);
-				mWebSocket.MessageReceivedHandler = ProcessMessage;
+				_webSocket = new WebSocketTransport();
+				_webSocket.ConnectionOpenedHandler = OnConnected;
+				_webSocket.ConnectionClosedHandler = () => Disconnect(true);
+				_webSocket.MessageReceivedHandler = ProcessMessage;
 			}
 
-			mConnectionStopwatch = Stopwatch.StartNew();
+			_connectionStopwatch = Stopwatch.StartNew();
 
-			mWebSocket.Connect();
+			_webSocket.Connect();
 		}
 
 		private void OnConnected()
 		{
-			mConnectionStopwatch?.Stop();
-			Analytics.ConnectionEstablishmentTime = mConnectionStopwatch?.ElapsedMilliseconds ?? 0;
+			_connectionStopwatch?.Stop();
+			Analytics.ConnectionEstablishmentTime = _connectionStopwatch?.ElapsedMilliseconds ?? 0;
 
 			try
 			{
@@ -147,20 +147,20 @@ namespace MiniIT.Snipe
 		private void Disconnect(bool raise_event)
 		{
 			//mConnected = false;
-			mLoggedIn = false;
+			_loggedIn = false;
 			ConnectionId = "";
 			
-			mConnectionStopwatch?.Stop();
+			_connectionStopwatch?.Stop();
 			Analytics.PingTime = 0;
 			
 			StopResponseMonitoring();
 
-			mKcp?.Disconnect();
+			_kcp?.Disconnect();
 
-			if (mWebSocket != null)
+			if (_webSocket != null)
 			{
-				mWebSocket.Disconnect();
-				mWebSocket = null;
+				_webSocket.Disconnect();
+				_webSocket = null;
 			}
 
 			if (raise_event)
@@ -176,7 +176,7 @@ namespace MiniIT.Snipe
 			
 			message["id"] = ++mRequestId;
 			
-			if (!mLoggedIn)
+			if (!_loggedIn)
 			{
 				var data = message["data"] as SnipeObject ?? new SnipeObject();
 				data["ckey"] = SnipeConfig.ClientKey;
@@ -187,21 +187,21 @@ namespace MiniIT.Snipe
 			
 			if (UdpClientConnected)
 			{
-				mKcp.SendMessage(message);
+				_kcp.SendMessage(message);
 			}
 			else if (WebSocketConnected)
 			{
-				mWebSocket.SendMessage(message);
+				_webSocket.SendMessage(message);
 			}
 
-			if (mServerReactionStopwatch != null)
+			if (_serverReactionStopwatch != null)
 			{
-				mServerReactionStopwatch.Reset();
-				mServerReactionStopwatch.Start();
+				_serverReactionStopwatch.Reset();
+				_serverReactionStopwatch.Start();
 			}
 			else
 			{
-				mServerReactionStopwatch = Stopwatch.StartNew();
+				_serverReactionStopwatch = Stopwatch.StartNew();
 			}
 
 			AddResponseMonitoringItem(mRequestId, message.SafeGetString("t"));
@@ -229,10 +229,10 @@ namespace MiniIT.Snipe
 			if (message == null)
 				return;
 
-			if (mServerReactionStopwatch != null)
+			if (_serverReactionStopwatch != null)
 			{
-				mServerReactionStopwatch.Stop();
-				ServerReaction = mServerReactionStopwatch.Elapsed;
+				_serverReactionStopwatch.Stop();
+				ServerReaction = _serverReactionStopwatch.Elapsed;
 			}
 
 			string message_type = message.SafeGetString("t");
@@ -244,7 +244,7 @@ namespace MiniIT.Snipe
 			
 			DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - {request_id} - {message_type} {error_code} {response_data?.ToJSONString()}");
 
-			if (!mLoggedIn)
+			if (!_loggedIn)
 			{
 				if (message_type == SnipeMessageTypes.USER_LOGIN)
 				{	
@@ -252,9 +252,9 @@ namespace MiniIT.Snipe
 					{
 						DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - Login Succeeded");
 							
-						mLoggedIn = true;
+						_loggedIn = true;
 
-						mWebSocket?.SetLoggedIn(true);
+						_webSocket?.SetLoggedIn(true);
 
 						if (response_data != null)
 						{
