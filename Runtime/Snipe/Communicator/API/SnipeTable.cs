@@ -142,50 +142,50 @@ namespace MiniIT.Snipe
 				mLoadingCancellation = null;
 			}
 		}
-		
-		private async Task LoadAsync<WrapperType>(string table_name, CancellationToken cancellation_token) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
+
+		private async Task LoadVersion(CancellationToken cancellation_token)
 		{
 			if (!mVersionRequested)
 			{
 				mVersionRequested = true;
-				
+
 				string version_file_path = Path.Combine(SnipeConfig.PersistentDataPath, VERSION_FILE_NAME);
-				
+
 				var stopwatch = Stopwatch.StartNew();
-				
+
 				if (SnipeConfig.TablesUpdateEnabled)
 				{
 					for (int retries_count = 0; retries_count < 3; retries_count++)
 					{
 						string url = $"{SnipeConfig.GetTablesPath(true)}version.txt";
 						DebugLogger.Log($"[SnipeTable] LoadVersion ({retries_count}) " + url);
-					
+
 						try
 						{
 							using (var loader = new HttpClient())
 							{
 								loader.Timeout = TimeSpan.FromSeconds(1);
-								
+
 								var load_task = loader.GetAsync(url); // , cancellation_token);
 								if (await Task.WhenAny(load_task, Task.Delay(1000)) == load_task && load_task.Result.IsSuccessStatusCode)
 								{
 									var content = await load_task.Result.Content.ReadAsStringAsync();
 									mVersion = content.Trim();
-									
+
 									DebugLogger.Log($"[SnipeTable] LoadVersion done - {mVersion}");
-									
+
 									// save to file
 									File.WriteAllText(version_file_path, mVersion);
-									
+
 									break;
 								}
 							}
-							
+
 							await Task.Delay(100, cancellation_token);
 						}
 						catch (Exception e)
 						{
-							if (e is TaskCanceledException || 
+							if (e is TaskCanceledException ||
 								e is AggregateException ae && ae.InnerException is TaskCanceledException)
 							{
 								DebugLogger.Log($"[SnipeTable] LoadVersion - TaskCanceled");
@@ -195,28 +195,28 @@ namespace MiniIT.Snipe
 								DebugLogger.Log($"[SnipeTable] LoadVersion - Exception: {e}");
 							}
 						}
-						
+
 						if (cancellation_token.IsCancellationRequested)
 						{
 							DebugLogger.Log($"[SnipeTable] LoadVersion task canceled");
-							
+
 							stopwatch.Stop();
 							VersionFetchingTime = stopwatch.ElapsedMilliseconds;
-							
+
 							return;
 						}
 					}
 				}
-				
+
 				if (string.IsNullOrEmpty(mVersion))
 				{
 					DebugLogger.Log($"[SnipeTable] LoadVersion - Failed to load from URL. Trying to read from cache");
-					
+
 					long builtin_version = 0;
 					long cached_version = 0;
 					string builtin_version_string = null;
 					string cached_version_string = null;
-					
+
 					if (BetterStreamingAssets.FileExists(VERSION_FILE_NAME))
 					{
 						builtin_version_string = BetterStreamingAssets.ReadAllText(VERSION_FILE_NAME).Trim();
@@ -229,8 +229,8 @@ namespace MiniIT.Snipe
 							builtin_version = 0;
 						}
 					}
-					
-					
+
+
 					if (File.Exists(version_file_path))
 					{
 						cached_version_string = File.ReadAllText(version_file_path).Trim();
@@ -243,7 +243,7 @@ namespace MiniIT.Snipe
 							cached_version = 0;
 						}
 					}
-					
+
 					if (builtin_version > 0 && builtin_version > cached_version)
 					{
 						mVersion = builtin_version_string;
@@ -253,10 +253,10 @@ namespace MiniIT.Snipe
 						mVersion = cached_version_string;
 					}
 				}
-				
+
 				stopwatch.Stop();
 				VersionFetchingTime = stopwatch.ElapsedMilliseconds;
-				
+
 				if (string.IsNullOrEmpty(mVersion))
 				{
 					DebugLogger.Log($"[SnipeTable] LoadVersion Failed");
@@ -267,16 +267,26 @@ namespace MiniIT.Snipe
 			{
 				while (string.IsNullOrEmpty(mVersion))
 				{
-					await Task.Yield();
-					
+					await Task.Delay(50, cancellation_token);
+
 					if (cancellation_token.IsCancellationRequested)
 					{
-						DebugLogger.Log($"[SnipeTable] Load {table_name} task canceled");
 						return;
 					}
 				}
 			}
-			
+		}
+		
+		private async Task LoadAsync<WrapperType>(string table_name, CancellationToken cancellation_token) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
+		{
+			await LoadVersion(cancellation_token);
+
+			if (string.IsNullOrEmpty(mVersion) || cancellation_token.IsCancellationRequested)
+			{
+				DebugLogger.Log($"[SnipeTable] Load {table_name} task canceled");
+				return;
+			}
+
 			if (mSemaphore == null)
 			{
 				mSemaphore = new SemaphoreSlim(MAX_LOADERS_COUNT);
