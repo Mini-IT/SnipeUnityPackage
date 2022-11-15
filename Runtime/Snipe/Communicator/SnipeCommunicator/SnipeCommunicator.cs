@@ -101,8 +101,6 @@ namespace MiniIT.Snipe
 					mInstance = game_object.AddComponent<SnipeCommunicator>();
 					mInstance.Auth = new SnipeAuthCommunicator();
 					DontDestroyOnLoad(game_object);
-					
-					DebugLogger.InitInstance();
 				}
 				return mInstance;
 			}
