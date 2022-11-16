@@ -94,6 +94,8 @@ namespace MiniIT.Snipe
 
 		private async void ResponseMonitoring(CancellationToken cancellation)
 		{
+			List<int> keys_to_remove = null;
+
 			while (cancellation != null && !cancellation.IsCancellationRequested)
 			{
 				try
@@ -106,7 +108,7 @@ namespace MiniIT.Snipe
 					return;
 				}
 				
-				List<int> keys_to_remove = null;
+				keys_to_remove?.Clear();
 				
 				if (_responseMonitoringItems != null && _responseMonitoringStopwatch != null)
 				{
@@ -119,8 +121,7 @@ namespace MiniIT.Snipe
 						
 						if (time_now - item.time > RESPONSE_MONITORING_MAX_DELAY)
 						{
-							if (keys_to_remove == null)
-								keys_to_remove = new List<int>();
+							keys_to_remove ??= new List<int>();
 							keys_to_remove.Add(request_id);
 							
 							Analytics.TrackEvent("Response not found", new SnipeObject()
