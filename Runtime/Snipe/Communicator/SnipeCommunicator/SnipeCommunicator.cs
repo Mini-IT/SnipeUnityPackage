@@ -68,10 +68,10 @@ namespace MiniIT.Snipe
 			get { return Client != null && Client.LoggedIn; }
 		}
 		
-		private bool? mRoomJoined = null;
+		private bool? _roomJoined = null;
 		public bool? RoomJoined
 		{
-			get { return (Client != null && Client.LoggedIn) ? mRoomJoined : null; }
+			get { return (Client != null && Client.LoggedIn) ? _roomJoined : null; }
 		}
 
 		public bool BatchMode
@@ -84,45 +84,45 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private bool mDisconnecting = false;
+		private bool _disconnecting = false;
 		
-		private /*readonly*/ ConcurrentQueue<Action> mMainThreadActions = new ConcurrentQueue<Action>();
+		private /*readonly*/ ConcurrentQueue<Action> _mainThreadActions = new ConcurrentQueue<Action>();
 		private Coroutine MainThreadLoopCoroutine;
 		
-		private static SnipeCommunicator mInstance;
+		private static SnipeCommunicator _instance;
 		public static SnipeCommunicator Instance
 		{
 			get
 			{
-				if (mInstance == null)
+				if (_instance == null)
 				{
 					var game_object = new GameObject("[SnipeCommunicator]");
 					game_object.hideFlags = HideFlags.DontSave; // HideFlags.HideAndDontSave;
-					mInstance = game_object.AddComponent<SnipeCommunicator>();
-					mInstance.Auth = new SnipeAuthCommunicator();
+					_instance = game_object.AddComponent<SnipeCommunicator>();
+					_instance.Auth = new SnipeAuthCommunicator();
 					DontDestroyOnLoad(game_object);
 				}
-				return mInstance;
+				return _instance;
 			}
 		}
 		
 		public static bool InstanceInitialized
 		{
-			get => mInstance != null;
+			get => _instance != null;
 		}
 		
 		public static void DestroyInstance()
 		{
-			if (mInstance != null)
+			if (_instance != null)
 			{
-				mInstance.Dispose();
-				mInstance = null;
+				_instance.Dispose();
+				_instance = null;
 			}
 		}
 		
 		private void Awake()
 		{
-			if (mInstance != null && mInstance != this)
+			if (_instance != null && _instance != this)
 			{
 				GameObject.DestroyImmediate(this.gameObject);
 				return;
@@ -171,7 +171,7 @@ namespace MiniIT.Snipe
 			{
 				if (!Client.Connected)
 				{
-					mDisconnecting = false;
+					_disconnecting = false;
 					Client.Connect(PlayerPrefs.GetInt(SnipePrefs.SKIP_UDP, 0) != 1);
 					
 					InvokeInMainThread(() =>
@@ -214,8 +214,8 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Disconnect");
 
-			mRoomJoined = null;
-			mDisconnecting = true;
+			_roomJoined = null;
+			_disconnecting = true;
 			UserName = "";
 
 			if (Client != null)
@@ -226,7 +226,7 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) OnDestroy");
 			
-			mRoomJoined = null;
+			_roomJoined = null;
 			
 			if (MainThreadLoopCoroutine != null)
 			{
@@ -259,7 +259,7 @@ namespace MiniIT.Snipe
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Client connection opened");
 
 			_restoreConnectionAttempt = 0;
-			mDisconnecting = false;
+			_disconnecting = false;
 			
 			if (_autoLogin)
 			{
@@ -296,7 +296,7 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) [{Client?.ConnectionId}] Client connection closed");
 			
-			mRoomJoined = null;
+			_roomJoined = null;
 
 			InvokeInMainThread(() =>
 			{
@@ -318,7 +318,7 @@ namespace MiniIT.Snipe
 		{	
 			//ClearMainThreadActionsQueue();
 
-			if (_restoreConnectionAttempt < RestoreConnectionAttempts && !mDisconnecting)
+			if (_restoreConnectionAttempt < RestoreConnectionAttempts && !_disconnecting)
 			{
 				RaiseEvent(ConnectionFailed, true);
 				
@@ -366,17 +366,17 @@ namespace MiniIT.Snipe
 			{
 				if (error_code == SnipeErrorCodes.OK || error_code == SnipeErrorCodes.ALREADY_IN_ROOM)
 				{
-					mRoomJoined = true;
+					_roomJoined = true;
 				}
 				else
 				{
-					mRoomJoined = false;
+					_roomJoined = false;
 					DisposeRoomRequests();
 				}
 			}
 			else if (message_type == SnipeMessageTypes.ROOM_DEAD)
 			{
-				mRoomJoined = false;
+				_roomJoined = false;
 				DisposeRoomRequests();
 			}
 			
@@ -401,23 +401,23 @@ namespace MiniIT.Snipe
 		
 		private void InvokeInMainThread(Action action)
 		{
-			mMainThreadActions.Enqueue(action);
+			_mainThreadActions.Enqueue(action);
 		}
 
 		private void ClearMainThreadActionsQueue()
 		{
 			// mMainThreadActions.Clear(); // Requires .NET 5.0
-			mMainThreadActions = new ConcurrentQueue<Action>();
+			_mainThreadActions = new ConcurrentQueue<Action>();
 		}
 
 		private IEnumerator MainThreadLoop()
 		{
 			while (true)
 			{
-				if (mMainThreadActions != null && !mMainThreadActions.IsEmpty)
+				if (_mainThreadActions != null && !_mainThreadActions.IsEmpty)
 				{
 					// mMainThreadActions.Dequeue()?.Invoke(); // // Requires .NET 5.0
-					if (mMainThreadActions.TryDequeue(out var action))
+					if (_mainThreadActions.TryDequeue(out var action))
 					{
 						action?.Invoke();
 					}
