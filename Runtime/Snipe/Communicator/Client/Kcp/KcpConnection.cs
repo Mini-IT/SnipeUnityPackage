@@ -98,7 +98,7 @@ namespace MiniIT.Snipe
 			_timeout = timeout;
 
 			_socket = new UdpSocketWrapper();
-			_socket.On—onnected += OnSocketConnected;
+			_socket.OnConnected += OnSocketConnected;
 			_socket.OnDisconnected += OnSocketDisconnected;
 			_socket.Connect(host, port);
 		}
@@ -805,7 +805,7 @@ namespace MiniIT.Snipe
 		{
 			if (_socket != null)
 			{
-				_socket.On—onnected -= OnSocketConnected;
+				_socket.OnConnected -= OnSocketConnected;
 				_socket.OnDisconnected -= OnSocketDisconnected;
 				_socket.Dispose();
 				_socket = null;
