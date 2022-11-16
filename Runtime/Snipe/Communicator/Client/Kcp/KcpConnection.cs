@@ -72,7 +72,7 @@ namespace MiniIT.Snipe
 		private KcpState _state = KcpState.Disconnected;
 
 		private readonly byte[] _socketReceiveBuffer = new byte[Kcp.MTU_DEF]; // MTU must fit channel + message!
-		private byte[] _socketSendBuffer = new byte[Kcp.MTU_DEF];
+		private readonly byte[] _socketSendBuffer = new byte[Kcp.MTU_DEF];
 		private byte[] _kcpMessageBuffer;
 		private byte[] _kcpSendBuffer;
 
