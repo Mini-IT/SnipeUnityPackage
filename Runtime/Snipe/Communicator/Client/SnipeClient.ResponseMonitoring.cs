@@ -1,8 +1,7 @@
 using System;
-using System.Buffers;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -29,7 +28,7 @@ namespace MiniIT.Snipe
 				return;
 				
 			if (_responseMonitoringItems == null)
-				_responseMonitoringItems = new Dictionary<int, ResponseMonitoringItem>();
+				_responseMonitoringItems = new ConcurrentDictionary<int, ResponseMonitoringItem>();
 			if (_responseMonitoringStopwatch == null)
 				_responseMonitoringStopwatch = Stopwatch.StartNew();
 			
