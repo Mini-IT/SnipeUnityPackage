@@ -406,21 +406,20 @@ namespace MiniIT.Snipe
 
 		private void ClearMainThreadActionsQueue()
 		{
-			// mMainThreadActions.Clear(); // Requires .NET 5.0
+#if NET5_0_OR_GREATER
+			_mainThreadActions.Clear();
+#else
 			_mainThreadActions = new ConcurrentQueue<Action>();
+#endif
 		}
 
 		private IEnumerator MainThreadLoop()
 		{
 			while (true)
 			{
-				if (_mainThreadActions != null && !_mainThreadActions.IsEmpty)
+				if (_mainThreadActions != null && _mainThreadActions.TryDequeue(out var action))
 				{
-					// mMainThreadActions.Dequeue()?.Invoke(); // // Requires .NET 5.0
-					if (_mainThreadActions.TryDequeue(out var action))
-					{
-						action?.Invoke();
-					}
+					action?.Invoke();
 				}
 				
 				yield return null;
