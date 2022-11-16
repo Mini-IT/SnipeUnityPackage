@@ -120,62 +120,63 @@ namespace MiniIT.Snipe
 				DebugLogger.Log("[SnipeTable] Loading table " + url);
 
 				this.LoadingFailed = false;
-
-				int retry = 0;
-				while (!this.Loaded && retry <= 2)
+				using (var loader = new HttpClient())
 				{
-					if (cancellation.IsCancellationRequested)
+					int retry = 0;
+					while (!this.Loaded && retry <= 2)
 					{
-						DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (task canceled)");
-						return;
-					}
-
-					if (retry > 0)
-					{
-						await Task.Delay(100, cancellation);
-						DebugLogger.Log($"[SnipeTable] Retry #{retry} to load table - {table_name}");
-					}
-
-					retry++;
-
-					try
-					{
-						var loader = new HttpClient();
-						var loader_task = loader.GetAsync(url, cancellation);
-
-						await loader_task;
-
 						if (cancellation.IsCancellationRequested)
 						{
 							DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (task canceled)");
 							return;
 						}
 
-						if (loader_task.IsFaulted || loader_task.IsCanceled)
+						if (retry > 0)
 						{
-							DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (loader failed)");
-							return;
+							await Task.Delay(100, cancellation);
+							DebugLogger.Log($"[SnipeTable] Retry #{retry} to load table - {table_name}");
 						}
 
-						using (var file_content_stream = await loader_task.Result.Content.ReadAsStreamAsync())
-						{
-							ReadGZip<WrapperType>(file_content_stream);
-						}
+						retry++;
 
-						if (this.Loaded)
+						try
 						{
-							DebugLogger.Log("[SnipeTable] Table ready - " + table_name);
+							var loader_task = loader.GetAsync(url, cancellation);
 
-							// "using" block in ReadGZip closes the stream. We need to open it again
+							await loader_task;
+
+							if (cancellation.IsCancellationRequested)
+							{
+								DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (task canceled)");
+								return;
+							}
+
+							if (loader_task.IsFaulted || loader_task.IsCanceled)
+							{
+								DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (loader failed)");
+								return;
+							}
+
 							using (var file_content_stream = await loader_task.Result.Content.ReadAsStreamAsync())
 							{
-								SaveToCache(file_content_stream, table_name, version);
+								ReadGZip<WrapperType>(file_content_stream);
+							}
+
+							if (this.Loaded)
+							{
+								DebugLogger.Log("[SnipeTable] Table ready - " + table_name);
+
+								// "using" block in ReadGZip closes the stream. We need to open it again
+								using (var file_content_stream = await loader_task.Result.Content.ReadAsStreamAsync())
+								{
+									SaveToCache(file_content_stream, table_name, version);
+								}
 							}
 						}
-					}
-					catch (Exception e)
-					{
-						DebugLogger.Log($"[SnipeTable] Failed to load or parse table - {table_name} - {e}");
+						catch (Exception e)
+						{
+							DebugLogger.Log($"[SnipeTable] Failed to load or parse table - {table_name} - {e}");
+						}
 					}
 				}
 			}
