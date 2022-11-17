@@ -26,6 +26,19 @@ namespace MiniIT
 
 		private List<LogRecord> _log = new List<LogRecord>();
 
+		public static void InitInstance()
+		{
+			if (_instance != null)
+				return;
+
+			_instance = FindObjectOfType<LogReporter>();
+
+			if (_instance == null)
+			{
+				_instance = new GameObject("[LogReporter]").AddComponent<LogReporter>();
+			}
+		}
+
 		private void Awake()
 		{
 			if (_instance != null && _instance != this)
