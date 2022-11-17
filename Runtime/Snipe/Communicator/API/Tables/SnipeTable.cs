@@ -89,12 +89,12 @@ namespace MiniIT.Snipe
 			await _loader.Load<ItemType, WrapperType>(this, table_name);
 		}
 
-		internal async Task LoadAsync<WrapperType>(string table_name, string version, CancellationToken cancellation) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
+		internal async Task<bool> LoadAsync<WrapperType>(string table_name, string version, CancellationToken cancellation) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
 		{
 			if (cancellation.IsCancellationRequested)
 			{
 				DebugLogger.Log($"[SnipeTable] Failed to load table - {table_name}   (task canceled)");
-				return;
+				return false;
 			}
 
 			DebugLogger.Log($"[SnipeTable] LoadTask start - {table_name}");
@@ -128,7 +128,7 @@ namespace MiniIT.Snipe
 						if (cancellation.IsCancellationRequested)
 						{
 							DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (task canceled)");
-							return;
+							return false;
 						}
 
 						if (retry > 0)
@@ -139,43 +139,62 @@ namespace MiniIT.Snipe
 
 						retry++;
 
+						HttpResponseMessage response = null;
+
 						try
 						{
 							var loader_task = loader.GetAsync(url, cancellation);
-
-							await loader_task;
-
+							Task finished_task = await Task.WhenAny(loader_task, Task.Delay(3000, cancellation));
+							
 							if (cancellation.IsCancellationRequested)
 							{
 								DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (task canceled)");
-								return;
+								return false;
 							}
 
-							if (loader_task.IsFaulted || loader_task.IsCanceled)
+							if (finished_task != loader_task)
+							{
+								DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (timeout)");
+								return false;
+							}
+
+							if (loader_task.IsFaulted || loader_task.IsCanceled || loader_task.Result == null || !loader_task.Result.IsSuccessStatusCode)
 							{
 								DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (loader failed)");
-								return;
+								continue;
 							}
 
-							using (var file_content_stream = await loader_task.Result.Content.ReadAsStreamAsync())
-							{
-								ReadGZip<WrapperType>(file_content_stream);
-							}
-
-							if (this.Loaded)
-							{
-								DebugLogger.Log("[SnipeTable] Table ready - " + table_name);
-
-								// "using" block in ReadGZip closes the stream. We need to open it again
-								using (var file_content_stream = await loader_task.Result.Content.ReadAsStreamAsync())
-								{
-									SaveToCache(file_content_stream, table_name, version);
-								}
-							}
+							response = loader_task.Result;
 						}
 						catch (Exception e)
 						{
-							DebugLogger.Log($"[SnipeTable] Failed to load or parse table - {table_name} - {e}");
+							DebugLogger.Log($"[SnipeTable] Failed to load table - {table_name} - {e}");
+						}
+
+						if (response != null)
+						{
+							try
+							{
+								using (var file_content_stream = await response.Content.ReadAsStreamAsync())
+								{
+									ReadGZip<WrapperType>(file_content_stream);
+								}
+
+								if (this.Loaded)
+								{
+									DebugLogger.Log("[SnipeTable] Table ready - " + table_name);
+
+									// "using" block in ReadGZip closes the stream. We need to open it again
+									using (var file_content_stream = await response.Content.ReadAsStreamAsync())
+									{
+										SaveToCache(file_content_stream, table_name, version);
+									}
+								}
+							}
+							catch (Exception e)
+							{
+								DebugLogger.Log($"[SnipeTable] Failed to parse table - {table_name} - {e}");
+							}
 						}
 					}
 				}
@@ -183,6 +202,7 @@ namespace MiniIT.Snipe
 
 			this.LoadingFailed = !this.Loaded;
 			LoadingFinished?.Invoke(this.Loaded);
+			return this.Loaded;
 		}
 
 		private void ReadFile<WrapperType>(string table_name, string file_path) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()

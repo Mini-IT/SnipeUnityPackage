@@ -14,7 +14,8 @@ namespace MiniIT.Snipe
 		private string _version = null;
 
 		private CancellationTokenSource _cancellation;
-		protected SemaphoreSlim _semaphore;
+		private SemaphoreSlim _semaphore;
+		private bool _forceBuiltInVersion = false;
 
 		public static void Initialize()
 		{
@@ -28,6 +29,7 @@ namespace MiniIT.Snipe
 			StopLoading();
 			
 			_version = null;
+			_forceBuiltInVersion = false;
 		}
 		
 		public async Task Load<ItemType, WrapperType>(SnipeTable<ItemType> table, string name)
@@ -50,10 +52,12 @@ namespace MiniIT.Snipe
 
 			_semaphore ??= new SemaphoreSlim(MAX_LOADERS_COUNT);
 
+			bool loaded = false;
+
 			try
 			{
 				await _semaphore.WaitAsync(_cancellation.Token);
-				await table.LoadAsync<WrapperType>(name, _version, _cancellation.Token);
+				loaded = await table.LoadAsync<WrapperType>(name, _version, _cancellation.Token);
 			}
 			catch (TaskCanceledException)
 			{
@@ -66,6 +70,16 @@ namespace MiniIT.Snipe
 			finally
 			{
 				_semaphore.Release();
+			}
+
+			if (!loaded && _cancellation != null)
+			{
+				DebugLogger.LogWarning($"[TablesLoader] Loading failed. Force loading built-in tables.");
+				StopLoading();
+				DeleteCahceVersionFile();
+				_version = null;
+				_forceBuiltInVersion = true;
+				await Load<ItemType, WrapperType>(table, name);
 			}
 		}
 
@@ -80,9 +94,9 @@ namespace MiniIT.Snipe
 
 		private async Task<bool> LoadVersion(CancellationToken cancellation_token)
 		{
-			string version_file_path = Path.Combine(SnipeConfig.PersistentDataPath, VERSION_FILE_NAME);
+			string version_file_path = GetCacheVersionFilePath();
 
-			if (SnipeConfig.TablesUpdateEnabled)
+			if (SnipeConfig.TablesUpdateEnabled && !_forceBuiltInVersion)
 			{
 				for (int retries_count = 0; retries_count < 3; retries_count++)
 				{
@@ -185,6 +199,20 @@ namespace MiniIT.Snipe
 			}
 
 			return true;
+		}
+
+		private string GetCacheVersionFilePath()
+		{
+			return Path.Combine(SnipeConfig.PersistentDataPath, VERSION_FILE_NAME);
+		}
+
+		private void DeleteCahceVersionFile()
+		{
+			string version_file_path = GetCacheVersionFilePath();
+			if (File.Exists(version_file_path))
+			{
+				File.Delete(version_file_path);
+			}
 		}
 	}
 }
