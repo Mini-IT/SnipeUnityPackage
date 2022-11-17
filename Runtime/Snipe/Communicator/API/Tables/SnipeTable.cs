@@ -127,7 +127,7 @@ namespace MiniIT.Snipe
 					{
 						if (cancellation.IsCancellationRequested)
 						{
-							DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (task canceled)");
+							DebugLogger.Log($"[SnipeTable] Failed to load table - {table_name}   (task canceled)");
 							return false;
 						}
 
@@ -148,19 +148,19 @@ namespace MiniIT.Snipe
 							
 							if (cancellation.IsCancellationRequested)
 							{
-								DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (task canceled)");
+								DebugLogger.Log($"[SnipeTable] Failed to load table - {table_name}   (task canceled)");
 								return false;
 							}
 
 							if (finished_task != loader_task)
 							{
-								DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (timeout)");
+								DebugLogger.Log($"[SnipeTable] Failed to load table - {table_name}   (timeout)");
 								return false;
 							}
 
 							if (loader_task.IsFaulted || loader_task.IsCanceled || loader_task.Result == null || !loader_task.Result.IsSuccessStatusCode)
 							{
-								DebugLogger.Log("[SnipeTable] Failed to load table - " + table_name + "   (loader failed)");
+								DebugLogger.Log($"[SnipeTable] Failed to load table - {table_name}   (loader failed)");
 								continue;
 							}
 
@@ -201,7 +201,16 @@ namespace MiniIT.Snipe
 			}
 
 			this.LoadingFailed = !this.Loaded;
-			LoadingFinished?.Invoke(this.Loaded);
+
+			try
+			{
+				LoadingFinished?.Invoke(this.Loaded);
+			}
+			catch (Exception e)
+			{
+				DebugLogger.Log($"[SnipeTable] {table_name} LoadingFinished event invokation error: {e}");
+			}
+
 			return this.Loaded;
 		}
 
