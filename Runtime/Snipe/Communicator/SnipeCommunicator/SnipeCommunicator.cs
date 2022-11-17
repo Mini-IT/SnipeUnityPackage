@@ -361,6 +361,11 @@ namespace MiniIT.Snipe
 				{
 					OnConnectionFailed();
 				}
+				else // unexpected error code
+				{
+					DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) {message_type} - Unexpected error code: {error_code}");
+					OnConnectionFailed();
+				}
 			}
 			else if (message_type == SnipeMessageTypes.ROOM_JOIN)
 			{
