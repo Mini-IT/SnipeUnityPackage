@@ -7,7 +7,7 @@ namespace MiniIT.Snipe
 {
 	public class SnipeMessageCompressor
 	{
-		private byte[] mDecompressionBuffer;
+		private byte[] _decompressionBuffer;
 		
 		public ArraySegment<byte> Compress(ArraySegment<byte> msg_data)
 		{
@@ -33,12 +33,12 @@ namespace MiniIT.Snipe
 					const int portion_size = 1024;
 					while (deflate.CanRead)
 					{
-						if (mDecompressionBuffer == null)
-							mDecompressionBuffer = new byte[portion_size];
-						else if (mDecompressionBuffer.Length < length + portion_size)
-							Array.Resize(ref mDecompressionBuffer, length + portion_size);
+						if (_decompressionBuffer == null)
+							_decompressionBuffer = new byte[portion_size];
+						else if (_decompressionBuffer.Length < length + portion_size)
+							Array.Resize(ref _decompressionBuffer, length + portion_size);
 
-						int bytes_read = deflate.Read(mDecompressionBuffer, length, portion_size);
+						int bytes_read = deflate.Read(_decompressionBuffer, length, portion_size);
 						if (bytes_read == 0)
 							break;
 
@@ -47,7 +47,7 @@ namespace MiniIT.Snipe
 				}
 			}
 
-			return new ArraySegment<byte>(mDecompressionBuffer, 0, length);
+			return new ArraySegment<byte>(_decompressionBuffer, 0, length);
 		}
 	}
 }

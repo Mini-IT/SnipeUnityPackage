@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using MiniIT;
@@ -24,13 +23,16 @@ public static class SnipeConfig
 	
 	public static SnipeObject LoginParameters;
 	public static bool TablesUpdateEnabled = true;
+
+	public static string LogReporterKey;
+	public static string LogReporterUrl;
 	
 	public static string PersistentDataPath { get; private set; }
 	public static string StreamingAssetsPath { get; private set; }
 	
-	private static int mServerWebSocketUrlIndex = 0;
-	private static int mServerUdpUrlIndex = 0;
-	private static int mTablesUrlIndex = 0;
+	private static int _serverWebSocketUrlIndex = 0;
+	private static int _serverUdpUrlIndex = 0;
+	private static int _tablesUrlIndex = 0;
 
 	/// <summary>
 	/// Should be called from the main Unity thread
@@ -145,9 +147,15 @@ public static class SnipeConfig
 				TablesUrls.Add(corrected_path);
 			}
 		}
+
+		if (data["log_reporter"] is SnipeObject log_reporter)
+		{
+			LogReporterKey = log_reporter.SafeGetString("key");
+			LogReporterUrl = log_reporter.SafeGetString("url");
+		}
 		
-		mServerWebSocketUrlIndex = 0;
-		mTablesUrlIndex = -1;
+		_serverWebSocketUrlIndex = 0;
+		_tablesUrlIndex = -1;
 
 		PersistentDataPath = Application.persistentDataPath;
 		StreamingAssetsPath = Application.streamingAssetsPath;
@@ -167,10 +175,10 @@ public static class SnipeConfig
 	
 	public static string GetWebSocketUrl()
 	{
-		mServerWebSocketUrlIndex = GetValidIndex(ServerWebSocketUrls, mServerWebSocketUrlIndex, false);
-		if (mServerWebSocketUrlIndex >= 0)
+		_serverWebSocketUrlIndex = GetValidIndex(ServerWebSocketUrls, _serverWebSocketUrlIndex, false);
+		if (_serverWebSocketUrlIndex >= 0)
 		{
-			return ServerWebSocketUrls[mServerWebSocketUrlIndex];
+			return ServerWebSocketUrls[_serverWebSocketUrlIndex];
 		}
 
 		return null;
@@ -178,10 +186,10 @@ public static class SnipeConfig
 
 	public static UdpAddress GetUdpAddress()
 	{
-		mServerUdpUrlIndex = GetValidIndex(ServerUdpUrls, mServerUdpUrlIndex, false);
-		if (mServerUdpUrlIndex >= 0)
+		_serverUdpUrlIndex = GetValidIndex(ServerUdpUrls, _serverUdpUrlIndex, false);
+		if (_serverUdpUrlIndex >= 0)
 		{
-			return ServerUdpUrls[mServerUdpUrlIndex];
+			return ServerUdpUrls[_serverUdpUrlIndex];
 		}
 
 		return null;
@@ -189,22 +197,22 @@ public static class SnipeConfig
 
 	public static void NextWebSocketUrl()
 	{
-		mServerWebSocketUrlIndex = GetValidIndex(ServerWebSocketUrls, mServerWebSocketUrlIndex, true);
+		_serverWebSocketUrlIndex = GetValidIndex(ServerWebSocketUrls, _serverWebSocketUrlIndex, true);
 	}
 
 	public static bool NextUdpUrl()
 	{
-		int prev = mServerUdpUrlIndex;
-		mServerUdpUrlIndex = GetValidIndex(ServerUdpUrls, mServerUdpUrlIndex, true);
-		return mServerUdpUrlIndex > prev;
+		int prev = _serverUdpUrlIndex;
+		_serverUdpUrlIndex = GetValidIndex(ServerUdpUrls, _serverUdpUrlIndex, true);
+		return _serverUdpUrlIndex > prev;
 	}
 
 	public static string GetTablesPath(bool next = false)
 	{
-		mTablesUrlIndex = GetValidIndex(TablesUrls, mTablesUrlIndex, next);
-		if (mTablesUrlIndex >= 0)
+		_tablesUrlIndex = GetValidIndex(TablesUrls, _tablesUrlIndex, next);
+		if (_tablesUrlIndex >= 0)
 		{
-			return TablesUrls[mTablesUrlIndex];
+			return TablesUrls[_tablesUrlIndex];
 		}
 
 		return null;

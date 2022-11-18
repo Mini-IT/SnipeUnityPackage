@@ -1,12 +1,6 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.IO;
-using System.Net;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using MiniIT;
 using WebSocketSharp;
 
 namespace MiniIT.Snipe
@@ -23,29 +17,25 @@ namespace MiniIT.Snipe
 
 		#pragma warning restore 0067
 
-		private WebSocket mWebSocket = null;
-		private CancellationTokenSource mConnectionWaitingCancellation;
-
-		public WebSocketWrapper()
-		{
-		}
+		private WebSocket _webSocket = null;
+		private CancellationTokenSource _connectionWaitingCancellation;
 
 		public async void Connect(string url)
 		{
 			Disconnect();
 
-			mWebSocket = new WebSocket(url);
-			mWebSocket.OnOpen += OnWebSocketConnected;
-			mWebSocket.OnClose += OnWebSocketClosed;
-			mWebSocket.OnMessage += OnWebSocketMessage;
-			mWebSocket.OnError += OnWebSocketError;
-			mWebSocket.NoDelay = true;
-			//mWebSocket.SslConfiguration.EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls12;
-			mWebSocket.ConnectAsync();
+			_webSocket = new WebSocket(url);
+			_webSocket.OnOpen += OnWebSocketConnected;
+			_webSocket.OnClose += OnWebSocketClosed;
+			_webSocket.OnMessage += OnWebSocketMessage;
+			_webSocket.OnError += OnWebSocketError;
+			_webSocket.NoDelay = true;
+			//_webSocket.SslConfiguration.EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls12;
+			_webSocket.ConnectAsync();
 			
-			mConnectionWaitingCancellation = new CancellationTokenSource();
-			await WaitForConnection(mConnectionWaitingCancellation.Token);
-			mConnectionWaitingCancellation = null;
+			_connectionWaitingCancellation = new CancellationTokenSource();
+			await WaitForConnection(_connectionWaitingCancellation.Token);
+			_connectionWaitingCancellation = null;
 		}
 		
 		private async Task WaitForConnection(CancellationToken cancellation)
@@ -69,29 +59,29 @@ namespace MiniIT.Snipe
 
 		public void Disconnect()
 		{
-			if (mConnectionWaitingCancellation != null)
+			if (_connectionWaitingCancellation != null)
 			{
-				mConnectionWaitingCancellation.Cancel();
-				mConnectionWaitingCancellation = null;
+				_connectionWaitingCancellation.Cancel();
+				_connectionWaitingCancellation = null;
 			}
 			
-			if (mWebSocket != null)
+			if (_webSocket != null)
 			{
 				SetConnectionAnalyticsValues();
-				mWebSocket.OnOpen -= OnWebSocketConnected;
-				mWebSocket.OnClose -= OnWebSocketClosed;
-				mWebSocket.OnMessage -= OnWebSocketMessage;
-				mWebSocket.CloseAsync();
-				mWebSocket = null;
+				_webSocket.OnOpen -= OnWebSocketConnected;
+				_webSocket.OnClose -= OnWebSocketClosed;
+				_webSocket.OnMessage -= OnWebSocketMessage;
+				_webSocket.CloseAsync();
+				_webSocket = null;
 			}
 		}
 
 		protected void OnWebSocketConnected(object sender, EventArgs e)
 		{
-			if (mConnectionWaitingCancellation != null)
+			if (_connectionWaitingCancellation != null)
 			{
-				mConnectionWaitingCancellation.Cancel();
-				mConnectionWaitingCancellation = null;
+				_connectionWaitingCancellation.Cancel();
+				_connectionWaitingCancellation = null;
 			}
 			
 			SetConnectionAnalyticsValues();
@@ -123,9 +113,9 @@ namespace MiniIT.Snipe
 			if (!Connected)
 				return;
 
-			lock (mWebSocket)
+			lock (_webSocket)
 			{
-				mWebSocket.SendAsync(message, null);
+				_webSocket.SendAsync(message, null);
 			}
 		}
 
@@ -134,9 +124,9 @@ namespace MiniIT.Snipe
 			if (!Connected)
 				return;
 
-			lock (mWebSocket)
+			lock (_webSocket)
 			{
-				mWebSocket.SendAsync(bytes, null);
+				_webSocket.SendAsync(bytes, null);
 			}
 		}
 		
@@ -145,11 +135,11 @@ namespace MiniIT.Snipe
 			if (!Connected)
 				return;
 
-			lock (mWebSocket)
+			lock (_webSocket)
 			{
 				var bytes = new byte[data.Count];
 				Array.ConstrainedCopy(data.Array, data.Offset, bytes, 0, data.Count);
-				mWebSocket.SendAsync(bytes, null);
+				_webSocket.SendAsync(bytes, null);
 			}
 		}
 
@@ -161,14 +151,14 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			mWebSocket.PingAsync(callback);
+			_webSocket.PingAsync(callback);
 		}
 
 		public bool Connected
 		{
 			get
 			{
-				return (mWebSocket != null && mWebSocket.ReadyState == WebSocketState.Open);
+				return (_webSocket != null && _webSocket.ReadyState == WebSocketState.Open);
 			}
 		}
 
@@ -187,9 +177,9 @@ namespace MiniIT.Snipe
 		
 		private void SetConnectionAnalyticsValues()
 		{
-			Analytics.WebSocketTcpClientConnectionTime = mWebSocket.TcpClientConnectionTime.TotalMilliseconds;
-			Analytics.WebSocketSslAuthenticateTime = mWebSocket.SslAuthenticateTime.TotalMilliseconds;
-			Analytics.WebSocketHandshakeTime = mWebSocket.HandshakeTime.TotalMilliseconds;
+			Analytics.WebSocketTcpClientConnectionTime = _webSocket.TcpClientConnectionTime.TotalMilliseconds;
+			Analytics.WebSocketSslAuthenticateTime = _webSocket.SslAuthenticateTime.TotalMilliseconds;
+			Analytics.WebSocketHandshakeTime = _webSocket.HandshakeTime.TotalMilliseconds;
 		}
 	}
 

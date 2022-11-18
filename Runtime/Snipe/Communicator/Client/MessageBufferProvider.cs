@@ -6,13 +6,13 @@ namespace MiniIT.Snipe
 {
 	public class MessageBufferProvider
 	{
-		private Dictionary<string, int> mBufferSizes = new Dictionary<string, int>();
-		private readonly object mDictionaryLock = new object();
+		private Dictionary<string, int> _bufferSizes = new Dictionary<string, int>();
+		private readonly object _dictionaryLock = new object();
 		
 		public byte[] GetBuffer(string message_type)
 		{
 			int buffer_size;
-			if (!mBufferSizes.TryGetValue(message_type, out buffer_size))
+			if (!_bufferSizes.TryGetValue(message_type, out buffer_size))
 			{
 				buffer_size = 1024;
 			}
@@ -42,9 +42,9 @@ namespace MiniIT.Snipe
 			{
 				if (!string.IsNullOrEmpty(message_type))
 				{
-					lock (mDictionaryLock)
+					lock (_dictionaryLock)
 					{
-						mBufferSizes[message_type] = MAX_SIZE;
+						_bufferSizes[message_type] = MAX_SIZE;
 					}
 				}
 				return;
@@ -56,11 +56,11 @@ namespace MiniIT.Snipe
 
 				if (!string.IsNullOrEmpty(message_type))
 				{
-					lock (mDictionaryLock)
+					lock (_dictionaryLock)
 					{
-						if (mBufferSizes.TryGetValue(message_type, out int buffer_size) && buffer.Length > buffer_size)
+						if (_bufferSizes.TryGetValue(message_type, out int buffer_size) && buffer.Length > buffer_size)
 						{
-							mBufferSizes[message_type] = buffer.Length;
+							_bufferSizes[message_type] = buffer.Length;
 						}
 					}
 				}

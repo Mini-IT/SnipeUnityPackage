@@ -7,11 +7,11 @@ namespace MiniIT.Snipe
 	{
 		public TimeZoneInfo ServerTimeZone = TimeZoneInfo.CreateCustomTimeZone("server time", TimeSpan.FromHours(3), "server time", "server time");
 
-		private SnipeTable<SnipeTableCalendarItem> mCalendarTable = null;
+		private SnipeTable<SnipeTableCalendarItem> _calendarTable = null;
 
 		public void Init(SnipeTable<SnipeTableCalendarItem> calendar_table)
 		{
-			mCalendarTable = calendar_table;
+			_calendarTable = calendar_table;
 		}
 
 		~CalendarManager()
@@ -21,7 +21,7 @@ namespace MiniIT.Snipe
 
 		public void Dispose()
 		{
-			mCalendarTable = null;
+			_calendarTable = null;
 		}
 
 		public bool IsEventActive(string eventID)
@@ -65,9 +65,9 @@ namespace MiniIT.Snipe
 		{
 			var result = new List<SnipeTableCalendarItem>();
 
-			if (mCalendarTable?.Items != null)
+			if (_calendarTable?.Items != null)
 			{
-				foreach (var item in mCalendarTable.Items.Values)
+				foreach (var item in _calendarTable.Items.Values)
 				{
 					if (IsEventActive(item.stringID))
 					{
@@ -240,10 +240,10 @@ namespace MiniIT.Snipe
 
 		private SnipeTableCalendarItem GetItem(string eventID)
 		{
-			if (mCalendarTable?.Items == null)
+			if (_calendarTable?.Items == null)
 				return null;
 
-			foreach (var item in mCalendarTable.Items.Values)
+			foreach (var item in _calendarTable.Items.Values)
 			{
 				if (item.stringID == eventID)
 				{

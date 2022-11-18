@@ -7,7 +7,7 @@ namespace MiniIT.Snipe
 {
 	public class UdpSocketWrapper : IDisposable
 	{
-		public Action On—onnected;
+		public Action OnConnected;
 		public Action OnDisconnected;
 
 		public bool Connected => _socket != null && _socket.Connected;
@@ -36,7 +36,7 @@ namespace MiniIT.Snipe
 				
 				if (_socket != null)
 				{
-					On—onnected?.Invoke();
+					OnConnected?.Invoke();
 					return;
 				}
 			}
