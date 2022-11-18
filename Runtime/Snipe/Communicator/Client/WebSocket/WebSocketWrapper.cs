@@ -78,11 +78,7 @@ namespace MiniIT.Snipe
 
 		protected void OnWebSocketConnected(object sender, EventArgs e)
 		{
-			if (_connectionWaitingCancellation != null)
-			{
-				_connectionWaitingCancellation.Cancel();
-				_connectionWaitingCancellation = null;
-			}
+			_connectionWaitingCancellation = null;
 			
 			SetConnectionAnalyticsValues();
 			
