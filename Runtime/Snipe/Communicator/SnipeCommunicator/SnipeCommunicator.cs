@@ -27,7 +27,7 @@ namespace MiniIT.Snipe
 		public event MessageReceivedHandler MessageReceived;
 		public event PreDestroyHandler PreDestroy;
 		
-		public SnipeAuthCommunicator Auth { get; private set; }
+		public AuthSubsystem Auth { get; private set; }
 
 		public string UserName { get; private set; }
 		public string ConnectionId { get { return Client?.ConnectionId; } }
@@ -99,7 +99,7 @@ namespace MiniIT.Snipe
 					var game_object = new GameObject("[SnipeCommunicator]");
 					game_object.hideFlags = HideFlags.DontSave; // HideFlags.HideAndDontSave;
 					_instance = game_object.AddComponent<SnipeCommunicator>();
-					_instance.Auth = new SnipeAuthCommunicator();
+					_instance.Auth = new AuthSubsystem(_instance);
 					DontDestroyOnLoad(game_object);
 				}
 				return _instance;
@@ -190,7 +190,7 @@ namespace MiniIT.Snipe
 			InvokeInMainThread(() =>
 			{
 				DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Authorize");
-				Auth.Authorize(OnAuthResult);
+				Auth.Authorize();
 			});
 		}
 
