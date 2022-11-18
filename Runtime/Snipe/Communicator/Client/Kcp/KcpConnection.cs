@@ -617,7 +617,7 @@ namespace MiniIT.Snipe
 						message = new ArraySegment<byte>(_kcpMessageBuffer, 1, msgSize - 1);
 						UpdateLastReceiveTime();
 
-						// DebugLogger.Log($"KCP: raw recv {received} bytes ({message.Count}) = {BitConverter.ToString(message.Array, message.Offset, message.Count)}");
+						// DebugLogger.Log($"KCP: raw recv {received} header = {header} bytes ({message.Count}) = {BitConverter.ToString(message.Array, message.Offset, message.Count)}");
 
 						return true;
 					}
@@ -650,6 +650,8 @@ namespace MiniIT.Snipe
 
 		private void HandleReliableData(ArraySegment<byte> message)
 		{
+			DebugLogger.Log("HandleReliableData");
+
 			// call OnData IF the message contained actual data
 			if (message.Count > 0)
 			{
@@ -665,6 +667,8 @@ namespace MiniIT.Snipe
 
 		private void HandleReliableChunk(ArraySegment<byte> message, bool compressed)
 		{
+			DebugLogger.Log("HandleReliableChunk");
+
 			// call OnData IF the message contained actual data
 			if (message.Count > 3)
 			{
@@ -702,7 +706,7 @@ namespace MiniIT.Snipe
 					// DebugLogger.Log($"[KcpConnection] CHUNKED_MESSAGE received: {BitConverter.ToString(item.buffer, 0, item.buffer.Length)}");
 
 					// opcode Snipe Response
-					//item.buffer[0] = opcode;
+					item.buffer[0] = (byte)KcpOpCodes.SnipeResponse;
 
 					// length (4 bytes int)
 					WriteInt(item.buffer, 1, item.length);

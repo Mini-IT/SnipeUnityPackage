@@ -10,14 +10,6 @@ namespace MiniIT.Snipe
 {
 	public class KcpTransport : Transport
 	{
-		internal const byte OPCODE_AUTHENTICATION_REQUEST = 1;
-		// internal const byte OPCODE_AUTHENTICATION_RESPONSE = 2;
-		// internal const byte OPCODE_AUTHENTICATED = 3;
-		internal const byte OPCODE_SNIPE_REQUEST = 4;
-		internal const byte OPCODE_SNIPE_RESPONSE = 5;
-		internal const byte OPCODE_SNIPE_REQUEST_COMPRESSED = 6;
-		internal const byte OPCODE_SNIPE_RESPONSE_COMPRESSED = 7;
-
 		public bool ConnectionEstablished { get; private set; } = false;
 		
 		public bool Started => _kcpConnection != null;
@@ -154,9 +146,9 @@ namespace MiniIT.Snipe
 			//	return;
 			//}
 
-			if (opcode == OPCODE_SNIPE_RESPONSE || opcode == OPCODE_SNIPE_RESPONSE_COMPRESSED)
+			if (opcode == (byte)KcpOpCodes.SnipeResponse || opcode == (byte)KcpOpCodes.SnipeResponseCompressed)
 			{
-				ProcessMessage(buffer, compressed || (opcode == OPCODE_SNIPE_RESPONSE_COMPRESSED));
+				ProcessMessage(buffer, compressed || (opcode == (byte)KcpOpCodes.SnipeResponseCompressed));
 			}
 		}
 
