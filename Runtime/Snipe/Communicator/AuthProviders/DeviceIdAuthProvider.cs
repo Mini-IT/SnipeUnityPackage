@@ -1,14 +1,15 @@
-﻿using System;
-using System.Text.RegularExpressions;
-using UnityEngine;
+﻿using UnityEngine;
 using MiniIT;
 using MiniIT.Snipe;
-using MiniIT.Social;
+using System.Security.Cryptography;
+using System.Text;
 
 public class DeviceIdAuthProvider : BindProvider
 {
 	public const string PROVIDER_ID = "dvid";
 	public override string ProviderId { get { return PROVIDER_ID; } }
+
+	private string _deviceId = null;
 
 	public override void RequestAuth(AuthResultCallback callback = null, bool reset_auth = false)
 	{
@@ -92,7 +93,17 @@ public class DeviceIdAuthProvider : BindProvider
 
 	public override string GetUserId()
 	{
-		return SystemInfo.deviceUniqueIdentifier;
+		if (string.IsNullOrEmpty(_deviceId))
+		{
+			_deviceId = SystemInfo.deviceUniqueIdentifier;
+			DebugLogger.Log($"[DeviceIdAuthProvider] DeviceId = {_deviceId}");
+			if (_deviceId.Length > 64)
+			{
+				_deviceId = GetHashString(_deviceId);
+				DebugLogger.Log($"[DeviceIdAuthProvider] DeviceId Hash = {_deviceId}");
+			}
+		}
+		return _deviceId;
 	}
 
 	public override bool CheckAuthExists(CheckAuthExistsCallback callback = null)
@@ -104,5 +115,24 @@ public class DeviceIdAuthProvider : BindProvider
 		}
 
 		return false;
+	}
+
+	private static byte[] GetHash(string inputString)
+	{
+		using (HashAlgorithm algorithm = SHA256.Create())
+		{
+			return algorithm.ComputeHash(Encoding.UTF8.GetBytes(inputString));
+		}
+	}
+
+	private static string GetHashString(string inputString)
+	{
+		StringBuilder sb = new StringBuilder();
+		foreach (byte b in GetHash(inputString))
+		{
+			sb.Append(b.ToString("X2").ToLower());
+		}
+
+		return sb.ToString();
 	}
 }
