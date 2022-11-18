@@ -242,7 +242,7 @@ namespace MiniIT.Snipe
 
 			_networkLoopCancellation = new CancellationTokenSource();
 			Task.Run(() => NetworkLoop(_networkLoopCancellation.Token));
-			Task.Run(() => UdpConnectionTimeout(_networkLoopCancellation.Token));
+			//Task.Run(() => UdpConnectionTimeout(_networkLoopCancellation.Token));
 		}
 
 		public void StopNetworkLoop()
@@ -285,32 +285,32 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		private async void UdpConnectionTimeout(CancellationToken cancellation)
-		{
-			DebugLogger.Log("[SnipeClient] UdpConnectionTimeoutTask - start");
+		//private async void UdpConnectionTimeout(CancellationToken cancellation)
+		//{
+		//	DebugLogger.Log("[SnipeClient] UdpConnectionTimeoutTask - start");
 			
-			try
-			{
-				await Task.Delay(2000, cancellation);
-			}
-			catch (TaskCanceledException)
-			{
-				// This is OK. Just terminating the task
-				return;
-			}
+		//	try
+		//	{
+		//		await Task.Delay(2000, cancellation);
+		//	}
+		//	catch (TaskCanceledException)
+		//	{
+		//		// This is OK. Just terminating the task
+		//		return;
+		//	}
 			
-			if (cancellation == null || cancellation.IsCancellationRequested)
-				return;
-			if (cancellation != _networkLoopCancellation?.Token)
-				return;
+		//	if (cancellation == null || cancellation.IsCancellationRequested)
+		//		return;
+		//	if (cancellation != _networkLoopCancellation?.Token)
+		//		return;
 			
-			if (!Connected)
-			{
-				DebugLogger.Log("[SnipeClient] UdpConnectionTimeoutTask - Calling Disconnect");
-				OnClientDisconnected();
-			}
+		//	if (!Connected)
+		//	{
+		//		DebugLogger.Log("[SnipeClient] UdpConnectionTimeoutTask - Calling Disconnect");
+		//		OnClientDisconnected();
+		//	}
 			
-			DebugLogger.Log("[SnipeClient] UdpConnectionTimeoutTask - finish");
-		}
+		//	DebugLogger.Log("[SnipeClient] UdpConnectionTimeoutTask - finish");
+		//}
 	}
 }
