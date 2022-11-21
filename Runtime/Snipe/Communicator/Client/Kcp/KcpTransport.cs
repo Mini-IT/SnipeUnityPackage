@@ -23,7 +23,7 @@ namespace MiniIT.Snipe
 
 		private readonly object _lock = new object();
 
-		public void Connect()
+		public async void Connect()
 		{
 			if (_kcpConnection != null) // already connected or trying to connect
 				return;
@@ -35,7 +35,7 @@ namespace MiniIT.Snipe
 			_kcpConnection.OnData = OnClientDataReceived;
 			_kcpConnection.OnDisconnected = OnClientDisconnected;
 
-			Task.Run(() =>
+			await Task.Run(() =>
 			{
 				lock (_lock)
 				{
