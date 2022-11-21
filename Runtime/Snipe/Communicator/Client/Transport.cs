@@ -25,6 +25,11 @@ namespace MiniIT.Snipe
 			MainThreadLoop(_mainThreadLoopCancellation.Token);
 		}
 
+		~Transport()
+		{
+			Dispose();
+		}
+
 		private async void MainThreadLoop(CancellationToken cancellationToken)
 		{
 			while (cancellationToken != null && !cancellationToken.IsCancellationRequested)
@@ -40,8 +45,11 @@ namespace MiniIT.Snipe
 
 		public void Dispose()
 		{
-			_mainThreadLoopCancellation?.Cancel();
-			_mainThreadLoopCancellation = null;
+			if (_mainThreadActions != null)
+			{
+				_mainThreadLoopCancellation.Cancel();
+				_mainThreadLoopCancellation = null;
+			}
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
