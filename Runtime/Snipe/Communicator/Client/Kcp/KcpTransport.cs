@@ -1,10 +1,9 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using MiniIT.MessagePack;
-
-using System.Buffers;
 
 namespace MiniIT.Snipe
 {
@@ -26,17 +25,6 @@ namespace MiniIT.Snipe
 
 		public void Connect()
 		{
-			Task.Run(() =>
-			{
-				lock (_lock)
-				{
-					ConnectTask();
-				}
-			});
-		}
-
-		private void ConnectTask()
-		{
 			if (_kcpConnection != null) // already connected or trying to connect
 				return;
 
@@ -47,10 +35,15 @@ namespace MiniIT.Snipe
 			_kcpConnection.OnData = OnClientDataReceived;
 			_kcpConnection.OnDisconnected = OnClientDisconnected;
 
-			var address = SnipeConfig.GetUdpAddress();
+			Task.Run(() =>
+			{
+				lock (_lock)
+				{
+					var address = SnipeConfig.GetUdpAddress();
+					_kcpConnection.Connect(address.Host, address.Port, 3000);
+				}
+			});
 
-			_kcpConnection.Connect(address.Host, address.Port, 3000);
-			
 			StartNetworkLoop();
 		}
 
