@@ -82,6 +82,7 @@ namespace MiniIT.Snipe
 		// If we don't receive anything these many milliseconds
 		// then consider us disconnected
 		private int _timeout;
+		private int _authenticationTimeout;
 		private uint _lastReceiveTime;
 
 		// internal timer
@@ -90,12 +91,13 @@ namespace MiniIT.Snipe
 		private uint _lastPingTime;
 		public uint PingTime { get; private set; }
 
-		public void Connect(string host, ushort port, int timeout = 10000)
+		public void Connect(string host, ushort port, int timeout = 10000, int authenticationTimeout = 10000)
 		{
 			if (_socket != null)
 				return;
 
 			_timeout = timeout;
+			_authenticationTimeout = authenticationTimeout;
 
 			_socket = new UdpSocketWrapper();
 			_socket.OnConnected += OnSocketConnected;
@@ -329,9 +331,9 @@ namespace MiniIT.Snipe
 				HandleDeadLink();
 				HandlePing(time);
 				HandleChoked();
-
+				
 				while (//!paused &&
-				   ReceiveNextReliable(out KcpHeader header, out ArraySegment<byte> message))
+					ReceiveNextReliable(out KcpHeader header, out ArraySegment<byte> message))
 				{
 					if (header == KcpHeader.Disconnect)
 					{
@@ -749,18 +751,20 @@ namespace MiniIT.Snipe
 			buffer[offset + 2] = (byte)(value >> 0x18);
 		}
 
-		void HandleTimeout(uint time)
+		private void HandleTimeout(uint time)
 		{
+			int timeout = (_state == KcpState.Authenticated) ? _timeout : _authenticationTimeout;
+
 			// note: we are also sending a ping regularly, so timeout should
 			//       only ever happen if the connection is truly gone.
-			if (time >= _lastReceiveTime + _timeout)
+			if (time >= _lastReceiveTime + timeout)
 			{
-				DebugLogger.LogWarning($"KCP: Connection timed out after not receiving any message for {_timeout}ms. Disconnecting.");
+				DebugLogger.LogWarning($"KCP: Connection timed out after not receiving any message for {timeout}ms. Disconnecting.");
 				Disconnect();
 			}
 		}
 
-		void HandleDeadLink()
+		private void HandleDeadLink()
 		{
 			// kcp has 'dead_link' detection. might as well use it.
 			if (_kcp.GetState() == -1)
@@ -771,7 +775,7 @@ namespace MiniIT.Snipe
 		}
 
 		// send a ping occasionally in order to not time out on the other end.
-		void HandlePing(uint time)
+		private void HandlePing(uint time)
 		{
 			// enough time elapsed since last ping?
 			if (time >= _lastPingTime + PING_INTERVAL)
@@ -781,7 +785,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		void HandleChoked()
+		private void HandleChoked()
 		{
 			// disconnect connections that can't process the load.
 			// see QueueSizeDisconnect comments.
