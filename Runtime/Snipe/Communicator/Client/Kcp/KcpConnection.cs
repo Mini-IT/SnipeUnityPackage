@@ -142,6 +142,7 @@ namespace MiniIT.Snipe
 			_refTime.Start();
 
 			SendReliable(KcpHeader.Handshake);
+			_kcp.Flush(); // force sending handshake immediately
 		}
 
 		private void OnSocketDisconnected()
