@@ -45,7 +45,7 @@ namespace MiniIT.Snipe
 
 		public void Dispose()
 		{
-			if (_mainThreadActions != null)
+			if (_mainThreadLoopCancellation != null)
 			{
 				_mainThreadLoopCancellation.Cancel();
 				_mainThreadLoopCancellation = null;
