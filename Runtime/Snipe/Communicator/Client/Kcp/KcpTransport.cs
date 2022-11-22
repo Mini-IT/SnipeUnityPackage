@@ -40,7 +40,7 @@ namespace MiniIT.Snipe
 				lock (_lock)
 				{
 					var address = SnipeConfig.GetUdpAddress();
-					_kcpConnection.Connect(address.Host, address.Port, 3000);
+					_kcpConnection.Connect(address.Host, address.Port, 3000, 5000);
 				}
 			});
 

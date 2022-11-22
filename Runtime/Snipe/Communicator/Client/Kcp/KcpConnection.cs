@@ -91,13 +91,13 @@ namespace MiniIT.Snipe
 		private uint _lastPingTime;
 		public uint PingTime { get; private set; }
 
-		public void Connect(string host, ushort port, int timeout = 10000, int authenticationTimeout = 10000)
+		public void Connect(string host, ushort port, int timeout = 10000, int authenticationTimeout = 0)
 		{
 			if (_socket != null)
 				return;
 
 			_timeout = timeout;
-			_authenticationTimeout = authenticationTimeout;
+			_authenticationTimeout = authenticationTimeout > 0 ? authenticationTimeout : timeout;
 
 			_socket = new UdpSocketWrapper();
 			_socket.OnConnected += OnSocketConnected;
