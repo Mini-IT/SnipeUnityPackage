@@ -109,7 +109,7 @@ namespace MiniIT.Snipe
 		{
 			if (_kcp == null)
 			{
-				_kcp = new Kcp(0, RawSendReliable);
+				_kcp = new Kcp(0, SocketSendReliable);
 			}
 
 			_kcp.SetNoDelay(1u, // NoDelay is recommended to reduce latency
@@ -317,7 +317,7 @@ namespace MiniIT.Snipe
 
 		public void TickIncoming()
 		{
-			RawReceive();
+			SocketReceive();
 
 			if (_state == KcpState.Disconnected || _kcp == null)
 				return;
@@ -451,7 +451,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			RawSend(KcpChannel.Unreliable, message.Array, message.Offset, message.Count);
+			SocketSend(KcpChannel.Unreliable, message.Array, message.Offset, message.Count);
 		}
 
 		private void SendReliable(KcpHeader header, ArraySegment<byte> content = default)
@@ -476,20 +476,23 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void RawSendReliable(byte[] data, int length)
+		private void SocketSendReliable(byte[] data, int length)
 		{
-			RawSend(KcpChannel.Reliable, data, 0, length);
+			SocketSend(KcpChannel.Reliable, data, 0, length);
 		}
 
-		private void RawSend(KcpChannel channel, byte[] data, int offset, int length)
+		private void SocketSend(KcpChannel channel, byte[] data, int offset, int length)
 		{
 			// copy channel header, data into raw send buffer, then send
 			_socketSendBuffer[0] = (byte)channel;
-			Buffer.BlockCopy(data, offset, _socketSendBuffer, 1, length);
+			if (length > 0)
+			{
+				Buffer.BlockCopy(data, offset, _socketSendBuffer, 1, length);
+			}
 			_socket.Send(_socketSendBuffer, length + 1);
 		}
 
-		private void RawReceive()
+		private void SocketReceive()
 		{
 			try
 			{
