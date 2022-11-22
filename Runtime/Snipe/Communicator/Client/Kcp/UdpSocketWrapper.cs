@@ -100,7 +100,6 @@ namespace MiniIT.Snipe
 
 				if (socket != null && socket.Connected)
 				{
-					socket.NoDelay = true;
 					return socket;
 				}
 			}
