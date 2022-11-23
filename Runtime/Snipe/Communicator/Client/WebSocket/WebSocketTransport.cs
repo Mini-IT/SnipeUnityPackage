@@ -176,10 +176,11 @@ namespace MiniIT.Snipe
 			int offset = 2;
 			for (int i = 0; i < data.Length; i++)
 			{
-				WriteInt3(request, offset, data[i].Length);
+				length = data[i].Length;
+				WriteInt3(request, offset, length);
 				offset += 3;
-				Array.ConstrainedCopy(data[i], 0, request, offset, data[i].Length);
-				offset += data[i].Length;
+				Array.ConstrainedCopy(data[i], 0, request, offset, length);
+				offset += length;
 			}
 
 			lock (_lock)
