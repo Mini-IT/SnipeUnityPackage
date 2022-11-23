@@ -73,7 +73,7 @@ namespace MiniIT.Snipe
 			//		*valuePtr = value;
 			//	}
 			//}
-			data[position] = (byte)value;
+			data[position + 0] = (byte)(value);
 			data[position + 1] = (byte)(value >> 8);
 			data[position + 2] = (byte)(value >> 0x10);
 			data[position + 3] = (byte)(value >> 0x18);
