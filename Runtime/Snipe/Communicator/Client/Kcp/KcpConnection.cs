@@ -750,9 +750,9 @@ namespace MiniIT.Snipe
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		protected void WriteInt3(byte[] buffer, int offset, int value)
 		{
-			buffer[offset + 0] = (byte)(value >> 8);
-			buffer[offset + 1] = (byte)(value >> 0x10);
-			buffer[offset + 2] = (byte)(value >> 0x18);
+			buffer[offset + 0] = (byte)(value);
+			buffer[offset + 1] = (byte)(value >> 0x8);
+			buffer[offset + 2] = (byte)(value >> 0x10);
 		}
 
 		private void HandleTimeout(uint time)
