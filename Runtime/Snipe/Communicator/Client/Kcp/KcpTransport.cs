@@ -218,9 +218,10 @@ namespace MiniIT.Snipe
 				using (var serializer = new KcpMessageSerializer(message, _messageCompressor, _messageBufferProvider))
 				{
 					ArraySegment<byte> msg_data = await serializer.Run(false);
+
 					byte[] temp = ArrayPool<byte>.Shared.Rent(msg_data.Count);
 					Array.ConstrainedCopy(msg_data.Array, msg_data.Offset, temp, 0, msg_data.Count);
-					data.Add(new ArraySegment<byte>(temp));
+					data.Add(new ArraySegment<byte>(temp, 0, msg_data.Count));
 				}
 			}
 
