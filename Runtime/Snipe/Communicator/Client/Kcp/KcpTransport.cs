@@ -1,6 +1,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MiniIT.MessagePack;
@@ -216,14 +217,21 @@ namespace MiniIT.Snipe
 			{
 				using (var serializer = new KcpMessageSerializer(message, _messageCompressor, _messageBufferProvider))
 				{
-					ArraySegment<byte> msg_data = await serializer.Run();
-					data.Add(msg_data);
+					ArraySegment<byte> msg_data = await serializer.Run(false);
+					byte[] temp = ArrayPool<byte>.Shared.Rent(msg_data.Count);
+					Array.ConstrainedCopy(msg_data.Array, msg_data.Offset, temp, 0, msg_data.Count);
+					data.Add(new ArraySegment<byte>(temp));
 				}
 			}
 
 			lock (_lock)
 			{
 				_kcpConnection.SendBatchReliable(data);
+			}
+
+			foreach (var item in data)
+			{
+				ArrayPool<byte>.Shared.Return(item.Array);
 			}
 		}
 

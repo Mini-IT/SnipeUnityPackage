@@ -21,14 +21,16 @@ namespace MiniIT.Snipe
 			_messageBufferProvider = bufferProvider;
 		}
 
-		public async Task<ArraySegment<byte>> Run()
+		public async Task<ArraySegment<byte>> Run(bool writeLength = true)
 		{
 			_messageType = _message.SafeGetString("t");
 
 			_buffer = _messageBufferProvider.GetBuffer(_messageType);
 
-			// offset = opcode (1 byte) + length (4 bytes) = 5
-			ArraySegment<byte> msg_data = await Task.Run(() => MessagePackSerializerNonAlloc.Serialize(ref _buffer, 5, _message));
+			int offset = writeLength ?
+				5 : // = opcode (1 byte) + length (4 bytes)
+				1;  // = opcode (1 byte)
+			ArraySegment<byte> msg_data = await Task.Run(() => MessagePackSerializerNonAlloc.Serialize(ref _buffer, offset, _message));
 
 			if (SnipeConfig.CompressionEnabled && msg_data.Count >= SnipeConfig.MinMessageSizeToCompress) // compression needed
 			{
@@ -37,18 +39,22 @@ namespace MiniIT.Snipe
 					DebugLogger.Log("[SnipeClient] compress message");
 					// DebugLogger.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
 
-					ArraySegment<byte> msg_content = new ArraySegment<byte>(_buffer, 5, msg_data.Count - 5);
+					ArraySegment<byte> msg_content = new ArraySegment<byte>(_buffer, offset, msg_data.Count - offset);
 					ArraySegment<byte> compressed = _messageCompressor.Compress(msg_content);
 
 					_messageBufferProvider.ReturnBuffer(_messageType, _buffer);
 					_messageType = null; // for correct disposing
 
-					_buffer = _messageBufferProvider.GetBuffer(compressed.Count + 5);
+					_buffer = _messageBufferProvider.GetBuffer(compressed.Count + offset);
 					_buffer[0] = (byte)KcpOpCodes.SnipeRequestCompressed;
-					WriteInt(_buffer, 1, compressed.Count + 4); // msg_data = opcode + length (4 bytes) + msg
-					Array.ConstrainedCopy(compressed.Array, compressed.Offset, _buffer, 5, compressed.Count);
 
-					msg_data = new ArraySegment<byte>(_buffer, 0, compressed.Count + 5);
+					if (writeLength)
+					{
+						WriteInt(_buffer, 1, compressed.Count + 4); // msg_data = opcode + length (4 bytes) + msg
+					}
+					Array.ConstrainedCopy(compressed.Array, compressed.Offset, _buffer, offset, compressed.Count);
+
+					msg_data = new ArraySegment<byte>(_buffer, 0, compressed.Count + offset);
 
 					// DebugLogger.Log("Compressed:   " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
 				});
@@ -56,7 +62,10 @@ namespace MiniIT.Snipe
 			else // compression not needed
 			{
 				_buffer[0] = (byte)KcpOpCodes.SnipeRequest;
-				WriteInt(_buffer, 1, msg_data.Count - 1); // msg_data.Count = opcode (1 byte) + length (4 bytes) + msg.Lenght
+				if (writeLength)
+				{
+					WriteInt(_buffer, 1, msg_data.Count - 1); // msg_data.Count = opcode (1 byte) + length (4 bytes) + msg.Lenght
+				}
 			}
 
 			return msg_data;

@@ -177,7 +177,7 @@ namespace MiniIT.Snipe
 			for (int i = 0; i < data.Length; i++)
 			{
 				length = data[i].Length;
-				WriteInt3(request, offset, length);
+				BytesUtil.WriteInt3(request, offset, length);
 				offset += 3;
 				Array.ConstrainedCopy(data[i], 0, request, offset, length);
 				offset += length;

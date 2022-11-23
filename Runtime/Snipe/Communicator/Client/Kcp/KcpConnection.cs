@@ -292,13 +292,15 @@ namespace MiniIT.Snipe
 				{
 					int index = startIndex + i;
 					var messageData = data[index];
-					WriteInt3(buffer, offset, messageData.Count);
+					BytesUtil.WriteInt3(buffer, offset, messageData.Count);
 					offset += 3;
 					Buffer.BlockCopy(messageData.Array, messageData.Offset, buffer, offset, messageData.Count);
 					offset += messageData.Count;
 				}
 
 				// NOTE: at this point offset must be equal to bufferLength
+
+				DebugLogger.Log("BATCH: " + BitConverter.ToString(buffer, 0, offset));
 
 				SendReliable(KcpHeader.Batch, new ArraySegment<byte>(buffer, 0, offset));
 				
@@ -715,7 +717,7 @@ namespace MiniIT.Snipe
 					item.buffer[0] = (byte)KcpOpCodes.SnipeResponse;
 
 					// length (4 bytes int)
-					WriteInt(item.buffer, 1, item.length);
+					BytesUtil.WriteInt(item.buffer, 1, item.length);
 
 					OnData?.Invoke(new ArraySegment<byte>(item.buffer, 0, item.length + 5), KcpChannel.Reliable, compressed);
 					ArrayPool<byte>.Shared.Return(item.buffer);
@@ -728,31 +730,6 @@ namespace MiniIT.Snipe
 				DebugLogger.LogWarning("KCP: received empty Chunk message while Authenticated. Disconnecting the connection.");
 				Disconnect();
 			}
-		}
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private void WriteInt(byte[] buffer, int offset, int value)
-		{
-			//unsafe
-			//{
-			//    fixed (byte* dataPtr = &item.buffer[1])
-			//    {
-			//        int* valuePtr = (int*)dataPtr;
-			//        *valuePtr = item.length;
-			//    }
-			//}
-			buffer[offset + 0] = (byte)(value);
-			buffer[offset + 1] = (byte)(value >> 8);
-			buffer[offset + 2] = (byte)(value >> 0x10);
-			buffer[offset + 3] = (byte)(value >> 0x18);
-		}
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		protected void WriteInt3(byte[] buffer, int offset, int value)
-		{
-			buffer[offset + 0] = (byte)(value);
-			buffer[offset + 1] = (byte)(value >> 0x8);
-			buffer[offset + 2] = (byte)(value >> 0x10);
 		}
 
 		private void HandleTimeout(uint time)
