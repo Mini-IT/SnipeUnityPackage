@@ -57,7 +57,7 @@ public class AmazonAuthProvider : BindProvider
 				};
 
 				DebugLogger.Log("[AmazonAuthProvider] send user.bind " + data.ToJSONString());
-				SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_BIND)?.RequestAuth(data, OnBindResponse);
+				SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_BIND)?.RequestAuth(data, OnBindResponse);
 
 				return;
 			}

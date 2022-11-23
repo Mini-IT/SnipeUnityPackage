@@ -424,7 +424,7 @@ namespace MiniIT.Snipe
 		{
 			var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 			
-			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_REGISTER)?.RequestAuth(null,
+			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_REGISTER)?.RequestAuth(null,
 				(error_code, response) =>
 				{
 					stopwatch.Stop();

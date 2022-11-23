@@ -100,7 +100,7 @@ namespace MiniIT.Snipe
 				data["userID"] = login_id;
 			}
 
-			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_EXISTS)?.RequestAuth(data, OnCheckAuthExistsResponse);
+			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_EXISTS)?.RequestAuth(data, OnCheckAuthExistsResponse);
 		}
 
 		protected virtual void OnBindResponse(string error_code, SnipeObject data)
