@@ -153,6 +153,12 @@ public static class SnipeConfig
 			LogReporterKey = log_reporter.SafeGetString("key");
 			LogReporterUrl = log_reporter.SafeGetString("url");
 		}
+
+		if (data["compression"] is SnipeObject compression)
+		{
+			CompressionEnabled = compression.SafeGetValue<bool>("enabled");
+			MinMessageSizeToCompress = compression.SafeGetValue<int>("min_size");
+		}
 		
 		_serverWebSocketUrlIndex = 0;
 		_tablesUrlIndex = -1;
