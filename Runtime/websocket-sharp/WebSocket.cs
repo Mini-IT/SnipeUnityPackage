@@ -274,8 +274,8 @@ namespace WebSocketSharp
       _base64Key = CreateBase64Key ();
       _client = true;
       _logger = new Logger ();
-	  //_logger.Output = (logdata, filename) => { UnityEngine.Debug.Log($"[WS]: {logdata}"); };
-	  //_logger.Level = LogLevel.Debug;
+	  _logger.Output = (logdata, filename) => { UnityEngine.Debug.Log($"[WS]: {logdata}"); };
+	  _logger.Level = LogLevel.Debug;
       _message = messagec;
       _secure = _uri.Scheme == "wss";
       _waitTime = TimeSpan.FromSeconds (5);
