@@ -50,7 +50,7 @@ namespace MiniIT.Snipe
 
 					if (writeLength)
 					{
-						WriteInt(_buffer, 1, compressed.Count + 4); // msg_data = opcode + length (4 bytes) + msg
+						BytesUtil.WriteInt(_buffer, 1, compressed.Count + 4); // msg_data = opcode + length (4 bytes) + msg
 					}
 					Array.ConstrainedCopy(compressed.Array, compressed.Offset, _buffer, offset, compressed.Count);
 
@@ -64,28 +64,11 @@ namespace MiniIT.Snipe
 				_buffer[0] = (byte)KcpOpCodes.SnipeRequest;
 				if (writeLength)
 				{
-					WriteInt(_buffer, 1, msg_data.Count - 1); // msg_data.Count = opcode (1 byte) + length (4 bytes) + msg.Lenght
+					BytesUtil.WriteInt(_buffer, 1, msg_data.Count - 1); // msg_data.Count = opcode (1 byte) + length (4 bytes) + msg.Lenght
 				}
 			}
 
 			return msg_data;
-		}
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private void WriteInt(byte[] data, int position, int value)
-		{
-			//unsafe
-			//{
-			//	fixed (byte* dataPtr = &data[position])
-			//	{
-			//		int* valuePtr = (int*)dataPtr;
-			//		*valuePtr = value;
-			//	}
-			//}
-			data[position + 0] = (byte)(value);
-			data[position + 1] = (byte)(value >> 8);
-			data[position + 2] = (byte)(value >> 0x10);
-			data[position + 3] = (byte)(value >> 0x18);
 		}
 
 		public void Dispose()
