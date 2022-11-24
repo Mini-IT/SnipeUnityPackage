@@ -37,13 +37,13 @@ namespace MiniIT.Snipe
 
 		internal SnipeClient Client { get; private set; }
 
+		public bool AllowRequestsToWaitForLogin = true;
+
 		public int RestoreConnectionAttempts = 10;
 		private int _restoreConnectionAttempt;
-		
-		public bool AllowRequestsToWaitForLogin = true;
-		
+		private int _loginAttempt;
 		private bool _autoLogin = true;
-
+		
 		private List<SnipeCommunicatorRequest> _requests;
 		public List<SnipeCommunicatorRequest> Requests
 		{
@@ -195,22 +195,6 @@ namespace MiniIT.Snipe
 			});
 		}
 
-		private void OnAuthResult(string error_code, int user_id)
-		{
-			if (user_id != 0)  // authorization succeeded
-				return;
-
-			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) OnAuthResult - authorization failed");
-
-			if (ConnectionFailed != null)
-			{
-				InvokeInMainThread(() =>
-				{
-					RaiseEvent(ConnectionFailed, false);
-				});
-			}
-		}
-		
 		public void Disconnect()
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Disconnect");
@@ -260,6 +244,7 @@ namespace MiniIT.Snipe
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Client connection opened");
 
 			_restoreConnectionAttempt = 0;
+			_loginAttempt = 0;
 			_disconnecting = false;
 			
 			if (_autoLogin)
@@ -326,7 +311,7 @@ namespace MiniIT.Snipe
 				_restoreConnectionAttempt++;
 				DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Attempt to restore connection {_restoreConnectionAttempt}");
 				
-				StartCoroutine(WaitAndInitClient());
+				StartCoroutine(DelayedInitClient());
 			}
 			else if (ConnectionFailed != null)
 			{
@@ -347,6 +332,7 @@ namespace MiniIT.Snipe
 					case SnipeErrorCodes.ALREADY_LOGGED_IN:
 						UserName = data.SafeGetString("name");
 						_autoLogin = true;
+						_loginAttempt = 0;
 
 						if (LoginSucceeded != null)
 						{
@@ -364,8 +350,14 @@ namespace MiniIT.Snipe
 
 					case SnipeErrorCodes.USER_ONLINE:
 					case SnipeErrorCodes.LOGOUT_IN_PROGRESS:
-						// Do nothing!
-						// AuthProvider will retry to login automatically
+						if (_loginAttempt < 4)
+						{
+							DelayedAuthorize();
+						}
+						else
+						{
+							OnConnectionFailed();
+						}
 						break;
 
 					case SnipeErrorCodes.GAME_SERVERS_OFFLINE:
@@ -413,9 +405,9 @@ namespace MiniIT.Snipe
 				});
 			}
 		}
-		
+
 		#region Main Thread
-		
+
 		private void InvokeInMainThread(Action action)
 		{
 			_mainThreadActions.Enqueue(action);
@@ -475,7 +467,7 @@ namespace MiniIT.Snipe
 		
 		#endregion
 
-		private IEnumerator WaitAndInitClient()
+		private IEnumerator DelayedInitClient()
 		{
 			// Both connection types failed.
 			// Don't force websocket - try both again next time
@@ -489,7 +481,18 @@ namespace MiniIT.Snipe
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) WaitAndInitClient - delay finished");
 			InitClient();
 		}
-		
+
+		private async void DelayedAuthorize()
+		{
+			_loginAttempt++;
+			await Task.Delay(1000 * _loginAttempt);
+
+			if (!InstanceInitialized || !Connected)
+				return;
+
+			Authorize();
+		}
+
 		public void Request(string message_type, SnipeObject parameters = null)
 		{
 			CreateRequest(message_type, parameters).Request();
