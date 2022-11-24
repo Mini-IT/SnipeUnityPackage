@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.SceneManagement;
-using MiniIT;
-
+﻿
 namespace MiniIT.Snipe
 {
 	
@@ -12,22 +6,22 @@ namespace MiniIT.Snipe
 	{
 		public delegate void GetUserAttributeCallback(string error_code, string user_name, string key, object value);
 		
-		private SnipeCommunicator mCommunicator;
+		private SnipeCommunicator _communicator;
 		
 		public UnauthorizedUserAttributeGetter(SnipeCommunicator communicator)
 		{
-			mCommunicator = communicator;
+			_communicator = communicator;
 		}
 
 		public void GetUserAttribute(string provider_id, string user_id, string key, GetUserAttributeCallback callback)
 		{
-			if (mCommunicator == null)
+			if (_communicator == null)
 			{
 				callback?.Invoke("error", "", key, null);
 				return;
 			}
 			
-			mCommunicator.CreateRequest(SnipeMessageTypes.AUTH_ATTR_GET)?.RequestUnauthorized(
+			_communicator.CreateRequest(SnipeMessageTypes.AUTH_ATTR_GET)?.RequestUnauthorized(
 				new SnipeObject()
 				{
 					["provider"] = provider_id,

@@ -13,45 +13,45 @@ namespace MiniIT.Snipe
 
 		public event AccountBindingCollisionHandler AccountBindingCollision;
 				
-		private int mUserID = 0;
+		private int _userID = 0;
 		public int UserID
 		{
 			get
 			{
-				if (mUserID <= 0)
+				if (_userID <= 0)
 				{
-					mUserID = Convert.ToInt32(PlayerPrefs.GetString(SnipePrefs.LOGIN_USER_ID, "0"));
+					_userID = Convert.ToInt32(PlayerPrefs.GetString(SnipePrefs.LOGIN_USER_ID, "0"));
 
-					if (mUserID != 0)
+					if (_userID != 0)
 					{
-						Analytics.SetUserId(mUserID.ToString());
+						Analytics.SetUserId(_userID.ToString());
 					}
 				}
-				return mUserID;
+				return _userID;
 			}
 			private set
 			{
-				mUserID = value;
-				PlayerPrefs.SetString(SnipePrefs.LOGIN_USER_ID, mUserID.ToString());
+				_userID = value;
+				PlayerPrefs.SetString(SnipePrefs.LOGIN_USER_ID, _userID.ToString());
 				
-				Analytics.SetUserId(mUserID.ToString());
+				Analytics.SetUserId(_userID.ToString());
 			}
 		}
 		
 		public bool JustRegistered { get; private set; } = false;
 		
-		private SnipeCommunicator mCommunicator;
+		private SnipeCommunicator _communicator;
 		
-		private AdvertisingIdFetcher mAdvertisingIdFetcher;
-		private DeviceIdFetcher mDeviceIdFetcher;
+		private AdvertisingIdFetcher _advertisingIdFetcher;
+		private DeviceIdFetcher _deviceIdFetcher;
 		
-		private static List<AuthBinding> mBindings;
+		private static List<AuthBinding> _bindings;
 		
 		public AuthSubsystem(SnipeCommunicator communicator)
 		{
-			mCommunicator = communicator;
+			_communicator = communicator;
 
-			mBindings = new List<AuthBinding>()
+			_bindings = new List<AuthBinding>()
 			{
 				new AuthBinding<AdvertisingIdFetcher>("adid"),
 #if SNIPE_FACEBOOK
@@ -120,20 +120,20 @@ namespace MiniIT.Snipe
 		
 		private void RegisterAndLogin()
 		{
-			if (mCommunicator == null)
+			if (_communicator == null)
 			{
 				//callback?.Invoke(false);
 				return;
 			}
 			
-			if (mAdvertisingIdFetcher == null)
-				mAdvertisingIdFetcher = new AdvertisingIdFetcher();
+			if (_advertisingIdFetcher == null)
+				_advertisingIdFetcher = new AdvertisingIdFetcher();
 			
-			mAdvertisingIdFetcher.Fetch(false, adid =>
+			_advertisingIdFetcher.Fetch(false, adid =>
 			{
-				if (mDeviceIdFetcher == null)
-					mDeviceIdFetcher = new DeviceIdFetcher();
-				mDeviceIdFetcher.Fetch(false, dvid =>
+				if (_deviceIdFetcher == null)
+					_deviceIdFetcher = new DeviceIdFetcher();
+				_deviceIdFetcher.Fetch(false, dvid =>
 				{
 					var providers = new List<SnipeObject>();
 					
@@ -164,7 +164,7 @@ namespace MiniIT.Snipe
 		
 		private void RequestRegisterAndLogin(List<SnipeObject> providers)
 		{
-			mCommunicator.CreateRequest(SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN)?.RequestUnauthorized(
+			_communicator.CreateRequest(SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN)?.RequestUnauthorized(
 				new SnipeObject()
 				{
 					["version"] = SnipeClient.SNIPE_VERSION,
@@ -219,7 +219,7 @@ namespace MiniIT.Snipe
 
 		private void StartBindings()
 		{
-			foreach (var binding in mBindings)
+			foreach (var binding in _bindings)
 			{
 				binding?.Start();
 			}
@@ -227,13 +227,13 @@ namespace MiniIT.Snipe
 
 		public void ClaimRestoreToken(string token, Action<bool> callback)
 		{
-			if (mCommunicator == null)
+			if (_communicator == null)
 			{
 				callback?.Invoke(false);
 				return;
 			}
 
-			mCommunicator.CreateRequest(SnipeMessageTypes.AUTH_RESTORE)?.RequestUnauthorized(
+			_communicator.CreateRequest(SnipeMessageTypes.AUTH_RESTORE)?.RequestUnauthorized(
 				new SnipeObject()
 				{
 					["ckey"] = SnipeConfig.ClientKey,
@@ -272,17 +272,17 @@ namespace MiniIT.Snipe
 			//}
 			
 			BindingType result_binding = null;
-			if (mBindings == null)
+			if (_bindings == null)
 			{
 				result_binding = new BindingType();
-				mBindings = new List<AuthBinding>()
+				_bindings = new List<AuthBinding>()
 				{
 					result_binding,
 				};
 			}
 			else
 			{
-				foreach (var binding in mBindings)
+				foreach (var binding in _bindings)
 				{
 					if (binding != null && binding.GetType() == target_binding_type)
 					{
@@ -294,7 +294,7 @@ namespace MiniIT.Snipe
 				// if no exact type match found, try base classes
 				if (result_binding == null)
 				{
-					foreach (var binding in mBindings)
+					foreach (var binding in _bindings)
 					{
 						if (binding != null && binding is BindingType)
 						{
@@ -317,9 +317,9 @@ namespace MiniIT.Snipe
 		{
 			PlayerPrefs.DeleteKey(SnipePrefs.AUTH_BIND_DONE + "dvid");
 
-			if (mBindings != null)
+			if (_bindings != null)
 			{
-				foreach (var binding in mBindings)
+				foreach (var binding in _bindings)
 				{
 					PlayerPrefs.DeleteKey(binding.BindDonePrefsKey);
 				}

@@ -8,7 +8,7 @@ namespace MiniIT.Snipe
 		public AuthBinding(string provider_id) : base()
 		{
 			ProviderId = provider_id;
-			mFetcher = new FetcherType();
+			_fetcher = new FetcherType();
 		}
 	}
 
@@ -21,9 +21,9 @@ namespace MiniIT.Snipe
 		public delegate void BindResultCallback(AuthBinding binding, string error_code);
 		public delegate void CheckAuthExistsCallback(AuthBinding binding, bool exists, bool is_me, string user_name = null);
 
-		protected BindResultCallback mBindResultCallback;
+		protected BindResultCallback _bindResultCallback;
 
-		protected AuthIdFetcher mFetcher;
+		protected AuthIdFetcher _fetcher;
 
 		public string BindDonePrefsKey
 		{
@@ -53,10 +53,10 @@ namespace MiniIT.Snipe
 		public void Start()
 		{
 			Debug.Log($"[AuthBinding] [{ProviderId}] Start");
-			if (mFetcher != null && !IsBindDone)
+			if (_fetcher != null && !IsBindDone)
 			{
 				Debug.Log($"[AuthBinding] [{ProviderId}] Fetch");
-				mFetcher.Fetch(true, OnIdFetched);
+				_fetcher.Fetch(true, OnIdFetched);
 			}
 		}
 
@@ -74,7 +74,7 @@ namespace MiniIT.Snipe
 		{
 			// Override this method.
 
-			mBindResultCallback = bind_callback;
+			_bindResultCallback = bind_callback;
 
 			if (IsBindDone)
 			{
@@ -102,7 +102,7 @@ namespace MiniIT.Snipe
 					data["auth"] = pass;
 
 				DebugLogger.Log($"[AuthBinding] ({ProviderId}) send user.bind " + data.ToJSONString());
-				SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_BIND)?.RequestUnauthorized(data, OnBindResponse);
+				SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_BIND)?.RequestUnauthorized(data, OnBindResponse);
 
 				return;
 			}
@@ -110,7 +110,7 @@ namespace MiniIT.Snipe
 
 		public string GetUserId()
 		{
-			return mFetcher?.Value ?? "";
+			return _fetcher?.Value ?? "";
 		}
 
 		protected virtual string GetAuthPassword()
@@ -166,7 +166,7 @@ namespace MiniIT.Snipe
 
 		public void CheckAuthExists(CheckAuthExistsCallback callback = null)
 		{
-			mFetcher?.Fetch(false, uid =>
+			_fetcher?.Fetch(false, uid =>
 			{
 				CheckAuthExists(uid, callback);
 			});
@@ -189,7 +189,7 @@ namespace MiniIT.Snipe
 				data["userID"] = login_id;
 			}
 
-			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_EXISTS)?.RequestUnauthorized(data,
+			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_EXISTS)?.RequestUnauthorized(data,
 				(error_code, response_data) => OnCheckAuthExistsResponse(error_code, response_data, callback));
 		}
 
@@ -240,10 +240,10 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[AuthBinding] ({ProviderId}) InvokeBindResultCallback - {error_code}");
 
-			if (mBindResultCallback != null)
-				mBindResultCallback.Invoke(this, error_code);
+			if (_bindResultCallback != null)
+				_bindResultCallback.Invoke(this, error_code);
 
-			mBindResultCallback = null;
+			_bindResultCallback = null;
 		}
 		
 		protected void SetBindDoneFlag(bool value, bool invoke_callback)
@@ -266,7 +266,7 @@ namespace MiniIT.Snipe
 
 		public void DisposeCallback()
 		{
-			mBindResultCallback = null;
+			_bindResultCallback = null;
 		}
 	}
 }
