@@ -191,37 +191,40 @@ namespace MiniIT.Snipe
 
 		private async Task<byte[]> SerializeMessage(SnipeObject message)
 		{
-			string message_type = message.SafeGetString("t");
-
 			byte[] result = null;
-			byte[] buffer = _messageBufferProvider.GetBuffer(message_type);
-			var msg_data = await Task.Run(() => MessagePackSerializerNonAlloc.Serialize(ref buffer, message));
 
-			if (SnipeConfig.CompressionEnabled && msg_data.Count >= SnipeConfig.MinMessageSizeToCompress) // compression needed
+			try
 			{
-				await Task.Run(() =>
+				await _messageSerializationSemaphore.WaitAsync();
+
+				var msg_data = await Task.Run(() => MessagePackSerializerNonAlloc.Serialize(ref _messageSerializationBuffer, message));
+
+				if (SnipeConfig.CompressionEnabled && msg_data.Count >= SnipeConfig.MinMessageSizeToCompress) // compression needed
 				{
-					DebugLogger.Log("[SnipeClient] compress message");
-					//DebugLogger.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
+					await Task.Run(() =>
+					{
+						DebugLogger.Log("[SnipeClient] compress message");
+						//DebugLogger.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
 
-					ArraySegment<byte> compressed = _messageCompressor.Compress(msg_data);
+						ArraySegment<byte> compressed = _messageCompressor.Compress(msg_data);
 
-					//DebugLogger.Log("Compressed:   " + BitConverter.ToString(compressed.Array, compressed.Offset, compressed.Count));
+						//DebugLogger.Log("Compressed:   " + BitConverter.ToString(compressed.Array, compressed.Offset, compressed.Count));
 
-					_messageBufferProvider.ReturnBuffer(message_type, buffer);
-
-					result = new byte[compressed.Count + 2];
-					result[0] = COMPRESSED_HEADER[0];
-					result[1] = COMPRESSED_HEADER[1];
-					Array.ConstrainedCopy(compressed.Array, compressed.Offset, result, 2, compressed.Count);
-				});
+						result = new byte[compressed.Count + 2];
+						result[0] = COMPRESSED_HEADER[0];
+						result[1] = COMPRESSED_HEADER[1];
+						Array.ConstrainedCopy(compressed.Array, compressed.Offset, result, 2, compressed.Count);
+					});
+				}
+				else // compression not needed
+				{
+					result = new byte[msg_data.Count];
+					Array.ConstrainedCopy(msg_data.Array, msg_data.Offset, result, 0, msg_data.Count);
+				}
 			}
-			else // compression not needed
+			finally
 			{
-				_messageBufferProvider.ReturnBuffer(message_type, buffer);
-
-				result = new byte[msg_data.Count];
-				Array.ConstrainedCopy(msg_data.Array, msg_data.Offset, result, 0, msg_data.Count);
+				_messageSerializationSemaphore.Release();
 			}
 
 			return result;
