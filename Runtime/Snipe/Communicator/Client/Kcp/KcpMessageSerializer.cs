@@ -7,28 +7,30 @@ namespace MiniIT.Snipe
 {
 	internal class KcpMessageSerializer : IDisposable
 	{
-		private SnipeMessageCompressor mMessageCompressor;
-		private MessageBufferProvider mMessageBufferProvider;
+		private SnipeMessageCompressor _messageCompressor;
+		private MessageBufferProvider _messageBufferProvider;
 
-		private SnipeObject mMessage;
-		private string mMessageType;
-		private byte[] mBuffer;
+		private SnipeObject _message;
+		private string _messageType;
+		private byte[] _buffer;
 
 		public KcpMessageSerializer(SnipeObject message, SnipeMessageCompressor compressor, MessageBufferProvider bufferProvider)
 		{
-			mMessage = message;
-			mMessageCompressor = compressor;
-			mMessageBufferProvider = bufferProvider;
+			_message = message;
+			_messageCompressor = compressor;
+			_messageBufferProvider = bufferProvider;
 		}
 
-		public async Task<ArraySegment<byte>> Run()
+		public async Task<ArraySegment<byte>> Run(bool writeLength = true)
 		{
-			mMessageType = mMessage.SafeGetString("t");
+			_messageType = _message.SafeGetString("t");
 
-			mBuffer = mMessageBufferProvider.GetBuffer(mMessageType);
+			_buffer = _messageBufferProvider.GetBuffer(_messageType);
 
-			// offset = opcode (1 byte) + length (4 bytes) = 5
-			ArraySegment<byte> msg_data = await Task.Run(() => MessagePackSerializerNonAlloc.Serialize(ref mBuffer, 5, mMessage));
+			int offset = writeLength ?
+				5 : // = opcode (1 byte) + length (4 bytes)
+				1;  // = opcode (1 byte)
+			ArraySegment<byte> msg_data = await Task.Run(() => MessagePackSerializerNonAlloc.Serialize(ref _buffer, offset, _message));
 
 			if (SnipeConfig.CompressionEnabled && msg_data.Count >= SnipeConfig.MinMessageSizeToCompress) // compression needed
 			{
@@ -37,56 +39,46 @@ namespace MiniIT.Snipe
 					DebugLogger.Log("[SnipeClient] compress message");
 					// DebugLogger.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
 
-					ArraySegment<byte> msg_content = new ArraySegment<byte>(mBuffer, 5, msg_data.Count - 5);
-					ArraySegment<byte> compressed = mMessageCompressor.Compress(msg_content);
+					ArraySegment<byte> msg_content = new ArraySegment<byte>(_buffer, offset, msg_data.Count - offset);
+					ArraySegment<byte> compressed = _messageCompressor.Compress(msg_content);
 
-					mMessageBufferProvider.ReturnBuffer(mMessageType, mBuffer);
-					mMessageType = null; // for correct disposing
+					_messageBufferProvider.ReturnBuffer(_messageType, _buffer);
+					_messageType = null; // for correct disposing
 
-					mBuffer = mMessageBufferProvider.GetBuffer(compressed.Count + 5);
-					mBuffer[0] = (byte)KcpOpCodes.SnipeRequestCompressed;
-					WriteInt(mBuffer, 1, compressed.Count + 4); // msg_data = opcode + length (4 bytes) + msg
-					Array.ConstrainedCopy(compressed.Array, compressed.Offset, mBuffer, 5, compressed.Count);
+					_buffer = _messageBufferProvider.GetBuffer(compressed.Count + offset);
+					_buffer[0] = (byte)KcpOpCodes.SnipeRequestCompressed;
 
-					msg_data = new ArraySegment<byte>(mBuffer, 0, compressed.Count + 5);
+					if (writeLength)
+					{
+						BytesUtil.WriteInt(_buffer, 1, compressed.Count + 4); // msg_data = opcode + length (4 bytes) + msg
+					}
+					Array.ConstrainedCopy(compressed.Array, compressed.Offset, _buffer, offset, compressed.Count);
+
+					msg_data = new ArraySegment<byte>(_buffer, 0, compressed.Count + offset);
 
 					// DebugLogger.Log("Compressed:   " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
 				});
 			}
 			else // compression not needed
 			{
-				mBuffer[0] = (byte)KcpOpCodes.SnipeRequest;
-				WriteInt(mBuffer, 1, msg_data.Count - 1); // msg_data.Count = opcode (1 byte) + length (4 bytes) + msg.Lenght
+				_buffer[0] = (byte)KcpOpCodes.SnipeRequest;
+				if (writeLength)
+				{
+					BytesUtil.WriteInt(_buffer, 1, msg_data.Count - 1); // msg_data.Count = opcode (1 byte) + length (4 bytes) + msg.Lenght
+				}
 			}
 
 			return msg_data;
 		}
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private void WriteInt(byte[] data, int position, int value)
-		{
-			//unsafe
-			//{
-			//	fixed (byte* dataPtr = &data[position])
-			//	{
-			//		int* valuePtr = (int*)dataPtr;
-			//		*valuePtr = value;
-			//	}
-			//}
-			data[position] = (byte)value;
-			data[position + 1] = (byte)(value >> 8);
-			data[position + 2] = (byte)(value >> 0x10);
-			data[position + 3] = (byte)(value >> 0x18);
-		}
-
 		public void Dispose()
 		{
-			if (mBuffer != null)
+			if (_buffer != null)
 			{
-				mMessageBufferProvider?.ReturnBuffer(mMessageType, mBuffer);
-				mBuffer = null;
+				_messageBufferProvider?.ReturnBuffer(_messageType, _buffer);
+				_buffer = null;
 			}
-			mMessage = null;
+			_message = null;
 		}
 	}
 }

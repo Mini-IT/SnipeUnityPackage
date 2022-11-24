@@ -1,10 +1,10 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MiniIT.MessagePack;
-
-using System.Buffers;
 
 namespace MiniIT.Snipe
 {
@@ -24,18 +24,7 @@ namespace MiniIT.Snipe
 
 		private readonly object _lock = new object();
 
-		public void Connect()
-		{
-			Task.Run(() =>
-			{
-				lock (_lock)
-				{
-					ConnectTask();
-				}
-			});
-		}
-
-		private void ConnectTask()
+		public async void Connect()
 		{
 			if (_kcpConnection != null) // already connected or trying to connect
 				return;
@@ -47,10 +36,15 @@ namespace MiniIT.Snipe
 			_kcpConnection.OnData = OnClientDataReceived;
 			_kcpConnection.OnDisconnected = OnClientDisconnected;
 
-			var address = SnipeConfig.GetUdpAddress();
+			await Task.Run(() =>
+			{
+				lock (_lock)
+				{
+					var address = SnipeConfig.GetUdpAddress();
+					_kcpConnection.Connect(address.Host, address.Port, 3000, 5000);
+				}
+			});
 
-			_kcpConnection.Connect(address.Host, address.Port, 3000);
-			
 			StartNetworkLoop();
 		}
 
@@ -223,14 +217,22 @@ namespace MiniIT.Snipe
 			{
 				using (var serializer = new KcpMessageSerializer(message, _messageCompressor, _messageBufferProvider))
 				{
-					ArraySegment<byte> msg_data = await serializer.Run();
-					data.Add(msg_data);
+					ArraySegment<byte> msg_data = await serializer.Run(false);
+
+					byte[] temp = ArrayPool<byte>.Shared.Rent(msg_data.Count);
+					Array.ConstrainedCopy(msg_data.Array, msg_data.Offset, temp, 0, msg_data.Count);
+					data.Add(new ArraySegment<byte>(temp, 0, msg_data.Count));
 				}
 			}
 
 			lock (_lock)
 			{
 				_kcpConnection.SendBatchReliable(data);
+			}
+
+			foreach (var item in data)
+			{
+				ArrayPool<byte>.Shared.Return(item.Array);
 			}
 		}
 

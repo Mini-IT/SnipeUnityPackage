@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using UnityEngine;
+using System.Threading.Tasks;
 
 namespace MiniIT.Snipe
 {
@@ -340,32 +341,43 @@ namespace MiniIT.Snipe
 
 			if (message_type == SnipeMessageTypes.USER_LOGIN)
 			{
-				if (error_code == SnipeErrorCodes.OK || error_code == SnipeErrorCodes.ALREADY_LOGGED_IN)
+				switch (error_code)
 				{
-					UserName = data.SafeGetString("name");
-					_autoLogin = true;
+					case SnipeErrorCodes.OK:
+					case SnipeErrorCodes.ALREADY_LOGGED_IN:
+						UserName = data.SafeGetString("name");
+						_autoLogin = true;
 
-					if (LoginSucceeded != null)
-					{
-						InvokeInMainThread(() =>
+						if (LoginSucceeded != null)
 						{
-							RaiseEvent(LoginSucceeded);
-						});
-					}
+							InvokeInMainThread(() =>
+							{
+								RaiseEvent(LoginSucceeded);
+							});
+						}
+						break;
+
+					case SnipeErrorCodes.WRONG_TOKEN:
+					case SnipeErrorCodes.USER_NOT_FOUND:
+						Authorize();
+						break;
+
+					case SnipeErrorCodes.USER_ONLINE:
+					case SnipeErrorCodes.LOGOUT_IN_PROGRESS:
+						// Do nothing!
+						// AuthProvider will retry to login automatically
+						break;
+
+					case SnipeErrorCodes.GAME_SERVERS_OFFLINE:
+						OnConnectionFailed();
+						break;
+
+					default: // unexpected error code
+						DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) {message_type} - Unexpected error code: {error_code}");
+						OnConnectionFailed();
+						break;
 				}
-				else if (error_code == SnipeErrorCodes.WRONG_TOKEN || error_code == SnipeErrorCodes.USER_NOT_FOUND)
-				{
-					Authorize();
-				}
-				else if (error_code == SnipeErrorCodes.GAME_SERVERS_OFFLINE)
-				{
-					OnConnectionFailed();
-				}
-				else // unexpected error code
-				{
-					DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) {message_type} - Unexpected error code: {error_code}");
-					OnConnectionFailed();
-				}
+				
 			}
 			else if (message_type == SnipeMessageTypes.ROOM_JOIN)
 			{
@@ -470,10 +482,10 @@ namespace MiniIT.Snipe
 			PlayerPrefs.SetInt(SnipePrefs.SKIP_UDP, 2);
 			
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) WaitAndInitClient - start delay");
-			float delay = RETRY_INIT_CLIENT_DELAY * _restoreConnectionAttempt + UnityEngine.Random.value * RETRY_INIT_CLIENT_RANDOM_DELAY;
-			if (delay < RETRY_INIT_CLIENT_MIN_DELAY)
-				delay = RETRY_INIT_CLIENT_MIN_DELAY;
-			yield return new WaitForSecondsRealtime(Mathf.Min(delay, RETRY_INIT_CLIENT_MAX_DELAY));
+			float delay = Mathf.Clamp(RETRY_INIT_CLIENT_DELAY * _restoreConnectionAttempt + UnityEngine.Random.value * RETRY_INIT_CLIENT_RANDOM_DELAY,
+				RETRY_INIT_CLIENT_MIN_DELAY,
+				RETRY_INIT_CLIENT_MAX_DELAY);
+			yield return new WaitForSecondsRealtime(delay);
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) WaitAndInitClient - delay finished");
 			InitClient();
 		}

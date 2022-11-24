@@ -5,8 +5,6 @@ using System.Diagnostics;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using MiniIT.MessagePack;
-using System.Buffers;
-using System.Runtime.CompilerServices;
 
 namespace MiniIT.Snipe
 {
@@ -51,27 +49,19 @@ namespace MiniIT.Snipe
 
 		public void Connect()
 		{
-            Task.Run(() =>
-			{
-				lock (this._lock)
-				{
-                    ConnectTask();
-				}
-			});
-		}
-
-		private void ConnectTask()
-		{
 			string url = SnipeConfig.GetWebSocketUrl();
 
 			DebugLogger.Log("[SnipeClient] WebSocket Connect to " + url);
-			
+
 			_webSocket = new WebSocketWrapper();
 			_webSocket.OnConnectionOpened += OnWebSocketConnected;
 			_webSocket.OnConnectionClosed += OnWebSocketClosed;
 			_webSocket.ProcessMessage += ProcessWebSocketMessage;
-			
-			_webSocket.Connect(url);
+
+			Task.Run(() =>
+			{
+				_webSocket.Connect(url);
+			});
 		}
 
 		public void Disconnect()
@@ -186,10 +176,11 @@ namespace MiniIT.Snipe
 			int offset = 2;
 			for (int i = 0; i < data.Length; i++)
 			{
-				WriteInt3(request, offset, data[i].Length);
+				length = data[i].Length;
+				BytesUtil.WriteInt3(request, offset, length);
 				offset += 3;
-				Array.ConstrainedCopy(data[i], 0, request, offset, data[i].Length);
-				offset += data[i].Length;
+				Array.ConstrainedCopy(data[i], 0, request, offset, length);
+				offset += length;
 			}
 
 			lock (_lock)

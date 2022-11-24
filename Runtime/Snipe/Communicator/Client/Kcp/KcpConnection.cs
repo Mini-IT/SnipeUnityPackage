@@ -82,6 +82,7 @@ namespace MiniIT.Snipe
 		// If we don't receive anything these many milliseconds
 		// then consider us disconnected
 		private int _timeout;
+		private int _authenticationTimeout;
 		private uint _lastReceiveTime;
 
 		// internal timer
@@ -90,12 +91,13 @@ namespace MiniIT.Snipe
 		private uint _lastPingTime;
 		public uint PingTime { get; private set; }
 
-		public void Connect(string host, ushort port, int timeout = 10000)
+		public void Connect(string host, ushort port, int timeout = 10000, int authenticationTimeout = 0)
 		{
 			if (_socket != null)
 				return;
 
 			_timeout = timeout;
+			_authenticationTimeout = authenticationTimeout > 0 ? authenticationTimeout : timeout;
 
 			_socket = new UdpSocketWrapper();
 			_socket.OnConnected += OnSocketConnected;
@@ -107,7 +109,7 @@ namespace MiniIT.Snipe
 		{
 			if (_kcp == null)
 			{
-				_kcp = new Kcp(0, RawSendReliable);
+				_kcp = new Kcp(0, SocketSendReliable);
 			}
 
 			_kcp.SetNoDelay(1u, // NoDelay is recommended to reduce latency
@@ -140,6 +142,7 @@ namespace MiniIT.Snipe
 			_refTime.Start();
 
 			SendReliable(KcpHeader.Handshake);
+			_kcp.Flush(); // force sending handshake immediately
 		}
 
 		private void OnSocketDisconnected()
@@ -289,7 +292,7 @@ namespace MiniIT.Snipe
 				{
 					int index = startIndex + i;
 					var messageData = data[index];
-					WriteInt3(buffer, offset, messageData.Count);
+					BytesUtil.WriteInt3(buffer, offset, messageData.Count);
 					offset += 3;
 					Buffer.BlockCopy(messageData.Array, messageData.Offset, buffer, offset, messageData.Count);
 					offset += messageData.Count;
@@ -315,7 +318,7 @@ namespace MiniIT.Snipe
 
 		public void TickIncoming()
 		{
-			RawReceive();
+			SocketReceive();
 
 			if (_state == KcpState.Disconnected || _kcp == null)
 				return;
@@ -329,9 +332,9 @@ namespace MiniIT.Snipe
 				HandleDeadLink();
 				HandlePing(time);
 				HandleChoked();
-
+				
 				while (//!paused &&
-				   ReceiveNextReliable(out KcpHeader header, out ArraySegment<byte> message))
+					ReceiveNextReliable(out KcpHeader header, out ArraySegment<byte> message))
 				{
 					if (header == KcpHeader.Disconnect)
 					{
@@ -449,7 +452,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			RawSend(KcpChannel.Unreliable, message.Array, message.Offset, message.Count);
+			SocketSend(KcpChannel.Unreliable, message.Array, message.Offset, message.Count);
 		}
 
 		private void SendReliable(KcpHeader header, ArraySegment<byte> content = default)
@@ -474,20 +477,23 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void RawSendReliable(byte[] data, int length)
+		private void SocketSendReliable(byte[] data, int length)
 		{
-			RawSend(KcpChannel.Reliable, data, 0, length);
+			SocketSend(KcpChannel.Reliable, data, 0, length);
 		}
 
-		private void RawSend(KcpChannel channel, byte[] data, int offset, int length)
+		private void SocketSend(KcpChannel channel, byte[] data, int offset, int length)
 		{
 			// copy channel header, data into raw send buffer, then send
 			_socketSendBuffer[0] = (byte)channel;
-			Buffer.BlockCopy(data, offset, _socketSendBuffer, 1, length);
+			if (length > 0)
+			{
+				Buffer.BlockCopy(data, offset, _socketSendBuffer, 1, length);
+			}
 			_socket.Send(_socketSendBuffer, length + 1);
 		}
 
-		private void RawReceive()
+		private void SocketReceive()
 		{
 			try
 			{
@@ -709,7 +715,7 @@ namespace MiniIT.Snipe
 					item.buffer[0] = (byte)KcpOpCodes.SnipeResponse;
 
 					// length (4 bytes int)
-					WriteInt(item.buffer, 1, item.length);
+					BytesUtil.WriteInt(item.buffer, 1, item.length);
 
 					OnData?.Invoke(new ArraySegment<byte>(item.buffer, 0, item.length + 5), KcpChannel.Reliable, compressed);
 					ArrayPool<byte>.Shared.Return(item.buffer);
@@ -724,43 +730,20 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private void WriteInt(byte[] buffer, int offset, int value)
+		private void HandleTimeout(uint time)
 		{
-			//unsafe
-			//{
-			//    fixed (byte* dataPtr = &item.buffer[1])
-			//    {
-			//        int* valuePtr = (int*)dataPtr;
-			//        *valuePtr = item.length;
-			//    }
-			//}
-			buffer[offset + 0] = (byte)(value);
-			buffer[offset + 1] = (byte)(value >> 8);
-			buffer[offset + 2] = (byte)(value >> 0x10);
-			buffer[offset + 3] = (byte)(value >> 0x18);
-		}
+			int timeout = (_state == KcpState.Authenticated) ? _timeout : _authenticationTimeout;
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		protected void WriteInt3(byte[] buffer, int offset, int value)
-		{
-			buffer[offset + 0] = (byte)(value >> 8);
-			buffer[offset + 1] = (byte)(value >> 0x10);
-			buffer[offset + 2] = (byte)(value >> 0x18);
-		}
-
-		void HandleTimeout(uint time)
-		{
 			// note: we are also sending a ping regularly, so timeout should
 			//       only ever happen if the connection is truly gone.
-			if (time >= _lastReceiveTime + _timeout)
+			if (time >= _lastReceiveTime + timeout)
 			{
-				DebugLogger.LogWarning($"KCP: Connection timed out after not receiving any message for {_timeout}ms. Disconnecting.");
+				DebugLogger.LogWarning($"KCP: Connection timed out after not receiving any message for {timeout}ms. Disconnecting.");
 				Disconnect();
 			}
 		}
 
-		void HandleDeadLink()
+		private void HandleDeadLink()
 		{
 			// kcp has 'dead_link' detection. might as well use it.
 			if (_kcp.GetState() == -1)
@@ -771,7 +754,7 @@ namespace MiniIT.Snipe
 		}
 
 		// send a ping occasionally in order to not time out on the other end.
-		void HandlePing(uint time)
+		private void HandlePing(uint time)
 		{
 			// enough time elapsed since last ping?
 			if (time >= _lastPingTime + PING_INTERVAL)
@@ -781,7 +764,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		void HandleChoked()
+		private void HandleChoked()
 		{
 			// disconnect connections that can't process the load.
 			// see QueueSizeDisconnect comments.

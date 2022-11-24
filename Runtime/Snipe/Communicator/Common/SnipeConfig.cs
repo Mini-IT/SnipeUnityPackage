@@ -19,7 +19,7 @@ public static class SnipeConfig
 	public static List<string> TablesUrls = new List<string>();
 	
 	public static bool CompressionEnabled = false;
-	public static int MinMessageSizeToCompress = 1024; // bytes
+	public static int MinMessageSizeToCompress = 10240; // bytes
 	
 	public static SnipeObject LoginParameters;
 	public static bool TablesUpdateEnabled = true;
@@ -152,6 +152,12 @@ public static class SnipeConfig
 		{
 			LogReporterKey = log_reporter.SafeGetString("key");
 			LogReporterUrl = log_reporter.SafeGetString("url");
+		}
+
+		if (data["compression"] is SnipeObject compression)
+		{
+			CompressionEnabled = compression.SafeGetValue<bool>("enabled");
+			MinMessageSizeToCompress = compression.SafeGetValue<int>("min_size");
 		}
 		
 		_serverWebSocketUrlIndex = 0;

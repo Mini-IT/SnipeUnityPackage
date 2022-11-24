@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Concurrent;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -25,6 +24,11 @@ namespace MiniIT.Snipe
 			MainThreadLoop(_mainThreadLoopCancellation.Token);
 		}
 
+		~Transport()
+		{
+			Dispose();
+		}
+
 		private async void MainThreadLoop(CancellationToken cancellationToken)
 		{
 			while (cancellationToken != null && !cancellationToken.IsCancellationRequested)
@@ -40,16 +44,11 @@ namespace MiniIT.Snipe
 
 		public void Dispose()
 		{
-			_mainThreadLoopCancellation?.Cancel();
-			_mainThreadLoopCancellation = null;
-		}
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		protected void WriteInt3(byte[] buffer, int offset, int value)
-		{
-			buffer[offset + 0] = (byte)(value >> 8);
-			buffer[offset + 1] = (byte)(value >> 0x10);
-			buffer[offset + 2] = (byte)(value >> 0x18);
+			if (_mainThreadLoopCancellation != null)
+			{
+				_mainThreadLoopCancellation.Cancel();
+				_mainThreadLoopCancellation = null;
+			}
 		}
 	}
 }

@@ -70,6 +70,12 @@ namespace MiniIT.Snipe
 		private SnipeMessageCompressor _messageCompressor;
 
 		private int mRequestId = 0;
+
+		~SnipeClient()
+		{
+			_kcp?.Dispose();
+			_webSocket?.Dispose();
+		}
 		
 		public void Connect(bool udp = true)
 		{
@@ -190,6 +196,7 @@ namespace MiniIT.Snipe
 			if (_webSocket != null)
 			{
 				_webSocket.Disconnect();
+				_webSocket.Dispose();
 				_webSocket = null;
 			}
 
