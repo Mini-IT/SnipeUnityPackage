@@ -300,8 +300,6 @@ namespace MiniIT.Snipe
 
 				// NOTE: at this point offset must be equal to bufferLength
 
-				DebugLogger.Log("BATCH: " + BitConverter.ToString(buffer, 0, offset));
-
 				SendReliable(KcpHeader.Batch, new ArraySegment<byte>(buffer, 0, offset));
 				
 				ArrayPool<byte>.Shared.Return(buffer);
