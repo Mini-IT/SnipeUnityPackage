@@ -183,10 +183,7 @@ namespace MiniIT.Snipe
 				offset += length;
 			}
 
-			lock (_lock)
-			{
-				_webSocket.SendRequest(request);
-			}
+			_webSocket.SendRequest(request);
 		}
 
 		private async Task<byte[]> SerializeMessage(SnipeObject message)
