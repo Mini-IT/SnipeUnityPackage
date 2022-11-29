@@ -1,8 +1,6 @@
 ﻿using System;
-using UnityEngine;
 using MiniIT;
 using MiniIT.Snipe;
-using MiniIT.Social;
 
 public class AmazonAuthProvider : BindProvider
 {
