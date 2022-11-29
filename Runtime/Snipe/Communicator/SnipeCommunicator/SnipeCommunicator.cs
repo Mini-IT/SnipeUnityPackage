@@ -2,18 +2,18 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
-using UnityEngine;
+using System.Threading.Tasks;
 
 namespace MiniIT.Snipe
 {
-	public sealed class SnipeCommunicator : MonoBehaviour, IDisposable
+	public sealed class SnipeCommunicator : IDisposable
 	{
 		private readonly int INSTANCE_ID = new System.Random().Next();
 		
-		private const float RETRY_INIT_CLIENT_DELAY = 0.75f; // seconds
-		private const float RETRY_INIT_CLIENT_MIN_DELAY = 1.0f; // seconds
-		private const float RETRY_INIT_CLIENT_MAX_DELAY = 60.0f; // seconds
-		private const float RETRY_INIT_CLIENT_RANDOM_DELAY = 0.5f; // seconds
+		private const int RETRY_INIT_CLIENT_DELAY = 750; // ms
+		private const int RETRY_INIT_CLIENT_MIN_DELAY = 1000; // ms
+		private const int RETRY_INIT_CLIENT_MAX_DELAY = 60000; // ms
+		private const int RETRY_INIT_CLIENT_RANDOM_DELAY = 500; // ms
 		
 		public delegate void MessageReceivedHandler(string message_type, string error_code, SnipeObject data, int request_id);
 		public delegate void ConnectionSucceededHandler();
@@ -87,7 +87,7 @@ namespace MiniIT.Snipe
 		private bool _disconnecting = false;
 		
 		private /*readonly*/ ConcurrentQueue<Action> _mainThreadActions = new ConcurrentQueue<Action>();
-		private Coroutine MainThreadLoopCoroutine;
+		private TaskScheduler _mainThreadScheduler;
 		
 		private static SnipeCommunicator _instance;
 		public static SnipeCommunicator Instance
@@ -96,11 +96,7 @@ namespace MiniIT.Snipe
 			{
 				if (_instance == null)
 				{
-					var game_object = new GameObject("[SnipeCommunicator]");
-					game_object.hideFlags = HideFlags.DontSave; // HideFlags.HideAndDontSave;
-					_instance = game_object.AddComponent<SnipeCommunicator>();
-					_instance.Auth = new SnipeAuthCommunicator();
-					DontDestroyOnLoad(game_object);
+					_instance = new SnipeCommunicator();
 				}
 				return _instance;
 			}
@@ -120,14 +116,16 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		private void Awake()
+		public SnipeCommunicator()
 		{
 			if (_instance != null && _instance != this)
 			{
-				GameObject.DestroyImmediate(this.gameObject);
+				DebugLogger.LogError("[SnipeCommunicator] There is another instance");
 				return;
 			}
-			DontDestroyOnLoad(this.gameObject);
+
+			_instance = this;
+			this.Auth = new SnipeAuthCommunicator();
 		}
 		
 		/// <summary>
@@ -135,10 +133,7 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public void StartCommunicator(bool autologin = true)
 		{
-			if (MainThreadLoopCoroutine == null)
-			{
-				MainThreadLoopCoroutine = StartCoroutine(MainThreadLoop());
-			}
+			_mainThreadScheduler = TaskScheduler.FromCurrentSynchronizationContext();
 			
 			// If both connection types failed last session (value == 2), then try both again
 			if (SharedPrefs.GetInt(SnipePrefs.SKIP_UDP, 0) > 1)
@@ -227,13 +222,6 @@ namespace MiniIT.Snipe
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) OnDestroy");
 			
 			_roomJoined = null;
-			
-			if (MainThreadLoopCoroutine != null)
-			{
-				StopCoroutine(MainThreadLoopCoroutine);
-				MainThreadLoopCoroutine = null;
-			}
-			ClearMainThreadActionsQueue();
 			
 			DisposeRequests();
 
@@ -325,7 +313,7 @@ namespace MiniIT.Snipe
 				_restoreConnectionAttempt++;
 				DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Attempt to restore connection {_restoreConnectionAttempt}");
 				
-				StartCoroutine(WaitAndInitClient());
+				DelayedInitClient();
 			}
 			else if (ConnectionFailed != null)
 			{
@@ -417,29 +405,7 @@ namespace MiniIT.Snipe
 		
 		private void InvokeInMainThread(Action action)
 		{
-			_mainThreadActions.Enqueue(action);
-		}
-
-		private void ClearMainThreadActionsQueue()
-		{
-#if NET5_0_OR_GREATER
-			_mainThreadActions.Clear();
-#else
-			_mainThreadActions = new ConcurrentQueue<Action>();
-#endif
-		}
-
-		private IEnumerator MainThreadLoop()
-		{
-			while (true)
-			{
-				if (_mainThreadActions != null && _mainThreadActions.TryDequeue(out var action))
-				{
-					action?.Invoke();
-				}
-				
-				yield return null;
-			}
+			new Task(action).RunSynchronously(_mainThreadScheduler);
 		}
 
 		#endregion // Main Thread
@@ -474,17 +440,21 @@ namespace MiniIT.Snipe
 		
 		#endregion
 
-		private IEnumerator WaitAndInitClient()
+		private async void DelayedInitClient()
 		{
 			// Both connection types failed.
 			// Don't force websocket - try both again next time
 			SharedPrefs.SetInt(SnipePrefs.SKIP_UDP, 2);
 			
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) WaitAndInitClient - start delay");
-			float delay = Mathf.Clamp(RETRY_INIT_CLIENT_DELAY * _restoreConnectionAttempt + UnityEngine.Random.value * RETRY_INIT_CLIENT_RANDOM_DELAY,
-				RETRY_INIT_CLIENT_MIN_DELAY,
-				RETRY_INIT_CLIENT_MAX_DELAY);
-			yield return new WaitForSecondsRealtime(delay);
+			Random random = new Random();
+			int delay = RETRY_INIT_CLIENT_DELAY * _restoreConnectionAttempt + random.Next(RETRY_INIT_CLIENT_RANDOM_DELAY);
+			if (delay < RETRY_INIT_CLIENT_MIN_DELAY)
+				delay = RETRY_INIT_CLIENT_MIN_DELAY;
+			else if (delay > RETRY_INIT_CLIENT_MAX_DELAY)
+				delay = RETRY_INIT_CLIENT_MAX_DELAY;
+
+			await Task.Delay(delay);
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) WaitAndInitClient - delay finished");
 			InitClient();
 		}
@@ -551,16 +521,8 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Dispose");
 			
-			StopAllCoroutines();
-			MainThreadLoopCoroutine = null;
-			
 			Disconnect();
 			DisposeRequests();
-
-			if (this.gameObject != null)
-			{
-				GameObject.DestroyImmediate(this.gameObject);
-			}
 		}
 		
 		public void DisposeRequests()
