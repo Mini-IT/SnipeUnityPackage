@@ -63,8 +63,8 @@ public class FacebookAuthProvider : BindProvider
 			return;
 		}
 
-		string auth_login = PlayerPrefs.GetString(SnipePrefs.AUTH_UID);
-		string auth_token = PlayerPrefs.GetString(SnipePrefs.AUTH_KEY);
+		string auth_login = SharedPrefs.GetString(SnipePrefs.AUTH_UID);
+		string auth_token = SharedPrefs.GetString(SnipePrefs.AUTH_KEY);
 
 		if (!string.IsNullOrEmpty(auth_login) && !string.IsNullOrEmpty(auth_token))
 		{

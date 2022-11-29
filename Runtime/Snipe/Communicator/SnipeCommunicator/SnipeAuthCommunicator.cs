@@ -23,7 +23,7 @@ namespace MiniIT.Snipe
 			{
 				if (_userID <= 0)
 				{
-					_userID = Convert.ToInt32(PlayerPrefs.GetString(SnipePrefs.LOGIN_USER_ID, "0"));
+					_userID = Convert.ToInt32(SharedPrefs.GetString(SnipePrefs.LOGIN_USER_ID, "0"));
 
 					if (_userID != 0)
 					{
@@ -35,7 +35,7 @@ namespace MiniIT.Snipe
 			private set
 			{
 				_userID = value;
-				PlayerPrefs.SetString(SnipePrefs.LOGIN_USER_ID, _userID.ToString());
+				SharedPrefs.SetString(SnipePrefs.LOGIN_USER_ID, _userID.ToString());
 				
 				Analytics.SetUserId(_userID.ToString());
 			}
@@ -174,7 +174,7 @@ namespace MiniIT.Snipe
 				{
 					if (auth_provider is BindProvider provider)
 					{
-						PlayerPrefs.DeleteKey(provider.BindDonePrefsKey);
+						SharedPrefs.DeleteKey(provider.BindDonePrefsKey);
 					}
 				}
 			}
@@ -200,7 +200,7 @@ namespace MiniIT.Snipe
 		{
 			if (_currentProvider == null)
 			{
-				if (!string.IsNullOrEmpty(PlayerPrefs.GetString(SnipePrefs.AUTH_KEY)))
+				if (!string.IsNullOrEmpty(SharedPrefs.GetString(SnipePrefs.AUTH_KEY)))
 					SwitchToDefaultProvider();
 				else
 					SwitchToNextAuthProvider();
@@ -230,9 +230,9 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public void ClearAuthDataAndSetCurrentProvider(AuthProvider provider)
 		{
-			PlayerPrefs.DeleteKey(SnipePrefs.LOGIN_USER_ID);
-			PlayerPrefs.DeleteKey(SnipePrefs.AUTH_UID);
-			PlayerPrefs.DeleteKey(SnipePrefs.AUTH_KEY);
+			SharedPrefs.DeleteKey(SnipePrefs.LOGIN_USER_ID);
+			SharedPrefs.DeleteKey(SnipePrefs.AUTH_UID);
+			SharedPrefs.DeleteKey(SnipePrefs.AUTH_KEY);
 			
 			foreach (var auth_provider in _authProviders)
 			{
@@ -267,9 +267,9 @@ namespace MiniIT.Snipe
 					{
 						ClearAllBindings();
 						UserID = 0;
-						PlayerPrefs.SetString(SnipePrefs.AUTH_UID, response.SafeGetString("uid"));
-						PlayerPrefs.SetString(SnipePrefs.AUTH_KEY, response.SafeGetString("password"));
-						PlayerPrefs.Save();
+						SharedPrefs.SetString(SnipePrefs.AUTH_UID, response.SafeGetString("uid"));
+						SharedPrefs.SetString(SnipePrefs.AUTH_KEY, response.SafeGetString("password"));
+						SharedPrefs.Save();
 						callback?.Invoke(true);
 					}
 					else
@@ -318,7 +318,7 @@ namespace MiniIT.Snipe
 
 		private void CurrentProviderRequestAuth()
 		{
-			bool reset_auth = !(_currentProvider is DefaultAuthProvider) || string.IsNullOrEmpty(PlayerPrefs.GetString(SnipePrefs.AUTH_KEY));
+			bool reset_auth = !(_currentProvider is DefaultAuthProvider) || string.IsNullOrEmpty(SharedPrefs.GetString(SnipePrefs.AUTH_KEY));
 			_currentProvider.RequestAuth(OnCurrentProviderAuthResult, reset_auth);
 		}
 
@@ -435,8 +435,8 @@ namespace MiniIT.Snipe
 						string auth_login = response.SafeGetString("uid");
 						string auth_token = response.SafeGetString("password");
 
-						PlayerPrefs.SetString(SnipePrefs.AUTH_UID, auth_login);
-						PlayerPrefs.SetString(SnipePrefs.AUTH_KEY, auth_token);
+						SharedPrefs.SetString(SnipePrefs.AUTH_UID, auth_login);
+						SharedPrefs.SetString(SnipePrefs.AUTH_KEY, auth_token);
 
 						user_id = response.SafeGetValue<int>("id");
 						

@@ -161,8 +161,8 @@ namespace MiniIT.Snipe
 
 			if (error_code == SnipeErrorCodes.OK && !string.IsNullOrEmpty(mLogin) && !string.IsNullOrEmpty(mPassword))
 			{
-				PlayerPrefs.SetString(SnipePrefs.AUTH_UID, mLogin);
-				PlayerPrefs.SetString(SnipePrefs.AUTH_KEY, mPassword);
+				SharedPrefs.SetString(SnipePrefs.AUTH_UID, mLogin);
+				SharedPrefs.SetString(SnipePrefs.AUTH_KEY, mPassword);
 			}
 			
 			mLogin = "";

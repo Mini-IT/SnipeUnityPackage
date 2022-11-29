@@ -12,8 +12,8 @@ namespace MiniIT.Snipe
 		{
 			mAuthResultCallback = callback;
 
-			string auth_login = PlayerPrefs.GetString(SnipePrefs.AUTH_UID);
-			string auth_password = PlayerPrefs.GetString(SnipePrefs.AUTH_KEY);
+			string auth_login = SharedPrefs.GetString(SnipePrefs.AUTH_UID);
+			string auth_password = SharedPrefs.GetString(SnipePrefs.AUTH_KEY);
 
 			if (!string.IsNullOrEmpty(auth_login) && !string.IsNullOrEmpty(auth_password))
 			{
@@ -42,8 +42,8 @@ namespace MiniIT.Snipe
 			{
 				if (error_code == SnipeErrorCodes.NO_SUCH_USER)
 				{
-					PlayerPrefs.DeleteKey(SnipePrefs.AUTH_UID);
-					PlayerPrefs.DeleteKey(SnipePrefs.AUTH_KEY);
+					SharedPrefs.DeleteKey(SnipePrefs.AUTH_UID);
+					SharedPrefs.DeleteKey(SnipePrefs.AUTH_KEY);
 				}
 
 				InvokeAuthFailCallback(error_code);
