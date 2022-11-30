@@ -116,7 +116,7 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		public SnipeCommunicator()
+		private SnipeCommunicator()
 		{
 			if (_instance != null && _instance != this)
 			{
