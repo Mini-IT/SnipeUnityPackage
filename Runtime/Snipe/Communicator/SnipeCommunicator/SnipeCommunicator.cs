@@ -111,8 +111,9 @@ namespace MiniIT.Snipe
 		{
 			if (_instance != null)
 			{
-				_instance.Dispose();
+				var temp = _instance;
 				_instance = null;
+				temp.Dispose();
 			}
 		}
 		
@@ -538,11 +539,6 @@ namespace MiniIT.Snipe
 					request?.Dispose();
 				}
 			}
-		}
-
-		private void OnApplicationQuit()
-		{
-			DestroyInstance();
 		}
 
 		#region Analytics
