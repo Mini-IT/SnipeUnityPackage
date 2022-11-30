@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using MiniIT;
 using MiniIT.Snipe;
+#if !MINI_IT_ADVERTISING_ID
+using UnityEngine;
+#endif
 
 public class AdvertisingIdAuthProvider : BindProvider
 {
