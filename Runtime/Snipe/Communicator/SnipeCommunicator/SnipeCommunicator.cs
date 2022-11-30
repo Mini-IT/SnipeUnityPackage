@@ -1,7 +1,6 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Collections.Concurrent;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace MiniIT.Snipe
@@ -86,8 +85,8 @@ namespace MiniIT.Snipe
 
 		private bool _disconnecting = false;
 		
-		private /*readonly*/ ConcurrentQueue<Action> _mainThreadActions = new ConcurrentQueue<Action>();
 		private TaskScheduler _mainThreadScheduler;
+		private CancellationTokenSource _delayedInitCancellation;
 		
 		private static SnipeCommunicator _instance;
 		public static SnipeCommunicator Instance
@@ -148,6 +147,12 @@ namespace MiniIT.Snipe
 		
 		private void InitClient()
 		{
+			if (_delayedInitCancellation != null)
+			{
+				_delayedInitCancellation.Cancel();
+				_delayedInitCancellation = null;
+			}
+
 			if (LoggedIn)
 			{
 				DebugLogger.LogWarning($"[SnipeCommunicator] ({INSTANCE_ID}) InitClient - already logged in");
@@ -214,35 +219,16 @@ namespace MiniIT.Snipe
 			_disconnecting = true;
 			UserName = "";
 
+			if (_delayedInitCancellation != null)
+			{
+				_delayedInitCancellation.Cancel();
+				_delayedInitCancellation = null;
+			}
+
 			if (Client != null)
 				Client.Disconnect();
 		}
 
-		private void OnDestroy()
-		{
-			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) OnDestroy");
-			
-			_roomJoined = null;
-			
-			DisposeRequests();
-
-			try
-			{
-				RaiseEvent(PreDestroy);
-			}
-			catch (Exception) { }
-
-			if (Client != null)
-			{
-				Client.ConnectionOpened -= OnClientConnectionOpened;
-				Client.ConnectionClosed -= OnClientConnectionClosed;
-				Client.UdpConnectionFailed -= OnClientUdpConnectionFailed;
-				Client.MessageReceived -= OnMessageReceived;
-				Client.Disconnect();
-				Client = null;
-			}
-		}
-		
 		private void OnClientConnectionOpened()
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Client connection opened");
@@ -313,8 +299,12 @@ namespace MiniIT.Snipe
 				
 				_restoreConnectionAttempt++;
 				DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Attempt to restore connection {_restoreConnectionAttempt}");
-				
-				DelayedInitClient();
+
+				if (_delayedInitCancellation == null)
+				{
+					_delayedInitCancellation = new CancellationTokenSource();
+					DelayedInitClient(_delayedInitCancellation.Token);
+				}
 			}
 			else if (ConnectionFailed != null)
 			{
@@ -441,7 +431,7 @@ namespace MiniIT.Snipe
 		
 		#endregion
 
-		private async void DelayedInitClient()
+		private async void DelayedInitClient(CancellationToken cancellation)
 		{
 			// Both connection types failed.
 			// Don't force websocket - try both again next time
@@ -455,7 +445,19 @@ namespace MiniIT.Snipe
 			else if (delay > RETRY_INIT_CLIENT_MAX_DELAY)
 				delay = RETRY_INIT_CLIENT_MAX_DELAY;
 
-			await Task.Delay(delay);
+			try
+			{
+				await Task.Delay(delay, cancellation);
+			}
+			catch (Exception)
+			{
+				return;
+			}
+			if (cancellation.IsCancellationRequested)
+			{
+				return;
+			}
+
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) WaitAndInitClient - delay finished");
 			InitClient();
 		}
@@ -521,9 +523,25 @@ namespace MiniIT.Snipe
 		public void Dispose()
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Dispose");
-			
+
+			if (Client != null)
+			{
+				Client.ConnectionOpened -= OnClientConnectionOpened;
+				Client.ConnectionClosed -= OnClientConnectionClosed;
+				Client.UdpConnectionFailed -= OnClientUdpConnectionFailed;
+				Client.MessageReceived -= OnMessageReceived;
+			}
+
 			Disconnect();
 			DisposeRequests();
+
+			try
+			{
+				RaiseEvent(PreDestroy);
+			}
+			catch (Exception) { }
+
+			Client = null;
 		}
 		
 		public void DisposeRequests()
