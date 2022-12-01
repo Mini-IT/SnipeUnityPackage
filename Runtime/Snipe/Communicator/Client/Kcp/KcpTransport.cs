@@ -75,7 +75,7 @@ namespace MiniIT.Snipe
 			
 			DebugLogger.Log("[SnipeClient] OnUdpClientConnected");
 
-			_mainThreadActions.Enqueue(() =>
+			RunInMainThread(() =>
 			{
 				ConnectionOpenedHandler?.Invoke();
 			});
@@ -100,7 +100,7 @@ namespace MiniIT.Snipe
 				}
 			}
 
-			_mainThreadActions.Enqueue(() =>
+			RunInMainThread(() =>
 			{
 				ConnectionClosedHandler?.Invoke();
 			});
@@ -169,7 +169,7 @@ namespace MiniIT.Snipe
 				return MessagePackDeserializer.Parse(raw_data) as SnipeObject;
 			});
 
-			_mainThreadActions.Enqueue(() =>
+			RunInMainThread(() =>
 			{
 				MessageReceivedHandler?.Invoke(message);
 			});
