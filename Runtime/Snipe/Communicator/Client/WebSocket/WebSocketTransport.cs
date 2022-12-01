@@ -103,10 +103,7 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[SnipeClient] OnWebSocketConnected");
 
-			RunInMainThread(() =>
-			{
-				ConnectionOpenedHandler?.Invoke();
-			});
+			ConnectionOpenedHandler?.Invoke();
 		}
 		
 		protected void OnWebSocketClosed()
@@ -120,10 +117,7 @@ namespace MiniIT.Snipe
 				SnipeConfig.NextWebSocketUrl();
 			}
 
-			RunInMainThread(() =>
-			{
-				ConnectionClosedHandler?.Invoke();
-			});
+			ConnectionClosedHandler?.Invoke();
 		}
 		
 		public void SendMessage(SnipeObject message)
@@ -259,10 +253,7 @@ namespace MiniIT.Snipe
 				});
 			}
 
-			RunInMainThread(() =>
-			{
-				MessageReceivedHandler?.Invoke(message);
-			});
+			MessageReceivedHandler?.Invoke(message);
 
 			if (_heartbeatEnabled)
 			{
