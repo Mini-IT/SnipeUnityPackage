@@ -67,15 +67,10 @@ namespace MiniIT.Snipe
 		private ConcurrentQueue<SnipeObject> _batchedRequests;
 		private readonly object _batchLock = new object();
 
-		private SnipeMessageCompressor _messageCompressor;
-
 		private int mRequestId = 0;
 
 		public void Connect(bool udp = true)
 		{
-			if (_messageCompressor == null)
-				_messageCompressor = new SnipeMessageCompressor();
-			
 			if (udp && SnipeConfig.CheckUdpAvailable())
 			{
 				ConnectUdpClient();
