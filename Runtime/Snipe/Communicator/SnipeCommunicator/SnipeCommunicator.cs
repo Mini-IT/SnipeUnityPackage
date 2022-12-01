@@ -177,7 +177,7 @@ namespace MiniIT.Snipe
 					_disconnecting = false;
 					Client.Connect(SharedPrefs.GetInt(SnipePrefs.SKIP_UDP, 0) != 1);
 					
-					InvokeInMainThread(() =>
+					RunInMainThread(() =>
 					{
 						AnalyticsTrackStartConnection();
 					});
@@ -190,7 +190,7 @@ namespace MiniIT.Snipe
 			if (!Connected || LoggedIn)
 				return;
 			
-			InvokeInMainThread(() =>
+			RunInMainThread(() =>
 			{
 				DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Authorize");
 				Auth.Authorize();
@@ -228,7 +228,7 @@ namespace MiniIT.Snipe
 				Authorize();
 			}
 
-			InvokeInMainThread(() =>
+			RunInMainThread(() =>
 			{
 				AnalyticsTrackConnectionSucceeded();
 				RaiseEvent(ConnectionSucceeded);
@@ -260,7 +260,7 @@ namespace MiniIT.Snipe
 			
 			_roomJoined = null;
 
-			InvokeInMainThread(() =>
+			RunInMainThread(() =>
 			{
 				AnalyticsTrackConnectionFailed();
 				OnConnectionFailed();
@@ -269,7 +269,7 @@ namespace MiniIT.Snipe
 		
 		private void OnClientUdpConnectionFailed()
 		{
-			InvokeInMainThread(() =>
+			RunInMainThread(() =>
 			{
 				AnalyticsTrackUdpConnectionFailed();
 			});
@@ -316,7 +316,7 @@ namespace MiniIT.Snipe
 
 						if (LoginSucceeded != null)
 						{
-							InvokeInMainThread(() =>
+							RunInMainThread(() =>
 							{
 								RaiseEvent(LoginSucceeded);
 							});
@@ -371,7 +371,7 @@ namespace MiniIT.Snipe
 			
 			if (MessageReceived != null)
 			{
-				InvokeInMainThread(() =>
+				RunInMainThread(() =>
 				{
 					RaiseEvent(MessageReceived, message_type, error_code, data, request_id);
 				});
@@ -379,7 +379,7 @@ namespace MiniIT.Snipe
 			
 			if (error_code != SnipeErrorCodes.OK)
 			{
-				InvokeInMainThread(() =>
+				RunInMainThread(() =>
 				{
 					Analytics.TrackErrorCodeNotOk(message_type, error_code, data);
 				});
@@ -388,7 +388,7 @@ namespace MiniIT.Snipe
 
 		#region Main Thread
 
-		private void InvokeInMainThread(Action action)
+		private void RunInMainThread(Action action)
 		{
 			new Task(action).RunSynchronously(_mainThreadScheduler);
 		}
