@@ -194,7 +194,7 @@ namespace MiniIT.Snipe
 				await _messageSerializationSemaphore.WaitAsync();
 
 				ArraySegment<byte> msg_data = await SerializeMessage(message);
-				_kcpConnection.SendData(msg_data, KcpChannel.Reliable);
+				_kcpConnection?.SendData(msg_data, KcpChannel.Reliable);
 			}
 			finally
 			{
@@ -224,7 +224,7 @@ namespace MiniIT.Snipe
 				_messageSerializationSemaphore.Release();
 			}
 
-			_kcpConnection.SendBatchReliable(data);
+			_kcpConnection?.SendBatchReliable(data);
 
 			foreach (var item in data)
 			{
