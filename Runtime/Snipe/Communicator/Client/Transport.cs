@@ -12,13 +12,16 @@ namespace MiniIT.Snipe
 		public Action<SnipeObject> MessageReceivedHandler;
 		
 		protected SnipeMessageCompressor _messageCompressor = new SnipeMessageCompressor();
-		protected MessageBufferProvider _messageBufferProvider = new MessageBufferProvider();
+		protected byte[] _messageSerializationBuffer = new byte[10240];
+		protected SemaphoreSlim _messageSerializationSemaphore;
 
 		protected readonly ConcurrentQueue<Action> _mainThreadActions;
 		protected CancellationTokenSource _mainThreadLoopCancellation;
 
 		public Transport()
 		{
+			_messageSerializationSemaphore = new SemaphoreSlim(1);
+
 			_mainThreadActions = new ConcurrentQueue<Action>();
 			_mainThreadLoopCancellation = new CancellationTokenSource();
 			MainThreadLoop(_mainThreadLoopCancellation.Token);
@@ -42,7 +45,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		public void Dispose()
+		public virtual void Dispose()
 		{
 			if (_mainThreadLoopCancellation != null)
 			{

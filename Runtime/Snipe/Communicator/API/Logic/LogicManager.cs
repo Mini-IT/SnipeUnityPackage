@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 
 namespace MiniIT.Snipe
@@ -20,9 +21,10 @@ namespace MiniIT.Snipe
 		private SnipeTable<SnipeTableLogicItem> _logicTable = null;
 
 		private SnipeCommunicator _snipeCommunicator;
-		private float _updateRequestedTime = 0.0f;
+		private double _updateRequestedTime = 0.0f;
 		private SnipeObject _logicGetRequestParameters;
 		
+		private Stopwatch _refTime = Stopwatch.StartNew();
 		private Timer _secondsTimer;
 
 		public void Init(SnipeTable<SnipeTableLogicItem> logic_table)
@@ -133,8 +135,8 @@ namespace MiniIT.Snipe
 			if (_logicTable == null)
 				return;
 
-			float current_time = UnityEngine.Time.realtimeSinceStartup;
-			if (!force && _updateRequestedTime > 0.0f && current_time - _updateRequestedTime < UpdateMinTimeout)
+			double current_time = _refTime.Elapsed.TotalSeconds;
+			if (!force && _updateRequestedTime > 0 && current_time - _updateRequestedTime < UpdateMinTimeout)
 				return;
 
 			_updateRequestedTime = current_time;
@@ -167,7 +169,7 @@ namespace MiniIT.Snipe
 				request.Request();
 			}
 
-			_updateRequestedTime = 0.0f; // reset timer
+			_updateRequestedTime = 0; // reset timer
 		}
 
 		private void OnSnipeMessageReceived(string message_type, string error_code, SnipeObject data, int request_id)
@@ -190,7 +192,7 @@ namespace MiniIT.Snipe
 
 		private void OnLogicGet(string error_code, SnipeObject response_data)
 		{
-			_updateRequestedTime = 0.0f; // reset timer
+			_updateRequestedTime = 0; // reset timer
 			
 			if (_logicTable == null || response_data == null)
 				return;

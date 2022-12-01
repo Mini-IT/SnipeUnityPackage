@@ -1,0 +1,11 @@
+{
+    "name": "MiniIT.Snipe.PackageInfo",
+    "references": [],
+    "optionalUnityReferences": [],
+    "excludePlatforms": [],
+	"allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": []
+}

@@ -1,17 +1,22 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using MiniIT;
-using UnityEngine;
+using System.Threading.Tasks;
 
 namespace MiniIT.Snipe
 {
-	public class Analytics : MonoBehaviour
+	public class Analytics
 	{
 		public static bool IsEnabled = true;
-		
+
+		private static TaskScheduler _mainThreadScheduler;
+
+		private static void InvokeInMainThread(Action action)
+		{
+			new Task(action).RunSynchronously(_mainThreadScheduler);
+		}
+
 		#region AnalyticsTracker
-		
+
 		public static long PingTime { get; internal set; }
 		public static long ConnectionEstablishmentTime { get; internal set; }
 		public static double WebSocketTcpClientConnectionTime { get; internal set; }
@@ -22,11 +27,15 @@ namespace MiniIT.Snipe
 		private static IAnalyticsTracker _tracker;
 		
 		private static string _userId = null;
-		
+
+		/// <summary>
+		/// Should be called from the main Unity thread
+		/// </summary>
 		public static void SetTracker(IAnalyticsTracker tracker)
 		{
 			_tracker = tracker;
-			
+			_mainThreadScheduler = TaskScheduler.FromCurrentSynchronizationContext();
+
 			if (!string.IsNullOrEmpty(_userId))
 			{
 				CheckReady();
@@ -107,10 +116,12 @@ namespace MiniIT.Snipe
 			if (CheckReady())
 			{
 				// Some trackers (for example Amplitude) may crash if used not in the main Unity thread.
-				// We'll put events into a queue and call mTracker.TrackEvent in the MonoBehaviour's coroutine.
 				
 				if (properties == null)
 					properties = new Dictionary<string, object>(2);
+
+				properties["event_type"] = name;
+
 				if (PingTime > 0)
 					properties["ping_time"] = PingTime;
 				
@@ -118,8 +129,11 @@ namespace MiniIT.Snipe
 				{	
 					properties["server_reaction"] = SnipeCommunicator.Instance.ServerReaction.TotalMilliseconds;
 				}
-				
-				GetInstance().EnqueueEvent(name, properties);
+
+				InvokeInMainThread(() =>
+				{
+					_tracker.TrackEvent(EVENT_NAME, properties);
+				});
 			}
 		}
 		public static void TrackEvent(string name, string property_name, object property_value)
@@ -157,7 +171,10 @@ namespace MiniIT.Snipe
 		{
 			if (CheckReady())
 			{
-				GetInstance().EnqueueError(name, exception);
+				InvokeInMainThread(() =>
+				{
+					_tracker.TrackError(name, exception);
+				});
 			}
 		}
 		
@@ -185,113 +202,5 @@ namespace MiniIT.Snipe
 		
 		#endregion Constants
 		
-		#region MonoBehaviour
-		
-		private static Analytics _instance;
-		private static Analytics GetInstance()
-		{
-			if (_instance == null)
-			{
-				_instance = new GameObject("SnipeAnalyticsTracker").AddComponent<Analytics>();
-			}
-			return _instance;
-		}
-		
-		private void Awake()
-		{
-			if (_instance != null && _instance != this)
-			{
-				Destroy(this.gameObject);
-				return;
-			}
-			
-			DontDestroyOnLoad(this.gameObject);
-			StartCoroutine(ProcessEventsQueue());
-		}
-		
-		#region EventsQueue
-		
-		enum EventsQueueItemType
-		{
-			Event,
-			Error,
-		}
-		
-		class EventsQueueItem
-		{
-			internal EventsQueueItemType type;
-			internal string name;
-			internal IDictionary<string, object> properties;
-			internal Exception exception;
-		}
-		
-		private List<EventsQueueItem> _eventsQueue;
-		
-		private void EnqueueEvent(string name, IDictionary<string, object> properties = null)
-		{
-			if (_eventsQueue == null)
-				_eventsQueue = new List<EventsQueueItem>();
-			lock (_eventsQueue)
-			{
-				_eventsQueue.Add(new EventsQueueItem()
-				{
-					type = EventsQueueItemType.Event,
-					name = name,
-					properties = properties,
-				});
-			}
-		}
-		
-		private void EnqueueError(string name, Exception exception = null)
-		{
-			if (_eventsQueue == null)
-				_eventsQueue = new List<EventsQueueItem>();
-			lock (_eventsQueue)
-			{
-				_eventsQueue.Add(new EventsQueueItem()
-				{
-					type = EventsQueueItemType.Error,
-					name = name,
-					exception = exception,
-				});
-			}
-		}
-		
-		private IEnumerator ProcessEventsQueue()
-		{
-			while (true)
-			{
-				if (_eventsQueue != null && _eventsQueue.Count > 0)
-				{
-					lock (_eventsQueue)
-					{
-						foreach (var item in _eventsQueue)
-						{
-							if (item.type == EventsQueueItemType.Error)
-							{
-								_tracker.TrackError(item.name, item.exception);
-							}
-							else
-							{
-								var event_properties = item.properties;
-								if (event_properties == null)
-									event_properties = new Dictionary<string, object>() { ["event_type"] = item.name };
-								else
-									event_properties["event_type"] = item.name;
-								
-								_tracker.TrackEvent(EVENT_NAME, event_properties);
-							}
-						}
-						_eventsQueue.Clear();
-					}
-				}
-				
-				yield return null;
-			}
-		}
-		
-		#endregion EventsQueue
-		
-		#endregion MonoBehaviour
 	}
 }
