@@ -128,6 +128,8 @@ namespace MiniIT.Snipe
 			this.Auth = new AuthSubsystem(this);
 
 			DebugLogger.Log($"[SnipeCommunicator] PACKAGE VERSION: {PackageInfo.VERSION}");
+
+			UnityTerminator.Run();
 		}
 		
 		/// <summary>
