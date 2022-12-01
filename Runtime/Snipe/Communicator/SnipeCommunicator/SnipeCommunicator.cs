@@ -125,7 +125,7 @@ namespace MiniIT.Snipe
 			}
 
 			_instance = this;
-			this.Auth = new AuthSubsystem();
+			this.Auth = new AuthSubsystem(this);
 
 			DebugLogger.Log($"[SnipeCommunicator] PACKAGE VERSION: {PackageInfo.VERSION}");
 		}
