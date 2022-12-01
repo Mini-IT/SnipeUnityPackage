@@ -145,7 +145,7 @@ namespace MiniIT.Snipe
 
 			lock (_lock)
 			{
-				_webSocket.SendRequest(data);
+				_webSocket?.SendRequest(data);
 			}
 
 			if (_sendMessages != null && _sendMessages.IsEmpty && !message.SafeGetString("t").StartsWith("payment/"))
@@ -177,7 +177,7 @@ namespace MiniIT.Snipe
 				offset += length;
 			}
 
-			_webSocket.SendRequest(request);
+			_webSocket?.SendRequest(request);
 		}
 
 		private async Task<byte[]> SerializeMessage(SnipeObject message)
