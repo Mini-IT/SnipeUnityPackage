@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace MiniIT.Snipe
 {
@@ -69,8 +70,12 @@ namespace MiniIT.Snipe
 
 		private int mRequestId = 0;
 
+		private TaskScheduler _mainThreadScheduler;
+
 		public void Connect(bool udp = true)
 		{
+			_mainThreadScheduler = TaskScheduler.FromCurrentSynchronizationContext();
+
 			if (udp && SnipeConfig.CheckUdpAvailable())
 			{
 				ConnectUdpClient();
@@ -79,6 +84,11 @@ namespace MiniIT.Snipe
 			{
 				ConnectWebSocket();
 			}
+		}
+
+		private void RunInMainThread(Action action)
+		{
+			new Task(action).RunSynchronously(_mainThreadScheduler);
 		}
 
 		private void ConnectUdpClient()
@@ -96,7 +106,10 @@ namespace MiniIT.Snipe
 				};
 				_kcp.ConnectionClosedHandler = () =>
 				{
-					UdpConnectionFailed?.Invoke();
+					RunInMainThread(() =>
+					{
+						UdpConnectionFailed?.Invoke();
+					});
 
 					if (_kcp.ConnectionEstablished)
 					{
@@ -140,28 +153,34 @@ namespace MiniIT.Snipe
 			_connectionStopwatch?.Stop();
 			Analytics.ConnectionEstablishmentTime = _connectionStopwatch?.ElapsedMilliseconds ?? 0;
 
-			try
+			RunInMainThread(() =>
 			{
-				ConnectionOpened?.Invoke();
-			}
-			catch (Exception e)
-			{
-				DebugLogger.Log($"[SnipeClient] ConnectionOpened invokation error: {e}");
-				Analytics.TrackError("ConnectionOpened invokation error", e);
-			}
+				try
+				{
+					ConnectionOpened?.Invoke();
+				}
+				catch (Exception e)
+				{
+					DebugLogger.Log($"[SnipeClient] ConnectionOpened invokation error: {e}");
+					Analytics.TrackError("ConnectionOpened invokation error", e);
+				}
+			});
 		}
 
 		private void RaiseConnectionClosedEvent()
 		{
-			try
+			RunInMainThread(() =>
 			{
-				ConnectionClosed?.Invoke();
-			}
-			catch (Exception e)
-			{
-				DebugLogger.Log($"[SnipeClient] ConnectionClosed invokation error: {e}");
-				Analytics.TrackError("ConnectionClosed invokation error", e);
-			}
+				try
+				{
+					ConnectionClosed?.Invoke();
+				}
+				catch (Exception e)
+				{
+					DebugLogger.Log($"[SnipeClient] ConnectionClosed invokation error: {e}");
+					Analytics.TrackError("ConnectionClosed invokation error", e);
+				}
+			});
 		}
 
 		public void Disconnect()
@@ -328,44 +347,53 @@ namespace MiniIT.Snipe
 							this.ConnectionId = "";
 						}
 
-						try
+						RunInMainThread(() =>
 						{
-							LoginSucceeded?.Invoke();
-						}
-						catch (Exception e)
-						{
-							DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginSucceeded invokation error: {e}");
-							Analytics.TrackError("LoginSucceeded invokation error", e);
-						}
+							try
+							{
+								LoginSucceeded?.Invoke();
+							}
+							catch (Exception e)
+							{
+								DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginSucceeded invokation error: {e}");
+								Analytics.TrackError("LoginSucceeded invokation error", e);
+							}
+						});
 					}
 					else
 					{
 						DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - Login Failed");
-							
-						try
+
+						RunInMainThread(() =>
 						{
-							LoginFailed?.Invoke(error_code);
-						}
-						catch (Exception e)
-						{
-							DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginFailed invokation error: {e}");
-							Analytics.TrackError("LoginFailed invokation error", e);
-						}
+							try
+							{
+								LoginFailed?.Invoke(error_code);
+							}
+							catch (Exception e)
+							{
+								DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginFailed invokation error: {e}");
+								Analytics.TrackError("LoginFailed invokation error", e);
+							}
+						});
 					}
 				}
 			}
 
 			if (MessageReceived != null)
 			{
-				try
+				RunInMainThread(() =>
 				{
-					MessageReceived.Invoke(message_type, error_code, response_data, request_id);
-				}
-				catch (Exception e)
-				{
-					DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - MessageReceived invokation error: {e}");
-					Analytics.TrackError("MessageReceived invokation error", e);
-				}
+					try
+					{
+						MessageReceived.Invoke(message_type, error_code, response_data, request_id);
+					}
+					catch (Exception e)
+					{
+						DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - MessageReceived invokation error: {e}");
+						Analytics.TrackError("MessageReceived invokation error", e);
+					}
+				});
 			}
 			else
 			{
