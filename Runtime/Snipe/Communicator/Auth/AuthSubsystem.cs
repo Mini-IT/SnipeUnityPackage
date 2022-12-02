@@ -12,6 +12,7 @@ namespace MiniIT.Snipe
 		public delegate void AccountBindingCollisionHandler(AuthBinding binding, string user_name = null);
 
 		public event AccountBindingCollisionHandler AccountBindingCollision;
+		public bool AutomaticallyBindCollisions = false;
 				
 		private int _userID = 0;
 		public int UserID
@@ -53,11 +54,11 @@ namespace MiniIT.Snipe
 
 			_bindings = new List<AuthBinding>()
 			{
-				new AuthBinding<AdvertisingIdFetcher>("adid"),
+				new AdvertisingIdBinding(),
 #if SNIPE_FACEBOOK
-				new FacebookBinding(), // AuthBinding<FacebookIdFetcher>("fb"),
+				new FacebookBinding(),
 #endif
-				new AmazonBinding(), // AuthBinding<AmazonIdFetcher>("amzn"),
+				new AmazonBinding(),
 			};
 		}
 
@@ -225,6 +226,14 @@ namespace MiniIT.Snipe
 			}
 		}
 
+		public void BindAll()
+		{
+			foreach (var binding in _bindings)
+			{
+				binding?.Bind();
+			}
+		}
+
 		public void ClaimRestoreToken(string token, Action<bool> callback)
 		{
 			if (_communicator == null)
@@ -313,7 +322,7 @@ namespace MiniIT.Snipe
 			return result_binding;
 		}
 
-		private void ClearAllBindings()
+		public void ClearAllBindings()
 		{
 			PlayerPrefs.DeleteKey(SnipePrefs.AUTH_BIND_DONE + "dvid");
 
@@ -327,9 +336,16 @@ namespace MiniIT.Snipe
 		}
 
 		// Called by BindProvider
-		internal void InvokeAccountBindingCollisionEvent(AuthBinding binding, string user_name = null)
+		internal void OnAccountBindingCollision(AuthBinding binding, string user_name = null)
 		{
-			AccountBindingCollision?.Invoke(binding, user_name);
+			if (AutomaticallyBindCollisions)
+			{
+				binding.Bind();
+			}
+			else
+			{
+				AccountBindingCollision?.Invoke(binding, user_name);
+			}
 		}
 	}
 }

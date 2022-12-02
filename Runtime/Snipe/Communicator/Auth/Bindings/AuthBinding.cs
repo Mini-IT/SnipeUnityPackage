@@ -231,7 +231,7 @@ namespace MiniIT.Snipe
 				else if (!is_me)
 				{
 					DebugLogger.Log($"[AuthBinding] ({ProviderId}) OnCheckAuthExistsResponse - another account found - InvokeAccountBindingCollisionEvent");
-					SnipeCommunicator.Instance.Auth.InvokeAccountBindingCollisionEvent(this, data.SafeGetString("name"));
+					SnipeCommunicator.Instance.Auth.OnAccountBindingCollision(this, data.SafeGetString("name"));
 				}
 			}
 		}
