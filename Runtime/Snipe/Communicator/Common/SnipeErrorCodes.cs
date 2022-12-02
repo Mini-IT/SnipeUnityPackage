@@ -17,6 +17,7 @@ namespace MiniIT.Snipe
 		public const string PARAMS_WRONG = "paramsWrong";
 		public const string USER_ONLINE = "userOnline";
 		public const string LOGOUT_IN_PROGRESS = "logoutInProgress";
+		public const string LOGIN_DATA_WRONG = "loginDataWrong";
 		
 		// SnipeCommunicatorRequest
 		public const string NOT_READY = "notReady";

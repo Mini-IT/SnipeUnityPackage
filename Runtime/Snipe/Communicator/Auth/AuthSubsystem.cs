@@ -108,10 +108,12 @@ namespace MiniIT.Snipe
 						UserID = response.SafeGetValue<int>("id");
 						StartBindings();
 					}
-					else if (error_code == SnipeErrorCodes.NO_SUCH_USER)
+					else if (error_code == SnipeErrorCodes.NO_SUCH_USER || error_code == SnipeErrorCodes.LOGIN_DATA_WRONG)
 					{
 						PlayerPrefs.DeleteKey(SnipePrefs.AUTH_UID);
 						PlayerPrefs.DeleteKey(SnipePrefs.AUTH_KEY);
+
+						RegisterAndLogin();
 					}
 				}
 			);

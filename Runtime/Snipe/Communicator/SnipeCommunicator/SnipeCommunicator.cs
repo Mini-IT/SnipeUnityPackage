@@ -325,10 +325,10 @@ namespace MiniIT.Snipe
 						}
 						break;
 
-					case SnipeErrorCodes.WRONG_TOKEN:
-					case SnipeErrorCodes.USER_NOT_FOUND:
-						Authorize();
-						break;
+					//case SnipeErrorCodes.WRONG_TOKEN:
+					//case SnipeErrorCodes.USER_NOT_FOUND:
+					//	Authorize();
+					//	break;
 
 					case SnipeErrorCodes.USER_ONLINE:
 					case SnipeErrorCodes.LOGOUT_IN_PROGRESS:
