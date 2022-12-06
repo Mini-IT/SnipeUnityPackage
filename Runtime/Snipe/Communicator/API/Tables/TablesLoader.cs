@@ -35,6 +35,11 @@ namespace MiniIT.Snipe
 			return Path.Combine(GetCacheDirectoryPath(), $"{version}_{table_name}.json.gz");
 		}
 
+		private string GetVersionsUrl()
+		{
+			return $"{TablesConfig.GetTablesPath(true)}version.json";
+		}
+
 		public void Reset()
 		{
 			DebugLogger.Log("[TablesLoader] Reset");
@@ -116,7 +121,7 @@ namespace MiniIT.Snipe
 		{
 			for (int retries_count = 0; retries_count < 3; retries_count++)
 			{
-				string url = $"{TablesConfig.GetTablesPath(true)}version.json";
+				string url = GetVersionsUrl();
 
 				DebugLogger.Log($"[TablesLoader] LoadVersion ({retries_count}) " + url);
 
