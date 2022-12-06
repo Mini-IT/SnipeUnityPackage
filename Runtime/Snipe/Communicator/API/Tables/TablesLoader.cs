@@ -1,4 +1,6 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Threading;
@@ -9,17 +11,28 @@ namespace MiniIT.Snipe
 	public class TablesLoader
 	{
 		private const int MAX_LOADERS_COUNT = 4;
-		private const string VERSION_FILE_NAME = "snipe_tables_version.txt";
 
-		private string _version = null;
+		private Dictionary<string, long> _versions = null;
 
 		private CancellationTokenSource _cancellation;
 		private SemaphoreSlim _semaphore;
-		private bool _forceBuiltInVersion = false;
+		private bool _failed = false;
 
-		public static void Initialize()
+		private List<Func<CancellationToken, Task>> _loadingTasks;
+
+		public TablesLoader()
 		{
 			BetterStreamingAssets.Initialize();
+		}
+
+		internal static string GetCacheDirectoryPath()
+		{
+			return Path.Combine(SnipeConfig.PersistentDataPath, "SnipeTables");
+		}
+
+		internal static string GetCachePath(string table_name, long version)
+		{
+			return Path.Combine(GetCacheDirectoryPath(), $"{version}_{table_name}.json.gz");
 		}
 
 		public void Reset()
@@ -28,27 +41,170 @@ namespace MiniIT.Snipe
 
 			StopLoading();
 			
-			_version = null;
-			_forceBuiltInVersion = false;
+			_versions = null;
+			_failed = false;
+			_loadingTasks?.Clear();
 		}
-		
-		public async Task Load<ItemType, WrapperType>(SnipeTable<ItemType> table, string name)
+
+		public void Add<ItemType, WrapperType>(SnipeTable<ItemType> table, string name)
 			where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
 			where ItemType : SnipeTableItem, new()
 		{
-			if (_cancellation == null)
+			_loadingTasks ??= new List<Func<CancellationToken, Task>>();
+			_loadingTasks.Add((CancellationToken cancellationToken) =>
 			{
-				_cancellation = new CancellationTokenSource();
-				await LoadVersion(_cancellation.Token);
-			}
+				return Load<ItemType, WrapperType>(table, name, cancellationToken);
+			});
+		}
 
-			while (_cancellation != null && !_cancellation.IsCancellationRequested && string.IsNullOrEmpty(_version))
+		public async Task Load()
+		{
+			bool fallbackEnabled = (TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceExternal);
+			bool loadExternal = (TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceBuiltIn);
+
+			if (fallbackEnabled)
 			{
-				await Task.Delay(50, _cancellation.Token);
+				RemoveOutdatedCache();
 			}
+			
+			bool loaded = await LoadAll(loadExternal);
 
-			if (_cancellation == null || _cancellation.IsCancellationRequested)
+			if (loaded)
+			{
+				RemoveMisversionedCache();
 				return;
+			}
+
+			if (loadExternal && fallbackEnabled)
+			{
+				_versions = null;
+				await LoadAll(false);
+			}
+		}
+
+		private async Task<bool> LoadAll(bool loadVersion)
+		{
+			StopLoading();
+
+			if (_loadingTasks == null || _loadingTasks.Count == 0)
+				return true;
+
+			_cancellation = new CancellationTokenSource();
+			CancellationToken cancellationToken = _cancellation.Token;
+
+			if (loadVersion)
+			{
+				await LoadVersion(cancellationToken);
+
+				if (cancellationToken.IsCancellationRequested || _loadingTasks == null)
+					return false;
+			}
+
+			_failed = false;
+			var tasks = new List<Task>(_loadingTasks.Count);
+			foreach (var task in _loadingTasks)
+			{
+				tasks.Add(Task.Run(() => task.Invoke(cancellationToken)));
+			}
+
+			await Task.WhenAll(tasks);
+
+			return !_failed;
+		}
+
+		private async Task<bool> LoadVersion(CancellationToken cancellation_token)
+		{
+			for (int retries_count = 0; retries_count < 3; retries_count++)
+			{
+				string url = $"{TablesConfig.GetTablesPath(true)}version.json";
+
+				DebugLogger.Log($"[TablesLoader] LoadVersion ({retries_count}) " + url);
+
+				try
+				{
+					using (var loader = new HttpClient())
+					{
+						loader.Timeout = TimeSpan.FromSeconds(1);
+
+						var load_task = loader.GetAsync(url); // , cancellation_token);
+						if (await Task.WhenAny(load_task, Task.Delay(1000)) == load_task)
+						{
+							if (load_task.Result.IsSuccessStatusCode)
+							{
+								var json = await load_task.Result.Content.ReadAsStringAsync();
+								_versions = ParseVersionsJson(json);
+
+								DebugLogger.Log($"[TablesLoader] LoadVersion done - {_versions.Count} items");
+								break;
+							}
+							else if (load_task.Result.StatusCode == System.Net.HttpStatusCode.NotFound)
+							{
+								// HTTP Status: 404
+								// It is useless to retry loading
+								DebugLogger.Log($"[TablesLoader] LoadVersion StatusCode = {load_task.Result.StatusCode} - will not rety");
+								break;
+							}
+						}
+					}
+
+					await Task.Delay(500, cancellation_token);
+				}
+				catch (Exception e)
+				{
+					if (e is TaskCanceledException || e is AggregateException tcae && tcae.InnerException is TaskCanceledException ||
+						e is OperationCanceledException || e is AggregateException ocae && ocae.InnerException is OperationCanceledException)
+					{
+						DebugLogger.Log($"[TablesLoader] LoadVersion - TaskCanceled");
+					}
+					else
+					{
+						DebugLogger.Log($"[TablesLoader] LoadVersion - Exception: {e}");
+					}
+				}
+
+				if (cancellation_token.IsCancellationRequested)
+				{
+					DebugLogger.Log($"[TablesLoader] LoadVersion task canceled");
+					return false;
+				}
+			}
+
+			if (_versions == null)
+			{
+				DebugLogger.Log($"[TablesLoader] LoadVersion Failed");
+				return false;
+			}
+
+			return true;
+		}
+
+		private Dictionary<string, long> ParseVersionsJson(string json)
+		{
+			var content = (Dictionary<string, object>)fastJSON.JSON.Parse(json);
+			if (content != null && content["tables"] is IList tables)
+			{
+				var versions = new Dictionary<string, long>(tables.Count);
+				foreach (var item in tables)
+				{
+					if (item is Dictionary<string, object> table &&
+						table.TryGetValue("name", out var name) &&
+						table.TryGetValue("version", out var version))
+					{
+						versions[(string)name] = (long)version;
+					}
+				}
+				return versions;
+			}
+
+			DebugLogger.Log("[TablesLoader] Faield to prase versions json");
+			return null;
+		}
+
+		private async Task Load<ItemType, WrapperType>(SnipeTable<ItemType> table, string name, CancellationToken cancellationToken)
+			where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
+			where ItemType : SnipeTableItem, new()
+		{
+			//DebugLogger.Log($"[TablesLoader] Load {name} Task thread: {Thread.CurrentThread.ManagedThreadId}");
 
 			_semaphore ??= new SemaphoreSlim(MAX_LOADERS_COUNT);
 
@@ -56,10 +212,19 @@ namespace MiniIT.Snipe
 
 			try
 			{
-				await _semaphore.WaitAsync(_cancellation.Token);
-				loaded = await table.LoadAsync<WrapperType>(name, _version, _cancellation.Token);
+				await _semaphore.WaitAsync(cancellationToken);
+				if (!cancellationToken.IsCancellationRequested)
+				{
+					long version = 0;
+					_versions?.TryGetValue(name, out version);
+					loaded = await table.LoadAsync<WrapperType>(name, version, cancellationToken);
+				}
 			}
 			catch (TaskCanceledException)
+			{
+				// ignore
+			}
+			catch (OperationCanceledException)
 			{
 				// ignore
 			}
@@ -72,14 +237,11 @@ namespace MiniIT.Snipe
 				_semaphore.Release();
 			}
 
-			if (!loaded && _cancellation != null)
+			if (!loaded && !_failed)
 			{
-				DebugLogger.LogWarning($"[TablesLoader] Loading failed. Force loading built-in tables.");
+				_failed = true;
+				DebugLogger.LogWarning($"[TablesLoader] Loading failed: {name}. StopLoading.");
 				StopLoading();
-				DeleteCahceVersionFile();
-				_version = null;
-				_forceBuiltInVersion = true;
-				await Load<ItemType, WrapperType>(table, name);
 			}
 		}
 
@@ -88,132 +250,90 @@ namespace MiniIT.Snipe
 			if (_cancellation != null)
 			{
 				_cancellation.Cancel();
-				_cancellation.Dispose();
+				_cancellation?.Dispose();
 				_cancellation = null;
 			}
 		}
 
-		private async Task<bool> LoadVersion(CancellationToken cancellation_token)
+		/// <summary>
+		/// Remove cache files with versions that don't match the newly loaded ones
+		/// </summary>
+		private void RemoveMisversionedCache()
 		{
-			string version_file_path = GetCacheVersionFilePath();
+			if (_versions == null || _versions.Count == 0)
+				return;
 
-			if (SnipeConfig.TablesUpdateEnabled && !_forceBuiltInVersion)
+			string directory = GetCacheDirectoryPath();
+			if (!Directory.Exists(directory))
+				return;
+
+			string extention = ".json.gz";
+			var files = Directory.EnumerateFiles(directory, $"*{extention}");
+			foreach (string filePath in files)
 			{
-				for (int retries_count = 0; retries_count < 3; retries_count++)
+				if (!TryExtractNameAndVersion(filePath, out string tableName, out string version, extention) ||
+					!_versions.TryGetValue(tableName, out long tableVersion) ||
+					Convert.ToInt64(version) != tableVersion)
 				{
-					string url = $"{SnipeConfig.GetTablesPath(true)}version.txt";
-					DebugLogger.Log($"[TablesLoader] LoadVersion ({retries_count}) " + url);
+					DebugLogger.Log($"[TablesLoader] RemoveMisversionedCache - Delete {filePath}");
+					File.Delete(filePath);
+				}
+			}
+		}
 
-					try
-					{
-						using (var loader = new HttpClient())
-						{
-							loader.Timeout = TimeSpan.FromSeconds(1);
+		/// <summary>
+		/// Remove cache files with versions older than the built-in ones
+		/// </summary>
+		private void RemoveOutdatedCache()
+		{
+			string directory = GetCacheDirectoryPath();
+			if (!Directory.Exists(directory))
+				return;
 
-							var load_task = loader.GetAsync(url); // , cancellation_token);
-							if (await Task.WhenAny(load_task, Task.Delay(1000)) == load_task && load_task.Result.IsSuccessStatusCode)
-							{
-								var content = await load_task.Result.Content.ReadAsStringAsync();
-								_version = content.Trim();
+			var versions = new Dictionary<string, long>();
 
-								DebugLogger.Log($"[TablesLoader] LoadVersion done - {_version}");
-
-								// save to file
-								File.WriteAllText(version_file_path, _version);
-
-								break;
-							}
-						}
-
-						await Task.Delay(100, cancellation_token);
-					}
-					catch (Exception e)
-					{
-						if (e is TaskCanceledException ||
-							e is AggregateException ae && ae.InnerException is TaskCanceledException)
-						{
-							DebugLogger.Log($"[TablesLoader] LoadVersion - TaskCanceled");
-						}
-						else
-						{
-							DebugLogger.Log($"[TablesLoader] LoadVersion - Exception: {e}");
-						}
-					}
-
-					if (cancellation_token.IsCancellationRequested)
-					{
-						DebugLogger.Log($"[TablesLoader] LoadVersion task canceled");
-						return false;
-					}
+			string extention = ".jsongz";
+			var builtinfiles = BetterStreamingAssets.GetFiles("/", $"*{extention}");
+			foreach (var file in builtinfiles)
+			{
+				if (TryExtractNameAndVersion(file, out string tableName, out string version, extention))
+				{
+					versions[tableName.ToLower()] = Convert.ToInt64(version);
 				}
 			}
 
-			if (string.IsNullOrEmpty(_version))
+			extention = ".json.gz";
+			var files = Directory.EnumerateFiles(directory, $"*{extention}");
+			foreach (string filePath in files)
 			{
-				DebugLogger.Log($"[TablesLoader] LoadVersion - Failed to load from URL. Trying to read from cache");
-
-				long builtin_version = 0;
-				long cached_version = 0;
-				string builtin_version_string = null;
-				string cached_version_string = null;
-
-				if (BetterStreamingAssets.FileExists(VERSION_FILE_NAME))
+				if (TryExtractNameAndVersion(filePath, out string tableName, out string version, extention) &&
+					versions.TryGetValue(tableName.ToLower(), out long builtInVersion))
 				{
-					builtin_version_string = BetterStreamingAssets.ReadAllText(VERSION_FILE_NAME).Trim();
-					if (long.TryParse(builtin_version_string, out builtin_version))
+					long cachedVersion = Convert.ToInt64(version);
+					if (cachedVersion < builtInVersion)
 					{
-						DebugLogger.Log($"[TablesLoader] LoadVersion - built-in value - {builtin_version_string}");
+						DebugLogger.Log($"[TablesLoader] RemoveOutdatedCache - Delete {filePath}");
+						File.Delete(filePath);
 					}
-					else
-					{
-						builtin_version = 0;
-					}
-				}
-
-				if (File.Exists(version_file_path))
-				{
-					cached_version_string = File.ReadAllText(version_file_path).Trim();
-					if (long.TryParse(cached_version_string, out cached_version))
-					{
-						DebugLogger.Log($"[TablesLoader] LoadVersion - cached value - {cached_version_string}");
-					}
-					else
-					{
-						cached_version = 0;
-					}
-				}
-
-				if (builtin_version > 0 && builtin_version > cached_version)
-				{
-					_version = builtin_version_string;
-				}
-				else if (cached_version > 0)
-				{
-					_version = cached_version_string;
 				}
 			}
+		}
 
-			if (string.IsNullOrEmpty(_version))
+		private bool TryExtractNameAndVersion(string filePath, out string name, out string version, string extension)
+		{
+			string fileName = Path.GetFileName(filePath.Substring(0, filePath.Length - extension.Length));
+
+			int underscoreIndex = fileName.IndexOf("_");
+			if (underscoreIndex < 1)
 			{
-				DebugLogger.Log($"[TablesLoader] LoadVersion Failed");
+				name = null;
+				version = null;
 				return false;
 			}
 
+			version = fileName.Substring(0, underscoreIndex);
+			name = fileName.Substring(underscoreIndex + 1);
 			return true;
-		}
-
-		private string GetCacheVersionFilePath()
-		{
-			return Path.Combine(SnipeConfig.PersistentDataPath, VERSION_FILE_NAME);
-		}
-
-		private void DeleteCahceVersionFile()
-		{
-			string version_file_path = GetCacheVersionFilePath();
-			if (File.Exists(version_file_path))
-			{
-				File.Delete(version_file_path);
-			}
 		}
 	}
 }

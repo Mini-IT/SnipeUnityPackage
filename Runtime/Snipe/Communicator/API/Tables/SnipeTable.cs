@@ -10,8 +10,6 @@ namespace MiniIT.Snipe
 {
 	public class SnipeTable
 	{
-		protected static readonly TablesLoader _loader = new TablesLoader();
-
 		protected static readonly object _cacheIOLock = new object();
 
 		public bool Loaded { get; protected set; } = false;
@@ -25,15 +23,6 @@ namespace MiniIT.Snipe
 		}
 		public LoadingLocation LoadedFrom { get; protected set; } = LoadingLocation.Network;
 
-		public static void Initialize()
-		{
-			TablesLoader.Initialize();
-		}
-
-		public static void ResetVersion()
-		{
-			_loader.Reset();
-		}
 	}
 
 	public class SnipeTable<ItemType> : SnipeTable where ItemType : SnipeTableItem, new()
@@ -62,34 +51,52 @@ namespace MiniIT.Snipe
 			return false;
 		}
 
-		private static string GetCachePath(string table_name, string version)
+		private static string GetBuiltFileInPath(string table_name, long version)
 		{
-			return Path.Combine(SnipeConfig.PersistentDataPath, $"{version}_{table_name}.json.gz");
-		}
+			if (version <= 0)
+			{
+				var files = BetterStreamingAssets.GetFiles("/", $"*{table_name}.jsongz");
+				foreach (var file in files)
+				{
+					return file;
+				}
+			}
 
-		private static string GetBuiltInPath(string table_name, string version)
-		{
 			// NOTE: There is a bug - only lowercase works
 			// (https://issuetracker.unity3d.com/issues/android-loading-assets-from-assetbundles-takes-significantly-more-time-when-the-project-is-built-as-an-aab)
 			return $"{version}_{table_name}.jsongz".ToLower();
 		}
 
-		private static string GetTableUrl(string table_name)
+		private static string GetCacheFilePath(string table_name, long version)
 		{
-			return $"{SnipeConfig.GetTablesPath()}{table_name}.json.gz";
+			if (version <= 0)
+			{
+				var files = Directory.EnumerateFiles(TablesLoader.GetCacheDirectoryPath(), $"*{table_name}.json.gz");
+				foreach (var file in files)
+				{
+					return file;
+				}
+			}
+			
+			return TablesLoader.GetCachePath(table_name, version);
 		}
 
-		public async Task Load<WrapperType>(string table_name) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
+		private static string GetTableUrl(string table_name, long version)
 		{
-			if (Loaded)
-				return;
-
-			Items = new Dictionary<int, ItemType>();
-
-			await _loader.Load<ItemType, WrapperType>(this, table_name);
+			return $"{TablesConfig.GetTablesPath()}{version}_{table_name}.json.gz";
 		}
 
-		internal async Task<bool> LoadAsync<WrapperType>(string table_name, string version, CancellationToken cancellation) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
+		//public async Task Load<WrapperType>(string table_name) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
+		//{
+		//	if (Loaded)
+		//		return;
+
+		//	Items = new Dictionary<int, ItemType>();
+
+		//	await _loader.Load<ItemType, WrapperType>(this, table_name);
+		//}
+
+		internal async Task<bool> LoadAsync<WrapperType>(string table_name, long version, CancellationToken cancellation) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
 		{
 			if (cancellation.IsCancellationRequested)
 			{
@@ -99,24 +106,25 @@ namespace MiniIT.Snipe
 
 			DebugLogger.Log($"[SnipeTable] LoadTask start - {table_name}");
 
+			Items = new Dictionary<int, ItemType>();
+
 			// Try to load from cache
-			if (!string.IsNullOrEmpty(version))
+			//if (!string.IsNullOrEmpty(version_string))
 			{
-				string cache_path = GetCachePath(table_name, version);
-				ReadFile<WrapperType>(table_name, cache_path);
+				ReadFile<WrapperType>(table_name, version);
 
 				// If loading from cache failed
 				// try to load built-in file
 				if (!this.Loaded)
 				{
-					ReadFromStramingAssets<WrapperType>(table_name, GetBuiltInPath(table_name, version));
+					ReadFromStramingAssets<WrapperType>(table_name, version);
 				}
 			}
 
 			// If loading from cache failed
 			if (!this.Loaded)
 			{
-				string url = GetTableUrl(table_name);
+				string url = GetTableUrl(table_name, version);
 				DebugLogger.Log("[SnipeTable] Loading table " + url);
 
 				this.LoadingFailed = false;
@@ -180,7 +188,7 @@ namespace MiniIT.Snipe
 									ReadGZip<WrapperType>(file_content_stream);
 								}
 
-								if (this.Loaded)
+								if (this.Loaded && version > 0)
 								{
 									DebugLogger.Log("[SnipeTable] Table ready - " + table_name);
 
@@ -214,11 +222,13 @@ namespace MiniIT.Snipe
 			return this.Loaded;
 		}
 
-		private void ReadFile<WrapperType>(string table_name, string file_path) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
+		private void ReadFile<WrapperType>(string table_name, long version) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
 		{
 			lock (_cacheIOLock)
 			{
-				if (File.Exists(file_path))
+				string file_path = GetCacheFilePath(table_name, version);
+				
+				if (!string.IsNullOrEmpty(file_path) && File.Exists(file_path))
 				{
 					using (var read_stream = new FileStream(file_path, FileMode.Open))
 					{
@@ -241,13 +251,15 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void ReadFromStramingAssets<WrapperType>(string table_name, string file_path) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
+		private void ReadFromStramingAssets<WrapperType>(string table_name, long version) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
 		{
-			DebugLogger.Log($"[SnipeTable] ReadFromStramingAssets - {file_path}");
+			DebugLogger.Log($"[SnipeTable] ReadFromStramingAssets - {table_name}");
+
+			string file_path = GetBuiltFileInPath(table_name, version);
 
 			if (!BetterStreamingAssets.FileExists(file_path))
 			{
-				DebugLogger.Log($"[SnipeTable] ReadFromStramingAssets - file not found");
+				DebugLogger.Log($"[SnipeTable] ReadFromStramingAssets - file not found: {file_path}");
 				return;
 			}
 
@@ -275,9 +287,9 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void SaveToCache(Stream stream, string table_name, string version)
+		private void SaveToCache(Stream stream, string table_name, long version)
 		{
-			string cache_path = GetCachePath(table_name, version);
+			string cache_path = TablesLoader.GetCachePath(table_name, version);
 
 			lock (_cacheIOLock)
 			{
@@ -286,6 +298,12 @@ namespace MiniIT.Snipe
 					if (!File.Exists(cache_path))
 					{
 						DebugLogger.Log("[SnipeTable] Save to cache " + cache_path);
+
+						string directory_path = TablesLoader.GetCacheDirectoryPath();
+						if (!Directory.Exists(directory_path))
+						{
+							Directory.CreateDirectory(directory_path);
+						}
 
 						using (FileStream cache_write_stream = new FileStream(cache_path, FileMode.Create, FileAccess.Write))
 						{
