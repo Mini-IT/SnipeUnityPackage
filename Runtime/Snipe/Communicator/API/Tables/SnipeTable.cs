@@ -69,7 +69,7 @@ namespace MiniIT.Snipe
 
 		private static string GetCacheFilePath(string table_name, long version)
 		{
-			if (version <= 0)
+			if (version <= 0 && Directory.Exists(TablesLoader.GetCacheDirectoryPath()))
 			{
 				var files = Directory.EnumerateFiles(TablesLoader.GetCacheDirectoryPath(), $"*{table_name}.json.gz");
 				foreach (var file in files)
@@ -86,16 +86,6 @@ namespace MiniIT.Snipe
 			return $"{TablesConfig.GetTablesPath()}{version}_{table_name}.json.gz";
 		}
 
-		//public async Task Load<WrapperType>(string table_name) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
-		//{
-		//	if (Loaded)
-		//		return;
-
-		//	Items = new Dictionary<int, ItemType>();
-
-		//	await _loader.Load<ItemType, WrapperType>(this, table_name);
-		//}
-
 		internal async Task<bool> LoadAsync<WrapperType>(string table_name, long version, CancellationToken cancellation) where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
 		{
 			if (cancellation.IsCancellationRequested)
@@ -109,16 +99,13 @@ namespace MiniIT.Snipe
 			Items = new Dictionary<int, ItemType>();
 
 			// Try to load from cache
-			//if (!string.IsNullOrEmpty(version_string))
-			{
-				ReadFile<WrapperType>(table_name, version);
+			ReadFile<WrapperType>(table_name, version);
 
-				// If loading from cache failed
-				// try to load built-in file
-				if (!this.Loaded)
-				{
-					ReadFromStramingAssets<WrapperType>(table_name, version);
-				}
+			// If loading from cache failed
+			// try to load built-in file
+			if (!this.Loaded)
+			{
+				ReadFromStramingAssets<WrapperType>(table_name, version);
 			}
 
 			// If loading from cache failed
