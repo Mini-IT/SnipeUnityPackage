@@ -8,7 +8,7 @@ namespace MiniIT.Snipe
 {
 	public class LogicManager
 	{
-		public static float UpdateMinTimeout = 30.0f; // seconds
+		public static TimeSpan UpdateMinTimeout = TimeSpan.FromSeconds(30);
 
 		public delegate void LogicUpdatedHandler(Dictionary<int, LogicNode> nodes);
 		public delegate void ExitNodeHandler(LogicNode node, List<object> results);
@@ -21,7 +21,7 @@ namespace MiniIT.Snipe
 		private SnipeTable<SnipeTableLogicItem> _logicTable = null;
 
 		private SnipeCommunicator _snipeCommunicator;
-		private double _updateRequestedTime = 0.0f;
+		private TimeSpan _updateRequestedTime = TimeSpan.Zero;
 		private SnipeObject _logicGetRequestParameters;
 		
 		private Stopwatch _refTime = Stopwatch.StartNew();
@@ -132,14 +132,14 @@ namespace MiniIT.Snipe
 
 		public void RequestLogicGet(bool force = false)
 		{
-			if (_logicTable == null)
-				return;
+			if (_logicTable != null)
+			{
+				var current_time = _refTime.Elapsed;
+				if (!force && current_time - _updateRequestedTime < UpdateMinTimeout)
+					return;
 
-			double current_time = _refTime.Elapsed.TotalSeconds;
-			if (!force && _updateRequestedTime > 0 && current_time - _updateRequestedTime < UpdateMinTimeout)
-				return;
-
-			_updateRequestedTime = current_time;
+				_updateRequestedTime = current_time;
+			}
 			
 			if (_logicGetRequestParameters == null)
 				_logicGetRequestParameters = new SnipeObject() { ["noDump"] = false };
@@ -169,7 +169,7 @@ namespace MiniIT.Snipe
 				request.Request();
 			}
 
-			_updateRequestedTime = 0; // reset timer
+			_updateRequestedTime = TimeSpan.Zero; // reset timer
 		}
 
 		private void OnSnipeMessageReceived(string message_type, string error_code, SnipeObject data, int request_id)
@@ -192,7 +192,7 @@ namespace MiniIT.Snipe
 
 		private void OnLogicGet(string error_code, SnipeObject response_data)
 		{
-			_updateRequestedTime = 0; // reset timer
+			_updateRequestedTime = TimeSpan.Zero; // reset timer  // ????????
 			
 			if (_logicTable == null || response_data == null)
 				return;
