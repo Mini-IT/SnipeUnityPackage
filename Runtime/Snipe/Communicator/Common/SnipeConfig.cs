@@ -20,7 +20,7 @@ namespace MiniIT.Snipe
 		public static List<UdpAddress> ServerUdpUrls = new List<UdpAddress>();
 		
 		public static bool CompressionEnabled = false;
-		public static int MinMessageSizeToCompress = 10240; // bytes
+		public static int MinMessageBytesToCompress = 13 * 1024;
 
 		public static SnipeObject LoginParameters;
 
@@ -150,7 +150,7 @@ namespace MiniIT.Snipe
 			if (data["compression"] is SnipeObject compression)
 			{
 				CompressionEnabled = compression.SafeGetValue<bool>("enabled");
-				MinMessageSizeToCompress = compression.SafeGetValue<int>("min_size");
+				MinMessageBytesToCompress = compression.SafeGetValue<int>("min_size");
 			}
 
 			_serverWebSocketUrlIndex = 0;

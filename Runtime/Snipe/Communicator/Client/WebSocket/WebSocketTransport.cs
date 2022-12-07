@@ -190,7 +190,7 @@ namespace MiniIT.Snipe
 
 				var msg_data = await Task.Run(() => MessagePackSerializerNonAlloc.Serialize(ref _messageSerializationBuffer, message));
 
-				if (SnipeConfig.CompressionEnabled && msg_data.Count >= SnipeConfig.MinMessageSizeToCompress) // compression needed
+				if (SnipeConfig.CompressionEnabled && msg_data.Count >= SnipeConfig.MinMessageBytesToCompress) // compression needed
 				{
 					await Task.Run(() =>
 					{
