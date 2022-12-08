@@ -330,6 +330,11 @@ namespace MiniIT.Snipe
 					//	Authorize();
 					//	break;
 
+					case SnipeErrorCodes.NO_SUCH_USER:
+					case SnipeErrorCodes.LOGIN_DATA_WRONG:
+						// Handled by AuthSubsystem
+						break;
+
 					case SnipeErrorCodes.USER_ONLINE:
 					case SnipeErrorCodes.LOGOUT_IN_PROGRESS:
 						if (_loginAttempt < 4)
@@ -351,7 +356,6 @@ namespace MiniIT.Snipe
 						OnConnectionFailed();
 						break;
 				}
-				
 			}
 			else if (message_type == SnipeMessageTypes.ROOM_JOIN)
 			{
