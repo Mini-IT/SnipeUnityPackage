@@ -1,17 +1,22 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using MiniIT;
-using UnityEngine;
+using System.Threading.Tasks;
 
 namespace MiniIT.Snipe
 {
-	public class Analytics : MonoBehaviour
+	public class Analytics
 	{
 		public static bool IsEnabled = true;
-		
+
+		private static TaskScheduler _mainThreadScheduler;
+
+		private static void InvokeInMainThread(Action action)
+		{
+			new Task(action).RunSynchronously(_mainThreadScheduler);
+		}
+
 		#region AnalyticsTracker
-		
+
 		public static long PingTime { get; internal set; }
 		public static long ConnectionEstablishmentTime { get; internal set; }
 		public static double WebSocketTcpClientConnectionTime { get; internal set; }
@@ -19,15 +24,19 @@ namespace MiniIT.Snipe
 		public static double WebSocketHandshakeTime { get; internal set; }
 		public static double WebSocketMiscTime { get; internal set; }
 		
-		private static IAnalyticsTracker mTracker;
+		private static IAnalyticsTracker _tracker;
 		
-		private static string mUserId = null;
-		
+		private static string _userId = null;
+
+		/// <summary>
+		/// Should be called from the main Unity thread
+		/// </summary>
 		public static void SetTracker(IAnalyticsTracker tracker)
 		{
-			mTracker = tracker;
-			
-			if (!string.IsNullOrEmpty(mUserId))
+			_tracker = tracker;
+			_mainThreadScheduler = TaskScheduler.FromCurrentSynchronizationContext();
+
+			if (!string.IsNullOrEmpty(_userId))
 			{
 				CheckReady();
 			}
@@ -35,12 +44,12 @@ namespace MiniIT.Snipe
 		
 		private static bool CheckReady()
 		{
-			bool ready = mTracker != null && mTracker.IsInitialized && IsEnabled;
+			bool ready = _tracker != null && _tracker.IsInitialized && IsEnabled;
 			
-			if (ready && !string.IsNullOrEmpty(mUserId))
+			if (ready && !string.IsNullOrEmpty(_userId))
 			{
-				mTracker.SetUserId(mUserId);
-				mUserId = null;
+				_tracker.SetUserId(_userId);
+				_userId = null;
 			}
 			
 			return ready;
@@ -48,7 +57,7 @@ namespace MiniIT.Snipe
 		
 		public static void SetUserId(string uid)
 		{
-			mUserId = uid;
+			_userId = uid;
 			CheckReady();
 		}
 
@@ -56,49 +65,49 @@ namespace MiniIT.Snipe
 		{
 			if (CheckReady())
 			{
-				mTracker.SetUserProperty(name, value);
+				_tracker.SetUserProperty(name, value);
 			}
 		}
 		public static void SetUserProperty(string name, int value)
 		{
 			if (CheckReady())
 			{
-				mTracker.SetUserProperty(name, value);
+				_tracker.SetUserProperty(name, value);
 			}
 		}
 		public static void SetUserProperty(string name, float value)
 		{
 			if (CheckReady())
 			{
-				mTracker.SetUserProperty(name, value);
+				_tracker.SetUserProperty(name, value);
 			}
 		}
 		public static void SetUserProperty(string name, double value)
 		{
 			if (CheckReady())
 			{
-				mTracker.SetUserProperty(name, value);
+				_tracker.SetUserProperty(name, value);
 			}
 		}
 		public static void SetUserProperty(string name, bool value)
 		{
 			if (CheckReady())
 			{
-				mTracker.SetUserProperty(name, value);
+				_tracker.SetUserProperty(name, value);
 			}
 		}
 		public static void SetUserProperty<T>(string name, IList<T> value)
 		{
 			if (CheckReady())
 			{
-				mTracker.SetUserProperty(name, value);
+				_tracker.SetUserProperty(name, value);
 			}
 		}
 		public static void SetUserProperty(string name, IDictionary<string, object> value)
 		{
 			if (CheckReady())
 			{
-				mTracker.SetUserProperty(name, value);
+				_tracker.SetUserProperty(name, value);
 			}
 		}
 
@@ -107,10 +116,12 @@ namespace MiniIT.Snipe
 			if (CheckReady())
 			{
 				// Some trackers (for example Amplitude) may crash if used not in the main Unity thread.
-				// We'll put events into a queue and call mTracker.TrackEvent in the MonoBehaviour's coroutine.
 				
 				if (properties == null)
 					properties = new Dictionary<string, object>(2);
+
+				properties["event_type"] = name;
+
 				if (PingTime > 0)
 					properties["ping_time"] = PingTime;
 				
@@ -118,8 +129,11 @@ namespace MiniIT.Snipe
 				{	
 					properties["server_reaction"] = SnipeCommunicator.Instance.ServerReaction.TotalMilliseconds;
 				}
-				
-				GetInstance().EnqueueEvent(name, properties);
+
+				InvokeInMainThread(() =>
+				{
+					_tracker.TrackEvent(EVENT_NAME, properties);
+				});
 			}
 		}
 		public static void TrackEvent(string name, string property_name, object property_value)
@@ -143,7 +157,7 @@ namespace MiniIT.Snipe
 		
 		public static void TrackErrorCodeNotOk(string message_type, string error_code, SnipeObject data)
 		{
-			if (CheckReady() && mTracker.CheckErrorCodeTracking(message_type, error_code))
+			if (CheckReady() && _tracker.CheckErrorCodeTracking(message_type, error_code))
 			{
 				Dictionary<string, object> properties = new Dictionary<string, object>(5);
 				properties["message_type"] = message_type;
@@ -157,7 +171,10 @@ namespace MiniIT.Snipe
 		{
 			if (CheckReady())
 			{
-				GetInstance().EnqueueError(name, exception);
+				InvokeInMainThread(() =>
+				{
+					_tracker.TrackError(name, exception);
+				});
 			}
 		}
 		
@@ -185,113 +202,5 @@ namespace MiniIT.Snipe
 		
 		#endregion Constants
 		
-		#region MonoBehaviour
-		
-		private static Analytics mInstance;
-		private static Analytics GetInstance()
-		{
-			if (mInstance == null)
-			{
-				mInstance = new GameObject("SnipeAnalyticsTracker").AddComponent<Analytics>();
-			}
-			return mInstance;
-		}
-		
-		private void Awake()
-		{
-			if (mInstance != null && mInstance != this)
-			{
-				Destroy(this.gameObject);
-				return;
-			}
-			
-			DontDestroyOnLoad(this.gameObject);
-			StartCoroutine(ProcessEventsQueue());
-		}
-		
-		#region EventsQueue
-		
-		enum EventsQueueItemType
-		{
-			Event,
-			Error,
-		}
-		
-		class EventsQueueItem
-		{
-			internal EventsQueueItemType type;
-			internal string name;
-			internal IDictionary<string, object> properties;
-			internal Exception exception;
-		}
-		
-		private List<EventsQueueItem> mEventsQueue;
-		
-		private void EnqueueEvent(string name, IDictionary<string, object> properties = null)
-		{
-			if (mEventsQueue == null)
-				mEventsQueue = new List<EventsQueueItem>();
-			lock (mEventsQueue)
-			{
-				mEventsQueue.Add(new EventsQueueItem()
-				{
-					type = EventsQueueItemType.Event,
-					name = name,
-					properties = properties,
-				});
-			}
-		}
-		
-		private void EnqueueError(string name, Exception exception = null)
-		{
-			if (mEventsQueue == null)
-				mEventsQueue = new List<EventsQueueItem>();
-			lock (mEventsQueue)
-			{
-				mEventsQueue.Add(new EventsQueueItem()
-				{
-					type = EventsQueueItemType.Error,
-					name = name,
-					exception = exception,
-				});
-			}
-		}
-		
-		private IEnumerator ProcessEventsQueue()
-		{
-			while (true)
-			{
-				if (mEventsQueue != null && mEventsQueue.Count > 0)
-				{
-					lock (mEventsQueue)
-					{
-						foreach (var item in mEventsQueue)
-						{
-							if (item.type == EventsQueueItemType.Error)
-							{
-								mTracker.TrackError(item.name, item.exception);
-							}
-							else
-							{
-								var event_properties = item.properties;
-								if (event_properties == null)
-									event_properties = new Dictionary<string, object>() { ["event_type"] = item.name };
-								else
-									event_properties["event_type"] = item.name;
-								
-								mTracker.TrackEvent(EVENT_NAME, event_properties);
-							}
-						}
-						mEventsQueue.Clear();
-					}
-				}
-				
-				yield return null;
-			}
-		}
-		
-		#endregion EventsQueue
-		
-		#endregion MonoBehaviour
 	}
 }

@@ -1,5 +1,3 @@
-using System;
-using System.Collections;
 using System.Collections.Generic;
 
 namespace MiniIT.Snipe
@@ -17,11 +15,9 @@ namespace MiniIT.Snipe
 		public int timeleft = -1; // seconds left. (-1) means that the node does not have a timer
 		public bool isTimeout { get; private set; }
 
-		public CalendarItem(SnipeObject data, SnipeTable<SnipeTableCalendarItem> logic_table)
+		public CalendarItem(SnipeObject data, SnipeTable<SnipeTableCalendarItem> table)
 		{
 			id = data.SafeGetValue<int>("id");
-			
-			
 		}
 	}
 }

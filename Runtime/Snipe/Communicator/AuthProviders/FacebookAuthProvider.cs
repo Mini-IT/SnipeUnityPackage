@@ -1,7 +1,6 @@
 ﻿#if SNIPE_FACEBOOK
 
 using System;
-using UnityEngine;
 using MiniIT;
 using MiniIT.Snipe;
 using MiniIT.Social;
@@ -63,8 +62,8 @@ public class FacebookAuthProvider : BindProvider
 			return;
 		}
 
-		string auth_login = PlayerPrefs.GetString(SnipePrefs.AUTH_UID);
-		string auth_token = PlayerPrefs.GetString(SnipePrefs.AUTH_KEY);
+		string auth_login = SharedPrefs.GetString(SnipePrefs.AUTH_UID);
+		string auth_token = SharedPrefs.GetString(SnipePrefs.AUTH_KEY);
 
 		if (!string.IsNullOrEmpty(auth_login) && !string.IsNullOrEmpty(auth_token))
 		{
@@ -81,7 +80,7 @@ public class FacebookAuthProvider : BindProvider
 				};
 
 				DebugLogger.Log("[FacebookAuthProvider] send user.bind " + data.ToJSONString());
-				SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_BIND)?.RequestAuth(data, OnBindResponse);
+				SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_BIND)?.RequestAuth(data, OnBindResponse);
 
 				return;
 			}

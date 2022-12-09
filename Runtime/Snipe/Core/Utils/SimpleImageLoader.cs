@@ -18,24 +18,24 @@ namespace MiniIT.Utils
 	
 	public class SimpleImageLoader
 	{
-		private static GameObject mGameObject;
-		private SimpleImageLoaderComponent mComponent;
+		private static GameObject _gameObject;
+		private SimpleImageLoaderComponent _component;
 		
-		private static Dictionary<string, Texture2D> mCache;
-		private static Dictionary<string, Sprite> mSpritesCache;
-		private static Dictionary<string, SimpleImageLoader> mActiveLoaders;
+		private static Dictionary<string, Texture2D> _cache;
+		private static Dictionary<string, Sprite> _spritesCache;
+		private static Dictionary<string, SimpleImageLoader> _activeLoaders;
 
 		private const int MAX_LOADERS_COUNT = 3;
-		private static int mLoadersCount = 0;
+		private static int _loadersCount = 0;
 		
 		private static readonly Vector2 SPRITE_PIVOT = new Vector2(0.5f, 0.5f);
 
 		public string Url { get; private set; }
 		
-		private bool mUseCache = false;
+		private bool _useCache = false;
 
-		private Action<Texture2D> mCallback;
-		private List<SimpleImageLoader> mParasiteLoaders;
+		private Action<Texture2D> _callback;
+		private List<SimpleImageLoader> _parasiteLoaders;
 		
 		private SimpleImageLoader()
 		{
@@ -48,9 +48,9 @@ namespace MiniIT.Utils
 
 			if (cache)
 			{
-				if (mCache != null)
+				if (_cache != null)
 				{
-					if (mCache.TryGetValue(url, out Texture2D texture))
+					if (_cache.TryGetValue(url, out Texture2D texture))
 					{
 						callback?.Invoke(texture);
 						return null;
@@ -59,16 +59,16 @@ namespace MiniIT.Utils
 			}
 			
 			var loader = new SimpleImageLoader();
-			loader.mUseCache = cache;
+			loader._useCache = cache;
 
-			if (mActiveLoaders != null && mActiveLoaders.TryGetValue(url, out var master_loader) && master_loader != null)
+			if (_activeLoaders != null && _activeLoaders.TryGetValue(url, out var master_loader) && master_loader != null)
 			{
 				loader.Url = url;
-				loader.mCallback = callback;
+				loader._callback = callback;
 				
-				if (master_loader.mParasiteLoaders == null)
-					master_loader.mParasiteLoaders = new List<SimpleImageLoader>();
-				master_loader.mParasiteLoaders.Add(loader);
+				if (master_loader._parasiteLoaders == null)
+					master_loader._parasiteLoaders = new List<SimpleImageLoader>();
+				master_loader._parasiteLoaders.Add(loader);
 			}
 			else
 			{
@@ -81,7 +81,7 @@ namespace MiniIT.Utils
 		{
 			Sprite sprite = null;
 			
-			if (cache && mSpritesCache != null && mSpritesCache.TryGetValue(url, out sprite))
+			if (cache && _spritesCache != null && _spritesCache.TryGetValue(url, out sprite))
 			{
 				callback?.Invoke(sprite);
 				return null;
@@ -90,16 +90,16 @@ namespace MiniIT.Utils
 			return Load(url,
 				(texture) =>
 				{
-					if (!cache || mSpritesCache == null || !mSpritesCache.TryGetValue(url, out sprite))
+					if (!cache || _spritesCache == null || !_spritesCache.TryGetValue(url, out sprite))
 					{
 						sprite = Sprite.Create(texture, new Rect(0.0f, 0.0f, texture.width, texture.height), SPRITE_PIVOT);
 					}
 					
 					if (cache)
 					{
-						if (mSpritesCache == null)
-							mSpritesCache = new Dictionary<string, Sprite>();
-						mSpritesCache[url] = sprite;
+						if (_spritesCache == null)
+							_spritesCache = new Dictionary<string, Sprite>();
+						_spritesCache[url] = sprite;
 					}
 					
 					callback?.Invoke(sprite);
@@ -128,17 +128,17 @@ namespace MiniIT.Utils
 				
 				if (cache)
 				{
-					if (mSpritesCache == null)
-						mSpritesCache = new Dictionary<string, Sprite>();
-					mSpritesCache[url] = sprite;
+					if (_spritesCache == null)
+						_spritesCache = new Dictionary<string, Sprite>();
+					_spritesCache[url] = sprite;
 				}
 			};
 			
 			if (cache)
 			{
-				if (mSpritesCache != null)
+				if (_spritesCache != null)
 				{
-					if (mSpritesCache.TryGetValue(url, out Sprite sprite))
+					if (_spritesCache.TryGetValue(url, out Sprite sprite))
 					{
 						apply_sprite(sprite);
 						return null;
@@ -156,9 +156,9 @@ namespace MiniIT.Utils
 
 		public void Cancel()
 		{
-			mCallback = null;
+			_callback = null;
 
-			if (!mUseCache && (mParasiteLoaders == null || mParasiteLoaders.Count < 1))
+			if (!_useCache && (_parasiteLoaders == null || _parasiteLoaders.Count < 1))
 			{
 				Destroy();
 			}
@@ -166,12 +166,12 @@ namespace MiniIT.Utils
 
 		private void DoLoad(string url, Action<Texture2D> callback)
 		{
-			if (mActiveLoaders == null)
-				mActiveLoaders = new Dictionary<string, SimpleImageLoader>();
-			mActiveLoaders[url] = this;
+			if (_activeLoaders == null)
+				_activeLoaders = new Dictionary<string, SimpleImageLoader>();
+			_activeLoaders[url] = this;
 			
 			Url = url;
-			mCallback = callback;
+			_callback = callback;
 			
 			var component = GetComponent();
 			component.StartCoroutine(LoadCoroutine(url));
@@ -179,9 +179,9 @@ namespace MiniIT.Utils
 
 		private IEnumerator LoadCoroutine(string url)
 		{
-			while (mLoadersCount >= MAX_LOADERS_COUNT)
+			while (_loadersCount >= MAX_LOADERS_COUNT)
 				yield return null;
-			mLoadersCount++;
+			_loadersCount++;
 
 			using (UnityWebRequest loader = new UnityWebRequest(url))
 			{
@@ -192,11 +192,11 @@ namespace MiniIT.Utils
 				{
 					Texture2D texture = ((DownloadHandlerTexture)loader.downloadHandler).texture;
 
-					if (mUseCache)
+					if (_useCache)
 					{
-						if (mCache == null)
-							mCache = new Dictionary<string, Texture2D>();
-						mCache[Url] = texture;
+						if (_cache == null)
+							_cache = new Dictionary<string, Texture2D>();
+						_cache[Url] = texture;
 					}
 
 					InvokeCallback(texture);
@@ -207,51 +207,51 @@ namespace MiniIT.Utils
 				}
 			}
 
-			mLoadersCount--;
+			_loadersCount--;
 
 			Destroy();
 		}
 		
 		private void InvokeCallback(Texture2D texture)
 		{
-			if (mCallback != null)
+			if (_callback != null)
 			{
-				mCallback.Invoke(texture);
-				mCallback = null;
+				_callback.Invoke(texture);
+				_callback = null;
 			}
 			
-			if (mParasiteLoaders != null)
+			if (_parasiteLoaders != null)
 			{
-				foreach (var parasite in mParasiteLoaders)
+				foreach (var parasite in _parasiteLoaders)
 				{
-					parasite?.mCallback?.Invoke(texture);
+					parasite?._callback?.Invoke(texture);
 				}
-				mParasiteLoaders = null;
+				_parasiteLoaders = null;
 			}
 		}
 		
 		private SimpleImageLoaderComponent GetComponent()
 		{
-			if (mGameObject == null)
+			if (_gameObject == null)
 			{
-				mGameObject = new GameObject("[SimpleImageLoader]"); 
-				GameObject.DontDestroyOnLoad(mGameObject);
+				_gameObject = new GameObject("[SimpleImageLoader]"); 
+				GameObject.DontDestroyOnLoad(_gameObject);
 			}
-			if (mComponent == null)
+			if (_component == null)
 			{
-				mComponent = mGameObject.AddComponent<SimpleImageLoaderComponent>();
+				_component = _gameObject.AddComponent<SimpleImageLoaderComponent>();
 			}
-			return mComponent;
+			return _component;
 		}
 		
 		private void Destroy()
 		{
-			mActiveLoaders?.Remove(Url);
+			_activeLoaders?.Remove(Url);
 			
-			if (mComponent != null)
+			if (_component != null)
 			{
-				mComponent.Dispose();
-				mComponent = null;
+				_component.Dispose();
+				_component = null;
 			}
 		}
 	}

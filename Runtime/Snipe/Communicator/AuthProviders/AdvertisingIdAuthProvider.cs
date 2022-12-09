@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using UnityEngine;
 using MiniIT;
 using MiniIT.Snipe;
-using MiniIT.Social;
+#if !MINI_IT_ADVERTISING_ID
+using UnityEngine;
+#endif
 
 public class AdvertisingIdAuthProvider : BindProvider
 {
@@ -150,8 +151,8 @@ public class AdvertisingIdAuthProvider : BindProvider
 				return;
 			}
 			
-			string auth_login = PlayerPrefs.GetString(SnipePrefs.AUTH_UID);
-			string auth_token = PlayerPrefs.GetString(SnipePrefs.AUTH_KEY);
+			string auth_login = SharedPrefs.GetString(SnipePrefs.AUTH_UID);
+			string auth_token = SharedPrefs.GetString(SnipePrefs.AUTH_KEY);
 
 			if (string.IsNullOrEmpty(auth_login) || string.IsNullOrEmpty(auth_token))
 			{
@@ -181,7 +182,7 @@ public class AdvertisingIdAuthProvider : BindProvider
 						mBindRequestData = data;
 
 						DebugLogger.Log("[AdvertisingIdAuthProvider] send user.bind " + data.ToJSONString());
-						SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_BIND)?.RequestAuth(data, OnBindResponse);
+						SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_BIND)?.RequestAuth(data, OnBindResponse);
 					}
 				}
 				else

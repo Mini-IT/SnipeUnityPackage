@@ -1,15 +1,15 @@
 using System;
-using System.Buffers;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using MiniIT.MessagePack;
 
 namespace MiniIT.Snipe
 {
 	public partial class SnipeClient
 	{
 		public const int SNIPE_VERSION = 6;
+		public const int MAX_BATCH_SIZE = 5;
 		
 		public delegate void MessageReceivedHandler(string message_type, string error_code, SnipeObject data, int request_id);
 		public event MessageReceivedHandler MessageReceived;
@@ -17,37 +17,65 @@ namespace MiniIT.Snipe
 		public event Action ConnectionClosed;
 		public event Action LoginSucceeded;
 		public event Action<string> LoginFailed;
-		//public event Action UdpConnectionFailed;
-		
-		private bool mConnected = false;
-		protected bool mLoggedIn = false;
+		public event Action UdpConnectionFailed;
+
+		private WebSocketTransport _webSocket;
+		private KcpTransport _kcp;
+
+		protected bool _loggedIn = false;
 
 		public bool Connected => UdpClientConnected || WebSocketConnected;
-		public bool LoggedIn { get { return mLoggedIn && Connected; } }
+		public bool LoggedIn { get { return _loggedIn && Connected; } }
+		public bool WebSocketConnected => _webSocket != null && _webSocket.Connected;
+		public bool UdpClientConnected => _kcp != null && _kcp.Connected;
 
 		public string ConnectionId { get; private set; }
-		public bool BadConnection { get; private set; } = false;
+
+		private Stopwatch _connectionStopwatch;
 		
-		private Stopwatch mConnectionStopwatch;
-		
-		private Stopwatch mServerReactionStopwatch;
-		public TimeSpan CurrentRequestElapsed { get { return mServerReactionStopwatch?.Elapsed ?? new TimeSpan(0); } }
+		private Stopwatch _serverReactionStopwatch;
+		public TimeSpan CurrentRequestElapsed { get { return _serverReactionStopwatch?.Elapsed ?? new TimeSpan(0); } }
 		public TimeSpan ServerReaction { get; private set; }
-		
-		private ArrayPool<byte> mBytesPool;
-		private SnipeMessageCompressor mMessageCompressor;
+		public double UdpConnectionTime { get; private set; }
+		public double UdpDnsResolveTime => _kcp?.UdpDnsResolveTime ?? 0;
+		public double UdpSocketConnectTime => _kcp?.UdpSocketConnectTime ?? 0;
+		public double UdpSendHandshakeTime => _kcp?.UdpSendHandshakeTime ?? 0;
+
+		private bool _batchMode = false;
+		public bool BatchMode
+		{
+			get => _batchMode;
+			set
+			{
+				if (value != _batchMode)
+				{
+					_batchMode = value;
+					if (_batchMode)
+					{
+						_batchedRequests ??= new ConcurrentQueue<SnipeObject>();
+					}
+					else
+					{
+						FlushBatchedRequests();
+						_batchedRequests = null;
+					}
+
+					DebugLogger.Log($"[SnipeClient] BatchMode = {value}");
+				}
+			}
+		}
+
+		private ConcurrentQueue<SnipeObject> _batchedRequests;
+		private readonly object _batchLock = new object();
 
 		private int mRequestId = 0;
-		
-		private readonly object mSendLock = new object();
-		
+
+		private TaskScheduler _mainThreadScheduler;
+
 		public void Connect(bool udp = true)
 		{
-			if (mBytesPool == null)
-				mBytesPool = ArrayPool<byte>.Shared;
-			if (mMessageCompressor == null)
-				mMessageCompressor = new SnipeMessageCompressor();
-			
+			_mainThreadScheduler = TaskScheduler.FromCurrentSynchronizationContext();
+
 			if (udp && SnipeConfig.CheckUdpAvailable())
 			{
 				ConnectUdpClient();
@@ -57,34 +85,102 @@ namespace MiniIT.Snipe
 				ConnectWebSocket();
 			}
 		}
-		
-		
+
+		private void RunInMainThread(Action action)
+		{
+			new Task(action).RunSynchronously(_mainThreadScheduler);
+		}
+
+		private void ConnectUdpClient()
+		{
+			if (_kcp != null && _kcp.Started)  // already connected or trying to connect
+				return;
+
+			if (_kcp == null)
+			{
+				_kcp = new KcpTransport();
+				_kcp.ConnectionOpenedHandler = () =>
+				{
+					UdpConnectionTime = _connectionStopwatch.Elapsed.TotalMilliseconds;
+					OnConnected();
+				};
+				_kcp.ConnectionClosedHandler = () =>
+				{
+					RunInMainThread(() =>
+					{
+						UdpConnectionFailed?.Invoke();
+					});
+
+					if (_kcp.ConnectionEstablished)
+					{
+						Disconnect(true);
+					}
+					else // not connected yet, try websocket
+					{
+						ConnectWebSocket();
+					}
+				};
+				_kcp.MessageReceivedHandler = ProcessMessage;
+			}
+
+			_connectionStopwatch = Stopwatch.StartNew();
+
+			_kcp.Connect();
+		}
+
+		private void ConnectWebSocket()
+		{
+			if (_webSocket != null && _webSocket.Started)  // already connected or trying to connect
+				return;
+
+			Disconnect(false); // clean up
+
+			if (_webSocket == null)
+			{
+				_webSocket = new WebSocketTransport();
+				_webSocket.ConnectionOpenedHandler = OnConnected;
+				_webSocket.ConnectionClosedHandler = () => Disconnect(true);
+				_webSocket.MessageReceivedHandler = ProcessMessage;
+			}
+
+			_connectionStopwatch = Stopwatch.StartNew();
+
+			_webSocket.Connect();
+		}
+
 		private void OnConnected()
 		{
-			mConnected = true;
-			
-			try
+			_connectionStopwatch?.Stop();
+			Analytics.ConnectionEstablishmentTime = _connectionStopwatch?.ElapsedMilliseconds ?? 0;
+
+			RunInMainThread(() =>
 			{
-				ConnectionOpened?.Invoke();
-			}
-			catch (Exception e)
-			{
-				DebugLogger.Log($"[SnipeClient] ConnectionOpened invokation error: {e}");
-				Analytics.TrackError("ConnectionOpened invokation error", e);
-			}
+				try
+				{
+					ConnectionOpened?.Invoke();
+				}
+				catch (Exception e)
+				{
+					DebugLogger.Log($"[SnipeClient] ConnectionOpened invokation error: {e}");
+					Analytics.TrackError("ConnectionOpened invokation error", e);
+				}
+			});
 		}
 
 		private void RaiseConnectionClosedEvent()
 		{
-			try
+			RunInMainThread(() =>
 			{
-				ConnectionClosed?.Invoke();
-			}
-			catch (Exception e)
-			{
-				DebugLogger.Log($"[SnipeClient] ConnectionClosed invokation error: {e}");
-				Analytics.TrackError("ConnectionClosed invokation error", e);
-			}
+				try
+				{
+					ConnectionClosed?.Invoke();
+				}
+				catch (Exception e)
+				{
+					DebugLogger.Log($"[SnipeClient] ConnectionClosed invokation error: {e}");
+					Analytics.TrackError("ConnectionClosed invokation error", e);
+				}
+			});
 		}
 
 		public void Disconnect()
@@ -94,35 +190,21 @@ namespace MiniIT.Snipe
 
 		private void Disconnect(bool raise_event)
 		{
-			mConnected = false;
-			mLoggedIn = false;
+			//mConnected = false;
+			_loggedIn = false;
 			ConnectionId = "";
 			
-			mConnectionStopwatch?.Stop();
+			_connectionStopwatch?.Stop();
 			Analytics.PingTime = 0;
 			
-			StopSendTask();
-			StopHeartbeat();
-			StopCheckConnection();
-			
 			StopResponseMonitoring();
-			
-			StopUdpNetworkLoop();
-			
-			if (mUdpClient != null)
-			{
-				mUdpClient.Disconnect();
-				mUdpClient = null;
-			}
-			mUdpConnectionEstablished = false;
 
-			if (mWebSocket != null)
+			_kcp?.Disconnect();
+
+			if (_webSocket != null)
 			{
-				mWebSocket.OnConnectionOpened -= OnWebSocketConnected;
-				mWebSocket.OnConnectionClosed -= OnWebSocketClosed;
-				mWebSocket.ProcessMessage -= ProcessWebSocketMessage;
-				mWebSocket.Disconnect();
-				mWebSocket = null;
+				_webSocket.Disconnect();
+				_webSocket = null;
 			}
 
 			if (raise_event)
@@ -131,115 +213,109 @@ namespace MiniIT.Snipe
 			}
 		}
 
+		public int SendRequest(string message_type, SnipeObject data)
+		{
+			if (!Connected)
+				return 0;
+
+			var message = new SnipeObject() { ["t"] = message_type };
+
+			if (data != null)
+			{
+				message.Add("data", data);
+			}
+
+			return SendRequest(message);
+		}
+
 		public int SendRequest(SnipeObject message)
 		{
 			if (!Connected || message == null)
 				return 0;
-			
-			message["id"] = ++mRequestId;
-			
-			if (!mLoggedIn)
+
+			int request_id = ++mRequestId;
+			message["id"] = request_id;
+
+			if (!_loggedIn)
 			{
 				var data = message["data"] as SnipeObject ?? new SnipeObject();
 				data["ckey"] = SnipeConfig.ClientKey;
 				message["data"] = data;
 			}
-			
-			DebugLogger.Log($"[SnipeClient] SendRequest - {message.ToJSONString()}");
-			
-			if (UdpClientConnected)
+
+			if (BatchMode)
 			{
-				Task.Run(() =>
+				_batchedRequests.Enqueue(message);
+
+				if (_batchedRequests.Count >= MAX_BATCH_SIZE)
 				{
-					lock(mSendLock)
-					{
-						DoSendRequestUdpClient(message);
-					}
-				});
+					FlushBatchedRequests();
+				}
 			}
-			else if (WebSocketConnected)
+			else
 			{
-				EnqueueMessageToSendWebSocket(message);
+				DoSendRequest(message);
 			}
-			
-			AddResponseMonitoringItem(mRequestId, message.SafeGetString("t"));
-			
-			return mRequestId;
+
+			return request_id;
 		}
 
-		public int SendRequest(string message_type, SnipeObject data)
-		{
-			if (!Connected)
-				return 0;
-			
-			var message = new SnipeObject() { ["t"] = message_type };
-			
-			if (data != null)
-			{
-				message.Add("data", data);
-			}
-			
-			return SendRequest(message);
-		}
-		
 		private void DoSendRequest(SnipeObject message)
 		{
 			if (!Connected || message == null)
 				return;
 			
+			DebugLogger.Log($"[SnipeClient] SendRequest - {message.ToJSONString()}");
+			
 			if (UdpClientConnected)
 			{
-				Task.Run(() =>
-				{
-					lock(mSendLock)
-					{
-						DoSendRequestUdpClient(message);
-					}
-				});
+				_kcp.SendMessage(message);
 			}
 			else if (WebSocketConnected)
 			{
-				Task.Run(() =>
-				{
-					lock(mSendLock)
-					{
-						DoSendRequestWebSocket(message);
-					}
-				});
+				_webSocket.SendMessage(message);
 			}
-		}
-		
-		protected void ProcessMessage(byte[] raw_data_buffer)
-		{
-			PreProcessMessage();
-			
-			var message = MessagePackDeserializer.Parse(raw_data_buffer) as SnipeObject;
-			ProcessMessage(message);
-		}
-		
-		protected void ProcessMessage(ArraySegment<byte> raw_data_buffer)
-		{
-			PreProcessMessage();
-			
-			var message = MessagePackDeserializer.Parse(raw_data_buffer) as SnipeObject;
-			ProcessMessage(message);
-		}
-		
-		private void PreProcessMessage()
-		{
-			if (mServerReactionStopwatch != null)
+
+			if (_serverReactionStopwatch != null)
 			{
-				mServerReactionStopwatch.Stop();
-				ServerReaction = mServerReactionStopwatch.Elapsed;
+				_serverReactionStopwatch.Reset();
+				_serverReactionStopwatch.Start();
 			}
-			
-			StopCheckConnection();
+			else
+			{
+				_serverReactionStopwatch = Stopwatch.StartNew();
+			}
+
+			AddResponseMonitoringItem(mRequestId, message.SafeGetString("t"));
 		}
-		
+
+		private void DoSendBatch(List<SnipeObject> messages)
+		{
+			if (!Connected || messages == null || messages.Count == 0)
+				return;
+
+			DebugLogger.Log($"[SnipeClient] DoSendBatch - {messages.Count} items");
+
+			if (UdpClientConnected)
+			{
+				_kcp.SendBatch(messages);
+			}
+			else if (WebSocketConnected)
+			{
+				_webSocket.SendBatch(messages);
+			}
+		}
+
 		private void ProcessMessage(SnipeObject message)
 		{
 			if (message == null)
 				return;
+
+			if (_serverReactionStopwatch != null)
+			{
+				_serverReactionStopwatch.Stop();
+				ServerReaction = _serverReactionStopwatch.Elapsed;
+			}
 
 			string message_type = message.SafeGetString("t");
 			string error_code =  message.SafeGetString("errorCode");
@@ -247,10 +323,10 @@ namespace MiniIT.Snipe
 			SnipeObject response_data = message.SafeGetValue<SnipeObject>("data");
 				
 			RemoveResponseMonitoringItem(request_id, message_type);
-				
+			
 			DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - {request_id} - {message_type} {error_code} {response_data?.ToJSONString()}");
 
-			if (!mLoggedIn)
+			if (!_loggedIn)
 			{
 				if (message_type == SnipeMessageTypes.USER_LOGIN)
 				{	
@@ -258,7 +334,9 @@ namespace MiniIT.Snipe
 					{
 						DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - Login Succeeded");
 							
-						mLoggedIn = true;
+						_loggedIn = true;
+
+						_webSocket?.SetLoggedIn(true);
 
 						if (response_data != null)
 						{
@@ -269,78 +347,74 @@ namespace MiniIT.Snipe
 							this.ConnectionId = "";
 						}
 
-						try
+						RunInMainThread(() =>
 						{
-							LoginSucceeded?.Invoke();
-						}
-						catch (Exception e)
-						{
-							DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginSucceeded invokation error: {e}");
-							Analytics.TrackError("LoginSucceeded invokation error", e);
-						}
-
-						if (mHeartbeatEnabled)
-						{
-							StartHeartbeat();
-						}
+							try
+							{
+								LoginSucceeded?.Invoke();
+							}
+							catch (Exception e)
+							{
+								DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginSucceeded invokation error: {e}");
+								Analytics.TrackError("LoginSucceeded invokation error", e);
+							}
+						});
 					}
 					else
 					{
 						DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - Login Failed");
-							
-						try
+
+						RunInMainThread(() =>
 						{
-							LoginFailed?.Invoke(error_code);
-						}
-						catch (Exception e)
-						{
-							DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginFailed invokation error: {e}");
-							Analytics.TrackError("LoginFailed invokation error", e);
-						}
+							try
+							{
+								LoginFailed?.Invoke(error_code);
+							}
+							catch (Exception e)
+							{
+								DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginFailed invokation error: {e}");
+								Analytics.TrackError("LoginFailed invokation error", e);
+							}
+						});
 					}
 				}
 			}
 
 			if (MessageReceived != null)
 			{
-				try
+				RunInMainThread(() =>
 				{
-					MessageReceived.Invoke(message_type, error_code, response_data, request_id);
-				}
-				catch (Exception e)
-				{
-					DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - MessageReceived invokation error: {e}");
-					Analytics.TrackError("MessageReceived invokation error", e);
-				}
+					try
+					{
+						MessageReceived.Invoke(message_type, error_code, response_data, request_id);
+					}
+					catch (Exception e)
+					{
+						DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - MessageReceived invokation error: {e}");
+						Analytics.TrackError("MessageReceived invokation error", e);
+					}
+				});
 			}
 			else
 			{
 				DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - no MessageReceived listeners");
 			}
-
-			if (mHeartbeatEnabled)
-			{
-				ResetHeartbeatTimer();
-			}
 		}
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private bool TryReturnMessageBuffer(byte[] buffer)
+		private void FlushBatchedRequests()
 		{
-			// if buffer.Length > mBytesPool's max bucket size (1024*1024 = 1048576)
-			// then the buffer can not be returned to the pool. It will be dropped.
-			// And ArgumentException will be thown.
-			try
-			{
-				mBytesPool.Return(buffer);
-			}
-			catch (ArgumentException)
-			{
-				// ignore
-				return false;
-			}
+			if (_batchedRequests == null || _batchedRequests.IsEmpty)
+				return;
 
-			return true;
+			lock (_batchLock)
+			{
+				List<SnipeObject> messages = new List<SnipeObject>(MAX_BATCH_SIZE);
+				while (_batchedRequests.TryDequeue(out SnipeObject message))
+				{
+					messages.Add(message);
+				}
+				DoSendBatch(messages);
+			}
 		}
 	}
 }

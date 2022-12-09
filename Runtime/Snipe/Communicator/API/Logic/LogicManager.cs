@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 
 namespace MiniIT.Snipe
 {
 	public class LogicManager
 	{
-		public static float UpdateMinTimeout = 30.0f; // seconds
+		public static TimeSpan UpdateMinTimeout = TimeSpan.FromSeconds(30);
 
 		public delegate void LogicUpdatedHandler(Dictionary<int, LogicNode> nodes);
 		public delegate void ExitNodeHandler(LogicNode node, List<object> results);
@@ -16,32 +17,32 @@ namespace MiniIT.Snipe
 		public event ExitNodeHandler ExitNode;
 
 		public Dictionary<int, LogicNode> Nodes { get; private set; } = new Dictionary<int, LogicNode>();
-		private Dictionary<string, LogicNode> mTaggedNodes;
-		private SnipeTable<SnipeTableLogicItem> mLogicTable = null;
+		private Dictionary<string, LogicNode> _taggedNodes;
+		private SnipeTable<SnipeTableLogicItem> _logicTable = null;
 
-		private SnipeCommunicator mSnipeCommunicator;
-		private float mUpdateRequestedTime = 0.0f;
-		private SnipeObject mLogicGetRequestParameters;
+		private SnipeCommunicator _snipeCommunicator;
+		private TimeSpan _updateRequestedTime = TimeSpan.Zero;
+		private SnipeObject _logicGetRequestParameters;
 		
-
-		private Timer mSecondsTimer;
+		private Stopwatch _refTime = Stopwatch.StartNew();
+		private Timer _secondsTimer;
 
 		public void Init(SnipeTable<SnipeTableLogicItem> logic_table)
 		{
-			mLogicTable = logic_table;
+			_logicTable = logic_table;
 
-			if (mSnipeCommunicator != null)
+			if (_snipeCommunicator != null)
 			{
-				mSnipeCommunicator.MessageReceived -= OnSnipeMessageReceived;
-				mSnipeCommunicator.PreDestroy -= OnSnipeCommunicatorPreDestroy;
-				mSnipeCommunicator = null;
+				_snipeCommunicator.MessageReceived -= OnSnipeMessageReceived;
+				_snipeCommunicator.PreDestroy -= OnSnipeCommunicatorPreDestroy;
+				_snipeCommunicator = null;
 			}
 
-			mSnipeCommunicator = SnipeCommunicator.Instance;
-			mSnipeCommunicator.MessageReceived -= OnSnipeMessageReceived;
-			mSnipeCommunicator.PreDestroy -= OnSnipeCommunicatorPreDestroy;
-			mSnipeCommunicator.MessageReceived += OnSnipeMessageReceived;
-			mSnipeCommunicator.PreDestroy += OnSnipeCommunicatorPreDestroy;
+			_snipeCommunicator = SnipeCommunicator.Instance;
+			_snipeCommunicator.MessageReceived -= OnSnipeMessageReceived;
+			_snipeCommunicator.PreDestroy -= OnSnipeCommunicatorPreDestroy;
+			_snipeCommunicator.MessageReceived += OnSnipeMessageReceived;
+			_snipeCommunicator.PreDestroy += OnSnipeCommunicatorPreDestroy;
 		}
 
 		~LogicManager()
@@ -58,16 +59,16 @@ namespace MiniIT.Snipe
 		{
 			StopSecondsTimer();
 
-			if (mSnipeCommunicator != null)
+			if (_snipeCommunicator != null)
 			{
-				mSnipeCommunicator.MessageReceived -= OnSnipeMessageReceived;
-				mSnipeCommunicator.PreDestroy -= OnSnipeCommunicatorPreDestroy;
-				mSnipeCommunicator = null;
+				_snipeCommunicator.MessageReceived -= OnSnipeMessageReceived;
+				_snipeCommunicator.PreDestroy -= OnSnipeCommunicatorPreDestroy;
+				_snipeCommunicator = null;
 			}
 
-			mLogicTable = null;
+			_logicTable = null;
 			Nodes.Clear();
-			mTaggedNodes = null;
+			_taggedNodes = null;
 		}
 
 		public LogicNode GetNodeById(int id)
@@ -121,7 +122,7 @@ namespace MiniIT.Snipe
 
 		public LogicNode GetNodeByTag(string tag)
 		{
-			if (mTaggedNodes != null && mTaggedNodes.TryGetValue(tag, out var node))
+			if (_taggedNodes != null && _taggedNodes.TryGetValue(tag, out var node))
 			{
 				return node;
 			}
@@ -131,19 +132,19 @@ namespace MiniIT.Snipe
 
 		public void RequestLogicGet(bool force = false)
 		{
-			if (mLogicTable == null)
-				return;
+			if (_logicTable != null)
+			{
+				var current_time = _refTime.Elapsed;
+				if (!force && current_time - _updateRequestedTime < UpdateMinTimeout)
+					return;
 
-			float current_time = UnityEngine.Time.realtimeSinceStartup;
-			if (!force && mUpdateRequestedTime > 0.0f && current_time - mUpdateRequestedTime < UpdateMinTimeout)
-				return;
-
-			mUpdateRequestedTime = current_time;
+				_updateRequestedTime = current_time;
+			}
 			
-			if (mLogicGetRequestParameters == null)
-				mLogicGetRequestParameters = new SnipeObject() { ["noDump"] = false };
+			if (_logicGetRequestParameters == null)
+				_logicGetRequestParameters = new SnipeObject() { ["noDump"] = false };
 
-			var request = SnipeApiBase.CreateRequest("logic.get", mLogicGetRequestParameters);
+			var request = SnipeApiBase.CreateRequest("logic.get", _logicGetRequestParameters);
 			request?.Request();
 		}
 
@@ -168,7 +169,7 @@ namespace MiniIT.Snipe
 				request.Request();
 			}
 
-			mUpdateRequestedTime = 0.0f; // reset timer
+			_updateRequestedTime = TimeSpan.Zero; // reset timer
 		}
 
 		private void OnSnipeMessageReceived(string message_type, string error_code, SnipeObject data, int request_id)
@@ -191,9 +192,9 @@ namespace MiniIT.Snipe
 
 		private void OnLogicGet(string error_code, SnipeObject response_data)
 		{
-			mUpdateRequestedTime = 0.0f; // reset timer
+			_updateRequestedTime = TimeSpan.Zero; // reset timer  // ????????
 			
-			if (mLogicTable == null || response_data == null)
+			if (_logicTable == null || response_data == null)
 				return;
 
 			if (error_code == "ok")
@@ -204,7 +205,7 @@ namespace MiniIT.Snipe
 					foreach (var o in src_logic)
 					{
 						if (o is SnipeObject so && so?["node"] is SnipeObject node)
-							logic_nodes.Add(new LogicNode(node, mLogicTable));
+							logic_nodes.Add(new LogicNode(node, _logicTable));
 					}
 				}
 				
@@ -212,7 +213,7 @@ namespace MiniIT.Snipe
 
 				if (Nodes.Count == 0)
 				{
-					mTaggedNodes = new Dictionary<string, LogicNode>();
+					_taggedNodes = new Dictionary<string, LogicNode>();
 					foreach (var node in logic_nodes)
 					{
 						if (node == null)
@@ -224,7 +225,7 @@ namespace MiniIT.Snipe
 				}
 				else
 				{
-					mTaggedNodes.Clear();
+					_taggedNodes.Clear();
 
 					foreach (var node in logic_nodes)
 					{
@@ -300,7 +301,7 @@ namespace MiniIT.Snipe
 				{
 					if (!string.IsNullOrEmpty(tag))
 					{
-						mTaggedNodes[tag] = node;
+						_taggedNodes[tag] = node;
 					}
 				}
 			}
@@ -318,17 +319,17 @@ namespace MiniIT.Snipe
 
 		private void StartSecondsTimer()
 		{
-			if (mSecondsTimer == null)
-				mSecondsTimer = new Timer(OnSecondsTimerTick, null, 0, 1000);
+			if (_secondsTimer == null)
+				_secondsTimer = new Timer(OnSecondsTimerTick, null, 0, 1000);
 		}
 
 		private void StopSecondsTimer()
 		{
-			if (mSecondsTimer == null)
+			if (_secondsTimer == null)
 				return;
 
-			mSecondsTimer.Dispose();
-			mSecondsTimer = null;
+			_secondsTimer.Dispose();
+			_secondsTimer = null;
 		}
 
 		private void OnSecondsTimerTick(object state = null)

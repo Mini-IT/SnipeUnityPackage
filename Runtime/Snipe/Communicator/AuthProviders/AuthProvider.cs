@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using UnityEngine;
 
 namespace MiniIT.Snipe
 {
@@ -14,6 +13,8 @@ namespace MiniIT.Snipe
 		
 		private string mLogin;
 		private string mPassword;
+
+		private int mRetry = 0;
 		
 		private Stopwatch mLoginStopwatch;
 
@@ -113,16 +114,37 @@ namespace MiniIT.Snipe
 			
 			mLoginStopwatch = Stopwatch.StartNew();
 			
-			SnipeCommunicator.Instance.Client.SendRequest(SnipeMessageTypes.AUTH_USER_LOGIN, data);
+			SnipeCommunicator.Instance.Client.SendRequest(SnipeMessageTypes.USER_LOGIN, data);
 		}
 		
 		private void OnMessageReceived(string message_type, string error_code, SnipeObject response_data, int request_id)
 		{
-			if (message_type == SnipeMessageTypes.AUTH_USER_LOGIN)
+			if (message_type == SnipeMessageTypes.USER_LOGIN)
 			{
 				SnipeCommunicator.Instance.MessageReceived -= OnMessageReceived;
-				OnAuthLoginResponse(error_code, response_data);
+				ProcessAuthLoginResponse(error_code, response_data);
 			}
+		}
+
+		private async void ProcessAuthLoginResponse(string error_code, SnipeObject data)
+		{
+			if ((error_code == SnipeErrorCodes.USER_ONLINE || error_code == SnipeErrorCodes.LOGOUT_IN_PROGRESS) && mRetry < 5)
+			{
+				mRetry++;
+				await Task.Delay(1000 * mRetry);
+
+				if (SnipeCommunicator.InstanceInitialized &&
+					SnipeCommunicator.Instance.Connected &&
+					!SnipeCommunicator.Instance.LoggedIn)
+				{
+					DoRequestLogin(mLogin, mPassword);
+				}
+
+				return;
+			}
+
+			mRetry = 0;
+			OnAuthLoginResponse(error_code, data);
 		}
 
 		protected virtual void OnAuthLoginResponse(string error_code, SnipeObject data)
@@ -131,15 +153,15 @@ namespace MiniIT.Snipe
 			
 			DebugLogger.Log($"[AuthProvider] OnAuthLoginResponse {error_code} {data?.ToJSONString()}");
 			
-			Analytics.TrackEvent(SnipeMessageTypes.AUTH_USER_LOGIN, new SnipeObject()
+			Analytics.TrackEvent(SnipeMessageTypes.USER_LOGIN, new SnipeObject()
 				{
 					["request_time"] = mLoginStopwatch?.ElapsedMilliseconds,
 				});
 
 			if (error_code == SnipeErrorCodes.OK && !string.IsNullOrEmpty(mLogin) && !string.IsNullOrEmpty(mPassword))
 			{
-				PlayerPrefs.SetString(SnipePrefs.AUTH_UID, mLogin);
-				PlayerPrefs.SetString(SnipePrefs.AUTH_KEY, mPassword);
+				SharedPrefs.SetString(SnipePrefs.AUTH_UID, mLogin);
+				SharedPrefs.SetString(SnipePrefs.AUTH_KEY, mPassword);
 			}
 			
 			mLogin = "";

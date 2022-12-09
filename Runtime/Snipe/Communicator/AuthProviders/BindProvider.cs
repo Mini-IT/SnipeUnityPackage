@@ -1,6 +1,4 @@
-﻿using System;
-using UnityEngine;
-
+﻿
 namespace MiniIT.Snipe
 {
 	public class BindProvider : AuthProvider
@@ -22,7 +20,7 @@ namespace MiniIT.Snipe
 		{
 			get
 			{
-				return PlayerPrefs.GetInt(BindDonePrefsKey, 0) == 1;
+				return SharedPrefs.GetInt(BindDonePrefsKey, 0) == 1;
 			}
 			internal set
 			{
@@ -100,7 +98,7 @@ namespace MiniIT.Snipe
 				data["userID"] = login_id;
 			}
 
-			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_USER_EXISTS)?.RequestAuth(data, OnCheckAuthExistsResponse);
+			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_EXISTS)?.RequestAuth(data, OnCheckAuthExistsResponse);
 		}
 
 		protected virtual void OnBindResponse(string error_code, SnipeObject data)
@@ -157,12 +155,12 @@ namespace MiniIT.Snipe
 		
 		protected void SetBindDoneFlag(bool value, bool invoke_callback)
 		{
-			bool current_value = PlayerPrefs.GetInt(BindDonePrefsKey, 0) == 1;
+			bool current_value = SharedPrefs.GetInt(BindDonePrefsKey, 0) == 1;
 			if (value != current_value)
 			{
 				DebugLogger.Log($"[BindProvider] ({ProviderId}) Set bind done flag to {value}");
 
-				PlayerPrefs.SetInt(BindDonePrefsKey, value ? 1 : 0);
+				SharedPrefs.SetInt(BindDonePrefsKey, value ? 1 : 0);
 
 				if (value && invoke_callback)
 					OnBindDone();
