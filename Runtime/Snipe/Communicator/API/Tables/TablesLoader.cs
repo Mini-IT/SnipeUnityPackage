@@ -141,7 +141,18 @@ namespace MiniIT.Snipe
 								var json = await load_task.Result.Content.ReadAsStringAsync();
 								_versions = ParseVersionsJson(json);
 
-								DebugLogger.Log($"[TablesLoader] LoadVersion done - {_versions.Count} items");
+								if (_versions == null)
+								{
+									Analytics.TrackEvent($"Tables - LoadVersion Failed to prase versions json", new SnipeObject()
+									{
+										["url"] = url,
+										["json"] = json,
+									});
+								}
+								else
+								{
+									DebugLogger.Log($"[TablesLoader] LoadVersion done - {_versions.Count} items");
+								}
 								break;
 							}
 							else if (load_task.Result.StatusCode == System.Net.HttpStatusCode.NotFound)
@@ -149,6 +160,13 @@ namespace MiniIT.Snipe
 								// HTTP Status: 404
 								// It is useless to retry loading
 								DebugLogger.Log($"[TablesLoader] LoadVersion StatusCode = {load_task.Result.StatusCode} - will not rety");
+
+								Analytics.TrackEvent($"Tables - LoadVersion Failed to load url", new SnipeObject()
+								{
+									["HttpStatus"] = load_task.Result.StatusCode,
+									["HttpStatusCode"] = (int)load_task.Result.StatusCode,
+									["url"] = url,
+								});
 								break;
 							}
 						}
@@ -179,6 +197,7 @@ namespace MiniIT.Snipe
 			if (_versions == null)
 			{
 				DebugLogger.Log($"[TablesLoader] LoadVersion Failed");
+				Analytics.TrackError("Tables - LoadVersion Failed");
 				return false;
 			}
 
@@ -211,11 +230,11 @@ namespace MiniIT.Snipe
 			where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
 			where ItemType : SnipeTableItem, new()
 		{
-			//DebugLogger.Log($"[TablesLoader] Load {name} Task thread: {Thread.CurrentThread.ManagedThreadId}");
-
 			_semaphore ??= new SemaphoreSlim(MAX_LOADERS_COUNT);
 
 			bool loaded = false;
+			bool cancelled = false;
+			Exception exception = null;
 
 			try
 			{
@@ -229,14 +248,15 @@ namespace MiniIT.Snipe
 			}
 			catch (TaskCanceledException)
 			{
-				// ignore
+				cancelled = true;
 			}
 			catch (OperationCanceledException)
 			{
-				// ignore
+				cancelled = true;
 			}
 			catch (Exception e)
 			{
+				exception = e;
 				DebugLogger.Log($"[TablesLoader] Load {name} - Exception: {e}");
 			}
 			finally
@@ -248,6 +268,12 @@ namespace MiniIT.Snipe
 			{
 				_failed = true;
 				DebugLogger.LogWarning($"[TablesLoader] Loading failed: {name}. StopLoading.");
+
+				if (!cancelled)
+				{
+					Analytics.TrackError($"Tables - Failed to load table '{name}'", exception);
+				}
+
 				StopLoading();
 			}
 		}
