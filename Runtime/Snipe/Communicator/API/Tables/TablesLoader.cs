@@ -155,19 +155,22 @@ namespace MiniIT.Snipe
 								}
 								break;
 							}
-							else if (load_task.Result.StatusCode == System.Net.HttpStatusCode.NotFound)
+							else
 							{
-								// HTTP Status: 404
-								// It is useless to retry loading
-								DebugLogger.Log($"[TablesLoader] LoadVersion StatusCode = {load_task.Result.StatusCode} - will not rety");
-
 								Analytics.TrackEvent($"Tables - LoadVersion Failed to load url", new SnipeObject()
 								{
 									["HttpStatus"] = load_task.Result.StatusCode,
 									["HttpStatusCode"] = (int)load_task.Result.StatusCode,
 									["url"] = url,
 								});
-								break;
+
+								if (load_task.Result.StatusCode == System.Net.HttpStatusCode.NotFound)
+								{
+									// HTTP Status: 404
+									// It is useless to retry loading
+									DebugLogger.Log($"[TablesLoader] LoadVersion StatusCode = {load_task.Result.StatusCode} - will not rety");
+									break;
+								}
 							}
 						}
 					}
