@@ -62,7 +62,7 @@ namespace MiniIT.Snipe
 			});
 		}
 
-		public async Task Load()
+		public async Task<bool> Load()
 		{
 			bool fallbackEnabled = (TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceExternal);
 			bool loadExternal = (TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceBuiltIn);
@@ -77,14 +77,14 @@ namespace MiniIT.Snipe
 			if (loaded)
 			{
 				RemoveMisversionedCache();
-				return;
 			}
-
-			if (loadExternal && fallbackEnabled)
+			else if (loadExternal && fallbackEnabled)
 			{
 				_versions = null;
-				await LoadAll(false);
+				loaded = await LoadAll(false);
 			}
+
+			return loaded;
 		}
 
 		private async Task<bool> LoadAll(bool loadVersion)
@@ -113,6 +113,8 @@ namespace MiniIT.Snipe
 			}
 
 			await Task.WhenAll(tasks);
+
+			_cancellation = null;
 
 			return !_failed;
 		}
