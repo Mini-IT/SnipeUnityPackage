@@ -190,7 +190,6 @@ namespace MiniIT.Snipe
 
 		private void Disconnect(bool raise_event)
 		{
-			//mConnected = false;
 			_loggedIn = false;
 			ConnectionId = "";
 			
