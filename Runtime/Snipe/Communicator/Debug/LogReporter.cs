@@ -111,9 +111,17 @@ namespace MiniIT
 
 		private string GetPortionContent(int startIndex)
 		{
+			int connectionId = 0;
+			int userId = 0;
+			if (SnipeCommunicator.InstanceInitialized)
+			{
+				int.TryParse(SnipeCommunicator.Instance.ConnectionId, out connectionId);
+				userId = SnipeCommunicator.Instance.Auth?.UserID ?? 0;
+			}
+
 			var content = new StringBuilder("{");
-			content.Append($"\"connectionID\":{(SnipeCommunicator.InstanceInitialized ? SnipeCommunicator.Instance.ConnectionId : "0")},");
-			content.Append($"\"userID\":{(SnipeCommunicator.InstanceInitialized ? SnipeCommunicator.Instance.Auth?.UserID : 0)},");
+			content.Append($"\"connectionID\":{connectionId},");
+			content.Append($"\"userID\":{userId},");
 			content.Append($"\"version\":\"{Application.version}\",");
 			content.Append($"\"platform\":\"{Application.platform}\",");
 			content.Append("\"list\":[");
