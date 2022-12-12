@@ -229,8 +229,10 @@ namespace MiniIT.Snipe
 				_delayedInitCancellation = null;
 			}
 
-			if (Client != null)
+			if (Client != null && Client.Connected)
+			{
 				Client.Disconnect();
+			}
 		}
 
 		private void OnClientConnectionOpened()
