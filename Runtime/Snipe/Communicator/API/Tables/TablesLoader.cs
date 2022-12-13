@@ -99,7 +99,8 @@ namespace MiniIT.Snipe
 
 			if (loadVersion)
 			{
-				await LoadVersion(cancellationToken);
+				if (!await LoadVersion(cancellationToken))
+					return false;
 
 				if (cancellationToken.IsCancellationRequested || _loadingTasks == null)
 					return false;
@@ -134,7 +135,7 @@ namespace MiniIT.Snipe
 						loader.Timeout = TimeSpan.FromSeconds(1);
 
 						var load_task = loader.GetAsync(url); // , cancellation_token);
-						if (await Task.WhenAny(load_task, Task.Delay(1000)) == load_task)
+						if (await Task.WhenAny(load_task, Task.Delay(1000, cancellation_token)) == load_task)
 						{
 							if (load_task.Result.IsSuccessStatusCode)
 							{
@@ -169,28 +170,39 @@ namespace MiniIT.Snipe
 									// HTTP Status: 404
 									// It is useless to retry loading
 									DebugLogger.Log($"[TablesLoader] LoadVersion StatusCode = {load_task.Result.StatusCode} - will not rety");
-									break;
+									return false;
 								}
 							}
 						}
 					}
-
-					await Task.Delay(500, cancellation_token);
+				}
+				catch (Exception e) when (e is AggregateException ae && ae.InnerException is HttpRequestException)
+				{
+					DebugLogger.Log($"[TablesLoader] LoadVersion HttpRequestException - network is unreachable - will not rety. {e}");
+					return false;
+				}
+				catch (Exception e) when (e is TaskCanceledException || e is OperationCanceledException ||
+						e is AggregateException ae && (ae.InnerException is TaskCanceledException || ae.InnerException is OperationCanceledException))
+				{
+					DebugLogger.Log($"[TablesLoader] LoadVersion - TaskCanceled");
+					return false;
 				}
 				catch (Exception e)
 				{
-					if (e is TaskCanceledException || e is AggregateException tcae && tcae.InnerException is TaskCanceledException ||
-						e is OperationCanceledException || e is AggregateException ocae && ocae.InnerException is OperationCanceledException)
-					{
-						DebugLogger.Log($"[TablesLoader] LoadVersion - TaskCanceled");
-					}
-					else
-					{
-						DebugLogger.Log($"[TablesLoader] LoadVersion - Exception: {e}");
-					}
+					DebugLogger.Log($"[TablesLoader] LoadVersion - Exception: {e}");
 				}
 
 				if (cancellation_token.IsCancellationRequested)
+				{
+					DebugLogger.Log($"[TablesLoader] LoadVersion task canceled");
+					return false;
+				}
+
+				try
+				{
+					await Task.Delay(500, cancellation_token);
+				}
+				catch (Exception e) when (e is TaskCanceledException || e is OperationCanceledException)
 				{
 					DebugLogger.Log($"[TablesLoader] LoadVersion task canceled");
 					return false;
