@@ -53,6 +53,10 @@ namespace MiniIT.Snipe
 
 		private static string GetBuiltFileInPath(string table_name, long version)
 		{
+			// NOTE: There is a bug - only lowercase works
+			// (https://issuetracker.unity3d.com/issues/android-loading-assets-from-assetbundles-takes-significantly-more-time-when-the-project-is-built-as-an-aab)
+			table_name = table_name.ToLower();
+
 			if (version <= 0)
 			{
 				var files = BetterStreamingAssets.GetFiles("/", $"*{table_name}.jsongz");
@@ -62,9 +66,7 @@ namespace MiniIT.Snipe
 				}
 			}
 
-			// NOTE: There is a bug - only lowercase works
-			// (https://issuetracker.unity3d.com/issues/android-loading-assets-from-assetbundles-takes-significantly-more-time-when-the-project-is-built-as-an-aab)
-			return $"{version}_{table_name}.jsongz".ToLower();
+			return $"{version}_{table_name}.jsongz";
 		}
 
 		private static string GetCacheFilePath(string table_name, long version)
