@@ -51,6 +51,8 @@ namespace MiniIT.Snipe
 		public AuthSubsystem(SnipeCommunicator communicator)
 		{
 			_communicator = communicator;
+			_communicator.ConnectionSucceeded -= OnConnectionSucceeded;
+			_communicator.ConnectionSucceeded += OnConnectionSucceeded;
 
 			_bindings = new List<AuthBinding>()
 			{
@@ -68,6 +70,11 @@ namespace MiniIT.Snipe
 			{
 				RegisterAndLogin();
 			}
+		}
+		
+		private void OnConnectionSucceeded()
+		{
+			JustRegistered = false;
 		}
 		
 		private bool LoginWithInternalAuthData()
