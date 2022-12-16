@@ -121,6 +121,7 @@ namespace MiniIT.Snipe
 					properties = new Dictionary<string, object>(2);
 
 				properties["event_type"] = name;
+				properties["packageVersion"] = PackageInfo.VERSION;
 
 				if (PingTime > 0)
 					properties["ping_time"] = PingTime;
