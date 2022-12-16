@@ -168,6 +168,7 @@ namespace MiniIT.Snipe
 				["identifier"] = Application.identifier,
 				["version"] = Application.version,
 				["platform"] = Application.platform.ToString(),
+				["packageVersion"] = PackageInfo.VERSION,
 			}.ToJSONString();
 		}
 
