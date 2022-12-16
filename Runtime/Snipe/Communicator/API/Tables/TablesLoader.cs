@@ -211,7 +211,7 @@ namespace MiniIT.Snipe
 			if (_versions == null)
 			{
 				DebugLogger.Log($"[TablesLoader] LoadVersion Failed");
-				Analytics.TrackError("Tables - LoadVersion Failed");
+				Analytics.TrackEvent("Tables - LoadVersion Failed");
 				return false;
 			}
 
