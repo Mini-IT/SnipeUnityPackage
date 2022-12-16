@@ -99,8 +99,7 @@ namespace MiniIT.Snipe
 
 			if (loadVersion)
 			{
-				if (!await LoadVersion(cancellationToken))
-					return false;
+				await LoadVersion(cancellationToken);
 
 				if (cancellationToken.IsCancellationRequested || _loadingTasks == null)
 					return false;
