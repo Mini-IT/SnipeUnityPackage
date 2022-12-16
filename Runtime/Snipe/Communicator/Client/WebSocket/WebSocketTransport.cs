@@ -192,20 +192,17 @@ namespace MiniIT.Snipe
 
 				if (SnipeConfig.CompressionEnabled && msg_data.Count >= SnipeConfig.MinMessageBytesToCompress) // compression needed
 				{
-					await Task.Run(() =>
-					{
-						DebugLogger.Log("[SnipeClient] compress message");
-						//DebugLogger.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
+					DebugLogger.Log("[SnipeClient] compress message");
+					//DebugLogger.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
 
-						ArraySegment<byte> compressed = _messageCompressor.Compress(msg_data);
+					ArraySegment<byte> compressed = await Task.Run(() => _messageCompressor.Compress(msg_data));
+					
+					//DebugLogger.Log("Compressed:   " + BitConverter.ToString(compressed.Array, compressed.Offset, compressed.Count));
 
-						//DebugLogger.Log("Compressed:   " + BitConverter.ToString(compressed.Array, compressed.Offset, compressed.Count));
-
-						result = new byte[compressed.Count + 2];
-						result[0] = COMPRESSED_HEADER[0];
-						result[1] = COMPRESSED_HEADER[1];
-						Array.ConstrainedCopy(compressed.Array, compressed.Offset, result, 2, compressed.Count);
-					});
+					result = new byte[compressed.Count + 2];
+					result[0] = COMPRESSED_HEADER[0];
+					result[1] = COMPRESSED_HEADER[1];
+					Array.ConstrainedCopy(compressed.Array, compressed.Offset, result, 2, compressed.Count);
 				}
 				else // compression not needed
 				{
