@@ -178,6 +178,7 @@ namespace MiniIT.Snipe
 				new SnipeObject()
 				{
 					["version"] = SnipeClient.SNIPE_VERSION,
+					["appInfo"] = SnipeConfig.AppInfo,
 					["ckey"] = SnipeConfig.ClientKey,
 					["auths"] = providers,
 				},
