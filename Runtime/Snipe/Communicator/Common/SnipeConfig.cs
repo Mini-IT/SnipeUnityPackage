@@ -62,7 +62,8 @@ namespace MiniIT.Snipe
 			else
 				ServerWebSocketUrls.Clear();
 
-			if (data["server_urls"] is IList server_ulrs_list)
+			if (data.TryGetValue("server_urls", out var server_urls_field) &&
+				server_urls_field is IList server_ulrs_list)
 			{
 				foreach (string url in server_ulrs_list)
 				{
@@ -88,7 +89,8 @@ namespace MiniIT.Snipe
 			else
 				ServerUdpUrls.Clear();
 
-			if (data["server_udp_urls"] is IList server_udp_list)
+			if (data.TryGetValue("server_udp_urls", out var server_udp_urls_field) &&
+				server_udp_urls_field is IList server_udp_list)
 			{
 				foreach (string item in server_udp_list)
 				{
@@ -141,13 +143,15 @@ namespace MiniIT.Snipe
 
 			TablesConfig.Init(data);
 
-			if (data["log_reporter"] is IDictionary<string, object> log_reporter)
+			if (data.TryGetValue("log_reporter", out var log_reporter_field) &&
+				log_reporter_field is IDictionary<string, object> log_reporter)
 			{
 				LogReporterKey = SnipeObject.SafeGetString(log_reporter, "key");
 				LogReporterUrl = SnipeObject.SafeGetString(log_reporter, "url");
 			}
 
-			if (data["compression"] is IDictionary<string, object> compression)
+			if (data.TryGetValue("log_reporter", out var compression_field) &&
+				compression_field is IDictionary<string, object> compression)
 			{
 				CompressionEnabled = SnipeObject.SafeGetValue<bool>(compression, "enabled");
 				MinMessageBytesToCompress = SnipeObject.SafeGetValue<int>(compression, "min_size");

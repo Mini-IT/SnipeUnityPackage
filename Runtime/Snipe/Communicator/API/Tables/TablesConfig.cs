@@ -25,7 +25,8 @@ namespace MiniIT.Snipe
 			else
 				TablesUrls.Clear();
 
-			if (data["tables_path"] is IList tables_ulrs_list)
+			if (data.TryGetValue("tables_path", out var tables_path_field) &&
+				tables_path_field is IList tables_ulrs_list)
 			{
 				foreach (string path in tables_ulrs_list)
 				{
