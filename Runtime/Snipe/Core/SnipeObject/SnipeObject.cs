@@ -51,9 +51,9 @@ namespace MiniIT
 			GC.SuppressFinalize(this);
 		}
 		
-		public bool TryGetValue<T>(string key, out T value)
+		public static bool TryGetValue<T>(IDictionary<string, object> dictionary, string key, out T value)
         {
-            if (this.TryGetValue(key, out var result))
+            if (dictionary.TryGetValue(key, out var result))
             {
 				try
 				{
@@ -80,19 +80,34 @@ namespace MiniIT
             return false;
         }
 
-		public T SafeGetValue<T>(string key, T default_value = default)
+		public static T SafeGetValue<T>(IDictionary<string, object> dictionary, string key, T default_value = default)
 		{
-			if (TryGetValue<T>((string)key, out var result))
+			if (TryGetValue<T>(dictionary, key, out var result))
 				return result;
 			return default_value;
 		}
 
-		public string SafeGetString(string key, string default_value = "")
+		public static string SafeGetString(IDictionary<string, object> dictionary, string key, string default_value = "")
 		{
 			object value;
-			if (this.TryGetValue(key, out value))
+			if (TryGetValue(dictionary, key, out value))
 				return Convert.ToString(value, CultureInfo.InvariantCulture);
 			return default_value;
+		}
+
+		public bool TryGetValue<T>(string key, out T value)
+		{
+			return TryGetValue<T>(this, key, out value);
+		}
+
+		public T SafeGetValue<T>(string key, T default_value = default)
+		{
+			return SafeGetValue<T>(this, key, default_value);
+		}
+
+		public string SafeGetString(string key, string default_value = "")
+		{
+			return SafeGetString(this, key, default_value);
 		}
 
 		public new object this[string key]

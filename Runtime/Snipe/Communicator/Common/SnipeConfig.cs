@@ -53,9 +53,9 @@ namespace MiniIT.Snipe
 		/// <summary>
 		/// Should be called from the main Unity thread
 		/// </summary>
-		public static void Init(SnipeObject data)
+		public static void Init(IDictionary<string, object> data)
 		{
-			ClientKey = data.SafeGetString("client_key");
+			ClientKey = SnipeObject.SafeGetString(data, "client_key");
 
 			if (ServerWebSocketUrls == null)
 				ServerWebSocketUrls = new List<string>();
@@ -76,7 +76,7 @@ namespace MiniIT.Snipe
 			if (ServerWebSocketUrls.Count < 1)
 			{
 				// "service_websocket" field for backward compatibility
-				var service_url = data.SafeGetString("service_websocket");
+				var service_url = SnipeObject.SafeGetString(data, "service_websocket");
 				if (!string.IsNullOrEmpty(service_url))
 				{
 					ServerWebSocketUrls.Add(service_url);
@@ -129,8 +129,8 @@ namespace MiniIT.Snipe
 
 				var address = new UdpAddress()
 				{
-					Host = data.SafeGetString("server_udp_address"),
-					Port = data.SafeGetValue<ushort>("server_udp_port"),
+					Host = SnipeObject.SafeGetString(data, "server_udp_address"),
+					Port = SnipeObject.SafeGetValue<ushort>(data, "server_udp_port"),
 				};
 
 				if (address.Port > 0 && !string.IsNullOrEmpty(address.Host))
@@ -141,16 +141,16 @@ namespace MiniIT.Snipe
 
 			TablesConfig.Init(data);
 
-			if (data["log_reporter"] is SnipeObject log_reporter)
+			if (data["log_reporter"] is IDictionary<string, object> log_reporter)
 			{
-				LogReporterKey = log_reporter.SafeGetString("key");
-				LogReporterUrl = log_reporter.SafeGetString("url");
+				LogReporterKey = SnipeObject.SafeGetString(log_reporter, "key");
+				LogReporterUrl = SnipeObject.SafeGetString(log_reporter, "url");
 			}
 
-			if (data["compression"] is SnipeObject compression)
+			if (data["compression"] is IDictionary<string, object> compression)
 			{
-				CompressionEnabled = compression.SafeGetValue<bool>("enabled");
-				MinMessageBytesToCompress = compression.SafeGetValue<int>("min_size");
+				CompressionEnabled = SnipeObject.SafeGetValue<bool>(compression, "enabled");
+				MinMessageBytesToCompress = SnipeObject.SafeGetValue<int>(compression, "min_size");
 			}
 
 			_serverWebSocketUrlIndex = 0;

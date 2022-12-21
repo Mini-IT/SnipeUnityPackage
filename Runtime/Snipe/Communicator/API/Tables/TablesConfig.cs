@@ -18,7 +18,7 @@ namespace MiniIT.Snipe
 		public static List<string> TablesUrls = new List<string>();
 		private static int _tablesUrlIndex = 0;
 
-		public static void Init(SnipeObject data)
+		public static void Init(IDictionary<string, object> data)
 		{
 			if (TablesUrls == null)
 				TablesUrls = new List<string>();
