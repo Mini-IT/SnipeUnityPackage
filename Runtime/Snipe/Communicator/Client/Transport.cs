@@ -11,11 +11,8 @@ namespace MiniIT.Snipe
 		
 		protected SnipeMessageCompressor _messageCompressor = new SnipeMessageCompressor();
 		protected byte[] _messageSerializationBuffer = new byte[10240];
-		protected SemaphoreSlim _messageSerializationSemaphore;
 
-		public Transport()
-		{
-			_messageSerializationSemaphore = new SemaphoreSlim(1);
-		}
+		protected readonly SemaphoreSlim _messageSerializationSemaphore = new SemaphoreSlim(1);
+		protected readonly SemaphoreSlim _messageProcessingSemaphore = new SemaphoreSlim(1);
 	}
 }

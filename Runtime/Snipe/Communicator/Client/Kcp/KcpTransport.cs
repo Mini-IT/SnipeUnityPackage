@@ -146,33 +146,37 @@ namespace MiniIT.Snipe
 			Array.ConstrainedCopy(buffer.Array, buffer.Offset, data, 0, buffer.Count);
 			buffer = new ArraySegment<byte>(data, 0, buffer.Count);
 
-			SnipeObject message = await Task.Run(() =>
-			{
-				byte opcode = buffer.Array[buffer.Offset];
-
-				int len = BitConverter.ToInt32(buffer.Array, buffer.Offset + 1);
-				var raw_data = new ArraySegment<byte>(buffer.Array, buffer.Offset + 5, len);
-
-				if (compressed)
-				{
-					var decompressed_data = _messageCompressor.Decompress(raw_data);
-
-					return MessagePackDeserializer.Parse(decompressed_data) as SnipeObject;
-				}
-
-				return MessagePackDeserializer.Parse(raw_data) as SnipeObject;
-			});
-
-			MessageReceivedHandler?.Invoke(message);
+			SnipeObject message;
 
 			try
 			{
+				await _messageProcessingSemaphore.WaitAsync();
+
+				message = await Task.Run(() =>
+				{
+					byte opcode = buffer.Array[buffer.Offset];
+
+					int len = BitConverter.ToInt32(buffer.Array, buffer.Offset + 1);
+					var raw_data = new ArraySegment<byte>(buffer.Array, buffer.Offset + 5, len);
+
+					if (compressed)
+					{
+						var decompressed_data = _messageCompressor.Decompress(raw_data);
+
+						return MessagePackDeserializer.Parse(decompressed_data) as SnipeObject;
+					}
+
+					return MessagePackDeserializer.Parse(raw_data) as SnipeObject;
+				});
+
 				ArrayPool<byte>.Shared.Return(data);
 			}
-			catch (Exception)
+			finally
 			{
-				//ignore
+				_messageProcessingSemaphore.Release();
 			}
+
+			MessageReceivedHandler?.Invoke(message);
 		}
 		
 		// private void DoSendRequest(byte[] msg)
