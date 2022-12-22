@@ -33,13 +33,13 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		private Stopwatch _pingStopwatch;
-		
-		private WebSocketWrapper _webSocket = null;
-		private readonly object _lock = new object();
-		
 		public bool Started => _webSocket != null;
 		public bool Connected => _webSocket != null && _webSocket.Connected;
+
+		private Stopwatch _pingStopwatch;
+
+		private WebSocketWrapper _webSocket = null;
+		private readonly object _lock = new object();
 		
 		private ConcurrentQueue<SnipeObject> _sendMessages;
 		private ConcurrentQueue<List<SnipeObject>> _batchMessages;
@@ -237,20 +237,29 @@ namespace MiniIT.Snipe
 
 			SnipeObject message;
 
-			if (raw_data[0] == 0xAA && raw_data[1] == 0xBB) // compressed message
+			try
 			{
-				message = await Task.Run(() =>
+				await _messageProcessingSemaphore.WaitAsync();
+
+				if (raw_data[0] == 0xAA && raw_data[1] == 0xBB) // compressed message
 				{
-					var decompressed = _messageCompressor.Decompress(new ArraySegment<byte>(raw_data, 2, raw_data.Length - 2));
-					return MessagePackDeserializer.Parse(decompressed) as SnipeObject;
-				});
+					message = await Task.Run(() =>
+					{
+						var decompressed = _messageCompressor.Decompress(new ArraySegment<byte>(raw_data, 2, raw_data.Length - 2));
+						return MessagePackDeserializer.Parse(decompressed) as SnipeObject;
+					});
+				}
+				else // uncompressed
+				{
+					message = await Task.Run(() =>
+					{
+						return MessagePackDeserializer.Parse(raw_data) as SnipeObject;
+					});
+				}
 			}
-			else // uncompressed
+			finally
 			{
-				message = await Task.Run(() =>
-				{
-					return MessagePackDeserializer.Parse(raw_data) as SnipeObject;
-				});
+				_messageProcessingSemaphore.Release();
 			}
 
 			MessageReceivedHandler?.Invoke(message);
