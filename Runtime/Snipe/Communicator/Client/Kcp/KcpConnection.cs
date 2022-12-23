@@ -21,7 +21,7 @@ namespace MiniIT.Snipe
 		private const int CHANNEL_HEADER_SIZE = 1;
 		public const int PING_INTERVAL = 1000;
 		private const int KCP_SEND_WINDPW_SIZE = 4096;
-		private const int KCP_RECEIVE_WINDPW_SIZE = 4096;
+		private const int KCP_RECEIVE_WINDOW_SIZE = 4096;
 		private const int QUEUE_DISCONNECT_THRESHOLD = 10000;
 		private const int MAX_KCP_MESSAGE_SIZE = Kcp.MTU_DEF - Kcp.OVERHEAD;
 		private const int CHUNK_DATA_SIZE = MAX_KCP_MESSAGE_SIZE - 5; // channel (1 byte) + header (4 bytes): KcpHeader.Chunk + msg_id + chunk_id + num_chunks
@@ -37,7 +37,7 @@ namespace MiniIT.Snipe
 		//    NOTE that original kcp has a bug where WND_RCV default is used
 		//    instead of configured rcv_wnd, limiting max message size to 144 KB
 		//    https://github.com/skywind3000/kcp/pull/291
-		//    we fixed this in kcp2k.
+		//    it is fixed in kcp2k.
 		// -> we add 1 byte KcpHeader enum to each message, so -1
 		//
 		// IMPORTANT: max message is MTU * rcv_wnd, in other words it completely
@@ -117,7 +117,7 @@ namespace MiniIT.Snipe
 				2,              // fastresend. Faster resend for the cost of higher bandwidth. 0 in normal mode, 2 in turbo mode
 				true);          // no congestion window. Congestion window is enabled in normal mode, disabled in turbo mode.
 
-			_kcp.SetWindowSize(KCP_SEND_WINDPW_SIZE, KCP_RECEIVE_WINDPW_SIZE);
+			_kcp.SetWindowSize(KCP_SEND_WINDPW_SIZE, KCP_RECEIVE_WINDOW_SIZE);
 
 			// IMPORTANT: high level needs to add 1 channel byte to each raw
 			// message. so while Kcp.MTU_DEF is perfect, we actually need to
@@ -131,8 +131,9 @@ namespace MiniIT.Snipe
 
 			// create message buffers AFTER window size is set
 			// see comments on buffer definition for the "+1" part
-			_kcpMessageBuffer = new byte[1 + ReliableMaxMessageSize(KCP_RECEIVE_WINDPW_SIZE)];
-			_kcpSendBuffer = new byte[1 + ReliableMaxMessageSize(KCP_RECEIVE_WINDPW_SIZE)];
+			int bufferSize = 1 + ReliableMaxMessageSize(KCP_RECEIVE_WINDOW_SIZE);
+			_kcpMessageBuffer = new byte[bufferSize];
+			_kcpSendBuffer = new byte[bufferSize];
 
 			_chunkedMessages = new Dictionary<byte, ChunkedMessageItem>(1);
 
@@ -460,7 +461,9 @@ namespace MiniIT.Snipe
 			int msgLength = 1 + content.Count; // 1 byte for header
 			if (_kcpSendBuffer.Length < msgLength)
 			{
-				Array.Resize(ref _kcpSendBuffer, msgLength);
+				// content is larger than MaxMessageSize
+				DebugLogger.LogError($"Failed to send reliable message of size {content.Count} because it's larger than ReliableMaxMessageSize={_kcpSendBuffer.Length - 1}");
+				return;
 			}
 			
 			_kcpSendBuffer[0] = (byte)header;
