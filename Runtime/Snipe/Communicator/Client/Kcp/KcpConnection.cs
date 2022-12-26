@@ -20,8 +20,8 @@ namespace MiniIT.Snipe
 
 		private const int CHANNEL_HEADER_SIZE = 1;
 		public const int PING_INTERVAL = 1000;
-		private const int KCP_SEND_WINDPW_SIZE = 4096;
-		private const int KCP_RECEIVE_WINDPW_SIZE = 4096;
+		private const int KCP_SEND_WINDOW_SIZE = 4096;    // Kcp.WND_SND; 32 by default
+		private const int KCP_RECEIVE_WINDOW_SIZE = 4096; // Kcp.WND_RCV; 128 by default
 		private const int QUEUE_DISCONNECT_THRESHOLD = 10000;
 		private const int MAX_KCP_MESSAGE_SIZE = Kcp.MTU_DEF - Kcp.OVERHEAD;
 		private const int CHUNK_DATA_SIZE = MAX_KCP_MESSAGE_SIZE - 5; // channel (1 byte) + header (4 bytes): KcpHeader.Chunk + msg_id + chunk_id + num_chunks
@@ -48,14 +48,14 @@ namespace MiniIT.Snipe
 		//               for batching.
 		//            => sending UNRELIABLE max message size most of the time is
 		//               best for performance (use that one for batching!)
-		private static int ReliableMaxMessageSize_Unconstrained(uint rcv_wnd) => (Kcp.MTU_DEF - Kcp.OVERHEAD - CHANNEL_HEADER_SIZE) * ((int)rcv_wnd - 1) - 1;
+		//private static int ReliableMaxMessageSize_Unconstrained(uint rcv_wnd) => (Kcp.MTU_DEF - Kcp.OVERHEAD - CHANNEL_HEADER_SIZE) * ((int)rcv_wnd - 1) - 1;
 
 		// kcp encodes 'frg' as 1 byte.
 		// max message size can only ever allow up to 255 fragments.
 		//   WND_RCV gives 127 fragments.
 		//   WND_RCV * 2 gives 255 fragments.
 		// so we can limit max message size by limiting rcv_wnd parameter.
-		private static int ReliableMaxMessageSize(uint rcv_wnd) => ReliableMaxMessageSize_Unconstrained(Math.Min(rcv_wnd, Kcp.FRG_MAX));
+		//private static int ReliableMaxMessageSize(uint rcv_wnd) => ReliableMaxMessageSize_Unconstrained(Math.Min(rcv_wnd, Kcp.FRG_MAX));
 
 		// unreliable max message size is simply MTU - channel header size
 		private const int UnreliableMaxMessageSize = Kcp.MTU_DEF - CHANNEL_HEADER_SIZE;
@@ -73,7 +73,7 @@ namespace MiniIT.Snipe
 
 		private readonly byte[] _socketReceiveBuffer = new byte[Kcp.MTU_DEF]; // MTU must fit channel + message!
 		private readonly byte[] _socketSendBuffer = new byte[Kcp.MTU_DEF];
-		private byte[] _kcpMessageBuffer;
+		private byte[] _kcpReceiveBuffer;
 		private byte[] _kcpSendBuffer;
 
 		private Dictionary<byte, ChunkedMessageItem> _chunkedMessages;
@@ -117,7 +117,7 @@ namespace MiniIT.Snipe
 				2,              // fastresend. Faster resend for the cost of higher bandwidth. 0 in normal mode, 2 in turbo mode
 				true);          // no congestion window. Congestion window is enabled in normal mode, disabled in turbo mode.
 
-			_kcp.SetWindowSize(KCP_SEND_WINDPW_SIZE, KCP_RECEIVE_WINDPW_SIZE);
+			_kcp.SetWindowSize(KCP_SEND_WINDOW_SIZE, KCP_RECEIVE_WINDOW_SIZE);
 
 			// IMPORTANT: high level needs to add 1 channel byte to each raw
 			// message. so while Kcp.MTU_DEF is perfect, we actually need to
@@ -131,8 +131,14 @@ namespace MiniIT.Snipe
 
 			// create message buffers AFTER window size is set
 			// see comments on buffer definition for the "+1" part
-			_kcpMessageBuffer = new byte[1 + ReliableMaxMessageSize(KCP_RECEIVE_WINDPW_SIZE)];
-			_kcpSendBuffer = new byte[1 + ReliableMaxMessageSize(KCP_RECEIVE_WINDPW_SIZE)];
+			//int bufferSize = 1 + ReliableMaxMessageSize(KCP_RECEIVE_WINDOW_SIZE);
+
+			// Server side implementation does not support message fragmentation.
+			// That is why we use custom algorythm of breaking large messages into chunks.
+			// In this case we don't need buffers larger than MAX_KCP_MESSAGE_SIZE
+			int bufferSize = MAX_KCP_MESSAGE_SIZE;
+			_kcpReceiveBuffer = new byte[bufferSize];
+			_kcpSendBuffer = new byte[bufferSize];
 
 			_chunkedMessages = new Dictionary<byte, ChunkedMessageItem>(1);
 
@@ -460,7 +466,8 @@ namespace MiniIT.Snipe
 			int msgLength = 1 + content.Count; // 1 byte for header
 			if (_kcpSendBuffer.Length < msgLength)
 			{
-				Array.Resize(ref _kcpSendBuffer, msgLength);
+				DebugLogger.LogError($"SendReliable failed. Message length ({msgLength} bytes) is greater than the buffer size ({_kcpSendBuffer.Length})");
+				return;
 			}
 			
 			_kcpSendBuffer[0] = (byte)header;
@@ -612,15 +619,15 @@ namespace MiniIT.Snipe
 			{
 				// only allow receiving up to buffer sized messages.
 				// otherwise we would get BlockCopy ArgumentException anyway.
-				if (msgSize <= _kcpMessageBuffer.Length)
+				if (msgSize <= _kcpReceiveBuffer.Length)
 				{
 					// receive from kcp
-					int received = _kcp.Receive(_kcpMessageBuffer, msgSize);
+					int received = _kcp.Receive(_kcpReceiveBuffer, msgSize);
 					if (received >= 0)
 					{
 						// extract header & content without header
-						header = (KcpHeader)_kcpMessageBuffer[0];
-						message = new ArraySegment<byte>(_kcpMessageBuffer, 1, msgSize - 1);
+						header = (KcpHeader)_kcpReceiveBuffer[0];
+						message = new ArraySegment<byte>(_kcpReceiveBuffer, 1, msgSize - 1);
 						UpdateLastReceiveTime();
 
 						// DebugLogger.Log($"KCP: raw recv {received} header = {header} bytes ({message.Count}) = {BitConverter.ToString(message.Array, message.Offset, message.Count)}");
@@ -638,7 +645,7 @@ namespace MiniIT.Snipe
 				// attacker. let's disconnect to avoid allocation attacks etc.
 				else
 				{
-					DebugLogger.LogWarning($"KCP: possible allocation attack for msgSize {msgSize} > buffer {_kcpMessageBuffer.Length}. Disconnecting the connection.");
+					DebugLogger.LogWarning($"KCP: possible allocation attack for msgSize {msgSize} > buffer {_kcpReceiveBuffer.Length}. Disconnecting the connection.");
 					Disconnect();
 				}
 			}
