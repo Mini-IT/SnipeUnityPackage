@@ -91,9 +91,9 @@ namespace MiniIT.Snipe
 		protected void OnWebSocketClosed(object sender, CloseEventArgs e)
 		{
 			DebugLogger.Log($"[WebSocketWrapper] OnWebSocketClosed: {e?.Reason}");
-			Analytics.WebSocketDisconnectReason = e?.Reason;
 			
 			Disconnect();
+			Analytics.WebSocketDisconnectReason = e?.Reason;
 
 			OnConnectionClosed?.Invoke();
 		}
