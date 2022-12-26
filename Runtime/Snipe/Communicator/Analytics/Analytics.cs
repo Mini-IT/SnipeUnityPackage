@@ -23,6 +23,7 @@ namespace MiniIT.Snipe
 		public static double WebSocketSslAuthenticateTime { get; internal set; }
 		public static double WebSocketHandshakeTime { get; internal set; }
 		public static double WebSocketMiscTime { get; internal set; }
+		public static string WebSocketDisconnectReason { get; internal set; }
 		
 		private static IAnalyticsTracker _tracker;
 		

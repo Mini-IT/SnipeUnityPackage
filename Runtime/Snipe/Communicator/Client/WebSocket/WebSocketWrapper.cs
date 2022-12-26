@@ -53,7 +53,7 @@ namespace MiniIT.Snipe
 			if (!cancellation.IsCancellationRequested && !Connected)
 			{
 				DebugLogger.Log("[WebSocketWrapper] WaitForConnection - Connection timed out");
-				OnWebSocketClosed(this, null);
+				OnWebSocketClosed(this, new CloseEventArgs(0, "WebSocketWrapper - Connection timed out", false));
 			}
 		}
 
@@ -68,6 +68,8 @@ namespace MiniIT.Snipe
 			if (_webSocket != null)
 			{
 				SetConnectionAnalyticsValues();
+				Analytics.WebSocketDisconnectReason = "Manual disconnect";
+
 				_webSocket.OnOpen -= OnWebSocketConnected;
 				_webSocket.OnClose -= OnWebSocketClosed;
 				_webSocket.OnMessage -= OnWebSocketMessage;
@@ -81,13 +83,15 @@ namespace MiniIT.Snipe
 			_connectionWaitingCancellation = null;
 			
 			SetConnectionAnalyticsValues();
-			
+			Analytics.WebSocketDisconnectReason = null;
+
 			OnConnectionOpened?.Invoke();
 		}
 
 		protected void OnWebSocketClosed(object sender, CloseEventArgs e)
 		{
 			DebugLogger.Log($"[WebSocketWrapper] OnWebSocketClosed: {e?.Reason}");
+			Analytics.WebSocketDisconnectReason = e?.Reason;
 			
 			Disconnect();
 
@@ -99,9 +103,10 @@ namespace MiniIT.Snipe
 			ProcessMessage(e.RawData);
 		}
 		
-		protected void OnWebSocketError(object sender, WebSocketSharp.ErrorEventArgs e)
+		protected void OnWebSocketError(object sender, ErrorEventArgs e)
 		{
 			DebugLogger.Log($"[WebSocketWrapper] OnWebSocketError: {e}");
+			Analytics.TrackError($"WebSocketError: {e.Message}", e.Exception);
 		}
 		
 		public void SendRequest(string message)
