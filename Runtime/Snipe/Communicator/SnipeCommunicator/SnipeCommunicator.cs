@@ -35,7 +35,7 @@ namespace MiniIT.Snipe
 
 		internal SnipeClient Client { get; private set; }
 
-		public int RestoreConnectionAttempts = 10;
+		public int RestoreConnectionAttempts = 3;
 		private int _restoreConnectionAttempt;
 		
 		public bool AllowRequestsToWaitForLogin = true;
