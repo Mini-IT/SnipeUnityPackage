@@ -37,7 +37,7 @@ namespace MiniIT.Snipe
 
 		public bool AllowRequestsToWaitForLogin = true;
 
-		public int RestoreConnectionAttempts = 10;
+		public int RestoreConnectionAttempts = 3;
 		private int _restoreConnectionAttempt;
 		private int _loginAttempt;
 		private bool _autoLogin = true;
