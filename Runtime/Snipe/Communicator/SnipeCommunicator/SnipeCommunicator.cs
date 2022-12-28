@@ -616,6 +616,7 @@ namespace MiniIT.Snipe
 				["ws tcp client connection"] = Analytics.WebSocketTcpClientConnectionTime,
 				["ws ssl auth"] = Analytics.WebSocketSslAuthenticateTime,
 				["ws upgrade request"] = Analytics.WebSocketHandshakeTime,
+				["ws disconnect reason"] = Analytics.WebSocketDisconnectReason,
 				
 				["udp connection_time"] = Client?.UdpConnectionTime,
 				["udp dns resolve"] = Client?.UdpDnsResolveTime,

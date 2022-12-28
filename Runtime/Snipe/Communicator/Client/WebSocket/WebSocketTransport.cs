@@ -53,7 +53,11 @@ namespace MiniIT.Snipe
 
 			DebugLogger.Log("[SnipeClient] WebSocket Connect to " + url);
 
-			_webSocket = new WebSocketWrapper();
+			if (SnipeConfig.WebSocketImplementation == SnipeConfig.WebSocketImplementations.ClientWebSocket)
+				_webSocket = new WebSocketClientWrapper();
+			else
+				_webSocket = new WebSocketSharpWrapper();
+
 			_webSocket.OnConnectionOpened += OnWebSocketConnected;
 			_webSocket.OnConnectionClosed += OnWebSocketClosed;
 			_webSocket.ProcessMessage += ProcessWebSocketMessage;
@@ -192,17 +196,20 @@ namespace MiniIT.Snipe
 
 				if (SnipeConfig.CompressionEnabled && msg_data.Count >= SnipeConfig.MinMessageBytesToCompress) // compression needed
 				{
-					DebugLogger.Log("[SnipeClient] compress message");
-					//DebugLogger.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
+					await Task.Run(() =>
+					{
+						DebugLogger.Log("[SnipeClient] compress message");
+						//DebugLogger.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
 
-					ArraySegment<byte> compressed = await Task.Run(() => _messageCompressor.Compress(msg_data));
-					
-					//DebugLogger.Log("Compressed:   " + BitConverter.ToString(compressed.Array, compressed.Offset, compressed.Count));
+						ArraySegment<byte> compressed = _messageCompressor.Compress(msg_data);
 
-					result = new byte[compressed.Count + 2];
-					result[0] = COMPRESSED_HEADER[0];
-					result[1] = COMPRESSED_HEADER[1];
-					Array.ConstrainedCopy(compressed.Array, compressed.Offset, result, 2, compressed.Count);
+						//DebugLogger.Log("Compressed:   " + BitConverter.ToString(compressed.Array, compressed.Offset, compressed.Count));
+
+						result = new byte[compressed.Count + 2];
+						result[0] = COMPRESSED_HEADER[0];
+						result[1] = COMPRESSED_HEADER[1];
+						Array.ConstrainedCopy(compressed.Array, compressed.Offset, result, 2, compressed.Count);
+					});
 				}
 				else // compression not needed
 				{
@@ -345,6 +352,14 @@ namespace MiniIT.Snipe
 		private void StartHeartbeat()
 		{
 			mHeartbeatCancellation?.Cancel();
+
+			// Custom heartbeating is needed only for WebSocketSharp
+			if (_webSocket == null && SnipeConfig.WebSocketImplementation != SnipeConfig.WebSocketImplementations.WebSocketSharp ||
+				_webSocket != null && !(_webSocket is WebSocketSharpWrapper))
+			{
+				_heartbeatEnabled = false;
+				return;
+			}
 
 			mHeartbeatCancellation = new CancellationTokenSource();
 			Task.Run(() => HeartbeatTask(mHeartbeatCancellation.Token));

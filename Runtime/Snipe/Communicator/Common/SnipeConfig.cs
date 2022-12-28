@@ -12,6 +12,13 @@ namespace MiniIT.Snipe
 			public string Host;
 			public ushort Port;
 		}
+		
+		public enum WebSocketImplementations
+		{
+			WebSocketSharp,
+			ClientWebSocket,
+		}
+		public static WebSocketImplementations WebSocketImplementation = WebSocketImplementations.WebSocketSharp;
 
 		public static string ClientKey;
 		public static string AppInfo;

@@ -51,17 +51,21 @@ namespace WebSocketSharp
 
     #endregion
 
+    #region Public Constructors
+
+    public CloseEventArgs (ushort code, string reason, bool clean)
+    {
+      _payloadData = new PayloadData (code, reason);
+      _clean = clean;
+    }
+
+    #endregion
+
     #region Internal Constructors
 
     internal CloseEventArgs (PayloadData payloadData, bool clean)
     {
       _payloadData = payloadData;
-      _clean = clean;
-    }
-
-    internal CloseEventArgs (ushort code, string reason, bool clean)
-    {
-      _payloadData = new PayloadData (code, reason);
       _clean = clean;
     }
 
