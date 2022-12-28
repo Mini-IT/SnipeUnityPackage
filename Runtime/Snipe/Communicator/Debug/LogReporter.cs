@@ -22,7 +22,7 @@ namespace MiniIT
 			internal string _stackTrace;
 		}
 
-		private const int PORTION_SIZE = 50; // messages
+		private const int PORTION_SIZE = 200; // messages
 
 		private List<LogRecord> _log = new List<LogRecord>();
 
