@@ -53,7 +53,11 @@ namespace MiniIT.Snipe
 
 			DebugLogger.Log("[SnipeClient] WebSocket Connect to " + url);
 
-			_webSocket = new WebSocketWrapper();
+			if (SnipeConfig.WebSocketImplementation == SnipeConfig.WebSocketImplementations.ClientWebSocket)
+				_webSocket = new WebSocketClientWrapper();
+			else
+				_webSocket = new WebSocketSharpWrapper();
+
 			_webSocket.OnConnectionOpened += OnWebSocketConnected;
 			_webSocket.OnConnectionClosed += OnWebSocketClosed;
 			_webSocket.ProcessMessage += ProcessWebSocketMessage;
@@ -348,6 +352,14 @@ namespace MiniIT.Snipe
 		private void StartHeartbeat()
 		{
 			mHeartbeatCancellation?.Cancel();
+
+			// Custom heartbeating is needed only for WebSocketSharp
+			if (_webSocket == null && SnipeConfig.WebSocketImplementation != SnipeConfig.WebSocketImplementations.WebSocketSharp ||
+				_webSocket != null && !(_webSocket is WebSocketSharpWrapper))
+			{
+				_heartbeatEnabled = false;
+				return;
+			}
 
 			mHeartbeatCancellation = new CancellationTokenSource();
 			Task.Run(() => HeartbeatTask(mHeartbeatCancellation.Token));
