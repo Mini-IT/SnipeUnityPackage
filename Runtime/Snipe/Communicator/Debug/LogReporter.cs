@@ -65,7 +65,7 @@ namespace MiniIT
 				return false;
 			}
 
-			return await _instance.DoSendAsync(SnipeConfig.LogReporterKey, SnipeConfig.LogReporterUrl);
+			return await _instance.DoSendAsync(SnipeConfig.ClientKey, SnipeConfig.LogReporterUrl);
 		}
 
 		private async Task<bool> DoSendAsync(string apiKey, string url)

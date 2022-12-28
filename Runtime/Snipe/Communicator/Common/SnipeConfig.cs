@@ -31,7 +31,6 @@ namespace MiniIT.Snipe
 
 		public static SnipeObject LoginParameters;
 
-		public static string LogReporterKey;
 		public static string LogReporterUrl;
 
 		public static string PersistentDataPath { get; private set; }
@@ -153,7 +152,6 @@ namespace MiniIT.Snipe
 			if (data.TryGetValue("log_reporter", out var log_reporter_field) &&
 				log_reporter_field is IDictionary<string, object> log_reporter)
 			{
-				LogReporterKey = SnipeObject.SafeGetString(log_reporter, "key");
 				LogReporterUrl = SnipeObject.SafeGetString(log_reporter, "url");
 			}
 
