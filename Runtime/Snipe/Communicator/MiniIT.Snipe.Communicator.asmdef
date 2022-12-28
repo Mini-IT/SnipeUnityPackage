@@ -4,12 +4,12 @@
     "references": [
         "MiniIT.Snipe.PackageInfo",
         "MiniIT.Snipe.Core",
-        "MiniIT.Snipe.WebSocketSharp",
         "MiniIT.Snipe.Social",
         "MiniIT.Snipe.MessagePack",
         "BetterStreamingAssets",
         "fastJSON",
         "MiniIT.AdvertisingIdFetcher",
+		"WebSocketSharp",
 		"kcp2k"
     ],
     "includePlatforms": [],
