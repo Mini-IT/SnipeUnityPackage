@@ -107,10 +107,9 @@ namespace MiniIT.Snipe
 
 		private void OnSocketConnected()
 		{
-			if (_kcp == null)
-			{
-				_kcp = new Kcp(0, SocketSendReliable);
-			}
+			// Create a new Kcp instance
+			// even if _kcp != null its buffers may content some data from the previous connection
+			_kcp = new Kcp(0, SocketSendReliable);
 
 			_kcp.SetNoDelay(1u, // NoDelay is recommended to reduce latency
 				10,             // internal update interval. 100ms is KCP default, but a lower interval is recommended to minimize latency and to scale to more networked entities
