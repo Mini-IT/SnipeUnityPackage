@@ -9,8 +9,8 @@
         "BetterStreamingAssets",
         "fastJSON",
         "MiniIT.AdvertisingIdFetcher",
-		"WebSocketSharp",
-		"kcp2k"
+        "WebSocketSharp",
+        "kcp2k"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

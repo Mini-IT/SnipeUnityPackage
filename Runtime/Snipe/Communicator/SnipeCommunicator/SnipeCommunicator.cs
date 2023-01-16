@@ -629,6 +629,7 @@ namespace MiniIT.Snipe
 				["udp dns resolve"] = Client?.UdpDnsResolveTime,
 				["udp socket connect"] = Client?.UdpSocketConnectTime,
 				["udp handshake request"] = Client?.UdpSendHandshakeTime,
+				["udp exception"] = Analytics.UdpException?.ToString(),
 			});
 		}
 		
@@ -646,6 +647,7 @@ namespace MiniIT.Snipe
 					Client.UdpDnsResolveTime -
 					Client.UdpSocketConnectTime -
 					Client.UdpSendHandshakeTime : 0,
+				["udp exception"] = Analytics.UdpException?.ToString(),
 			});
 		}
 		
