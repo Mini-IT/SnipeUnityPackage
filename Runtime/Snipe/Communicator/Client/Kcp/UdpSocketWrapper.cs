@@ -18,6 +18,7 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[UdpSocketWrapper] connect to {host}:{port}");
 			
+			Analytics.ConnectionUrl = $"{host}:{port}";
 			Analytics.UdpException = null;
 
 			IPAddress[] addresses;
