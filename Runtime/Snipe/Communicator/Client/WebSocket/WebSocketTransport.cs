@@ -64,6 +64,7 @@ namespace MiniIT.Snipe
 
 			Task.Run(() =>
 			{
+				Analytics.ConnectionUrl = url;
 				_webSocket.Connect(url);
 			});
 		}
