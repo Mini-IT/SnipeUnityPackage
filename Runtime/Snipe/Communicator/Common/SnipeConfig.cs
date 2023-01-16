@@ -19,7 +19,7 @@ namespace MiniIT.Snipe
 		public static List<string> ServerWebSocketUrls = new List<string>();
 		public static List<UdpAddress> ServerUdpUrls = new List<UdpAddress>();
 		
-		public static bool CompressionEnabled = false;
+		public static bool CompressionEnabled = true;
 		public static int MinMessageBytesToCompress = 13 * 1024;
 
 		public static SnipeObject LoginParameters;
