@@ -12,39 +12,26 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace MiniIT.MessagePack
 {
 	public class MessagePackSerializerNonAlloc
 	{
-		public static int MaxUsedBufferSize { get; private set; } = 2048;
+		public int MaxUsedBufferSize { get; private set; } = 0;
+
+		private int _position;
 		
-		private static Stack<MessagePackSerializerNonAlloc> mInstances;
-		
-		private int mPosition;
-		
-		public static ArraySegment<byte> Serialize(ref byte[] buffer, Dictionary<string, object> data)
+		public ArraySegment<byte> Serialize(ref byte[] buffer, Dictionary<string, object> data)
 		{
 			return Serialize(ref buffer, 0, data);
 		}
 		
-		public static ArraySegment<byte> Serialize(ref byte[] buffer, int position, Dictionary<string, object> data)
+		public ArraySegment<byte> Serialize(ref byte[] buffer, int position, Dictionary<string, object> data)
 		{
-			if (mInstances == null)
-				mInstances = new Stack<MiniIT.MessagePack.MessagePackSerializerNonAlloc>(1);
-			
-			var serializer = mInstances.Count > 0 ? mInstances.Pop() : new MessagePackSerializerNonAlloc();
-			var result = serializer.DoSerialize(ref buffer, position, data);
-			mInstances.Push(serializer);
-			
-			return result;
-		}
-		
-		private ArraySegment<byte> DoSerialize(ref byte[] buffer, int position, Dictionary<string, object> data)
-		{
-			mPosition = position;
+			_position = position;
 			DoSerialize(ref buffer, data);
-			return new ArraySegment<byte>(buffer, 0, mPosition);
+			return new ArraySegment<byte>(buffer, 0, _position);
 		}
 		
 		private void DoSerialize(ref byte[] buffer, object val)
@@ -53,7 +40,7 @@ namespace MiniIT.MessagePack
 			
 			if (val == null)
 			{
-				buffer[mPosition++] = (byte)0xC0;
+				buffer[_position++] = (byte)0xC0;
 			}
 			else if (val is string str)
 			{
@@ -95,18 +82,18 @@ namespace MiniIT.MessagePack
 						break;
 
 					case TypeCode.Single:
-						buffer[mPosition++] = (byte)0xCA;
+						buffer[_position++] = (byte)0xCA;
 						CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes((float)val), 4);
 						break;
 
 					case TypeCode.Double:
 					case TypeCode.Decimal:
-						buffer[mPosition++] = (byte)0xCB;
+						buffer[_position++] = (byte)0xCB;
 						CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes(Convert.ToDouble(val)), 8);
 						break;
 
 					case TypeCode.Boolean:
-						buffer[mPosition++] = (bool)val ? (byte)0xC3 : (byte)0xC2;
+						buffer[_position++] = (bool)val ? (byte)0xC3 : (byte)0xC2;
 						break;
 				}
 			}
@@ -121,21 +108,21 @@ namespace MiniIT.MessagePack
 
 			if (len <= 31)
 			{
-				buffer[mPosition++] = (byte)(0xA0 | len);
+				buffer[_position++] = (byte)(0xA0 | len);
 			}
 			else if (len <= 0xFF)
 			{
-				buffer[mPosition++] = (byte)0xD9;
-				buffer[mPosition++] = (byte)len;
+				buffer[_position++] = (byte)0xD9;
+				buffer[_position++] = (byte)len;
 			}
 			else if (len <= 0xFFFF)
 			{
-				buffer[mPosition++] = (byte)0xDA;
+				buffer[_position++] = (byte)0xDA;
 				CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes(Convert.ToUInt16(len)), 2);
 			}
 			else
 			{
-				buffer[mPosition++] = (byte)0xDB;
+				buffer[_position++] = (byte)0xDB;
 				CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes(Convert.ToUInt32(len)), 4);
 			}
 			
@@ -150,16 +137,16 @@ namespace MiniIT.MessagePack
 			
 			if (len <= 0x0F)
 			{
-				buffer[mPosition++] = (byte)(0x80 | len);
+				buffer[_position++] = (byte)(0x80 | len);
 			}
 			else if (len <= 0xFFFF)
 			{
-				buffer[mPosition++] = (byte)0xDE;
+				buffer[_position++] = (byte)0xDE;
 				CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes((UInt16)len), 2);
 			}
 			else
 			{
-				buffer[mPosition] = (byte)0xDF;
+				buffer[_position] = (byte)0xDF;
 				CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes((UInt32)len), 4);
 			}
 
@@ -178,16 +165,16 @@ namespace MiniIT.MessagePack
 			
 			if (len <= 0x0F)
 			{
-				buffer[mPosition++] = (byte)(0x90 | len);
+				buffer[_position++] = (byte)(0x90 | len);
 			}
 			else if (len <= 0xFFFF)
 			{	
-				buffer[mPosition++] = (byte)0xDC;
+				buffer[_position++] = (byte)0xDC;
 				CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes((UInt16)len), 2);
 			}
 			else
 			{
-				buffer[mPosition++] = (byte)0xDD;
+				buffer[_position++] = (byte)0xDD;
 				CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes((UInt32)len), 4);
 			}
 
@@ -205,17 +192,17 @@ namespace MiniIT.MessagePack
 			
 			if (len <= 0xFF)
 			{
-				buffer[mPosition++] = (byte)0xC4;
-				buffer[mPosition++] = (byte)len;
+				buffer[_position++] = (byte)0xC4;
+				buffer[_position++] = (byte)len;
 			}
 			else if (len <= 0xFFFF)
 			{
-				buffer[mPosition++] = (byte)0xC5;
+				buffer[_position++] = (byte)0xC5;
 				CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes(Convert.ToUInt16(len)), 2);
 			}
 			else
 			{
-				buffer[mPosition++] = (byte)0xC6;
+				buffer[_position++] = (byte)0xC6;
 				CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes(Convert.ToUInt32(len)), 4);
 			}
 			
@@ -226,7 +213,7 @@ namespace MiniIT.MessagePack
 		{
 			EnsureCapacity(ref buffer, 9);
 			
-			buffer[mPosition++] = (byte)0xCF;
+			buffer[_position++] = (byte)0xCF;
 			CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes(val));
 		}
 
@@ -238,26 +225,26 @@ namespace MiniIT.MessagePack
 			{
 				if (val <= 0x7F)  // positive fixint
 				{
-					buffer[mPosition++] = (byte)val;
+					buffer[_position++] = (byte)val;
 				}
 				else if (val <= 0xFF)  // uint 8
 				{
-					buffer[mPosition++] = (byte)0xCC;
-					buffer[mPosition++] = (byte)val;
+					buffer[_position++] = (byte)0xCC;
+					buffer[_position++] = (byte)val;
 				}
 				else if (val <= 0xFFFF)  // uint 16
 				{
-					buffer[mPosition++] = (byte)0xCD;
+					buffer[_position++] = (byte)0xCD;
 					CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes((UInt16)val), 2);
 				}
 				else if (val <= 0xFFFFFFFF)  // uint 32
 				{
-					buffer[mPosition++] = (byte)0xCE;
+					buffer[_position++] = (byte)0xCE;
 					CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes((UInt32)val), 4);
 				}
 				else // signed int 64
 				{
-					buffer[mPosition++] = (byte)0xD3;
+					buffer[_position++] = (byte)0xD3;
 					CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes(val), 8);
 				}
 			}
@@ -265,27 +252,27 @@ namespace MiniIT.MessagePack
 			{
 				if (val <= Int32.MinValue)  // int 64
 				{
-					buffer[mPosition++] = (byte)0xD3;
+					buffer[_position++] = (byte)0xD3;
 					CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes(val), 8);
 				}
 				else if (val <= Int16.MinValue)  // int 32
 				{
-					buffer[mPosition++] = (byte)0xD2;
+					buffer[_position++] = (byte)0xD2;
 					CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes((Int32)val), 4);
 				}
 				else if (val <= -128)  // int 16
 				{
-					buffer[mPosition++] = (byte)0xD1;
+					buffer[_position++] = (byte)0xD1;
 					CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes((Int16)val), 2);
 				}
 				else if (val <= -32)  // int 8
 				{
-					buffer[mPosition++] = (byte)0xD0;
-					buffer[mPosition++] = (byte)val;
+					buffer[_position++] = (byte)0xD0;
+					buffer[_position++] = (byte)val;
 				}
 				else  // negative fixint (5-bit)
 				{
-					buffer[mPosition++] = (byte)val;
+					buffer[_position++] = (byte)val;
 				}
 			}
 		}
@@ -301,14 +288,14 @@ namespace MiniIT.MessagePack
 		{
 			EnsureCapacity(ref buffer, length);
 			
-			Array.ConstrainedCopy(data, 0, buffer, mPosition, length);
-			mPosition += length;
+			Array.ConstrainedCopy(data, 0, buffer, _position, length);
+			_position += length;
 		}
 		
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		void EnsureCapacity(ref byte[] buffer, int additional_lenght)
 		{
-			int length = mPosition + additional_lenght;
+			int length = _position + additional_lenght;
 			if (buffer.Length < length)
 			{
 				int capacity = Math.Max(length, buffer.Length * 2);

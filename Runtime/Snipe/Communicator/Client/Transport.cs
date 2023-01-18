@@ -1,3 +1,4 @@
+using MiniIT.MessagePack;
 using System;
 using System.Threading;
 
@@ -9,7 +10,8 @@ namespace MiniIT.Snipe
 		public Action ConnectionClosedHandler;
 		public Action<SnipeObject> MessageReceivedHandler;
 		
-		protected SnipeMessageCompressor _messageCompressor = new SnipeMessageCompressor();
+		protected readonly SnipeMessageCompressor _messageCompressor = new SnipeMessageCompressor();
+		protected readonly MessagePackSerializerNonAlloc _messageSerializer = new MessagePackSerializerNonAlloc();
 		protected byte[] _messageSerializationBuffer = new byte[10240];
 
 		protected readonly SemaphoreSlim _messageSerializationSemaphore = new SemaphoreSlim(1);
