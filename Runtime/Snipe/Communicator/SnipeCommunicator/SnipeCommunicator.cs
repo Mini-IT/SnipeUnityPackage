@@ -578,6 +578,7 @@ namespace MiniIT.Snipe
 			{
 				["connection_type"] = "udp",
 				["connection_time"] = Client?.UdpConnectionTime,
+				["connection_url"] = Analytics.ConnectionUrl,
 				
 				["udp dns resolve"] = Client?.UdpDnsResolveTime,
 				["udp socket connect"] = Client?.UdpSocketConnectTime,
@@ -591,6 +592,7 @@ namespace MiniIT.Snipe
 			{
 				["connection_type"] = "websocket",
 				["connection_time"] = Analytics.ConnectionEstablishmentTime,
+				["connection_url"] = Analytics.ConnectionUrl,
 				
 				["ws tcp client connection"] = Analytics.WebSocketTcpClientConnectionTime,
 				["ws ssl auth"] = Analytics.WebSocketSslAuthenticateTime,
@@ -612,6 +614,7 @@ namespace MiniIT.Snipe
 				["connection_id"] = Client?.ConnectionId,
 				//["disconnect_reason"] = Client?.DisconnectReason,
 				//["check_connection_message"] = Client?.CheckConnectionMessageType,
+				["connection_url"] = Analytics.ConnectionUrl,
 				
 				["ws tcp client connection"] = Analytics.WebSocketTcpClientConnectionTime,
 				["ws ssl auth"] = Analytics.WebSocketSslAuthenticateTime,
@@ -622,6 +625,7 @@ namespace MiniIT.Snipe
 				["udp dns resolve"] = Client?.UdpDnsResolveTime,
 				["udp socket connect"] = Client?.UdpSocketConnectTime,
 				["udp handshake request"] = Client?.UdpSendHandshakeTime,
+				["udp exception"] = Analytics.UdpException?.ToString(),
 			});
 		}
 		
@@ -631,6 +635,7 @@ namespace MiniIT.Snipe
 			{
 				["connection_type"] = "udp",
 				["connection_time"] = Client?.UdpConnectionTime,
+				["connection_url"] = Analytics.ConnectionUrl,
 				
 				["udp dns resolve"] = Client?.UdpDnsResolveTime,
 				["udp socket connect"] = Client?.UdpSocketConnectTime,
@@ -639,6 +644,7 @@ namespace MiniIT.Snipe
 					Client.UdpDnsResolveTime -
 					Client.UdpSocketConnectTime -
 					Client.UdpSendHandshakeTime : 0,
+				["udp exception"] = Analytics.UdpException?.ToString(),
 			});
 		}
 		

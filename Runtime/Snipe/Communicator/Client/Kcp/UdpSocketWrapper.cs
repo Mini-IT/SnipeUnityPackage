@@ -17,6 +17,9 @@ namespace MiniIT.Snipe
 		public async void Connect(string host, ushort port)
 		{
 			DebugLogger.Log($"[UdpSocketWrapper] connect to {host}:{port}");
+			
+			Analytics.ConnectionUrl = $"{host}:{port}";
+			Analytics.UdpException = null;
 
 			IPAddress[] addresses;
 
@@ -46,9 +49,18 @@ namespace MiniIT.Snipe
 
 		public void Send(byte[] data, int length)
 		{
-			if (_socket != null)
+			if (_socket == null)
+				return;
+			
+			try
 			{
 				_socket.Send(data, length, SocketFlags.None);
+			}
+			catch (Exception e)
+			{
+				Analytics.UdpException = e;
+				Dispose();
+				OnDisconnected?.Invoke();
 			}
 		}
 
@@ -93,9 +105,10 @@ namespace MiniIT.Snipe
 				{
 					await socket.ConnectAsync(ipe);
 				}
-				catch (Exception)
+				catch (Exception e)
 				{
 					socket = null;
+					Analytics.UdpException = e;
 				}
 
 				if (socket != null && socket.Connected)

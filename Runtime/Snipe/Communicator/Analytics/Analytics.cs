@@ -24,6 +24,8 @@ namespace MiniIT.Snipe
 		public static double WebSocketHandshakeTime { get; internal set; }
 		public static double WebSocketMiscTime { get; internal set; }
 		public static string WebSocketDisconnectReason { get; internal set; }
+		public static string ConnectionUrl { get; internal set; }
+		public static Exception UdpException { get; internal set; }
 		
 		private static IAnalyticsTracker _tracker;
 		
@@ -122,7 +124,7 @@ namespace MiniIT.Snipe
 					properties = new Dictionary<string, object>(2);
 
 				properties["event_type"] = name;
-				properties["packageVersion"] = PackageInfo.VERSION;
+				properties["snipe_package_version"] = PackageInfo.VERSION;
 
 				if (PingTime > 0)
 					properties["ping_time"] = PingTime;

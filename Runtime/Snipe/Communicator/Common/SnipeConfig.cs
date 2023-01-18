@@ -12,6 +12,13 @@ namespace MiniIT.Snipe
 			public string Host;
 			public ushort Port;
 		}
+		
+		public enum WebSocketImplementations
+		{
+			WebSocketSharp,
+			ClientWebSocket,
+		}
+		public static WebSocketImplementations WebSocketImplementation = WebSocketImplementations.WebSocketSharp;
 
 		public static string ClientKey;
 		public static string AppInfo;
@@ -52,16 +59,17 @@ namespace MiniIT.Snipe
 		/// <summary>
 		/// Should be called from the main Unity thread
 		/// </summary>
-		public static void Init(SnipeObject data)
+		public static void Init(IDictionary<string, object> data)
 		{
-			ClientKey = data.SafeGetString("client_key");
+			ClientKey = SnipeObject.SafeGetString(data, "client_key");
 
 			if (ServerWebSocketUrls == null)
 				ServerWebSocketUrls = new List<string>();
 			else
 				ServerWebSocketUrls.Clear();
 
-			if (data["server_urls"] is IList server_ulrs_list)
+			if (data.TryGetValue("server_urls", out var server_urls_field) &&
+				server_urls_field is IList server_ulrs_list)
 			{
 				foreach (string url in server_ulrs_list)
 				{
@@ -75,7 +83,7 @@ namespace MiniIT.Snipe
 			if (ServerWebSocketUrls.Count < 1)
 			{
 				// "service_websocket" field for backward compatibility
-				var service_url = data.SafeGetString("service_websocket");
+				var service_url = SnipeObject.SafeGetString(data, "service_websocket");
 				if (!string.IsNullOrEmpty(service_url))
 				{
 					ServerWebSocketUrls.Add(service_url);
@@ -87,7 +95,8 @@ namespace MiniIT.Snipe
 			else
 				ServerUdpUrls.Clear();
 
-			if (data["server_udp_urls"] is IList server_udp_list)
+			if (data.TryGetValue("server_udp_urls", out var server_udp_urls_field) &&
+				server_udp_urls_field is IList server_udp_list)
 			{
 				foreach (string item in server_udp_list)
 				{
@@ -128,8 +137,8 @@ namespace MiniIT.Snipe
 
 				var address = new UdpAddress()
 				{
-					Host = data.SafeGetString("server_udp_address"),
-					Port = data.SafeGetValue<ushort>("server_udp_port"),
+					Host = SnipeObject.SafeGetString(data, "server_udp_address"),
+					Port = SnipeObject.SafeGetValue<ushort>(data, "server_udp_port"),
 				};
 
 				if (address.Port > 0 && !string.IsNullOrEmpty(address.Host))
@@ -140,15 +149,17 @@ namespace MiniIT.Snipe
 
 			TablesConfig.Init(data);
 
-			if (data["log_reporter"] is SnipeObject log_reporter)
+			if (data.TryGetValue("log_reporter", out var log_reporter_field) &&
+				log_reporter_field is IDictionary<string, object> log_reporter)
 			{
-				LogReporterUrl = log_reporter.SafeGetString("url");
+				LogReporterUrl = SnipeObject.SafeGetString(log_reporter, "url");
 			}
 
-			if (data["compression"] is SnipeObject compression)
+			if (data.TryGetValue("log_reporter", out var compression_field) &&
+				compression_field is IDictionary<string, object> compression)
 			{
-				CompressionEnabled = compression.SafeGetValue<bool>("enabled");
-				MinMessageBytesToCompress = compression.SafeGetValue<int>("min_size");
+				CompressionEnabled = SnipeObject.SafeGetValue<bool>(compression, "enabled");
+				MinMessageBytesToCompress = SnipeObject.SafeGetValue<int>(compression, "min_size");
 			}
 
 			_serverWebSocketUrlIndex = 0;

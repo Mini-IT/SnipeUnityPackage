@@ -18,14 +18,15 @@ namespace MiniIT.Snipe
 		public static List<string> TablesUrls = new List<string>();
 		private static int _tablesUrlIndex = 0;
 
-		public static void Init(SnipeObject data)
+		public static void Init(IDictionary<string, object> data)
 		{
 			if (TablesUrls == null)
 				TablesUrls = new List<string>();
 			else
 				TablesUrls.Clear();
 
-			if (data["tables_path"] is IList tables_ulrs_list)
+			if (data.TryGetValue("tables_path", out var tables_path_field) &&
+				tables_path_field is IList tables_ulrs_list)
 			{
 				foreach (string path in tables_ulrs_list)
 				{

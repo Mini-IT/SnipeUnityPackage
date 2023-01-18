@@ -53,13 +53,18 @@ namespace MiniIT.Snipe
 
 			DebugLogger.Log("[SnipeClient] WebSocket Connect to " + url);
 
-			_webSocket = new WebSocketWrapper();
+			if (SnipeConfig.WebSocketImplementation == SnipeConfig.WebSocketImplementations.ClientWebSocket)
+				_webSocket = new WebSocketClientWrapper();
+			else
+				_webSocket = new WebSocketSharpWrapper();
+
 			_webSocket.OnConnectionOpened += OnWebSocketConnected;
 			_webSocket.OnConnectionClosed += OnWebSocketClosed;
 			_webSocket.ProcessMessage += ProcessWebSocketMessage;
 
 			Task.Run(() =>
 			{
+				Analytics.ConnectionUrl = url;
 				_webSocket.Connect(url);
 			});
 		}
@@ -180,7 +185,8 @@ namespace MiniIT.Snipe
 			_webSocket?.SendRequest(request);
 		}
 
-		private async Task<byte[]> SerializeMessage(SnipeObject message)
+		// [Testable]
+		internal async Task<byte[]> SerializeMessage(SnipeObject message)
 		{
 			byte[] result = null;
 
@@ -188,7 +194,7 @@ namespace MiniIT.Snipe
 			{
 				await _messageSerializationSemaphore.WaitAsync();
 
-				var msg_data = await Task.Run(() => MessagePackSerializerNonAlloc.Serialize(ref _messageSerializationBuffer, message));
+				var msg_data = await Task.Run(() => _messageSerializer.Serialize(ref _messageSerializationBuffer, message));
 
 				if (SnipeConfig.CompressionEnabled && msg_data.Count >= SnipeConfig.MinMessageBytesToCompress) // compression needed
 				{
@@ -348,6 +354,14 @@ namespace MiniIT.Snipe
 		private void StartHeartbeat()
 		{
 			mHeartbeatCancellation?.Cancel();
+
+			// Custom heartbeating is needed only for WebSocketSharp
+			if (_webSocket == null && SnipeConfig.WebSocketImplementation != SnipeConfig.WebSocketImplementations.WebSocketSharp ||
+				_webSocket != null && !(_webSocket is WebSocketSharpWrapper))
+			{
+				_heartbeatEnabled = false;
+				return;
+			}
 
 			mHeartbeatCancellation = new CancellationTokenSource();
 			Task.Run(() => HeartbeatTask(mHeartbeatCancellation.Token));
