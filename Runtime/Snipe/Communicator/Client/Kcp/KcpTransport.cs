@@ -236,7 +236,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		public async Task<ArraySegment<byte>> SerializeMessage(SnipeObject message, bool writeLength = true)
+		private async Task<ArraySegment<byte>> SerializeMessage(SnipeObject message, bool writeLength = true)
 		{
 			int offset = 1; // opcode (1 byte)
 			if (writeLength)
@@ -244,7 +244,7 @@ namespace MiniIT.Snipe
 				offset += 4; // + length (4 bytes)
 			}
 
-			ArraySegment<byte> msg_data = await Task.Run(() => MessagePackSerializerNonAlloc.Serialize(ref _messageSerializationBuffer, offset, message));
+			ArraySegment<byte> msg_data = await Task.Run(() => _messageSerializer.Serialize(ref _messageSerializationBuffer, offset, message));
 
 			if (SnipeConfig.CompressionEnabled && msg_data.Count >= SnipeConfig.MinMessageBytesToCompress) // compression needed
 			{

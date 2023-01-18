@@ -185,7 +185,8 @@ namespace MiniIT.Snipe
 			_webSocket?.SendRequest(request);
 		}
 
-		private async Task<byte[]> SerializeMessage(SnipeObject message)
+		// [Testable]
+		internal async Task<byte[]> SerializeMessage(SnipeObject message)
 		{
 			byte[] result = null;
 
@@ -193,7 +194,7 @@ namespace MiniIT.Snipe
 			{
 				await _messageSerializationSemaphore.WaitAsync();
 
-				var msg_data = await Task.Run(() => MessagePackSerializerNonAlloc.Serialize(ref _messageSerializationBuffer, message));
+				var msg_data = await Task.Run(() => _messageSerializer.Serialize(ref _messageSerializationBuffer, message));
 
 				if (SnipeConfig.CompressionEnabled && msg_data.Count >= SnipeConfig.MinMessageBytesToCompress) // compression needed
 				{
