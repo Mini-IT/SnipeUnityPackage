@@ -36,11 +36,7 @@ namespace MiniIT.Snipe
 		private Stopwatch _serverReactionStopwatch;
 		public TimeSpan CurrentRequestElapsed { get { return _serverReactionStopwatch?.Elapsed ?? new TimeSpan(0); } }
 		public TimeSpan ServerReaction { get; private set; }
-		public double UdpConnectionTime { get; private set; }
-		public double UdpDnsResolveTime => _kcp?.UdpDnsResolveTime ?? 0;
-		public double UdpSocketConnectTime => _kcp?.UdpSocketConnectTime ?? 0;
-		public double UdpSendHandshakeTime => _kcp?.UdpSendHandshakeTime ?? 0;
-
+		
 		private bool _batchMode = false;
 		public bool BatchMode
 		{
@@ -101,7 +97,7 @@ namespace MiniIT.Snipe
 				_kcp = new KcpTransport();
 				_kcp.ConnectionOpenedHandler = () =>
 				{
-					UdpConnectionTime = _connectionStopwatch.Elapsed.TotalMilliseconds;
+					Analytics.UdpConnectionTime = _connectionStopwatch.Elapsed;
 					OnConnected();
 				};
 				_kcp.ConnectionClosedHandler = () =>
@@ -151,7 +147,7 @@ namespace MiniIT.Snipe
 		private void OnConnected()
 		{
 			_connectionStopwatch?.Stop();
-			Analytics.ConnectionEstablishmentTime = _connectionStopwatch?.ElapsedMilliseconds ?? 0;
+			Analytics.ConnectionEstablishmentTime = _connectionStopwatch?.Elapsed ?? TimeSpan.Zero;
 
 			RunInMainThread(() =>
 			{
@@ -194,7 +190,7 @@ namespace MiniIT.Snipe
 			ConnectionId = "";
 			
 			_connectionStopwatch?.Stop();
-			Analytics.PingTime = 0;
+			Analytics.PingTime = TimeSpan.Zero;
 			
 			StopResponseMonitoring();
 

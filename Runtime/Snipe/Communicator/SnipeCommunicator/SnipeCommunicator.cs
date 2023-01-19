@@ -577,16 +577,16 @@ namespace MiniIT.Snipe
 			var data = Client.UdpClientConnected ? new SnipeObject()
 			{
 				["connection_type"] = "udp",
-				["connection_time"] = Client?.UdpConnectionTime,
+				["connection_time"] = Analytics.UdpConnectionTime.TotalMilliseconds,
 				["connection_url"] = Analytics.ConnectionUrl,
 				
-				["udp dns resolve"] = Client?.UdpDnsResolveTime,
-				["udp socket connect"] = Client?.UdpSocketConnectTime,
-				["udp handshake request"] = Client?.UdpSendHandshakeTime,
-				["udp misc"] = Client.UdpConnectionTime - 
-					Client.UdpDnsResolveTime -
-					Client.UdpSocketConnectTime -
-					Client.UdpSendHandshakeTime,
+				["udp dns resolve"] = Analytics.UdpDnsResolveTime.TotalMilliseconds,
+				["udp socket connect"] = Analytics.UdpSocketConnectTime.TotalMilliseconds,
+				["udp handshake request"] = Analytics.UdpSendHandshakeTime.TotalMilliseconds,
+				["udp misc"] = Analytics.UdpConnectionTime.TotalMilliseconds -
+					Analytics.UdpDnsResolveTime.TotalMilliseconds -
+					Analytics.UdpSocketConnectTime.TotalMilliseconds -
+					Analytics.UdpSendHandshakeTime.TotalMilliseconds,
 			} :
 			new SnipeObject()
 			{
@@ -594,9 +594,9 @@ namespace MiniIT.Snipe
 				["connection_time"] = Analytics.ConnectionEstablishmentTime,
 				["connection_url"] = Analytics.ConnectionUrl,
 				
-				["ws tcp client connection"] = Analytics.WebSocketTcpClientConnectionTime,
-				["ws ssl auth"] = Analytics.WebSocketSslAuthenticateTime,
-				["ws upgrade request"] = Analytics.WebSocketHandshakeTime,
+				["ws tcp client connection"] = Analytics.WebSocketTcpClientConnectionTime.TotalMilliseconds,
+				["ws ssl auth"] = Analytics.WebSocketSslAuthenticateTime.TotalMilliseconds,
+				["ws upgrade request"] = Analytics.WebSocketHandshakeTime.TotalMilliseconds,
 				["ws misc"] = Analytics.ConnectionEstablishmentTime - 
 					Analytics.WebSocketTcpClientConnectionTime -
 					Analytics.WebSocketSslAuthenticateTime -
@@ -616,15 +616,15 @@ namespace MiniIT.Snipe
 				//["check_connection_message"] = Client?.CheckConnectionMessageType,
 				["connection_url"] = Analytics.ConnectionUrl,
 				
-				["ws tcp client connection"] = Analytics.WebSocketTcpClientConnectionTime,
-				["ws ssl auth"] = Analytics.WebSocketSslAuthenticateTime,
-				["ws upgrade request"] = Analytics.WebSocketHandshakeTime,
+				["ws tcp client connection"] = Analytics.WebSocketTcpClientConnectionTime.TotalMilliseconds,
+				["ws ssl auth"] = Analytics.WebSocketSslAuthenticateTime.TotalMilliseconds,
+				["ws upgrade request"] = Analytics.WebSocketHandshakeTime.TotalMilliseconds,
 				["ws disconnect reason"] = Analytics.WebSocketDisconnectReason,
 				
-				["udp connection_time"] = Client?.UdpConnectionTime,
-				["udp dns resolve"] = Client?.UdpDnsResolveTime,
-				["udp socket connect"] = Client?.UdpSocketConnectTime,
-				["udp handshake request"] = Client?.UdpSendHandshakeTime,
+				["udp connection_time"] = Analytics.UdpConnectionTime.TotalMilliseconds,
+				["udp dns resolve"] = Analytics.UdpDnsResolveTime.TotalMilliseconds,
+				["udp socket connect"] = Analytics.UdpSocketConnectTime.TotalMilliseconds,
+				["udp handshake request"] = Analytics.UdpSendHandshakeTime.TotalMilliseconds,
 				["udp exception"] = Analytics.UdpException?.ToString(),
 			});
 		}
@@ -634,16 +634,16 @@ namespace MiniIT.Snipe
 			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_DISCONNECTED + " UDP", new SnipeObject()
 			{
 				["connection_type"] = "udp",
-				["connection_time"] = Client?.UdpConnectionTime,
+				["connection_time"] = Analytics.UdpConnectionTime.TotalMilliseconds,
 				["connection_url"] = Analytics.ConnectionUrl,
 				
-				["udp dns resolve"] = Client?.UdpDnsResolveTime,
-				["udp socket connect"] = Client?.UdpSocketConnectTime,
-				["udp handshake request"] = Client?.UdpSendHandshakeTime,
-				["udp misc"] = Client != null ? Client.UdpConnectionTime - 
-					Client.UdpDnsResolveTime -
-					Client.UdpSocketConnectTime -
-					Client.UdpSendHandshakeTime : 0,
+				["udp dns resolve"] = Analytics.UdpDnsResolveTime.TotalMilliseconds,
+				["udp socket connect"] = Analytics.UdpSocketConnectTime.TotalMilliseconds,
+				["udp handshake request"] = Analytics.UdpSendHandshakeTime.TotalMilliseconds,
+				["udp misc"] = Analytics.UdpConnectionTime.TotalMilliseconds -
+					Analytics.UdpDnsResolveTime.TotalMilliseconds -
+					Analytics.UdpSocketConnectTime.TotalMilliseconds -
+					Analytics.UdpSendHandshakeTime.TotalMilliseconds,
 				["udp exception"] = Analytics.UdpException?.ToString(),
 			});
 		}

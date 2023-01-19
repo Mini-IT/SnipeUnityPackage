@@ -14,10 +14,6 @@ namespace MiniIT.Snipe
 		public bool Started => _kcpConnection != null;
 		public bool Connected => _kcpConnection != null && _kcpConnection.Connected;
 		
-		public double UdpDnsResolveTime { get; private set; }
-		public double UdpSocketConnectTime { get; private set; }
-		public double UdpSendHandshakeTime { get; private set; }
-
 		private KcpConnection _kcpConnection;
 		private CancellationTokenSource _networkLoopCancellation;
 
