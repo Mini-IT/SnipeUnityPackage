@@ -231,11 +231,20 @@ namespace MiniIT.Snipe
 			int request_id = ++mRequestId;
 			message["id"] = request_id;
 
+			SnipeObject data = null;
+
 			if (!_loggedIn)
 			{
-				var data = message["data"] as SnipeObject ?? new SnipeObject();
+				data = message["data"] as SnipeObject ?? new SnipeObject();
 				data["ckey"] = SnipeConfig.ClientKey;
 				message["data"] = data;
+			}
+
+			if (SnipeConfig.DebugProjectId != null)
+			{
+				data ??= message["data"] as SnipeObject ?? new SnipeObject();
+				data["debugProjectId"] = SnipeConfig.DebugProjectId;
+				data["debugDeviceId"] = SnipeConfig.DebugDeviceId;
 			}
 
 			if (BatchMode)

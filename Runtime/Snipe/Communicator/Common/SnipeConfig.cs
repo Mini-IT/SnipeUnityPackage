@@ -22,6 +22,8 @@ namespace MiniIT.Snipe
 
 		public static string ClientKey;
 		public static string AppInfo;
+		public static string DebugDeviceId;
+		public static string DebugProjectId;
 
 		public static List<string> ServerWebSocketUrls = new List<string>();
 		public static List<UdpAddress> ServerUdpUrls = new List<UdpAddress>();
