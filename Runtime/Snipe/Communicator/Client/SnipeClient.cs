@@ -240,11 +240,10 @@ namespace MiniIT.Snipe
 				message["data"] = data;
 			}
 
-			if (SnipeConfig.DebugProjectId != null)
+			if (SnipeConfig.DebugId != null)
 			{
 				data ??= message["data"] as SnipeObject ?? new SnipeObject();
-				data["debugProjectId"] = SnipeConfig.DebugProjectId;
-				data["debugDeviceId"] = SnipeConfig.DebugDeviceId;
+				data["debugID"] = SnipeConfig.DebugId;
 			}
 
 			if (BatchMode)
