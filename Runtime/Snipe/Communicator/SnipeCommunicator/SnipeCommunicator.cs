@@ -9,9 +9,9 @@ namespace MiniIT.Snipe
 	{
 		private readonly int INSTANCE_ID = new System.Random().Next();
 		
-		private const int RETRY_INIT_CLIENT_DELAY = 750; // ms
-		private const int RETRY_INIT_CLIENT_MIN_DELAY = 1000; // ms
-		private const int RETRY_INIT_CLIENT_MAX_DELAY = 60000; // ms
+		private const int RETRY_INIT_CLIENT_DELAY = 500; // ms
+		private const int RETRY_INIT_CLIENT_MIN_DELAY = 500; // ms
+		private const int RETRY_INIT_CLIENT_MAX_DELAY = 10000; // ms
 		private const int RETRY_INIT_CLIENT_RANDOM_DELAY = 500; // ms
 		
 		public delegate void MessageReceivedHandler(string message_type, string error_code, SnipeObject data, int request_id);
@@ -583,7 +583,8 @@ namespace MiniIT.Snipe
 				["udp dns resolve"] = Analytics.UdpDnsResolveTime.TotalMilliseconds,
 				["udp socket connect"] = Analytics.UdpSocketConnectTime.TotalMilliseconds,
 				["udp handshake request"] = Analytics.UdpSendHandshakeTime.TotalMilliseconds,
-				["udp misc"] = Analytics.UdpConnectionTime.TotalMilliseconds -
+				["udp misc"] = Analytics.UdpConnectionTime.TotalMilliseconds <= 0 ? 0:
+					Analytics.UdpConnectionTime.TotalMilliseconds -
 					Analytics.UdpDnsResolveTime.TotalMilliseconds -
 					Analytics.UdpSocketConnectTime.TotalMilliseconds -
 					Analytics.UdpSendHandshakeTime.TotalMilliseconds,
@@ -597,10 +598,11 @@ namespace MiniIT.Snipe
 				["ws tcp client connection"] = Analytics.WebSocketTcpClientConnectionTime.TotalMilliseconds,
 				["ws ssl auth"] = Analytics.WebSocketSslAuthenticateTime.TotalMilliseconds,
 				["ws upgrade request"] = Analytics.WebSocketHandshakeTime.TotalMilliseconds,
-				["ws misc"] = Analytics.ConnectionEstablishmentTime - 
-					Analytics.WebSocketTcpClientConnectionTime -
-					Analytics.WebSocketSslAuthenticateTime -
-					Analytics.WebSocketHandshakeTime,
+				["ws misc"] = Analytics.ConnectionEstablishmentTime.TotalMilliseconds <= 0 ? 0:
+					Analytics.ConnectionEstablishmentTime.TotalMilliseconds - 
+					Analytics.WebSocketTcpClientConnectionTime.TotalMilliseconds -
+					Analytics.WebSocketSslAuthenticateTime.TotalMilliseconds -
+					Analytics.WebSocketHandshakeTime.TotalMilliseconds,
 			};
 			
 			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_CONNECTED, data);
@@ -641,7 +643,8 @@ namespace MiniIT.Snipe
 				["udp dns resolve"] = Analytics.UdpDnsResolveTime.TotalMilliseconds,
 				["udp socket connect"] = Analytics.UdpSocketConnectTime.TotalMilliseconds,
 				["udp handshake request"] = Analytics.UdpSendHandshakeTime.TotalMilliseconds,
-				["udp misc"] = Analytics.UdpConnectionTime.TotalMilliseconds -
+				["udp misc"] = Analytics.UdpConnectionTime.TotalMilliseconds <= 0 ? 0 :
+					Analytics.UdpConnectionTime.TotalMilliseconds -
 					Analytics.UdpDnsResolveTime.TotalMilliseconds -
 					Analytics.UdpSocketConnectTime.TotalMilliseconds -
 					Analytics.UdpSendHandshakeTime.TotalMilliseconds,
