@@ -1,7 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using MiniIT;
 
 namespace MiniIT.Snipe
 {
@@ -22,8 +21,7 @@ namespace MiniIT.Snipe
 
 		public static string ClientKey;
 		public static string AppInfo;
-		public static string DebugDeviceId;
-		public static string DebugProjectId;
+		public static string DebugId;
 
 		public static List<string> ServerWebSocketUrls = new List<string>();
 		public static List<UdpAddress> ServerUdpUrls = new List<UdpAddress>();
@@ -182,8 +180,12 @@ namespace MiniIT.Snipe
 				["packageVersion"] = PackageInfo.VERSION,
 			}.ToJSONString();
 
-			DebugDeviceId = SystemInfo.deviceUniqueIdentifier;
-			DebugProjectId = Application.identifier;
+			using (var md5 = System.Security.Cryptography.MD5.Create())
+			{
+				string id = SystemInfo.deviceUniqueIdentifier + Application.identifier;
+				byte[] hashBytes = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(id));
+				DebugId = System.Convert.ToBase64String(hashBytes).Substring(0, 16);
+			}
 		}
 
 		public static string GetWebSocketUrl()
