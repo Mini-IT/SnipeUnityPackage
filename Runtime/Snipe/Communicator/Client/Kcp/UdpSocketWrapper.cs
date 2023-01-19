@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
@@ -21,6 +22,8 @@ namespace MiniIT.Snipe
 			Analytics.ConnectionUrl = $"{host}:{port}";
 			Analytics.UdpException = null;
 
+			var stopwatch = Stopwatch.StartNew();
+
 			IPAddress[] addresses;
 
 			try
@@ -33,15 +36,26 @@ namespace MiniIT.Snipe
 				addresses = null;
 			}
 
+			Analytics.UdpDnsResolveTime = stopwatch.Elapsed;
+			stopwatch.Restart();
+
 			if (addresses != null && addresses.Length > 0)
 			{
+				Analytics.UdpDnsResolved = true;
+
 				_socket = await ConnectSocket(addresses, port);
 				
+				Analytics.UdpSocketConnectTime = stopwatch.Elapsed;
+
 				if (_socket != null)
 				{
 					OnConnected?.Invoke();
 					return;
 				}
+			}
+			else
+			{
+				Analytics.UdpDnsResolved = false;
 			}
 
 			OnDisconnected?.Invoke();

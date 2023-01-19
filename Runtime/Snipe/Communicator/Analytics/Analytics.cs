@@ -17,16 +17,21 @@ namespace MiniIT.Snipe
 
 		#region AnalyticsTracker
 
-		public static long PingTime { get; internal set; }
-		public static long ConnectionEstablishmentTime { get; internal set; }
-		public static double WebSocketTcpClientConnectionTime { get; internal set; }
-		public static double WebSocketSslAuthenticateTime { get; internal set; }
-		public static double WebSocketHandshakeTime { get; internal set; }
-		public static double WebSocketMiscTime { get; internal set; }
+		public static TimeSpan PingTime { get; internal set; }
+		public static TimeSpan ConnectionEstablishmentTime { get; internal set; }
+		public static TimeSpan WebSocketTcpClientConnectionTime { get; internal set; }
+		public static TimeSpan WebSocketSslAuthenticateTime { get; internal set; }
+		public static TimeSpan WebSocketHandshakeTime { get; internal set; }
+		public static TimeSpan WebSocketMiscTime { get; internal set; }
 		public static string WebSocketDisconnectReason { get; internal set; }
 		public static string ConnectionUrl { get; internal set; }
 		public static Exception UdpException { get; internal set; }
-		
+		public static bool UdpDnsResolved { get; internal set; }
+		public static TimeSpan UdpConnectionTime { get; internal set; }
+		public static TimeSpan UdpDnsResolveTime { get; internal set; }
+		public static TimeSpan UdpSocketConnectTime { get; internal set; }
+		public static TimeSpan UdpSendHandshakeTime { get; internal set; }
+
 		private static IAnalyticsTracker _tracker;
 		
 		private static string _userId = null;
@@ -126,8 +131,8 @@ namespace MiniIT.Snipe
 				properties["event_type"] = name;
 				properties["snipe_package_version"] = PackageInfo.VERSION;
 
-				if (PingTime > 0)
-					properties["ping_time"] = PingTime;
+				if (PingTime.TotalMilliseconds > 0)
+					properties["ping_time"] = PingTime.TotalMilliseconds;
 				
 				if (SnipeCommunicator.InstanceInitialized && SnipeCommunicator.Instance.Connected)
 				{	

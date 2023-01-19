@@ -411,10 +411,10 @@ namespace MiniIT.Snipe
 							{
 								pinging = false;
 								_pingStopwatch?.Stop();
-								Analytics.PingTime = pong && _pingStopwatch != null ? _pingStopwatch.ElapsedMilliseconds : 0;
+								Analytics.PingTime = pong && _pingStopwatch != null ? _pingStopwatch.Elapsed : TimeSpan.Zero;
 								
 								if (pong)
-									DebugLogger.Log($"[SnipeClient] [] Heartbeat pong {Analytics.PingTime} ms");
+									DebugLogger.Log($"[SnipeClient] [] Heartbeat pong {Analytics.PingTime.TotalMilliseconds} ms");
 								else
 									DebugLogger.Log($"[SnipeClient] [] Heartbeat pong NOT RECEIVED");
 							});
