@@ -181,6 +181,9 @@ namespace MiniIT.Snipe
 				["platform"] = Application.platform.ToString(),
 				["packageVersion"] = PackageInfo.VERSION,
 			}.ToJSONString();
+
+			DebugDeviceId = SystemInfo.deviceUniqueIdentifier;
+			DebugProjectId = Application.identifier;
 		}
 
 		public static string GetWebSocketUrl()
