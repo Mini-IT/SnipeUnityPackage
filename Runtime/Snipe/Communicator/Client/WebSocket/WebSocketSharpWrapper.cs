@@ -147,9 +147,9 @@ namespace MiniIT.Snipe
 
 		private void SetConnectionAnalyticsValues()
 		{
-			Analytics.WebSocketTcpClientConnectionTime = _webSocket.TcpClientConnectionTime.TotalMilliseconds;
-			Analytics.WebSocketSslAuthenticateTime = _webSocket.SslAuthenticateTime.TotalMilliseconds;
-			Analytics.WebSocketHandshakeTime = _webSocket.HandshakeTime.TotalMilliseconds;
+			Analytics.WebSocketTcpClientConnectionTime = _webSocket.TcpClientConnectionTime;
+			Analytics.WebSocketSslAuthenticateTime = _webSocket.SslAuthenticateTime;
+			Analytics.WebSocketHandshakeTime = _webSocket.HandshakeTime;
 		}
 
 		protected override bool IsConnected()

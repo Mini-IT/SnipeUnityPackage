@@ -14,10 +14,6 @@ namespace MiniIT.Snipe
 		public bool Started => _kcpConnection != null;
 		public bool Connected => _kcpConnection != null && _kcpConnection.Connected;
 		
-		public double UdpDnsResolveTime { get; private set; }
-		public double UdpSocketConnectTime { get; private set; }
-		public double UdpSendHandshakeTime { get; private set; }
-
 		private KcpConnection _kcpConnection;
 		private CancellationTokenSource _networkLoopCancellation;
 
@@ -71,8 +67,6 @@ namespace MiniIT.Snipe
 		{
 			ConnectionEstablished = true;
 
-			RefreshConnectionStats();
-			
 			DebugLogger.Log("[SnipeClient] OnUdpClientConnected");
 
 			ConnectionOpenedHandler?.Invoke();
@@ -82,8 +76,6 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log("[SnipeClient] OnUdpClientDisconnected");
 			
-			RefreshConnectionStats();
-
 			StopNetworkLoop();
 			_kcpConnection = null;
 
@@ -92,24 +84,12 @@ namespace MiniIT.Snipe
 				if (SnipeConfig.NextUdpUrl())
 				{
 					DebugLogger.Log("[SnipeClient] Next udp url");
-					Connect();
-					return;
+					//Connect();
+					//return;
 				}
 			}
 
 			ConnectionClosedHandler?.Invoke();
-		}
-		
-		// private void OnClientError(Exception err)
-		// {
-			// DebugLogger.Log($"[SnipeClient] OnUdpClientError: {err.Message}");
-		// }
-		
-		private void RefreshConnectionStats()
-		{
-			//UdpDnsResolveTime = _kcpConnection?.connection?.DnsResolveTime ?? 0;
-			//UdpSocketConnectTime = _kcpConnection?.connection?.SocketConnectTime ?? 0;
-			//UdpSendHandshakeTime = _kcpConnection?.connection?.SendHandshakeTime ?? 0;
 		}
 		
 		private void OnClientDataReceived(ArraySegment<byte> buffer, KcpChannel channel, bool compressed)
