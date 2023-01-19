@@ -20,8 +20,8 @@ namespace MiniIT.Snipe
 
 		private const int CHANNEL_HEADER_SIZE = 1;
 		public const int PING_INTERVAL = 1000;
-		private const int KCP_SEND_WINDOW_SIZE = 4096;
-		private const int KCP_RECEIVE_WINDOW_SIZE = 4096;
+		private const int KCP_SEND_WINDOW_SIZE = 4096;    // Kcp.WND_SND; 32 by default
+		private const int KCP_RECEIVE_WINDOW_SIZE = 4096; // Kcp.WND_RCV; 128 by default
 		private const int QUEUE_DISCONNECT_THRESHOLD = 10000;
 		private const int MAX_KCP_MESSAGE_SIZE = Kcp.MTU_DEF - Kcp.OVERHEAD;
 		private const int CHUNK_DATA_SIZE = MAX_KCP_MESSAGE_SIZE - 5; // channel (1 byte) + header (4 bytes): KcpHeader.Chunk + msg_id + chunk_id + num_chunks
