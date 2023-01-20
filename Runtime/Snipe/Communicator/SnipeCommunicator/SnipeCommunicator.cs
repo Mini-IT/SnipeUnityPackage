@@ -592,7 +592,7 @@ namespace MiniIT.Snipe
 			new SnipeObject()
 			{
 				["connection_type"] = "websocket",
-				["connection_time"] = Analytics.ConnectionEstablishmentTime,
+				["connection_time"] = Analytics.ConnectionEstablishmentTime.TotalMilliseconds,
 				["connection_url"] = Analytics.ConnectionUrl,
 				
 				["ws tcp client connection"] = Analytics.WebSocketTcpClientConnectionTime.TotalMilliseconds,
