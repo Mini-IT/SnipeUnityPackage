@@ -21,6 +21,7 @@ namespace MiniIT.Snipe
 			
 			Analytics.ConnectionUrl = $"{host}:{port}";
 			Analytics.UdpException = null;
+			Analytics.TrackSocketStartConnection("UdpSocketWrapper");
 
 			var stopwatch = Stopwatch.StartNew();
 

@@ -189,6 +189,19 @@ namespace MiniIT.Snipe
 		
 		#endregion AnalyticsTracker
 		
+		#region Connection events
+		
+		internal static void TrackSocketStartConnection(string socketName)
+		{
+			TrackEvent("Socket Start Connection", new Dictionary<string, object>()
+			{
+				["socket"] = socketName,
+				["connection_url"] = Analytics.ConnectionUrl,
+			});
+		}
+		
+		#endregion Connection events
+		
 		#region Constants
 		
 		private const string EVENT_NAME = "Snipe Event";

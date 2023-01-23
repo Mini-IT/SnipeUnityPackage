@@ -41,6 +41,8 @@ namespace MiniIT.Snipe
 		public override void Connect(string url)
 		{
 			Disconnect();
+			
+			Analytics.TrackSocketStartConnection("WebSocketClientWrapper");
 
 			_cancellation = new CancellationTokenSource();
 			_ = Task.Run(() => StartConnection(new Uri(url), _cancellation.Token));
