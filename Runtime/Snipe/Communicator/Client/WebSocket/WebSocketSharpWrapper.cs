@@ -13,6 +13,8 @@ namespace MiniIT.Snipe
 		public override async void Connect(string url)
 		{
 			Disconnect();
+			
+			Analytics.TrackSocketStartConnection("WebSocketSharpWrapper");
 
 			_webSocket = new WebSocket(url);
 			_webSocket.OnOpen += OnWebSocketConnected;
