@@ -90,6 +90,8 @@ namespace MiniIT.Snipe
 
 		private uint _lastPingTime;
 		public uint PingTime { get; private set; }
+		
+		private readonly object _kcpLock = new object();
 
 		public void Connect(string host, ushort port, int timeout = 10000, int authenticationTimeout = 0)
 		{
@@ -98,6 +100,8 @@ namespace MiniIT.Snipe
 
 			_timeout = timeout;
 			_authenticationTimeout = authenticationTimeout > 0 ? authenticationTimeout : timeout;
+			
+			_state = KcpState.Disconnected;
 
 			_socket = new UdpSocketWrapper();
 			_socket.OnConnected += OnSocketConnected;
@@ -147,11 +151,16 @@ namespace MiniIT.Snipe
 			_refTime.Start();
 
 			SendReliable(KcpHeader.Handshake);
-			_kcp.Flush(); // force sending handshake immediately
+			
+			lock(_kcpLock)
+			{
+				_kcp.Flush(); // force sending handshake immediately
+			}
 		}
 
 		private void OnSocketDisconnected()
 		{
+			_state = KcpState.Disconnected;
 			OnDisconnected?.Invoke();
 		}
 
@@ -167,21 +176,25 @@ namespace MiniIT.Snipe
 				try
 				{
 					SendReliable(KcpHeader.Disconnect);
-					_kcp.Flush();
+					
+					lock(_kcpLock)
+					{
+						_kcp.Flush();
+					}
 				}
-				catch (SocketException)
-				{
-					// this is ok, the connection was already closed
-				}
-				catch (ObjectDisposedException)
-				{
-					// this is normal when we stop the server
-					// the socket is stopped so we can't send anything anymore
-					// to the clients
-
-					// the clients will eventually timeout and realize they
-					// were disconnected
-				}
+				//catch (SocketException)
+				//{
+				//	// this is ok, the connection was already closed
+				//}
+				//catch (ObjectDisposedException)
+				//{
+				//	// this is normal when we stop the server
+				//	// the socket is stopped so we can't send anything anymore
+				//	// to the clients
+				//
+				//	// the clients will eventually timeout and realize they
+				//	// were disconnected
+				//}
 				catch (Exception)
 				{
 					// ignore
@@ -527,8 +540,10 @@ namespace MiniIT.Snipe
 					}
 				}
 			}
-			// this is fine, the socket might have been closed in the other end
-			catch (SocketException) { }
+			catch (SocketException)
+			{
+				// this is fine, the socket might have been closed in the other end
+			}
 		}
 
 		private void RawInput(byte[] buffer, int msgLength)
@@ -543,7 +558,13 @@ namespace MiniIT.Snipe
 			{
 				case (byte)KcpChannel.Reliable:
 					// input into kcp, but skip channel byte
-					int input = _kcp.Input(buffer, 1, msgLength - 1);
+					int input = 0;
+					
+					lock(_kcpLock)
+					{
+						_kcp.Input(buffer, 1, msgLength - 1);
+					}
+					
 					if (input != 0)
 					{
 						DebugLogger.LogWarning($"KCP Input failed with error={input} for buffer with length={msgLength - 1}");
