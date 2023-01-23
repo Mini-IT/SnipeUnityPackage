@@ -101,7 +101,7 @@ namespace MiniIT
 				}
 			}
 
-			Debug.Log($"LogSender - Send result code = {(int)statusCode} {statusCode}");
+			Debug.Log($"[LogReporter] - Send result code = {(int)statusCode} {statusCode}");
 
 			if (succeeded)
 			{
