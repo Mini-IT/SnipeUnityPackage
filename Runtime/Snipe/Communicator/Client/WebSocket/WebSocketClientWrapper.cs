@@ -33,7 +33,9 @@ namespace MiniIT.Snipe
 		{
 			_receiveBuffer = new ArraySegment<byte>(new byte[receiveBufferSize]);
 			_receiveMessageBuffer = new byte[messageBufferSize];
-			_taskScheduler = TaskScheduler.FromCurrentSynchronizationContext();
+			_taskScheduler = (SynchronizationContext.Current != null) ?
+				TaskScheduler.FromCurrentSynchronizationContext() :
+				TaskScheduler.Current;
 		}
 
 		public override void Connect(string url)
