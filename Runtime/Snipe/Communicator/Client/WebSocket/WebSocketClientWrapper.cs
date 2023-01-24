@@ -91,6 +91,11 @@ namespace MiniIT.Snipe
 
 		public override void Disconnect()
 		{
+			Disconnect("Manual disconnect");
+		}
+		
+		private void Disconnect(string reason)
+		{
 			if (_cancellation != null)
 			{
 				_cancellation.Cancel();
@@ -100,7 +105,7 @@ namespace MiniIT.Snipe
 			if (_webSocket != null)
 			{
 				// SetConnectionAnalyticsValues();
-				Analytics.WebSocketDisconnectReason = "Manual disconnect";
+				Analytics.WebSocketDisconnectReason = reason;
 
 				_webSocket.Dispose();
 				_webSocket = null;
@@ -123,6 +128,10 @@ namespace MiniIT.Snipe
 						await webSocket.SendAsync(new ArraySegment<byte>(sendData), WebSocketMessageType.Binary, true, cancellation);
 						ArrayPool<byte>.Shared.Return(sendData);
 					}
+				}
+				catch (WebSocketException e)
+				{
+					Disconnect($"Send exception: {e}");
 				}
 				finally
 				{
@@ -175,6 +184,10 @@ namespace MiniIT.Snipe
 						receivedMessageLength = 0;
 					}
 				}
+				catch (WebSocketException e)
+				{
+					Disconnect($"Receive exception: {e}");
+				}
 				finally
 				{
 					_readSemaphore.Release();
@@ -199,8 +212,7 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[WebSocketWrapper] OnWebSocketClosed: {reason}");
 			
-			Disconnect();
-			Analytics.WebSocketDisconnectReason = reason;
+			Disconnect(reason);
 
 			new Task(() => OnConnectionClosed?.Invoke()).RunSynchronously(_taskScheduler);
 		}
