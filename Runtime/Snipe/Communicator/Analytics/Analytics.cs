@@ -58,6 +58,11 @@ namespace MiniIT.Snipe
 			{
 				_tracker.SetUserId(_userId);
 				_userId = null;
+				
+				if (!string.IsNullOrEmpty(SnipeConfig.DebugId))
+				{
+					_tracker.SetUserProperty("debugID", SnipeConfig.DebugId);
+				}
 			}
 			
 			return ready;
