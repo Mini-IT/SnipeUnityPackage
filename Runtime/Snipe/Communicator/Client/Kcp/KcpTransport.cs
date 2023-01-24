@@ -126,37 +126,49 @@ namespace MiniIT.Snipe
 			Array.ConstrainedCopy(buffer.Array, buffer.Offset, data, 0, buffer.Count);
 			buffer = new ArraySegment<byte>(data, 0, buffer.Count);
 
-			SnipeObject message;
+			SnipeObject message = null;
 
 			try
 			{
 				await _messageProcessingSemaphore.WaitAsync();
 
-				message = await Task.Run(() =>
-				{
-					byte opcode = buffer.Array[buffer.Offset];
-
-					int len = BitConverter.ToInt32(buffer.Array, buffer.Offset + 1);
-					var raw_data = new ArraySegment<byte>(buffer.Array, buffer.Offset + 5, len);
-
-					if (compressed)
-					{
-						var decompressed_data = _messageCompressor.Decompress(raw_data);
-
-						return MessagePackDeserializer.Parse(decompressed_data) as SnipeObject;
-					}
-
-					return MessagePackDeserializer.Parse(raw_data) as SnipeObject;
-				});
-
-				ArrayPool<byte>.Shared.Return(data);
+				message = await Task.Run(() => ReadMessage(buffer, compressed));
 			}
 			finally
 			{
+				ArrayPool<byte>.Shared.Return(data);
+				
 				_messageProcessingSemaphore.Release();
 			}
+			
+			if (message != null)
+			{
+				MessageReceivedHandler?.Invoke(message);
+			}
+		}
+		
+		private SnipeObject ReadMessage(ArraySegment<byte> buffer, bool compressed)
+		{
+			// byte opcode = buffer.Array[buffer.Offset];
 
-			MessageReceivedHandler?.Invoke(message);
+			int len = BitConverter.ToInt32(buffer.Array, buffer.Offset + 1);
+			
+			if (len > buffer.Count - 5)
+			{
+				DebugLogger.LogError($"[KcpTransport] ProcessMessage - Message lenght (${len} bytes) is greater than the buffer size (${buffer.Count} bytes)");
+				return null;
+			}
+			
+			var raw_data = new ArraySegment<byte>(buffer.Array, buffer.Offset + 5, len);
+
+			if (compressed)
+			{
+				var decompressed_data = _messageCompressor.Decompress(raw_data);
+
+				return MessagePackDeserializer.Parse(decompressed_data) as SnipeObject;
+			}
+
+			return MessagePackDeserializer.Parse(raw_data) as SnipeObject;
 		}
 		
 		// private void DoSendRequest(byte[] msg)
@@ -254,7 +266,7 @@ namespace MiniIT.Snipe
 				_messageSerializationBuffer[0] = (byte)KcpOpCodes.SnipeRequest;
 				if (writeLength)
 				{
-					BytesUtil.WriteInt(_messageSerializationBuffer, 1, msg_data.Count - 1); // msg_data.Count = opcode (1 byte) + length (4 bytes) + msg.Lenght
+					BytesUtil.WriteInt(_messageSerializationBuffer, 1, msg_data.Count - 1); // msg_data.Count = opcode (1 byte) + length (4 bytes) + msg.Length
 				}
 			}
 
