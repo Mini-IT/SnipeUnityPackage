@@ -14,7 +14,7 @@ namespace MiniIT.Snipe
 		protected readonly MessagePackSerializerNonAlloc _messageSerializer = new MessagePackSerializerNonAlloc();
 		protected byte[] _messageSerializationBuffer = new byte[10240];
 
-		protected readonly SemaphoreSlim _messageSerializationSemaphore = new SemaphoreSlim(1);
-		protected readonly SemaphoreSlim _messageProcessingSemaphore = new SemaphoreSlim(1);
+		protected readonly SemaphoreSlim _messageSerializationSemaphore = new SemaphoreSlim(1, 1);
+		protected readonly SemaphoreSlim _messageProcessingSemaphore = new SemaphoreSlim(1, 1);
 	}
 }

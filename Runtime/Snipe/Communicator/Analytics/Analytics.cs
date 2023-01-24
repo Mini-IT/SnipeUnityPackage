@@ -58,6 +58,11 @@ namespace MiniIT.Snipe
 			{
 				_tracker.SetUserId(_userId);
 				_userId = null;
+				
+				if (!string.IsNullOrEmpty(SnipeConfig.DebugId))
+				{
+					_tracker.SetUserProperty("debugID", SnipeConfig.DebugId);
+				}
 			}
 			
 			return ready;
@@ -188,6 +193,19 @@ namespace MiniIT.Snipe
 		}
 		
 		#endregion AnalyticsTracker
+		
+		#region Connection events
+		
+		internal static void TrackSocketStartConnection(string socketName)
+		{
+			TrackEvent("Socket Start Connection", new Dictionary<string, object>()
+			{
+				["socket"] = socketName,
+				["connection_url"] = Analytics.ConnectionUrl,
+			});
+		}
+		
+		#endregion Connection events
 		
 		#region Constants
 		

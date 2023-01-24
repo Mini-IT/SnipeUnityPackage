@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Net;
 using System.Net.Http;
@@ -24,7 +25,8 @@ namespace MiniIT
 
 		private const int PORTION_SIZE = 200; // messages
 
-		private List<LogRecord> _log = new List<LogRecord>();
+		private readonly List<LogRecord> _log = new List<LogRecord>();
+		private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
 
 		public static void InitInstance()
 		{
@@ -85,7 +87,7 @@ namespace MiniIT
 
 				for (int i = 0; i < _log.Count; i += PORTION_SIZE)
 				{
-					string content = GetPortionContent(i);
+					string content = await GetPortionContent(i);
 					var requestContent = new StringContent(content, Encoding.UTF8, "application/json");
 					var result = await httpClient.PostAsync(url, requestContent);
 
@@ -103,13 +105,22 @@ namespace MiniIT
 
 			if (succeeded)
 			{
-				_log.Clear();
+				try
+				{
+					await _semaphore.WaitAsync();
+					
+					_log.Clear();
+				}
+				finally
+				{
+					_semaphore.Release();
+				}
 			}
 
 			return succeeded;
 		}
 
-		private string GetPortionContent(int startIndex)
+		private async Task<string> GetPortionContent(int startIndex)
 		{
 			int connectionId = 0;
 			int userId = 0;
@@ -136,23 +147,41 @@ namespace MiniIT
 					content.Append(",");
 
 				var item = _log[index];
-
-				content.Append($"{{\"time\":{item._time},\"level\":\"{item._type}\",\"msg\":\"{Escape(item._message)}\",\"stack\":\"{Escape(item._stackTrace)}\"}}");
+				
+				try
+				{
+					await _semaphore.WaitAsync();
+					
+					content.Append($"{{\"time\":{item._time},\"level\":\"{item._type}\",\"msg\":\"{Escape(item._message)}\",\"stack\":\"{Escape(item._stackTrace)}\"}}");
+				}
+				finally
+				{
+					_semaphore.Release();
+				}
 			}
 
 			content.Append("]}");
 			return content.ToString();
 		}
 
-		private void OnLogMessageReceived(string condition, string stackTrace, LogType type)
+		private async void OnLogMessageReceived(string condition, string stackTrace, LogType type)
 		{
-			_log.Add(new LogRecord()
+			try
 			{
-				_time = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-				_type = type.ToString(),
-				_message = condition,
-				_stackTrace = stackTrace,
-			});
+				await _semaphore.WaitAsync();
+				
+				_log.Add(new LogRecord()
+				{
+					_time = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+					_type = type.ToString(),
+					_message = condition,
+					_stackTrace = stackTrace,
+				});
+			}
+			finally
+			{
+				_semaphore.Release();
+			}
 		}
 
 		// https://stackoverflow.com/a/14087738

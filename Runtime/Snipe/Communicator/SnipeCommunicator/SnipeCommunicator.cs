@@ -137,7 +137,9 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public void StartCommunicator(bool autologin = true)
 		{
-			_mainThreadScheduler = TaskScheduler.FromCurrentSynchronizationContext();
+			_mainThreadScheduler = (SynchronizationContext.Current != null) ?
+				TaskScheduler.FromCurrentSynchronizationContext() :
+				TaskScheduler.Current;
 			
 			// If both connection types failed last session (value == 2), then try both again
 			if (SharedPrefs.GetInt(SnipePrefs.SKIP_UDP, 0) > 1)
