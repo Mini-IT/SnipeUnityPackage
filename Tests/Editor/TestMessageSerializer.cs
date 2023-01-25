@@ -16,12 +16,13 @@ public class TestMessageSerializer
 	{
 		const int THREADS_COUNT = 40;
 		List<SnipeObject> data = new List<SnipeObject>(THREADS_COUNT);
-		List<byte[]> serialized = new List<byte[]>(data.Count);
+		List<byte[]> serialized = new List<byte[]>(THREADS_COUNT);
 
 		for (int i = 0; i < THREADS_COUNT; i++)
 		{
-			data.Add(GenerateRandomSnipeObject());
-			serialized.Add(MessagePackSerializer.Serialize(data[i]));
+			var obj = GenerateRandomSnipeObject();
+			data.Add(obj);
+			serialized.Add(MessagePackSerializer.Serialize(obj));
 		}
 
 		// Unique WebSocketTransport instances 
