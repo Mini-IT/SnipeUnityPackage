@@ -69,15 +69,16 @@ public class TestMessageSerializer
 	private SnipeObject GenerateRandomSnipeObject()
 	{
 		SnipeObject data = new SnipeObject();
-		for (int i = 0; i < 5; i++)
+		int intFieldsCount = 5;
+		int stringFieldsCount = UnityEngine.Random.Range(2, 10);
+		for (int i = 0; i < intFieldsCount; i++)
 		{
-			int fieldsCount = UnityEngine.Random.Range(1, 5);
 			data[$"field{i}"] = i;
-			data[Guid.NewGuid().ToString()] = i * 12 + fieldsCount;
-			for (int k = 0; k < fieldsCount; k++)
-			{
-				data[Guid.NewGuid().ToString()] = Guid.NewGuid().ToString();
-			}
+			data[Guid.NewGuid().ToString()] = i * 12 + stringFieldsCount;
+		}
+		for (int k = 0; k < stringFieldsCount; k++)
+		{
+			data[Guid.NewGuid().ToString()] = Guid.NewGuid().ToString();
 		}
 		return data;
 	}
