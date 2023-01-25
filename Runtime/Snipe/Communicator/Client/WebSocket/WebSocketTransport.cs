@@ -136,7 +136,7 @@ namespace MiniIT.Snipe
 
 		public void SendBatch(List<SnipeObject> messages)
 		{
-			lock (this._lock)
+			lock (_lock)
 			{
 				if (_batchMessages == null)
 					_batchMessages = new ConcurrentQueue<List<SnipeObject>>();

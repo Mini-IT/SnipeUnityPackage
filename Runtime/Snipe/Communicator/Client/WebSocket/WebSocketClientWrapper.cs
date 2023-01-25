@@ -20,7 +20,7 @@ namespace MiniIT.Snipe
 
 		private byte[] _receiveMessageBuffer;
 
-		private ConcurrentQueue<byte[]> _sendQueue = new ConcurrentQueue<byte[]>();
+		private ConcurrentQueue<ArraySegment<byte>> _sendQueue = new ConcurrentQueue<ArraySegment<byte>>();
 
 		/// <summary>
 		/// <c>System.Net.WebSockets.ClientWebSocket</c> wrapper. Reads incoming messages by chunks
@@ -123,10 +123,10 @@ namespace MiniIT.Snipe
 					if (cancellation.IsCancellationRequested)
 						break;
 
-					if (_sendQueue.TryDequeue(out byte[] sendData))
+					if (_sendQueue.TryDequeue(out var sendData))
 					{
-						await webSocket.SendAsync(new ArraySegment<byte>(sendData), WebSocketMessageType.Binary, true, cancellation);
-						ArrayPool<byte>.Shared.Return(sendData);
+						await webSocket.SendAsync(sendData, WebSocketMessageType.Binary, true, cancellation);
+						ArrayPool<byte>.Shared.Return(sendData.Array);
 					}
 				}
 				catch (WebSocketException e)
@@ -230,7 +230,9 @@ namespace MiniIT.Snipe
 			if (!Connected)
 				return;
 
-			EnqueueRequestToSend(new ArraySegment<byte>(bytes));
+			byte[] buffer = ArrayPool<byte>.Shared.Rent(bytes.Length);
+			Array.ConstrainedCopy(bytes, 0, buffer, 0, bytes.Length);
+			_sendQueue.Enqueue(new ArraySegment<byte>(buffer, 0, bytes.Length));
 		}
 
 		public override void SendRequest(ArraySegment<byte> data)
@@ -238,14 +240,9 @@ namespace MiniIT.Snipe
 			if (!Connected)
 				return;
 
-			EnqueueRequestToSend(data);
-		}
-
-		private void EnqueueRequestToSend(ArraySegment<byte> data)
-		{
 			byte[] buffer = ArrayPool<byte>.Shared.Rent(data.Count);
 			Array.ConstrainedCopy(data.Array, data.Offset, buffer, 0, data.Count);
-			_sendQueue.Enqueue(buffer);
+			_sendQueue.Enqueue(new ArraySegment<byte>(buffer, 0, data.Count));
 		}
 
 		public override void Ping(Action<bool> callback = null)
