@@ -3,6 +3,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
+#if ZSTRING
+using Cysharp.Text;
+#endif
 
 namespace MiniIT.Snipe
 {
@@ -324,10 +327,14 @@ namespace MiniIT.Snipe
 			string error_code =  message.SafeGetString("errorCode");
 			int request_id = message.SafeGetValue<int>("id");
 			SnipeObject response_data = message.SafeGetValue<SnipeObject>("data");
-				
+			
 			RemoveResponseMonitoringItem(request_id, message_type);
 			
-			DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - {request_id} - {message_type} {error_code} {response_data?.ToJSONString()}");
+			#if ZSTRING
+			DebugLogger.Log(ZString.Format("[SnipeClient] [{0}] ProcessMessage - {1} - {2} {3} {4}", ConnectionId, request_id, message_type, error_code, response_data?.ToFastJSONString()));
+			#else
+			DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - {request_id} - {message_type} {error_code} {response_data?.ToFastJSONString()}");
+			#endif
 
 			if (!_loggedIn)
 			{
@@ -336,7 +343,7 @@ namespace MiniIT.Snipe
 					if (error_code == SnipeErrorCodes.OK || error_code == SnipeErrorCodes.ALREADY_LOGGED_IN)
 					{
 						DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - Login Succeeded");
-							
+						
 						_loggedIn = true;
 
 						_webSocket?.SetLoggedIn(true);
