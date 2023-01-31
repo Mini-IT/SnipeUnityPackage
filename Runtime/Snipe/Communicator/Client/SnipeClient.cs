@@ -271,7 +271,14 @@ namespace MiniIT.Snipe
 			if (!Connected || message == null)
 				return;
 			
-			DebugLogger.Log($"[SnipeClient] SendRequest - {message.ToJSONString()}");
+			if (DebugLogger.IsEnabled)
+			{
+				#if ZSTRING
+				DebugLogger.Log(ZString.Concat("[SnipeClient] SendRequest - ", message.ToJSONString()));
+				#else
+				DebugLogger.Log($"[SnipeClient] SendRequest - {message.ToJSONString()}");
+				#endif
+			}
 			
 			if (UdpClientConnected)
 			{
@@ -330,11 +337,14 @@ namespace MiniIT.Snipe
 			
 			RemoveResponseMonitoringItem(request_id, message_type);
 			
-			#if ZSTRING
-			DebugLogger.Log(ZString.Format("[SnipeClient] [{0}] ProcessMessage - {1} - {2} {3} {4}", ConnectionId, request_id, message_type, error_code, response_data?.ToFastJSONString()));
-			#else
-			DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - {request_id} - {message_type} {error_code} {response_data?.ToFastJSONString()}");
-			#endif
+			if (DebugLogger.IsEnabled)
+			{
+				#if ZSTRING
+				DebugLogger.Log(ZString.Format("[SnipeClient] [{0}] ProcessMessage - {1} - {2} {3} {4}", ConnectionId, request_id, message_type, error_code, response_data?.ToFastJSONString()));
+				#else
+				DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - {request_id} - {message_type} {error_code} {response_data?.ToFastJSONString()}");
+				#endif
+			}
 
 			if (!_loggedIn)
 			{
