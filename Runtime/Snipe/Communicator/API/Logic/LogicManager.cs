@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 
-namespace MiniIT.Snipe
+namespace MiniIT.Snipe.Api
 {
 	public class LogicManager
 	{
@@ -27,6 +27,18 @@ namespace MiniIT.Snipe
 		private Stopwatch _refTime = Stopwatch.StartNew();
 		private Timer _secondsTimer;
 
+		private readonly AbstractSnipeApiService _snipeApi;
+
+		public LogicManager(AbstractSnipeApiService snipeApi)
+		{
+			_snipeApi = snipeApi;
+		}
+
+		~LogicManager()
+		{
+			Dispose();
+		}
+
 		public void Init(SnipeTable<SnipeTableLogicItem> logic_table)
 		{
 			_logicTable = logic_table;
@@ -43,11 +55,6 @@ namespace MiniIT.Snipe
 			_snipeCommunicator.PreDestroy -= OnSnipeCommunicatorPreDestroy;
 			_snipeCommunicator.MessageReceived += OnSnipeMessageReceived;
 			_snipeCommunicator.PreDestroy += OnSnipeCommunicatorPreDestroy;
-		}
-
-		~LogicManager()
-		{
-			Dispose();
 		}
 
 		private void OnSnipeCommunicatorPreDestroy()
@@ -144,7 +151,7 @@ namespace MiniIT.Snipe
 			if (_logicGetRequestParameters == null)
 				_logicGetRequestParameters = new SnipeObject() { ["noDump"] = false };
 
-			var request = SnipeApiBase.CreateRequest("logic.get", _logicGetRequestParameters);
+			var request = _snipeApi.CreateRequest("logic.get", _logicGetRequestParameters);
 			request?.Request();
 		}
 
@@ -163,7 +170,7 @@ namespace MiniIT.Snipe
 				request_data["treeID"] = tree_id;
 			//if (amount != 0)
 			//	request_data["amount"] = amount;
-			var request = SnipeApiBase.CreateRequest("logic.incVar", request_data);
+			var request = _snipeApi.CreateRequest("logic.incVar", request_data);
 			if (request != null)
 			{
 				request.Request();

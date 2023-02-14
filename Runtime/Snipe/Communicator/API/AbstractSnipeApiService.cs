@@ -1,11 +1,9 @@
-using System;
-using MiniIT;
 
-namespace MiniIT.Snipe
+namespace MiniIT.Snipe.Api
 {
-	public static class SnipeApiBase
+	public class AbstractSnipeApiService
 	{
-		public static SnipeCommunicatorRequest CreateRequest(string message_type, SnipeObject data)
+		public SnipeCommunicatorRequest CreateRequest(string message_type, SnipeObject data)
 		{
 			if (SnipeCommunicator.Instance.LoggedIn || SnipeCommunicator.Instance.AllowRequestsToWaitForLogin)
 			{
