@@ -52,7 +52,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		public readonly List<SnipeRequestDescriptor> MergeableRequestTypes = new List<SnipeRequestDescriptor>();
+		public readonly HashSet<SnipeRequestDescriptor> MergeableRequestTypes = new HashSet<SnipeRequestDescriptor>();
 
 		public bool Connected
 		{
