@@ -9,7 +9,7 @@ namespace MiniIT.Snipe.Api
 	{
 		private const int SET_REQUEST_DELAY_MILLISECONDS = 300;
 
-		public delegate void ValueChangedHandler(object oldValue, object value);
+		//public delegate void ValueChangedHandler(object oldValue, object value);
 		public delegate void SetCallback(string errorCode, string key, object value);
 
 		public class SetRequest
