@@ -142,6 +142,12 @@ namespace MiniIT.Snipe.Api
 			return _value;
 		}
 
+		public void SetValue(object val, SetCallback callback = null)
+		{
+			ValueType value = (ValueType)Convert.ChangeType(val, typeof(ValueType));
+			SetValue(value, callback);
+		}
+
 		public void SetValue(ValueType val, SetCallback callback = null)
 		{
 			if (object.Equals(_value, val))
