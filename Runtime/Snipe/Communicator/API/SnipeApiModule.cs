@@ -1,5 +1,3 @@
-using System;
-using MiniIT;
 
 namespace MiniIT.Snipe.Api
 {
