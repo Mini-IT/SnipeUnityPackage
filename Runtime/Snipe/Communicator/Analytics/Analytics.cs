@@ -181,13 +181,13 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		public static void TrackError(string name, Exception exception = null)
+		public static void TrackError(string name, Exception exception = null, IDictionary<string, object> properties = null)
 		{
 			if (CheckReady())
 			{
 				InvokeInMainThread(() =>
 				{
-					_tracker.TrackError(name, exception);
+					_tracker.TrackError(name, exception, properties);
 				});
 			}
 		}
