@@ -160,8 +160,8 @@ namespace MiniIT.Snipe
 				}
 				catch (Exception e)
 				{
-					DebugLogger.Log($"[SnipeClient] ConnectionOpened invokation error: {e}");
-					Analytics.TrackError("ConnectionOpened invokation error", e);
+					DebugLogger.Log($"[SnipeClient] ConnectionOpened invocation error: {e}");
+					Analytics.TrackError("ConnectionOpened invocation error", e);
 				}
 			});
 		}
@@ -176,8 +176,8 @@ namespace MiniIT.Snipe
 				}
 				catch (Exception e)
 				{
-					DebugLogger.Log($"[SnipeClient] ConnectionClosed invokation error: {e}");
-					Analytics.TrackError("ConnectionClosed invokation error", e);
+					DebugLogger.Log($"[SnipeClient] ConnectionClosed invocation error: {e}");
+					Analytics.TrackError("ConnectionClosed invocation error", e);
 				}
 			});
 		}
@@ -375,8 +375,8 @@ namespace MiniIT.Snipe
 							}
 							catch (Exception e)
 							{
-								DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginSucceeded invokation error: {e}");
-								Analytics.TrackError("LoginSucceeded invokation error", e);
+								DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginSucceeded invocation error: {e}");
+								Analytics.TrackError("LoginSucceeded invocation error", e);
 							}
 						});
 					}
@@ -392,8 +392,8 @@ namespace MiniIT.Snipe
 							}
 							catch (Exception e)
 							{
-								DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginFailed invokation error: {e}");
-								Analytics.TrackError("LoginFailed invokation error", e);
+								DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginFailed invocation error: {e}");
+								Analytics.TrackError("LoginFailed invocation error", e);
 							}
 						});
 					}
@@ -410,8 +410,12 @@ namespace MiniIT.Snipe
 					}
 					catch (Exception e)
 					{
-						DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - MessageReceived invokation error: {e}");
-						Analytics.TrackError("MessageReceived invokation error", e);
+						DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - MessageReceived invocation error: {e}");
+						Analytics.TrackError("MessageReceived invocation error", e, new Dictionary<string, object>()
+						{
+							["messageType"] = message_type,
+							["errorCode"] = error_code,
+						});
 					}
 				});
 			}
