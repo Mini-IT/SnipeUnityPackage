@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace MiniIT.Snipe
@@ -35,6 +36,7 @@ namespace MiniIT.Snipe
 		private static IAnalyticsTracker _tracker;
 		
 		private static string _userId = null;
+		private static readonly object _userIdLock = new object();
 
 		/// <summary>
 		/// Should be called from the main Unity thread
@@ -42,7 +44,10 @@ namespace MiniIT.Snipe
 		public static void SetTracker(IAnalyticsTracker tracker)
 		{
 			_tracker = tracker;
-			_mainThreadScheduler = TaskScheduler.FromCurrentSynchronizationContext();
+			
+			_mainThreadScheduler = (SynchronizationContext.Current != null) ?
+				TaskScheduler.FromCurrentSynchronizationContext() :
+				TaskScheduler.Current;
 
 			if (!string.IsNullOrEmpty(_userId))
 			{
@@ -54,14 +59,20 @@ namespace MiniIT.Snipe
 		{
 			bool ready = _tracker != null && _tracker.IsInitialized && IsEnabled;
 			
-			if (ready && !string.IsNullOrEmpty(_userId))
+			if (ready)
 			{
-				_tracker.SetUserId(_userId);
-				_userId = null;
-				
-				if (!string.IsNullOrEmpty(SnipeConfig.DebugId))
+				lock (_userIdLock)
 				{
-					_tracker.SetUserProperty("debugID", SnipeConfig.DebugId);
+					if (!string.IsNullOrEmpty(_userId))
+					{
+						_tracker.SetUserId(_userId);
+						_userId = null;
+						
+						if (!string.IsNullOrEmpty(SnipeConfig.DebugId))
+						{
+							_tracker.SetUserProperty("debugID", SnipeConfig.DebugId);
+						}
+					}
 				}
 			}
 			
