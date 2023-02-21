@@ -22,7 +22,7 @@ namespace MiniIT.Snipe
 		//void TrackEvent(string name, string property_name, object property_value);
 		//void TrackEvent(string name, object property_value);
 		
-		void TrackError(string name, Exception exception = null);
+		void TrackError(string name, Exception exception = null, IDictionary<string, object> properties = null);
 		
 		// Used for excluding some messages or error codes from analytics tracking
 		bool CheckErrorCodeTracking(string message_type, string error_code);

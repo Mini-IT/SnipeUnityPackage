@@ -10,7 +10,8 @@
         "fastJSON",
         "MiniIT.AdvertisingIdFetcher",
         "WebSocketSharp",
-        "kcp2k"
+        "kcp2k",
+        "ZString"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -24,6 +25,11 @@
             "name": "com.miniit.advertising-id",
             "expression": "1.0.0",
             "define": "MINI_IT_ADVERTISING_ID"
+        },
+        {
+            "name": "com.cysharp.zstring",
+            "expression": "2.0.0",
+            "define": "ZSTRING"
         }
     ],
     "noEngineReferences": false
