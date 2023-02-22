@@ -25,7 +25,7 @@ namespace MiniIT.Snipe.Api
 		protected readonly AbstractSnipeApiService _snipeApi;
 		protected readonly string _key;
 
-		public SnipeApiUserAttribute(AbstractSnipeApiService snipeApi, string key)
+		internal SnipeApiUserAttribute(AbstractSnipeApiService snipeApi, string key)
 		{
 			_snipeApi = snipeApi;
 			_key = key;
@@ -129,11 +129,11 @@ namespace MiniIT.Snipe.Api
 		}
 	}
 
-	public class SnipeApiUserAttribute<ValueType> : SnipeApiUserAttribute
+	public class SnipeApiReadOnlyUserAttribute<ValueType> : SnipeApiUserAttribute
 	{
-		private ValueType _value;
+		protected ValueType _value;
 
-		public SnipeApiUserAttribute(AbstractSnipeApiService snipeApi, string key) : base(snipeApi, key)
+		public SnipeApiReadOnlyUserAttribute(AbstractSnipeApiService snipeApi, string key) : base(snipeApi, key)
 		{
 		}
 
@@ -148,7 +148,25 @@ namespace MiniIT.Snipe.Api
 			SetValue(value, callback);
 		}
 
-		public void SetValue(ValueType val, SetCallback callback = null)
+		public virtual void SetValue(ValueType val, SetCallback callback = null)
+		{
+			_value = val;
+			callback?.Invoke("ok", _key, val);
+		}
+
+		public static implicit operator ValueType(SnipeApiReadOnlyUserAttribute<ValueType> attr)
+		{
+			return attr._value;
+		}
+	}
+
+	public class SnipeApiUserAttribute<ValueType> : SnipeApiReadOnlyUserAttribute<ValueType>
+	{
+		public SnipeApiUserAttribute(AbstractSnipeApiService snipeApi, string key) : base(snipeApi, key)
+		{
+		}
+
+		public override void SetValue(ValueType val, SetCallback callback = null)
 		{
 			if (object.Equals(_value, val))
 			{
@@ -158,11 +176,6 @@ namespace MiniIT.Snipe.Api
 			_value = val;
 
 			AddSetRequest(val, callback);
-		}
-
-		public static implicit operator ValueType(SnipeApiUserAttribute<ValueType> attr)
-		{
-			return attr._value;
 		}
 	}
 }
