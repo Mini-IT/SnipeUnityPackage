@@ -1,5 +1,8 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace MiniIT.Snipe
@@ -39,6 +42,8 @@ namespace MiniIT.Snipe
 		private static int _serverWebSocketUrlIndex = 0;
 		private static int _serverUdpUrlIndex = 0;
 
+		private static TaskScheduler _mainThreadScheduler;
+
 		public enum TablesVersionsResolving
 		{
 			Default,
@@ -61,6 +66,10 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public static void Init(IDictionary<string, object> data)
 		{
+			_mainThreadScheduler = SynchronizationContext.Current != null ?
+				TaskScheduler.FromCurrentSynchronizationContext() :
+				TaskScheduler.Current;
+
 			ClientKey = SnipeObject.SafeGetString(data, "client_key");
 
 			if (ServerWebSocketUrls == null)
@@ -162,7 +171,8 @@ namespace MiniIT.Snipe
 				MinMessageBytesToCompress = SnipeObject.SafeGetValue<int>(compression, "min_size");
 			}
 
-			_serverWebSocketUrlIndex = 0;
+			_serverWebSocketUrlIndex = PlayerPrefs.GetInt(SnipePrefs.WEBSOCKET_URL_INDEX, 0);
+			_serverUdpUrlIndex = PlayerPrefs.GetInt(SnipePrefs.UDP_URL_INDEX, 0);
 
 			PersistentDataPath = Application.persistentDataPath;
 			StreamingAssetsPath = Application.streamingAssetsPath;
@@ -213,12 +223,17 @@ namespace MiniIT.Snipe
 		public static void NextWebSocketUrl()
 		{
 			_serverWebSocketUrlIndex = GetValidIndex(ServerWebSocketUrls, _serverWebSocketUrlIndex, true);
+
+			RunInMainThread(() => PlayerPrefs.SetInt(SnipePrefs.WEBSOCKET_URL_INDEX, _serverWebSocketUrlIndex));
 		}
 
 		public static bool NextUdpUrl()
 		{
 			int prev = _serverUdpUrlIndex;
 			_serverUdpUrlIndex = GetValidIndex(ServerUdpUrls, _serverUdpUrlIndex, true);
+
+			RunInMainThread(() => PlayerPrefs.SetInt(SnipePrefs.UDP_URL_INDEX, _serverUdpUrlIndex));
+
 			return _serverUdpUrlIndex > prev;
 		}
 
@@ -251,6 +266,11 @@ namespace MiniIT.Snipe
 			}
 
 			return -1;
+		}
+
+		private static void RunInMainThread(Action action)
+		{
+			new Task(action).RunSynchronously(_mainThreadScheduler);
 		}
 	}
 }
