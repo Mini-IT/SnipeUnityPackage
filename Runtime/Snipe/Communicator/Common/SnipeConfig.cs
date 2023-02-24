@@ -245,6 +245,7 @@ namespace MiniIT.Snipe
 			return !string.IsNullOrEmpty(address?.Host) && address.Port > 0;
 		}
 
+		// [Testable]
 		internal static int GetValidIndex(IList list, int index, bool next = false)
 		{
 			if (list == null || list.Count < 1)
