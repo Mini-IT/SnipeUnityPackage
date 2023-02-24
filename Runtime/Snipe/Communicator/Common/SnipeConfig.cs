@@ -247,25 +247,24 @@ namespace MiniIT.Snipe
 
 		internal static int GetValidIndex(IList list, int index, bool next = false)
 		{
-			if (list != null && list.Count > 0)
+			if (list == null || list.Count < 1)
 			{
-				if (next)
-				{
-					if (index < list.Count - 1)
-						index++;
-					else
-						index = 0;
-				}
-
-				if (index < 0)
-				{
-					index = 0;
-				}
-
-				return index;
+				return -1;
 			}
 
-			return -1;
+			if (next)
+			{
+				if (index < list.Count - 1)
+					index++;
+				else
+					index = 0;
+			}
+			else if (index < 0 || index >= list.Count)
+			{
+				index = 0;
+			}
+
+			return index;
 		}
 
 		private static void RunInMainThread(Action action)
