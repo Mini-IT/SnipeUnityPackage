@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace MiniIT.Snipe
 {
-	public class CalendarManager
+	public class CalendarManager : IDisposable
 	{
 		public TimeZoneInfo ServerTimeZone = TimeZoneInfo.CreateCustomTimeZone("server time", TimeSpan.FromHours(3), "server time", "server time");
 
