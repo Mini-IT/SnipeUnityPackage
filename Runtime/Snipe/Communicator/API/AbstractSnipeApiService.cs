@@ -55,7 +55,6 @@ namespace MiniIT.Snipe.Api
 
 		protected virtual void InitMergeableRequestTypes()
 		{
-
 		}
 
 		protected virtual void OnCommunicatorPreDestroy()
