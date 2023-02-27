@@ -14,9 +14,9 @@ namespace MiniIT.Snipe
 		private const int RETRY_INIT_CLIENT_MAX_DELAY = 10000; // ms
 		private const int RETRY_INIT_CLIENT_RANDOM_DELAY = 500; // ms
 		
-		public delegate void MessageReceivedHandler(string message_type, string error_code, SnipeObject data, int request_id);
+		public delegate void MessageReceivedHandler(string messageType, string errorCode, SnipeObject data, int requestId);
 		public delegate void ConnectionSucceededHandler();
-		public delegate void ConnectionFailedHandler(bool will_restore = false);
+		public delegate void ConnectionFailedHandler(bool willRestore = false);
 		public delegate void LoginSucceededHandler();
 		public delegate void PreDestroyHandler();
 
