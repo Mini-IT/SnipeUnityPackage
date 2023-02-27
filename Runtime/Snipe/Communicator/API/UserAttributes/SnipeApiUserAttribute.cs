@@ -74,6 +74,8 @@ namespace MiniIT.Snipe.Api
 			ValueChanged?.Invoke(oldValue, newValue);
 		}
 
+		public override string ToString() => Convert.ToString(_value);
+
 		public static implicit operator AttrValueType(SnipeApiReadOnlyUserAttribute<AttrValueType> attr)
 		{
 			return attr._value;
