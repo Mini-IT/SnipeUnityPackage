@@ -51,7 +51,7 @@ namespace MiniIT.Snipe
 			return false;
 		}
 
-		private static string GetBuiltFileInPath(string table_name, long version)
+		private static string GetBuiltInFilePath(string table_name, long version)
 		{
 			// NOTE: There is a bug - only lowercase works
 			// (https://issuetracker.unity3d.com/issues/android-loading-assets-from-assetbundles-takes-significantly-more-time-when-the-project-is-built-as-an-aab)
@@ -244,7 +244,7 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[SnipeTable] ReadFromStramingAssets - {table_name}");
 
-			string file_path = GetBuiltFileInPath(table_name, version);
+			string file_path = GetBuiltInFilePath(table_name, version);
 
 			if (!BetterStreamingAssets.FileExists(file_path))
 			{
