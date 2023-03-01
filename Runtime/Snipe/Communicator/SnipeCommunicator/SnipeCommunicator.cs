@@ -88,43 +88,43 @@ namespace MiniIT.Snipe
 		private TaskScheduler _mainThreadScheduler;
 		private CancellationTokenSource _delayedInitCancellation;
 		
-		private static SnipeCommunicator _instance;
+		private static SnipeCommunicator s_instance;
 		public static SnipeCommunicator Instance
 		{
 			get
 			{
-				if (_instance == null)
+				if (s_instance == null)
 				{
-					_instance = new SnipeCommunicator();
+					s_instance = new SnipeCommunicator();
 				}
-				return _instance;
+				return s_instance;
 			}
 		}
 		
 		public static bool InstanceInitialized
 		{
-			get => _instance != null;
+			get => s_instance != null;
 		}
 		
 		public static void DestroyInstance()
 		{
-			if (_instance != null)
+			if (s_instance != null)
 			{
-				var temp = _instance;
-				_instance = null;
+				var temp = s_instance;
+				s_instance = null;
 				temp.Dispose();
 			}
 		}
 		
 		private SnipeCommunicator()
 		{
-			if (_instance != null && _instance != this)
+			if (s_instance != null && s_instance != this)
 			{
 				DebugLogger.LogError("[SnipeCommunicator] There is another instance");
 				return;
 			}
 
-			_instance = this;
+			s_instance = this;
 			this.Auth = new AuthSubsystem(this);
 
 			DebugLogger.Log($"[SnipeCommunicator] PACKAGE VERSION: {PackageInfo.VERSION}");
@@ -140,12 +140,6 @@ namespace MiniIT.Snipe
 			_mainThreadScheduler = (SynchronizationContext.Current != null) ?
 				TaskScheduler.FromCurrentSynchronizationContext() :
 				TaskScheduler.Current;
-			
-			// If both connection types failed last session (value == 2), then try both again
-			if (SharedPrefs.GetInt(SnipePrefs.SKIP_UDP, 0) > 1)
-			{
-				SharedPrefs.DeleteKey(SnipePrefs.SKIP_UDP);
-			}
 			
 			_autoLogin = autologin;
 			InitClient();
@@ -179,7 +173,7 @@ namespace MiniIT.Snipe
 				if (!Client.Connected)
 				{
 					_disconnecting = false;
-					Client.Connect(SharedPrefs.GetInt(SnipePrefs.SKIP_UDP, 0) != 1);
+					Client.Connect();
 					
 					RunInMainThread(() =>
 					{
@@ -238,25 +232,6 @@ namespace MiniIT.Snipe
 			{
 				AnalyticsTrackConnectionSucceeded();
 				RaiseEvent(ConnectionSucceeded);
-				
-				if (Client.WebSocketConnected)
-				{
-					// if the value == 2 then both UDP and websocket connections failed.
-					// We'll save the flag only if the first attempt to connect to UDP failed and websocket succeeded.
-					// Otherwise we should try both connection types next time
-					if (SharedPrefs.GetInt(SnipePrefs.SKIP_UDP, 0) == 0)
-					{
-						SharedPrefs.SetInt(SnipePrefs.SKIP_UDP, 1);
-					}
-				}
-				// else // successfully connected via UDP
-				// {
-				//		// if SKIP_UDP is not set (0) then no action needed.
-				//		// if SKIP_UDP is set to 2, then connection troubles were observed.
-				//		// Keep this value until next session to force try both connection types.
-				//		// In this case SKIP_UDP will be deleted when StartCommunicator is invoked.
-				//		// So no action needed in any case.
-				// }
 			});
 		}
 		
@@ -437,10 +412,6 @@ namespace MiniIT.Snipe
 		
 		private async void DelayedInitClient(CancellationToken cancellation)
 		{
-			// Both connection types failed.
-			// Don't force websocket - try both again next time
-			SharedPrefs.SetInt(SnipePrefs.SKIP_UDP, 2);
-			
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) WaitAndInitClient - start delay");
 			Random random = new Random();
 			int delay = RETRY_INIT_CLIENT_DELAY * _restoreConnectionAttempt + random.Next(RETRY_INIT_CLIENT_RANDOM_DELAY);
