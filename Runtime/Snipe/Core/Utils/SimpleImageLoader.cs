@@ -191,16 +191,20 @@ namespace MiniIT.Utils
 				if (loader.result != UnityWebRequest.Result.Success)
 				{
 					Texture2D texture = new Texture2D(1, 1);
-					texture.LoadImage(loader.downloadHandler.data);
-
-					if (_useCache)
+					if (texture.LoadImage(loader.downloadHandler.data))
 					{
-						if (_cache == null)
-							_cache = new Dictionary<string, Texture2D>();
-						_cache[Url] = texture;
-					}
+						if (_useCache)
+						{
+							_cache ??= new Dictionary<string, Texture2D>();
+							_cache[Url] = texture;
+						}
 
-					InvokeCallback(texture);
+						InvokeCallback(texture);
+					}
+					else
+					{
+						DebugLogger.Log($"[SimpleImageLoader] Error loading image: {url} - invalid image");
+					}					
 				}
 				else
 				{
