@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
 #if ZSTRING
 using Cysharp.Text;
@@ -71,11 +72,13 @@ namespace MiniIT.Snipe
 
 		private TaskScheduler _mainThreadScheduler;
 
-		public void Connect(bool udp = true)
+		public void Connect()
 		{
-			_mainThreadScheduler = TaskScheduler.FromCurrentSynchronizationContext();
+			_mainThreadScheduler = SynchronizationContext.Current != null ?
+				TaskScheduler.FromCurrentSynchronizationContext() :
+				TaskScheduler.Current;
 
-			if (udp && SnipeConfig.CheckUdpAvailable())
+			if (SnipeConfig.CheckUdpAvailable())
 			{
 				ConnectUdpClient();
 			}
