@@ -54,7 +54,7 @@ namespace MiniIT.Snipe
 			SendRequest();
 		}
 		
-		internal void RequestAuth(SnipeObject data, ResponseHandler callback = null)
+		internal void RequestUnauthorized(SnipeObject data, ResponseHandler callback = null)
 		{
 			_authorization = true;
 			Data = data;
