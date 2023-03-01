@@ -188,7 +188,7 @@ namespace MiniIT.Utils
 				loader.downloadHandler = new DownloadHandlerBuffer();
 				yield return loader.SendWebRequest();
 
-				if (loader.result != UnityWebRequest.Result.Success)
+				if (loader.result == UnityWebRequest.Result.Success)
 				{
 					Texture2D texture = new Texture2D(1, 1);
 					if (texture.LoadImage(loader.downloadHandler.data))
