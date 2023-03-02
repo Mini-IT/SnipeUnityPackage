@@ -2,8 +2,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using MiniIT;
 using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace MiniIT.Snipe
 {
@@ -12,6 +12,7 @@ namespace MiniIT.Snipe
 		public delegate void AccountBindingCollisionHandler(AuthBinding binding, string user_name = null);
 
 		public event AccountBindingCollisionHandler AccountBindingCollision;
+		public event Action LoginSucceeded;
 		public bool AutomaticallyBindCollisions = false;
 				
 		private int _userID = 0;
@@ -38,16 +39,32 @@ namespace MiniIT.Snipe
 				Analytics.SetUserId(_userID.ToString());
 			}
 		}
-		
+
+		/// <summary>
+		/// User name that is displayed in the UI and leaderboards
+		/// </summary>
+		public string UserName { get; private set; }
+
+		/// <summary>
+		/// If true then the authorization will start automatically after connection is opened.
+		/// Otherwise you'll need to run <see cref="Authorize"/> method manually
+		/// </summary>
+		public bool AutoLogin { get; set; } = true;
+
+		/// <summary>
+		/// Indicates that a new registration is done during current session
+		/// </summary>
 		public bool JustRegistered { get; private set; } = false;
 		
 		private SnipeCommunicator _communicator;
 		
 		private AdvertisingIdFetcher _advertisingIdFetcher;
 		private DeviceIdFetcher _deviceIdFetcher;
-		
-		private static List<AuthBinding> _bindings;
-		
+
+		private List<AuthBinding> _bindings;
+
+		private int _loginAttempt;
+
 		public AuthSubsystem(SnipeCommunicator communicator)
 		{
 			_communicator = communicator;
@@ -56,25 +73,51 @@ namespace MiniIT.Snipe
 
 			_bindings = new List<AuthBinding>()
 			{
-				new AdvertisingIdBinding(),
+				new AdvertisingIdBinding(_communicator, this),
 #if SNIPE_FACEBOOK
-				new FacebookBinding(),
+				new FacebookBinding(_communicator, this),
 #endif
-				new AmazonBinding(),
+				new AmazonBinding(_communicator, this),
 			};
 		}
 
 		public void Authorize()
 		{
+			if (_communicator == null
+				|| !_communicator.Connected
+				|| _communicator.LoggedIn)
+			{
+				return;
+			}
+
+			DebugLogger.Log($"[{GetType().Name}] ({_communicator.InstanceId}) Authorize");
+
 			if (!LoginWithInternalAuthData())
 			{
 				RegisterAndLogin();
 			}
 		}
-		
+
+		private async void DelayedAuthorize()
+		{
+			_loginAttempt++;
+			await Task.Delay(1000 * _loginAttempt);
+
+			if (!_communicator.Connected)
+				return;
+
+			Authorize();
+		}
+
 		private void OnConnectionSucceeded()
 		{
 			JustRegistered = false;
+			_loginAttempt = 0;
+
+			if (AutoLogin)
+			{
+				Authorize();
+			}
 		}
 		
 		private bool LoginWithInternalAuthData()
@@ -99,8 +142,8 @@ namespace MiniIT.Snipe
 			}
 			
 			var stopwatch = Stopwatch.StartNew();
-			
-			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.USER_LOGIN)?.RequestUnauthorized(data,
+
+			_communicator.CreateRequest(SnipeMessageTypes.USER_LOGIN)?.RequestUnauthorized(data,
 				(error_code, response) =>
 				{
 					stopwatch?.Stop();
@@ -109,18 +152,51 @@ namespace MiniIT.Snipe
 						{
 							["request_time"] = stopwatch?.ElapsedMilliseconds,
 						});
-					
-					if (error_code == SnipeErrorCodes.OK)
-					{
-						UserID = response.SafeGetValue<int>("id");
-						StartBindings();
-					}
-					else if (error_code == SnipeErrorCodes.NO_SUCH_USER || error_code == SnipeErrorCodes.LOGIN_DATA_WRONG)
-					{
-						PlayerPrefs.DeleteKey(SnipePrefs.AUTH_UID);
-						PlayerPrefs.DeleteKey(SnipePrefs.AUTH_KEY);
 
-						RegisterAndLogin();
+					switch (error_code)
+					{
+						case SnipeErrorCodes.OK:
+						case SnipeErrorCodes.ALREADY_LOGGED_IN:
+							UserID = response.SafeGetValue<int>("id");
+							StartBindings();
+							
+							UserName = data.SafeGetString("name");
+							AutoLogin = true;
+							_loginAttempt = 0;
+
+							if (LoginSucceeded != null)
+							{
+								RunInMainThread(() =>
+								{
+									RaiseEvent(LoginSucceeded);
+								});
+							}
+							break;
+
+						case SnipeErrorCodes.NO_SUCH_USER:
+						case SnipeErrorCodes.LOGIN_DATA_WRONG:
+							PlayerPrefs.DeleteKey(SnipePrefs.AUTH_UID);
+							PlayerPrefs.DeleteKey(SnipePrefs.AUTH_KEY);
+							RegisterAndLogin();
+							break;
+
+						case SnipeErrorCodes.USER_ONLINE:
+						case SnipeErrorCodes.LOGOUT_IN_PROGRESS:
+							if (_loginAttempt < 4)
+							{
+								DelayedAuthorize();
+							}
+							else
+							{
+								_communicator.Disconnect();
+							}
+							break;
+
+						case SnipeErrorCodes.GAME_SERVERS_OFFLINE:
+						default: // unexpected error code
+							DebugLogger.LogError($"[{GetType().Name}] ({_communicator.InstanceId}) {SnipeMessageTypes.USER_LOGIN} - Unexpected error code: {error_code}");
+							_communicator.Disconnect();
+							break;
 					}
 				}
 			);

@@ -5,7 +5,8 @@ namespace MiniIT.Snipe
 {
 	public class AuthBinding<FetcherType> : AuthBinding where FetcherType : AuthIdFetcher, new()
 	{
-		public AuthBinding(string provider_id) : base()
+		public AuthBinding(string provider_id, SnipeCommunicator communicator, AuthSubsystem authSubsystem)
+			: base(communicator, authSubsystem)
 		{
 			ProviderId = provider_id;
 			_fetcher = new FetcherType();
@@ -24,6 +25,8 @@ namespace MiniIT.Snipe
 		protected BindResultCallback _bindResultCallback;
 
 		protected AuthIdFetcher _fetcher;
+		protected readonly SnipeCommunicator _communicator;
+		private readonly AuthSubsystem _authSubsystem;
 
 		public string BindDonePrefsKey
 		{
@@ -42,8 +45,11 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		public AuthBinding()
+		public AuthBinding(SnipeCommunicator communicator, AuthSubsystem authSubsystem)
 		{
+			_communicator = communicator;
+			_authSubsystem = authSubsystem;
+
 			if (IsBindDone)
 			{
 				OnBindDone();
@@ -102,7 +108,7 @@ namespace MiniIT.Snipe
 					data["auth"] = pass;
 
 				DebugLogger.Log($"[AuthBinding] ({ProviderId}) send user.bind " + data.ToJSONString());
-				SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_BIND)?.RequestUnauthorized(data, OnBindResponse);
+				_communicator.CreateRequest(SnipeMessageTypes.AUTH_BIND)?.RequestUnauthorized(data, OnBindResponse);
 
 				return;
 			}
@@ -128,7 +134,7 @@ namespace MiniIT.Snipe
 				["auth"] = GetAuthPassword(),
 			};
 			
-			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_RESET)?.RequestUnauthorized(data,
+			_communicator.CreateRequest(SnipeMessageTypes.AUTH_RESET)?.RequestUnauthorized(data,
 				(string error_code, SnipeObject response_data) =>
 				{
 					if (error_code == SnipeErrorCodes.OK)
@@ -183,13 +189,13 @@ namespace MiniIT.Snipe
 				["login"] = user_id,
 			};
 
-			int login_id = SnipeCommunicator.Instance.Auth.UserID;
+			int login_id = _authSubsystem.UserID;
 			if (login_id != 0)
 			{
 				data["userID"] = login_id;
 			}
 
-			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_EXISTS)?.RequestUnauthorized(data,
+			_communicator.CreateRequest(SnipeMessageTypes.AUTH_EXISTS)?.RequestUnauthorized(data,
 				(error_code, response_data) => OnCheckAuthExistsResponse(error_code, response_data, callback));
 		}
 
@@ -214,7 +220,7 @@ namespace MiniIT.Snipe
 
 			bool is_me = data.SafeGetValue("isSame", false);
 			if (/*AccountExists == true &&*/ is_me)
-				IsBindDone = SnipeCommunicator.Instance.LoggedIn;
+				IsBindDone = _communicator.LoggedIn;
 
 			if (callback != null)
 			{
@@ -222,7 +228,7 @@ namespace MiniIT.Snipe
 				callback = null;
 			}
 
-			if (/*AccountExists.HasValue && */SnipeCommunicator.Instance.LoggedIn)
+			if (/*AccountExists.HasValue && */_communicator.LoggedIn)
 			{
 				if (!account_exists) //(AccountExists == false)
 				{
@@ -231,7 +237,7 @@ namespace MiniIT.Snipe
 				else if (!is_me)
 				{
 					DebugLogger.Log($"[AuthBinding] ({ProviderId}) OnCheckAuthExistsResponse - another account found - InvokeAccountBindingCollisionEvent");
-					SnipeCommunicator.Instance.Auth.OnAccountBindingCollision(this, data.SafeGetString("name"));
+					_authSubsystem.OnAccountBindingCollision(this, data.SafeGetString("name"));
 				}
 			}
 		}

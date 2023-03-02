@@ -39,7 +39,6 @@ namespace MiniIT.Snipe
 		
 		private Stopwatch _serverReactionStopwatch;
 		public TimeSpan CurrentRequestElapsed { get { return _serverReactionStopwatch?.Elapsed ?? new TimeSpan(0); } }
-		public TimeSpan ServerReaction { get; private set; }
 		
 		private bool _batchMode = false;
 		public bool BatchMode
@@ -197,7 +196,8 @@ namespace MiniIT.Snipe
 			
 			_connectionStopwatch?.Stop();
 			Analytics.PingTime = TimeSpan.Zero;
-			
+			Analytics.ServerReaction = TimeSpan.Zero;
+
 			StopResponseMonitoring();
 
 			_kcp?.Disconnect();
@@ -330,7 +330,7 @@ namespace MiniIT.Snipe
 			if (_serverReactionStopwatch != null)
 			{
 				_serverReactionStopwatch.Stop();
-				ServerReaction = _serverReactionStopwatch.Elapsed;
+				Analytics.ServerReaction = _serverReactionStopwatch.Elapsed;
 			}
 
 			string message_type = message.SafeGetString("t");

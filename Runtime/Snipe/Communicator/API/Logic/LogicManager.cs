@@ -47,7 +47,7 @@ namespace MiniIT.Snipe.Api
 
 			DisposeCommunicator();
 
-			_snipeCommunicator = SnipeCommunicator.Instance;
+			_snipeCommunicator = _snipeApi.Communicator;
 			_snipeCommunicator.MessageReceived += OnSnipeMessageReceived;
 			_snipeCommunicator.PreDestroy += OnSnipeCommunicatorPreDestroy;
 		}

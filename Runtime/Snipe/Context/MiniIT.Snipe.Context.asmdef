@@ -1,0 +1,15 @@
+{
+    "name": "MiniIT.Snipe.Context",
+    "references": [
+		"MiniIT.Snipe.Core",
+		"MiniIT.Snipe.Communicator",
+		"MiniIT.Snipe.ApiService"
+    ],
+    "optionalUnityReferences": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": []
+}

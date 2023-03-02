@@ -8,6 +8,9 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using MiniIT.Snipe;
 using UnityEngine;
+#if ZSTRING
+using Cysharp.Text;
+#endif
 
 namespace MiniIT
 {
@@ -59,7 +62,7 @@ namespace MiniIT
 			Application.logMessageReceivedThreaded -= OnLogMessageReceived;
 		}
 
-		public static async Task<bool> SendAsync()
+		public static async Task<bool> SendAsync(SnipeContext snipeContext = null)
 		{
 			if (_instance == null)
 			{
@@ -67,10 +70,10 @@ namespace MiniIT
 				return false;
 			}
 
-			return await _instance.DoSendAsync(SnipeConfig.ClientKey, SnipeConfig.LogReporterUrl);
+			return await _instance.DoSendAsync(SnipeConfig.ClientKey, SnipeConfig.LogReporterUrl, snipeContext);
 		}
 
-		private async Task<bool> DoSendAsync(string apiKey, string url)
+		private async Task<bool> DoSendAsync(string apiKey, string url, SnipeContext snipeContext)
 		{
 			if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(url))
 			{
@@ -87,7 +90,7 @@ namespace MiniIT
 
 				for (int i = 0; i < _log.Count; i += PORTION_SIZE)
 				{
-					string content = await GetPortionContent(i);
+					string content = await GetPortionContent(i, snipeContext);
 					var requestContent = new StringContent(content, Encoding.UTF8, "application/json");
 					var result = await httpClient.PostAsync(url, requestContent);
 
@@ -120,17 +123,22 @@ namespace MiniIT
 			return succeeded;
 		}
 
-		private async Task<string> GetPortionContent(int startIndex)
+		private async Task<string> GetPortionContent(int startIndex, SnipeContext snipeContext)
 		{
 			int connectionId = 0;
 			int userId = 0;
-			if (SnipeCommunicator.InstanceInitialized)
+			if (snipeContext?.Communicator != null)
 			{
-				int.TryParse(SnipeCommunicator.Instance.ConnectionId, out connectionId);
-				userId = SnipeCommunicator.Instance.Auth?.UserID ?? 0;
+				int.TryParse(snipeContext.Communicator.ConnectionId, out connectionId);
+				userId = snipeContext.Auth?.UserID ?? 0;
 			}
 
+#if ZSTRING
+			var content = ZString.CreateStringBuilder(true);
+			content.Append("{");
+#else
 			var content = new StringBuilder("{");
+#endif
 			content.Append($"\"connectionID\":{connectionId},");
 			content.Append($"\"userID\":{userId},");
 			content.Append($"\"version\":\"{Application.version}\",");
@@ -161,7 +169,11 @@ namespace MiniIT
 			}
 
 			content.Append("]}");
-			return content.ToString();
+			string result = content.ToString();
+#if ZSTRING
+			content.Dispose();
+#endif
+			return result;
 		}
 
 		private async void OnLogMessageReceived(string condition, string stackTrace, LogType type)

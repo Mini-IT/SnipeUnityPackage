@@ -6,16 +6,27 @@ namespace MiniIT.Snipe.Api
 {
 	public class AbstractSnipeApiService : IDisposable
 	{
-		protected internal AbstractSnipeApiService()
+		public LogicManager LogicManager { get; }
+		public CalendarManager CalendarManager { get; }
+
+		public SnipeCommunicator Communicator => _communicator;
+
+		protected readonly SnipeCommunicator _communicator;
+
+		protected internal AbstractSnipeApiService(SnipeCommunicator communicator)
 		{
-			AttachCommunicator();
+			_communicator = communicator;
+			AttachCommunicator(communicator);
+
+			LogicManager = new LogicManager(this);
+			CalendarManager = new CalendarManager();
 		}
 
 		public SnipeCommunicatorRequest CreateRequest(string message_type, SnipeObject data)
 		{
-			if (SnipeCommunicator.Instance.LoggedIn || SnipeCommunicator.Instance.AllowRequestsToWaitForLogin)
+			if (_communicator.LoggedIn || _communicator.AllowRequestsToWaitForLogin)
 			{
-				return SnipeCommunicator.Instance.CreateRequest(message_type, data);
+				return _communicator.CreateRequest(message_type, data);
 			}
 			
 			return null;
@@ -23,28 +34,31 @@ namespace MiniIT.Snipe.Api
 
 		public virtual void Dispose()
 		{
-			UnsubscribeCommunicatorEvents();
+			UnsubscribeCommunicatorEvents(_communicator);
+
+			LogicManager?.Dispose();
+			CalendarManager?.Dispose();
 		}
 
-		private async void AttachCommunicator()
+		private async void AttachCommunicator(SnipeCommunicator communicator)
 		{
 			// Allow the subclass constructor to finish
 			await Task.Yield();
 
-			while (!SnipeCommunicator.InstanceInitialized)
-			{
-				await Task.Delay(100);
-			}
+			//while (!SnipeCommunicator.InstanceInitialized)
+			//{
+			//	await Task.Delay(100);
+			//}
 
-			if (SnipeCommunicator.Instance.Connected)
+			if (communicator.Connected)
 			{
 				OnConnectionSucceeded();
 			}
 			else
 			{
-				SnipeCommunicator.Instance.ConnectionSucceeded += OnConnectionSucceeded;
+				communicator.ConnectionSucceeded += OnConnectionSucceeded;
 			}
-			SnipeCommunicator.Instance.PreDestroy += OnCommunicatorPreDestroy;
+			communicator.PreDestroy += OnCommunicatorPreDestroy;
 
 			InitMergeableRequestTypes();
 		}
@@ -59,16 +73,16 @@ namespace MiniIT.Snipe.Api
 
 		protected virtual void OnCommunicatorPreDestroy()
 		{
-			UnsubscribeCommunicatorEvents();
-			AttachCommunicator();
+			UnsubscribeCommunicatorEvents(_communicator);
+			//AttachCommunicator();
 		}
 
-		private void UnsubscribeCommunicatorEvents()
+		private void UnsubscribeCommunicatorEvents(SnipeCommunicator communicator)
 		{
-			if (SnipeCommunicator.InstanceInitialized)
+			if (communicator != null)
 			{
-				SnipeCommunicator.Instance.ConnectionSucceeded -= OnConnectionSucceeded;
-				SnipeCommunicator.Instance.PreDestroy -= OnCommunicatorPreDestroy;
+				communicator.ConnectionSucceeded -= OnConnectionSucceeded;
+				communicator.PreDestroy -= OnCommunicatorPreDestroy;
 			}
 		}
 	}

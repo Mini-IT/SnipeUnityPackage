@@ -10,11 +10,11 @@ namespace MiniIT.Snipe.Api
 		
 		private readonly object _attributesLock = new object();
 		
-		public SnipeApiUserAttributes()
+		public SnipeApiUserAttributes(AbstractSnipeApiService snipeApiService)
 		{
 			_attributes = new Dictionary<string, SnipeApiUserAttribute>();
 
-			SnipeCommunicator.Instance.MessageReceived += OnMessageReceived;
+			snipeApiService.Communicator.MessageReceived += OnMessageReceived;
 		}
 		
 		protected AttrType RegisterAttribute<AttrType>(AttrType attr) where AttrType : SnipeApiUserAttribute

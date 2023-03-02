@@ -19,6 +19,7 @@ namespace MiniIT.Snipe
 		#region AnalyticsTracker
 
 		public static TimeSpan PingTime { get; internal set; }
+		public static TimeSpan ServerReaction { get; internal set; }
 		public static TimeSpan ConnectionEstablishmentTime { get; internal set; }
 		public static TimeSpan WebSocketTcpClientConnectionTime { get; internal set; }
 		public static TimeSpan WebSocketSslAuthenticateTime { get; internal set; }
@@ -149,11 +150,8 @@ namespace MiniIT.Snipe
 
 				if (PingTime.TotalMilliseconds > 0)
 					properties["ping_time"] = PingTime.TotalMilliseconds;
-				
-				if (SnipeCommunicator.InstanceInitialized && SnipeCommunicator.Instance.Connected)
-				{	
-					properties["server_reaction"] = SnipeCommunicator.Instance.ServerReaction.TotalMilliseconds;
-				}
+				if (ServerReaction.TotalMilliseconds > 0)
+					properties["server_reaction"] = ServerReaction.TotalMilliseconds;
 
 				InvokeInMainThread(() =>
 				{
