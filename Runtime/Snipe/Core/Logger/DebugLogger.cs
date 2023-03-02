@@ -65,8 +65,12 @@ namespace MiniIT
 		{
 			if (!IsEnabled)
 				return;
-			
+
+#if ZSTRING
+			UnityEngine.Debug.Log(ApplyStyle(ZString.Format(format, args)));
+#else
 			UnityEngine.Debug.LogFormat(format, args);
+#endif
 		}
 		
 		public static void LogWarning(object message)
@@ -88,18 +92,18 @@ namespace MiniIT
 		private static string ApplyStyle(object message)
 		{
 			var log = (FontSize != DEFAULT_FONT_SIZE) ?
-				#if ZSTRING
+#if ZSTRING
 				ZString.Concat("<size=", FontSize, ">", message, "</size>") :
-				#else
+#else
 				"<size=" + FontSize.ToString()+ ">" + message + "</size>" :
-				#endif
+#endif
 				message;
 			
-			#if ZSTRING
+#if ZSTRING
 			return ZString.Format("<i>{0:dd.MM.yyyy HH:mm:ss} UTC</i> {1}", System.DateTime.UtcNow, log);
-			#else
+#else
 			return $"<i>{System.DateTime.UtcNow.ToString("dd.MM.yyyy HH:mm:ss")} UTC</i> {log}";
-			#endif
+#endif
 		}
 	}
 }
