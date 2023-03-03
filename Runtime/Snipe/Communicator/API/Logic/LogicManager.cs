@@ -45,7 +45,7 @@ namespace MiniIT.Snipe.Api
 		{
 			_logicTable = logic_table;
 
-			DisposeCommunicator();
+			ClearCommunicatorReference();
 
 			_snipeCommunicator = _snipeApi.Communicator;
 			_snipeCommunicator.MessageReceived += OnSnipeMessageReceived;
@@ -61,14 +61,14 @@ namespace MiniIT.Snipe.Api
 		{
 			StopSecondsTimer();
 
-			DisposeCommunicator();
+			ClearCommunicatorReference();
 
 			_logicTable = null;
 			Nodes.Clear();
 			_taggedNodes = null;
 		}
 
-		private void DisposeCommunicator()
+		private void ClearCommunicatorReference()
 		{
 			if (_snipeCommunicator != null)
 			{
