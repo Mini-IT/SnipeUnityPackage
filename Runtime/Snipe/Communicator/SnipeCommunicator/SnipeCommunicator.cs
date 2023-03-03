@@ -88,7 +88,7 @@ namespace MiniIT.Snipe
 		/// <summary>
 		/// Should be called from the main Unity thread
 		/// </summary>
-		public void StartCommunicator(bool autologin = true)
+		public void StartCommunicator()
 		{
 			_mainThreadScheduler = (SynchronizationContext.Current != null) ?
 				TaskScheduler.FromCurrentSynchronizationContext() :
@@ -323,18 +323,6 @@ namespace MiniIT.Snipe
 			InitClient();
 		}
 
-		//public void Request(string message_type, SnipeObject parameters = null)
-		//{
-		//	CreateRequest(message_type, parameters).Request();
-		//}
-		
-		//public SnipeCommunicatorRequest CreateRequest(string message_type = null, SnipeObject parameters = null)
-		//{
-		//	var request = new SnipeCommunicatorRequest(this, message_type);
-		//	request.Data = parameters;
-		//	return request;
-		//}
-		
 		public void DisposeRoomRequests()
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) DisposeRoomRequests");
@@ -359,28 +347,6 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		//#region ActionRun Requests
-		
-		//public void RequestActionRun(string action_id, SnipeObject parameters = null)
-		//{
-		//	if (Client == null || !Client.LoggedIn)
-		//		return;
-			
-		//	CreateActionRunRequest(action_id, parameters).Request();
-		//}
-		
-		//public SnipeCommunicatorRequest CreateActionRunRequest(string action_id, SnipeObject parameters = null)
-		//{
-		//	if (parameters == null)
-		//		parameters = new SnipeObject() { ["actionID"] = action_id };
-		//	else
-		//		parameters["actionID"] = action_id;
-			
-		//	return new SnipeCommunicatorRequest(this, SnipeMessageTypes.ACTION_RUN, parameters);
-		//}
-		
-		//#endregion // ActionRun Requests
-		
 		public void Dispose()
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) Dispose");
