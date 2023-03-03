@@ -1,37 +1,36 @@
 ﻿using System;
+using System.Net;
 using System.Threading.Tasks;
-using MiniIT;
+using UnityEditor.PackageManager.Requests;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeCommunicatorRequest : IDisposable
+	public abstract class AbstractCommunicatorRequest : IDisposable
 	{
-		private const int RETRIES_COUNT = 3;
-		private const int RETRY_DELAY = 1000; // milliseconds
-		
-		private static readonly SnipeObject EMPTY_DATA = new SnipeObject();
+		protected const int RETRIES_COUNT = 3;
+		protected const int RETRY_DELAY_MS = 1000;
+
+		protected static readonly SnipeObject EMPTY_DATA = new SnipeObject();
 		
 		public string MessageType { get; private set; }
 		public SnipeObject Data { get; set; }
 		
-		public bool WaitingForRoomJoined { get; private set; } = false;
-		
 		public delegate void ResponseHandler(string error_code, SnipeObject data);
 
-		private SnipeCommunicator _communicator;
-		private ResponseHandler _callback;
+		protected SnipeCommunicator _communicator;
+		protected ResponseHandler _callback;
 
-		private int _requestId;
+		protected int _requestId { get; private set; }
 		private int _retriesLeft = RETRIES_COUNT;
 		
 		private bool _sent = false;
-		private bool _waitingForResponse = false;
-		private bool _authorization = false;
+		protected bool _waitingForResponse = false;
 
-		public SnipeCommunicatorRequest(SnipeCommunicator communicator, string message_type = null)
+		public AbstractCommunicatorRequest(SnipeCommunicator communicator, string messageType = null, SnipeObject data = null)
 		{
 			_communicator = communicator;
-			MessageType = message_type;
+			MessageType = messageType;
+			Data = data;
 			
 			if (_communicator != null)
 			{	
@@ -45,7 +44,7 @@ namespace MiniIT.Snipe
 			Request(callback);
 		}
 
-		public virtual void Request(ResponseHandler callback = null)
+		public void Request(ResponseHandler callback = null)
 		{
 			if (_sent)
 				return;
@@ -54,25 +53,20 @@ namespace MiniIT.Snipe
 			SendRequest();
 		}
 		
-		internal void RequestUnauthorized(SnipeObject data, ResponseHandler callback = null)
-		{
-			_authorization = true;
-			Data = data;
-			Request(callback);
-		}
-		
 		private void SendRequest()
 		{
 			_sent = true;
 			
-			if (_communicator == null || _communicator.RoomJoined == false && MessageType == SnipeMessageTypes.ROOM_LEAVE)
+			if (!CheckCommunicatorValid() == null)
 			{
 				InvokeCallback(SnipeErrorCodes.NOT_READY, EMPTY_DATA);
 				return;
 			}
-			
+
 			if (string.IsNullOrEmpty(MessageType))
+			{
 				MessageType = Data?.SafeGetString("t");
+			}
 
 			if (string.IsNullOrEmpty(MessageType))
 			{
@@ -80,7 +74,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 			
-			if (_communicator.LoggedIn || (_authorization && _communicator.Connected))
+			if (CheckCommunicatorReady())
 			{
 				OnCommunicatorReady();
 			}
@@ -89,34 +83,33 @@ namespace MiniIT.Snipe
 				OnConnectionClosed(true);
 			}
 		}
-
-		private void OnCommunicatorReady()
+		
+		protected virtual bool CheckCommunicatorValid()
 		{
-			if (_communicator.RoomJoined != true &&
-				MessageType.StartsWith(SnipeMessageTypes.PREFIX_ROOM) &&
-				MessageType != SnipeMessageTypes.ROOM_JOIN &&
-				MessageType != SnipeMessageTypes.ROOM_LEAVE)
-			{
-				WaitingForRoomJoined = true;
-			}
-			
+			return _communicator != null;
+		}
+
+		protected virtual bool CheckCommunicatorReady()
+		{
+			return _communicator.Connected;
+		}
+
+		protected virtual void OnCommunicatorReady()
+		{
 			_communicator.ConnectionFailed -= OnConnectionClosed;
 			_communicator.ConnectionFailed += OnConnectionClosed;
 			
-			if ((_callback != null || WaitingForRoomJoined) && MessageType != SnipeMessageTypes.ROOM_LEAVE)
+			if (_callback != null)
 			{
 				_waitingForResponse = true;
 				_communicator.MessageReceived -= OnMessageReceived;
 				_communicator.MessageReceived += OnMessageReceived;
 			}
 			
-			if (!WaitingForRoomJoined)
-			{
-				DoSendRequest();
-			}
+			DoSendRequest();
 		}
 		
-		private void DoSendRequest()
+		protected void DoSendRequest()
 		{
 			_requestId = 0;
 			
@@ -126,15 +119,15 @@ namespace MiniIT.Snipe
 			{
 				string mergeble_type = descriptor?.MessageType;
 					
-				if (mergeble_type != null && string.Equals(mergeble_type, this.MessageType, StringComparison.Ordinal))
+				if (mergeble_type != null && string.Equals(mergeble_type, MessageType, StringComparison.Ordinal))
 				{
 					bool matched = true;
 						
-					if (descriptor.Data != null && this.Data != null)
+					if (descriptor.Data != null && Data != null)
 					{
 						foreach (var pair in descriptor.Data)
 						{
-							if (this.Data[pair.Key] != pair.Value)
+							if (Data[pair.Key] != pair.Value)
 							{
 								matched = false;
 								break;
@@ -159,12 +152,10 @@ namespace MiniIT.Snipe
 					if (request == null)
 						continue;
 					
-					if (request == this)
+					if (object.ReferenceEquals(request, this))
 						break;
 					
-					if (request._authorization == this._authorization &&
-						string.Equals(request.MessageType, this.MessageType, StringComparison.Ordinal) &&
-						SnipeObject.ContentEquals(request.Data, this.Data))
+					if (request.Equals(this))
 					{
 						_requestId = request._requestId;
 						break;
@@ -174,7 +165,7 @@ namespace MiniIT.Snipe
 			
 			if (_requestId != 0)
 			{
-				DebugLogger.Log($"[SnipeCommunicatorRequest] DoSendRequest - Same request found: {MessageType}, id = {_requestId}, mWaitingForResponse = {_waitingForResponse}");
+				DebugLogger.Log($"[AbstractCommunicatorRequest] DoSendRequest - Same request found: {MessageType}, id = {_requestId}, mWaitingForResponse = {_waitingForResponse}");
 				
 				if (!_waitingForResponse)
 				{
@@ -183,9 +174,9 @@ namespace MiniIT.Snipe
 				return;
 			}
 			
-			if (_communicator.LoggedIn || _authorization)
+			if (CheckCommunicatorReady())
 			{
-				_requestId = _communicator.Client.SendRequest(this.MessageType, this.Data);
+				_requestId = _communicator.Client.SendRequest(MessageType, Data);
 			}
 			
 			if (_requestId == 0)
@@ -200,32 +191,28 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void OnConnectionClosed(bool will_retry = false)
+		public override bool Equals(object obj)
+		{
+			if (!(obj is AbstractCommunicatorRequest request))
+				return false;
+
+			return string.Equals(request.MessageType, MessageType, StringComparison.Ordinal)
+				&& SnipeObject.ContentEquals(request.Data, Data);
+		}
+
+		protected virtual void OnConnectionClosed(bool will_retry = false)
 		{
 			if (will_retry)
 			{
 				_waitingForResponse = false;
 
 				_communicator.ConnectionSucceeded -= OnCommunicatorReady;
-				_communicator.LoginSucceeded -= OnCommunicatorReady;
 				_communicator.MessageReceived -= OnMessageReceived;
 				
-				if (_authorization)
-				{
-					DebugLogger.Log($"[SnipeCommunicatorRequest] Waiting for connection - {MessageType}");
-					
-					_communicator.ConnectionSucceeded += OnCommunicatorReady;
-				}
-				else if (_communicator.AllowRequestsToWaitForLogin)
-				{
-					DebugLogger.Log($"[SnipeCommunicatorRequest] Waiting for login - {MessageType} - {Data?.ToJSONString()}");
-					
-					_communicator.LoginSucceeded += OnCommunicatorReady;
-				}
-				else
-				{
-					InvokeCallback(SnipeErrorCodes.NOT_READY, EMPTY_DATA);
-				}
+				DebugLogger.Log($"[AbstractCommunicatorRequest] Waiting for connection - {MessageType}");
+				
+				_communicator.ConnectionSucceeded += OnCommunicatorReady;
+				
 			}
 			else
 			{
@@ -233,19 +220,10 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void OnMessageReceived(string message_type, string error_code, SnipeObject response_data, int request_id)
+		protected virtual void OnMessageReceived(string message_type, string error_code, SnipeObject response_data, int request_id)
 		{
 			if (_communicator == null)
 				return;
-			
-			if (WaitingForRoomJoined && _communicator.RoomJoined == true)
-			{
-				DebugLogger.Log($"[SnipeCommunicatorRequest] OnMessageReceived - Room joined. Send {MessageType}, id = {_requestId}");
-				
-				WaitingForRoomJoined = false;
-				DoSendRequest();
-				return;
-			}
 			
 			if ((request_id == 0 || request_id == _requestId) && message_type == MessageType)
 			{
@@ -260,7 +238,7 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		private void InvokeCallback(string error_code, SnipeObject response_data)
+		protected void InvokeCallback(string error_code, SnipeObject response_data)
 		{
 			var callback = _callback;
 			
@@ -274,14 +252,14 @@ namespace MiniIT.Snipe
 				}
 				catch (Exception e)
 				{
-					DebugLogger.Log($"[SnipeCommunicatorRequest] {MessageType} Callback invokation error: {e}");
+					DebugLogger.Log($"[AbstractCommunicatorRequest] {MessageType} Callback invokation error: {e}");
 				}
 			}
 		}
 		
 		private async void DelayedRetryRequest()
 		{
-			await Task.Delay(RETRY_DELAY);
+			await Task.Delay(RETRY_DELAY_MS);
 			
 			if (_communicator != null)
 			{
@@ -295,7 +273,7 @@ namespace MiniIT.Snipe
 			Dispose();
 		}
 
-		public void Dispose()
+		public virtual void Dispose()
 		{
 			if (_communicator != null)
 			{
@@ -304,7 +282,6 @@ namespace MiniIT.Snipe
 					_communicator.Requests.Remove(this);
 				}
 				
-				_communicator.LoginSucceeded -= OnCommunicatorReady;
 				_communicator.ConnectionSucceeded -= OnCommunicatorReady;
 				_communicator.ConnectionFailed -= OnConnectionClosed;
 				_communicator.MessageReceived -= OnMessageReceived;

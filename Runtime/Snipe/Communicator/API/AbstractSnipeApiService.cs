@@ -6,18 +6,21 @@ namespace MiniIT.Snipe.Api
 {
 	public class AbstractSnipeApiService : IDisposable
 	{
+		public delegate SnipeCommunicatorRequest RequestFactoryMethod(string messageType, SnipeObject data);
+
 		public LogicManager LogicManager { get; }
 		public CalendarManager CalendarManager { get; }
 
 		public SnipeCommunicator Communicator => _communicator;
 
 		protected readonly SnipeCommunicator _communicator;
+		private RequestFactoryMethod _requestFactory;
 
-		protected internal AbstractSnipeApiService(SnipeCommunicator communicator)
+		protected internal AbstractSnipeApiService(SnipeCommunicator communicator, RequestFactoryMethod requestFactory)
 		{
 			_communicator = communicator;
-			AttachCommunicator(communicator);
-
+			_requestFactory = requestFactory;
+			AttachCommunicator(_communicator);
 			LogicManager = new LogicManager(this);
 			CalendarManager = new CalendarManager();
 		}
@@ -26,7 +29,7 @@ namespace MiniIT.Snipe.Api
 		{
 			if (_communicator.LoggedIn || _communicator.AllowRequestsToWaitForLogin)
 			{
-				return _communicator.CreateRequest(message_type, data);
+				return _requestFactory.Invoke(message_type, data);
 			}
 			
 			return null;

@@ -34,12 +34,12 @@ namespace MiniIT.Snipe
 		public int RestoreConnectionAttempts = 3;
 		private int _restoreConnectionAttempt;
 		
-		private List<SnipeCommunicatorRequest> _requests;
-		public List<SnipeCommunicatorRequest> Requests
+		private List<AbstractCommunicatorRequest> _requests;
+		public List<AbstractCommunicatorRequest> Requests
 		{
 			get
 			{
-				_requests ??= new List<SnipeCommunicatorRequest>();
+				_requests ??= new List<AbstractCommunicatorRequest>();
 				return _requests;
 			}
 		}
@@ -323,29 +323,29 @@ namespace MiniIT.Snipe
 			InitClient();
 		}
 
-		public void Request(string message_type, SnipeObject parameters = null)
-		{
-			CreateRequest(message_type, parameters).Request();
-		}
+		//public void Request(string message_type, SnipeObject parameters = null)
+		//{
+		//	CreateRequest(message_type, parameters).Request();
+		//}
 		
-		public SnipeCommunicatorRequest CreateRequest(string message_type = null, SnipeObject parameters = null)
-		{
-			var request = new SnipeCommunicatorRequest(this, message_type);
-			request.Data = parameters;
-			return request;
-		}
+		//public SnipeCommunicatorRequest CreateRequest(string message_type = null, SnipeObject parameters = null)
+		//{
+		//	var request = new SnipeCommunicatorRequest(this, message_type);
+		//	request.Data = parameters;
+		//	return request;
+		//}
 		
 		public void DisposeRoomRequests()
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) DisposeRoomRequests");
 			
-			List<SnipeCommunicatorRequest> room_requests = null;
+			List<AbstractCommunicatorRequest> room_requests = null;
 			foreach (var request in Requests)
 			{
 				if (request != null && request.MessageType.StartsWith(SnipeMessageTypes.PREFIX_ROOM))
 				{
 					if (room_requests == null)
-						room_requests = new List<SnipeCommunicatorRequest>();
+						room_requests = new List<AbstractCommunicatorRequest>();
 					
 					room_requests.Add(request);
 				}
@@ -359,27 +359,27 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		#region ActionRun Requests
+		//#region ActionRun Requests
 		
-		public void RequestActionRun(string action_id, SnipeObject parameters = null)
-		{
-			if (Client == null || !Client.LoggedIn)
-				return;
+		//public void RequestActionRun(string action_id, SnipeObject parameters = null)
+		//{
+		//	if (Client == null || !Client.LoggedIn)
+		//		return;
 			
-			CreateActionRunRequest(action_id, parameters).Request();
-		}
+		//	CreateActionRunRequest(action_id, parameters).Request();
+		//}
 		
-		public SnipeCommunicatorRequest CreateActionRunRequest(string action_id, SnipeObject parameters = null)
-		{
-			if (parameters == null)
-				parameters = new SnipeObject() { ["actionID"] = action_id };
-			else
-				parameters["actionID"] = action_id;
+		//public SnipeCommunicatorRequest CreateActionRunRequest(string action_id, SnipeObject parameters = null)
+		//{
+		//	if (parameters == null)
+		//		parameters = new SnipeObject() { ["actionID"] = action_id };
+		//	else
+		//		parameters["actionID"] = action_id;
 			
-			return CreateRequest(SnipeMessageTypes.ACTION_RUN, parameters);
-		}
+		//	return new SnipeCommunicatorRequest(this, SnipeMessageTypes.ACTION_RUN, parameters);
+		//}
 		
-		#endregion // ActionRun Requests
+		//#endregion // ActionRun Requests
 		
 		public void Dispose()
 		{

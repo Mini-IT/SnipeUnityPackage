@@ -108,7 +108,8 @@ namespace MiniIT.Snipe
 					data["auth"] = pass;
 
 				DebugLogger.Log($"[AuthBinding] ({ProviderId}) send user.bind " + data.ToJSONString());
-				_communicator.CreateRequest(SnipeMessageTypes.AUTH_BIND)?.RequestUnauthorized(data, OnBindResponse);
+				new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_BIND, data)
+					.Request(OnBindResponse);
 
 				return;
 			}
@@ -133,9 +134,9 @@ namespace MiniIT.Snipe
 				["login"] = GetUserId(),
 				["auth"] = GetAuthPassword(),
 			};
-			
-			_communicator.CreateRequest(SnipeMessageTypes.AUTH_RESET)?.RequestUnauthorized(data,
-				(string error_code, SnipeObject response_data) =>
+
+			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_RESET, data)
+				.Request((string error_code, SnipeObject response_data) =>
 				{
 					if (error_code == SnipeErrorCodes.OK)
 					{
@@ -195,8 +196,8 @@ namespace MiniIT.Snipe
 				data["userID"] = login_id;
 			}
 
-			_communicator.CreateRequest(SnipeMessageTypes.AUTH_EXISTS)?.RequestUnauthorized(data,
-				(error_code, response_data) => OnCheckAuthExistsResponse(error_code, response_data, callback));
+			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_EXISTS, data)
+				.Request((error_code, response_data) => OnCheckAuthExistsResponse(error_code, response_data, callback));
 		}
 
 		protected virtual void OnBindResponse(string error_code, SnipeObject data)

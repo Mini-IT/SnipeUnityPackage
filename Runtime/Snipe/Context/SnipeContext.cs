@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using fbg;
 using MiniIT.Snipe.Api;
 
 namespace MiniIT.Snipe
@@ -114,7 +115,8 @@ namespace MiniIT.Snipe
 
 			Communicator = new SnipeCommunicator();
 			Auth = new AuthSubsystem(Communicator);
-			Api = new SnipeApiService(Communicator);
+			Api = new SnipeApiService(Communicator,
+				(messageType, data) => new SnipeCommunicatorRequest(Communicator, Auth, messageType, data));
 
 			UnityTerminator.Run();
 		}

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace MiniIT.Snipe
 {
@@ -65,11 +66,17 @@ namespace MiniIT.Snipe
 
 		private int _loginAttempt;
 
+		private TaskScheduler _mainThreadScheduler;
+
 		public AuthSubsystem(SnipeCommunicator communicator)
 		{
 			_communicator = communicator;
 			_communicator.ConnectionSucceeded -= OnConnectionSucceeded;
 			_communicator.ConnectionSucceeded += OnConnectionSucceeded;
+
+			_mainThreadScheduler = (SynchronizationContext.Current != null) ?
+				TaskScheduler.FromCurrentSynchronizationContext() :
+				TaskScheduler.Current;
 
 			_bindings = new List<AuthBinding>()
 			{
@@ -79,6 +86,11 @@ namespace MiniIT.Snipe
 #endif
 				new AmazonBinding(_communicator, this),
 			};
+		}
+
+		private void RunInMainThread(Action action)
+		{
+			new Task(action).RunSynchronously(_mainThreadScheduler);
 		}
 
 		public void Authorize()
@@ -143,8 +155,8 @@ namespace MiniIT.Snipe
 			
 			var stopwatch = Stopwatch.StartNew();
 
-			_communicator.CreateRequest(SnipeMessageTypes.USER_LOGIN)?.RequestUnauthorized(data,
-				(error_code, response) =>
+			new UnauthorizedRequest(_communicator, SnipeMessageTypes.USER_LOGIN, data)
+				.Request((error_code, response) =>
 				{
 					stopwatch?.Stop();
 					
@@ -168,7 +180,8 @@ namespace MiniIT.Snipe
 							{
 								RunInMainThread(() =>
 								{
-									RaiseEvent(LoginSucceeded);
+									//RaiseEvent(LoginSucceeded);
+									LoginSucceeded?.Invoke();
 								});
 							}
 							break;
@@ -250,8 +263,8 @@ namespace MiniIT.Snipe
 		
 		private void RequestRegisterAndLogin(List<SnipeObject> providers)
 		{
-			_communicator.CreateRequest(SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN)?.RequestUnauthorized(
-				new SnipeObject()
+			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN)
+				.Request(new SnipeObject()
 				{
 					["version"] = SnipeClient.SNIPE_VERSION,
 					["appInfo"] = SnipeConfig.AppInfo,
@@ -328,8 +341,8 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			_communicator.CreateRequest(SnipeMessageTypes.AUTH_RESTORE)?.RequestUnauthorized(
-				new SnipeObject()
+			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_RESTORE)
+				.Request(new SnipeObject()
 				{
 					["ckey"] = SnipeConfig.ClientKey,
 					["token"] = token,

@@ -20,8 +20,8 @@ namespace MiniIT.Snipe
 				callback?.Invoke("error", "", key, null);
 				return;
 			}
-			
-			_communicator.CreateRequest(SnipeMessageTypes.AUTH_ATTR_GET)?.RequestUnauthorized(
+
+			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_ATTR_GET).Request(
 				new SnipeObject()
 				{
 					["provider"] = provider_id,
