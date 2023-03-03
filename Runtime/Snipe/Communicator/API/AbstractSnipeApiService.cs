@@ -8,6 +8,7 @@ namespace MiniIT.Snipe.Api
 	{
 		public delegate SnipeCommunicatorRequest RequestFactoryMethod(string messageType, SnipeObject data);
 
+		protected SnipeApiTables _tables;
 		public LogicManager LogicManager { get; }
 		public CalendarManager CalendarManager { get; }
 
@@ -39,6 +40,7 @@ namespace MiniIT.Snipe.Api
 		{
 			UnsubscribeCommunicatorEvents(_communicator);
 
+			_tables = null;
 			LogicManager?.Dispose();
 			CalendarManager?.Dispose();
 		}
@@ -66,8 +68,12 @@ namespace MiniIT.Snipe.Api
 			InitMergeableRequestTypes();
 		}
 
-		protected virtual void OnConnectionSucceeded()
+		private void OnConnectionSucceeded()
 		{
+			if (_tables != null && !_tables.Loaded)
+			{
+				_ = _tables.Load();
+			}
 		}
 
 		protected virtual void InitMergeableRequestTypes()
