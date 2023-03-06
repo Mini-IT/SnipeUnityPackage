@@ -164,7 +164,7 @@ namespace MiniIT.Snipe
 				LogReporterUrl = SnipeObject.SafeGetString(log_reporter, "url");
 			}
 
-			if (data.TryGetValue("log_reporter", out var compression_field) &&
+			if (data.TryGetValue("compression", out var compression_field) &&
 				compression_field is IDictionary<string, object> compression)
 			{
 				CompressionEnabled = SnipeObject.SafeGetValue<bool>(compression, "enabled");
