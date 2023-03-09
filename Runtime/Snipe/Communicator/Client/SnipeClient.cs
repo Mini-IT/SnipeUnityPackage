@@ -369,36 +369,42 @@ namespace MiniIT.Snipe
 						{
 							this.ConnectionId = "";
 						}
-
-						RunInMainThread(() =>
+						
+						if (LoginSucceeded != null)
 						{
-							try
+							RunInMainThread(() =>
 							{
-								LoginSucceeded?.Invoke();
-							}
-							catch (Exception e)
-							{
-								DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginSucceeded invocation error: {e}");
-								Analytics.TrackError("LoginSucceeded invocation error", e);
-							}
-						});
+								try
+								{
+									LoginSucceeded?.Invoke();
+								}
+								catch (Exception e)
+								{
+									DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginSucceeded invocation error: {e}");
+									Analytics.TrackError("LoginSucceeded invocation error", e);
+								}
+							});
+						}
 					}
 					else
 					{
 						DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - Login Failed");
-
-						RunInMainThread(() =>
+						
+						if (LoginFailed != null)
 						{
-							try
+							RunInMainThread(() =>
 							{
-								LoginFailed?.Invoke(error_code);
-							}
-							catch (Exception e)
-							{
-								DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginFailed invocation error: {e}");
-								Analytics.TrackError("LoginFailed invocation error", e);
-							}
-						});
+								try
+								{
+									LoginFailed?.Invoke(error_code);
+								}
+								catch (Exception e)
+								{
+									DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginFailed invocation error: {e}");
+									Analytics.TrackError("LoginFailed invocation error", e);
+								}
+							});
+						}
 					}
 				}
 			}
@@ -409,7 +415,7 @@ namespace MiniIT.Snipe
 				{
 					try
 					{
-						MessageReceived.Invoke(message_type, error_code, response_data, request_id);
+						MessageReceived?.Invoke(message_type, error_code, response_data, request_id);
 					}
 					catch (Exception e)
 					{
