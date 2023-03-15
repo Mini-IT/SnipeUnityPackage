@@ -92,6 +92,7 @@ namespace MiniIT.Snipe
 			data["auth"] = password;
 			data["version"] = SnipeClient.SNIPE_VERSION;
 			data["appInfo"] = SnipeConfig.AppInfo;
+			data["flagAutoJoinRoom"] = true;
 			
 			if (SnipeConfig.CompressionEnabled)
 			{
@@ -174,14 +175,20 @@ namespace MiniIT.Snipe
 		
 		private void RequestRegisterAndLogin(List<SnipeObject> providers)
 		{
+			SnipeObject data = SnipeConfig.LoginParameters != null ? new SnipeObject(SnipeConfig.LoginParameters) : new SnipeObject();
+			data["version"] = SnipeClient.SNIPE_VERSION;
+			data["appInfo"] = SnipeConfig.AppInfo;
+			data["ckey"] = SnipeConfig.ClientKey;
+			data["auths"] = providers;
+			data["flagAutoJoinRoom"] = true;
+			
+			if (SnipeConfig.CompressionEnabled)
+			{
+				data["flagCanPack"] = true;
+			}
+			
 			_communicator.CreateRequest(SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN)?.RequestUnauthorized(
-				new SnipeObject()
-				{
-					["version"] = SnipeClient.SNIPE_VERSION,
-					["appInfo"] = SnipeConfig.AppInfo,
-					["ckey"] = SnipeConfig.ClientKey,
-					["auths"] = providers,
-				},
+				data,
 				(error_code, response) =>
 				{
 					if (error_code == SnipeErrorCodes.OK)
