@@ -26,7 +26,7 @@ namespace MiniIT.Snipe
 		public event MessageReceivedHandler MessageReceived;
 		public event PreDestroyHandler PreDestroy;
 		
-		public SnipeAuthCommunicator Auth { get; private set; }
+		public AuthSubsystem Auth { get; private set; }
 
 		public string UserName { get; private set; }
 		public string ConnectionId { get { return Client?.ConnectionId; } }
@@ -35,13 +35,13 @@ namespace MiniIT.Snipe
 
 		internal SnipeClient Client { get; private set; }
 
+		public bool AllowRequestsToWaitForLogin = true;
+
 		public int RestoreConnectionAttempts = 3;
 		private int _restoreConnectionAttempt;
-		
-		public bool AllowRequestsToWaitForLogin = true;
-		
+		private int _loginAttempt;
 		private bool _autoLogin = true;
-
+		
 		private List<SnipeCommunicatorRequest> _requests;
 		public List<SnipeCommunicatorRequest> Requests
 		{
@@ -125,7 +125,7 @@ namespace MiniIT.Snipe
 			}
 
 			s_instance = this;
-			this.Auth = new SnipeAuthCommunicator();
+			this.Auth = new AuthSubsystem(this);
 
 			DebugLogger.Log($"[SnipeCommunicator] PACKAGE VERSION: {PackageInfo.VERSION}");
 
@@ -191,26 +191,10 @@ namespace MiniIT.Snipe
 			RunInMainThread(() =>
 			{
 				DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Authorize");
-				Auth.Authorize(OnAuthResult);
+				Auth.Authorize();
 			});
 		}
 
-		private void OnAuthResult(string error_code, int user_id)
-		{
-			if (user_id != 0)  // authorization succeeded
-				return;
-
-			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) OnAuthResult - authorization failed");
-
-			if (ConnectionFailed != null)
-			{
-				RunInMainThread(() =>
-				{
-					RaiseEvent(ConnectionFailed, false);
-				});
-			}
-		}
-		
 		public void Disconnect()
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Disconnect");
@@ -236,6 +220,7 @@ namespace MiniIT.Snipe
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Client connection opened");
 
 			_restoreConnectionAttempt = 0;
+			_loginAttempt = 0;
 			_disconnecting = false;
 			
 			if (_autoLogin)
@@ -282,7 +267,7 @@ namespace MiniIT.Snipe
 				
 				_restoreConnectionAttempt++;
 				DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) Attempt to restore connection {_restoreConnectionAttempt}");
-
+				
 				if (_delayedInitCancellation == null)
 				{
 					_delayedInitCancellation = new CancellationTokenSource();
@@ -308,6 +293,7 @@ namespace MiniIT.Snipe
 					case SnipeErrorCodes.ALREADY_LOGGED_IN:
 						UserName = data.SafeGetString("name");
 						_autoLogin = true;
+						_loginAttempt = 0;
 
 						if (LoginSucceeded != null)
 						{
@@ -318,15 +304,26 @@ namespace MiniIT.Snipe
 						}
 						break;
 
-					case SnipeErrorCodes.WRONG_TOKEN:
-					case SnipeErrorCodes.USER_NOT_FOUND:
-						Authorize();
+					//case SnipeErrorCodes.WRONG_TOKEN:
+					//case SnipeErrorCodes.USER_NOT_FOUND:
+					//	Authorize();
+					//	break;
+
+					case SnipeErrorCodes.NO_SUCH_USER:
+					case SnipeErrorCodes.LOGIN_DATA_WRONG:
+						// Handled by AuthSubsystem
 						break;
 
 					case SnipeErrorCodes.USER_ONLINE:
 					case SnipeErrorCodes.LOGOUT_IN_PROGRESS:
-						// Do nothing!
-						// AuthProvider will retry to login automatically
+						if (_loginAttempt < 4)
+						{
+							DelayedAuthorize();
+						}
+						else
+						{
+							OnConnectionFailed();
+						}
 						break;
 
 					case SnipeErrorCodes.GAME_SERVERS_OFFLINE:
@@ -338,7 +335,6 @@ namespace MiniIT.Snipe
 						OnConnectionFailed();
 						break;
 				}
-				
 			}
 			else if (message_type == SnipeMessageTypes.ROOM_JOIN)
 			{
@@ -374,9 +370,9 @@ namespace MiniIT.Snipe
 				});
 			}
 		}
-		
+
 		#region Main Thread
-		
+
 		private void RunInMainThread(Action action)
 		{
 			new Task(action).RunSynchronously(_mainThreadScheduler);
@@ -413,7 +409,7 @@ namespace MiniIT.Snipe
 		}
 		
 		#endregion
-
+		
 		private async void DelayedInitClient(CancellationToken cancellation)
 		{
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) WaitAndInitClient - start delay");
@@ -440,7 +436,18 @@ namespace MiniIT.Snipe
 			DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) WaitAndInitClient - delay finished");
 			InitClient();
 		}
-		
+
+		private async void DelayedAuthorize()
+		{
+			_loginAttempt++;
+			await Task.Delay(1000 * _loginAttempt);
+
+			if (!InstanceInitialized || !Connected)
+				return;
+
+			Authorize();
+		}
+
 		public void Request(string message_type, SnipeObject parameters = null)
 		{
 			CreateRequest(message_type, parameters).Request();

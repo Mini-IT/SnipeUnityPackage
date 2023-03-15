@@ -12,6 +12,8 @@ namespace MiniIT.Snipe
 		public const string AUTH_RESET = "auth.reset";
 		public const string AUTH_ATTR_GET = "attr.get";
 		
+		public const string AUTH_REGISTER_AND_LOGIN = "auth.registerAndLogin";
+		
 		public const string ACTION_RUN = "action.run";
 		
 		public const string PREFIX_ROOM = "room.";
