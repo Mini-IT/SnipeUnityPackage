@@ -180,8 +180,8 @@ namespace MiniIT.Snipe
 					DebugLogger.Log($"[TablesLoader] LoadVersion HttpRequestException - network is unreachable - will not rety. {e}");
 					return false;
 				}
-				catch (Exception e) when (e is TaskCanceledException || e is OperationCanceledException ||
-						e is AggregateException ae && (ae.InnerException is TaskCanceledException || ae.InnerException is OperationCanceledException))
+				catch (Exception e) when (e is OperationCanceledException ||
+						e is AggregateException ae && ae.InnerException is OperationCanceledException)
 				{
 					DebugLogger.Log($"[TablesLoader] LoadVersion - TaskCanceled");
 					return false;
@@ -201,7 +201,7 @@ namespace MiniIT.Snipe
 				{
 					await Task.Delay(500, cancellation_token);
 				}
-				catch (Exception e) when (e is TaskCanceledException || e is OperationCanceledException)
+				catch (OperationCanceledException e)
 				{
 					DebugLogger.Log($"[TablesLoader] LoadVersion task canceled");
 					return false;
@@ -259,10 +259,6 @@ namespace MiniIT.Snipe
 					_versions?.TryGetValue(name, out version);
 					loaded = await table.LoadAsync<WrapperType>(name, version, cancellationToken);
 				}
-			}
-			catch (TaskCanceledException)
-			{
-				cancelled = true;
 			}
 			catch (OperationCanceledException)
 			{
