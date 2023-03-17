@@ -1,5 +1,9 @@
 fileFormatVersion: 2
+<<<<<<<< HEAD:Runtime/Snipe/Communicator/API/UserAttributes.meta
 guid: 854827f98e1fae3458b5dc825fd2d64a
+========
+guid: 97318703a16c2a4498bdebc90cadb777
+>>>>>>>> master:Runtime/Snipe/Communicator/Auth.meta
 folderAsset: yes
 DefaultImporter:
   externalObjects: {}
