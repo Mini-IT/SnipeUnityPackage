@@ -78,6 +78,14 @@ namespace MiniIT
 				return false;
 			}
 
+			int connectionId = 0;
+			int userId = 0;
+			if (SnipeCommunicator.InstanceInitialized)
+			{
+				int.TryParse(SnipeCommunicator.Instance.ConnectionId, out connectionId);
+				userId = SnipeCommunicator.Instance.Auth?.UserID ?? 0;
+			}
+
 			bool succeeded = true;
 			HttpStatusCode statusCode = default;
 
@@ -87,7 +95,7 @@ namespace MiniIT
 
 				for (int i = 0; i < _log.Count; i += PORTION_SIZE)
 				{
-					string content = await GetPortionContent(i);
+					string content = await GetPortionContent(i, connectionId, userId);
 					var requestContent = new StringContent(content, Encoding.UTF8, "application/json");
 					var result = await httpClient.PostAsync(url, requestContent);
 
@@ -105,6 +113,8 @@ namespace MiniIT
 
 			if (succeeded)
 			{
+				Debug.Log($"[LogReporter] - Sent successfully. UserId = {userId}, ConnectionId = {connectionId}");
+
 				try
 				{
 					await _semaphore.WaitAsync();
@@ -120,16 +130,8 @@ namespace MiniIT
 			return succeeded;
 		}
 
-		private async Task<string> GetPortionContent(int startIndex)
+		private async Task<string> GetPortionContent(int startIndex, int connectionId, int userId)
 		{
-			int connectionId = 0;
-			int userId = 0;
-			if (SnipeCommunicator.InstanceInitialized)
-			{
-				int.TryParse(SnipeCommunicator.Instance.ConnectionId, out connectionId);
-				userId = SnipeCommunicator.Instance.Auth?.UserID ?? 0;
-			}
-
 			var content = new StringBuilder("{");
 			content.Append($"\"connectionID\":{connectionId},");
 			content.Append($"\"userID\":{userId},");
