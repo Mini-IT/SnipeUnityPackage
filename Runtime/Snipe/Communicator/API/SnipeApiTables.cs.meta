@@ -1,9 +1,5 @@
 fileFormatVersion: 2
-<<<<<<<< HEAD:Runtime/Snipe/Communicator/API/SnipeApiTables.cs.meta
-guid: af59811848944164fa5ac6aa121e1dae
-========
 guid: 7cb07866eb9c6064ca0051510a6e290b
->>>>>>>> master:Runtime/Snipe/Communicator/Auth/AuthIdFetchers/AuthIdFetcher.cs.meta
 MonoImporter:
   externalObjects: {}
   serializedVersion: 2

@@ -1,9 +1,5 @@
 fileFormatVersion: 2
-<<<<<<<< HEAD:Runtime/Snipe/Communicator/API/SnipeApiModule.cs.meta
-guid: 9431b40603d454b4fa00a53017863ec7
-========
 guid: 03821185f68d2a84cada5fa9e94d712b
->>>>>>>> master:Runtime/Snipe/Communicator/Auth/AuthIdFetchers/AmazonIdFetcher.cs.meta
 MonoImporter:
   externalObjects: {}
   serializedVersion: 2
