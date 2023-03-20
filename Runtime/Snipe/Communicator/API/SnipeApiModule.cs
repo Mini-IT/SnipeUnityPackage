@@ -10,6 +10,7 @@ namespace MiniIT.Snipe.Api
 			_snipeApiService = snipeApiService;
 		}
 		
-		public SnipeCommunicatorRequest CreateRequest(string messageType, SnipeObject data) => _snipeApiService.CreateRequest(messageType, data);
+		public SnipeCommunicatorRequest CreateRequest(string messageType, SnipeObject data)
+			=> _snipeApiService.CreateRequest(messageType, data);
 	}
 }

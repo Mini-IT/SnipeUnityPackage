@@ -52,6 +52,7 @@ namespace MiniIT.Snipe
 		#endregion static
 
 		/// <summary>
+		/// <para>TODO: Rename to InstanceName or something like this</para>
 		/// The <see cref="PlayerCode"/> is the name of a player's slot on the device. The <see cref="Default"/> context uses an empty string,
 		/// but you could use values like "player1" and "player2" to enable a feature like couch-coop.
 		/// </summary>
@@ -98,6 +99,7 @@ namespace MiniIT.Snipe
 
 			_isStopped = true;
 
+			Api?.Dispose();
 			Communicator?.Dispose();
 		}
 

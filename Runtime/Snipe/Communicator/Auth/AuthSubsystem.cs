@@ -12,8 +12,23 @@ namespace MiniIT.Snipe
 	{
 		public delegate void AccountBindingCollisionHandler(AuthBinding binding, string user_name = null);
 
+		/// <summary>
+		/// The provided account identifier is already bound to another profile.
+		/// <para/>For example when the user authorizes using theirs Facebook ID the server may find
+		/// another account associated to this ID, meaning that the user has already played this game
+		/// and theirs old account is found. In this case <see cref="AccountBindingCollision"/> event
+		/// will be rased.
+		/// <para/>Note: this event will not be raised if <see cref="AutomaticallyBindCollisions"/> is set to <c>true</c>
+		/// </summary>
 		public event AccountBindingCollisionHandler AccountBindingCollision;
+
 		public event Action LoginSucceeded;
+
+		/// <summary>
+		/// If set to <c>true</c> then <see cref="AccountBindingCollision"/> event will not be raised and
+		/// <see cref="AuthBinding.Bind(AuthBinding.BindResultCallback)"/> will be invoked automatically.
+		/// <para/>The account will be rebound to current profile
+		/// </summary>
 		public bool AutomaticallyBindCollisions = false;
 				
 		private int _userID = 0;
