@@ -15,7 +15,7 @@ namespace MiniIT.Snipe.Api
 		public SnipeCommunicator Communicator => _communicator;
 
 		protected readonly SnipeCommunicator _communicator;
-		private RequestFactoryMethod _requestFactory;
+		private readonly RequestFactoryMethod _requestFactory;
 
 		protected internal AbstractSnipeApiService(SnipeCommunicator communicator, RequestFactoryMethod requestFactory)
 		{

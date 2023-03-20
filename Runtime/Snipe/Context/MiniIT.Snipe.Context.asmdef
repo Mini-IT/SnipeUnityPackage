@@ -2,8 +2,7 @@
     "name": "MiniIT.Snipe.Context",
     "references": [
 		"MiniIT.Snipe.Core",
-		"MiniIT.Snipe.Communicator",
-		"MiniIT.Snipe.ApiService"
+		"MiniIT.Snipe.Communicator"
     ],
     "optionalUnityReferences": [],
     "excludePlatforms": [],
