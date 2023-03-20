@@ -80,6 +80,11 @@ namespace MiniIT.Snipe.Api
 		{
 		}
 
+		protected void AddMergeableRequestType(SnipeRequestDescriptor descriptor)
+		{
+			_communicator.MergeableRequestTypes.Add(descriptor);
+		}
+
 		protected virtual void OnCommunicatorPreDestroy()
 		{
 			UnsubscribeCommunicatorEvents(_communicator);
