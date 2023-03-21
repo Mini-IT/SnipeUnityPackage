@@ -66,7 +66,6 @@ namespace MiniIT.Snipe
 
 		public SnipeCommunicator Communicator { get; private set; }
 		public AuthSubsystem Auth { get; private set; }
-		public AbstractSnipeApiService Api { get; set; }
 
 		public bool IsDefault => string.IsNullOrEmpty(PlayerCode);
 
@@ -98,7 +97,7 @@ namespace MiniIT.Snipe
 
 			_isStopped = true;
 
-			Api?.Dispose();
+			_api?.Dispose();
 			Communicator?.Dispose();
 		}
 
@@ -117,9 +116,33 @@ namespace MiniIT.Snipe
 			Communicator = new SnipeCommunicator();
 			Auth = new AuthSubsystem(Communicator);
 
-			//Api = new ApiServiceType(Communicator, (messageType, data) => new SnipeCommunicatorRequest(Communicator, Auth, messageType, data));
-
 			UnityTerminator.Run();
 		}
+
+		#region Api
+
+		private AbstractSnipeApiService _api;
+
+		public T GetApiAs<T>() where T : AbstractSnipeApiService
+		{
+			_api ??= CreateApi<T>();
+			return _api as T;
+		}
+
+		private AbstractSnipeApiService CreateApi<ApiType>()
+		{
+			if (_api != null)
+				return _api;
+
+			Type type = typeof(ApiType);
+			if (type.IsAbstract)
+				return null;
+
+			var constructor = type.GetConstructor(new Type[] { typeof(SnipeCommunicator), typeof(AbstractSnipeApiService.RequestFactoryMethod) });
+			AbstractSnipeApiService.RequestFactoryMethod requestFactory = (messageType, data) => new SnipeCommunicatorRequest(Communicator, Auth, messageType, data);
+			return (AbstractSnipeApiService)constructor.Invoke(new object[] { Communicator, requestFactory });
+		}
+
+		#endregion Api
 	}
 }
