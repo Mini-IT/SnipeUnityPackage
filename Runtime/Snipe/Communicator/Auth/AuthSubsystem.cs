@@ -387,60 +387,61 @@ namespace MiniIT.Snipe
 		}
 
 		/// <summary>
-		/// Gets or creates a new instance of <c>AuthBinding</c>
+		/// Gets or creates a new instance of <see cref="AuthBinding"/>
 		/// </summary>
-		public BindingType GetBinding<BindingType>() where BindingType : AuthBinding, new()
+		public BindingType GetBinding<BindingType>() where BindingType : AuthBinding
 		{
-			var target_binding_type = typeof(BindingType);
-			
-			//if (target_binding_type == typeof(InternalAuthProvider))
+			var targetBindingType = typeof(BindingType);
+
+			//if (targetBindingType == typeof(InternalAuthProvider))
 			//{
 			//	if (mInternalAuthProvider == null)
 			//		mInternalAuthProvider = new InternalAuthProvider();
 			//	return mInternalAuthProvider as ProviderType;
 			//}
-			
-			BindingType result_binding = null;
+
+			BindingType resultBinding = null;
 			if (_bindings == null)
 			{
-				result_binding = new BindingType();
+
+				resultBinding = CreateBinding<BindingType>();
 				_bindings = new List<AuthBinding>()
 				{
-					result_binding,
+					resultBinding,
 				};
 			}
 			else
 			{
 				foreach (var binding in _bindings)
 				{
-					if (binding != null && binding.GetType() == target_binding_type)
+					if (binding != null && binding.GetType() == targetBindingType)
 					{
-						result_binding = binding as BindingType;
+						resultBinding = binding as BindingType;
 						break;
 					}
 				}
 				
 				// if no exact type match found, try base classes
-				if (result_binding == null)
+				if (resultBinding == null)
 				{
 					foreach (var binding in _bindings)
 					{
 						if (binding != null && binding is BindingType)
 						{
-							result_binding = binding as BindingType;
+							resultBinding = binding as BindingType;
 							break;
 						}
 					}
 				}
 			}
 			
-			if (result_binding == null)
+			if (resultBinding == null)
 			{
-				result_binding = new BindingType();
-				_bindings.Add(result_binding);
+				resultBinding = CreateBinding<BindingType>();
+				_bindings.Add(resultBinding);
 			}
 
-			return result_binding;
+			return resultBinding;
 		}
 
 		public void ClearAllBindings()
@@ -467,6 +468,56 @@ namespace MiniIT.Snipe
 			{
 				AccountBindingCollision?.Invoke(binding, user_name);
 			}
+		}
+
+		/// <summary>
+		/// Creates an instance of <see cref="AuthBinding"/> using reflection
+		/// </summary>
+		/// <returns>A new instance of <c>BindingType</c></returns>
+		/// <exception cref="ArgumentException">No constructor found matching required parameters types</exception>
+		private BindingType CreateBinding<BindingType>() where BindingType : AuthBinding
+		{
+			BindingType resultBinding = null;
+
+			var constructors = typeof(BindingType).GetConstructors();
+			foreach (var constructor in constructors)
+			{
+				var parametersInfo = constructor.GetParameters();
+				if (parametersInfo.Length != 2)
+					continue;
+
+				var parameters = new object[parametersInfo.Length];
+				for (int i = 0; i < parametersInfo.Length; i++)
+				{
+					Type parameterType = parametersInfo[i].ParameterType;
+					if (parameterType == typeof(SnipeCommunicator))
+					{
+						parameters[i] = _communicator;
+					}
+					else if (parameterType == typeof(AuthSubsystem))
+					{
+						parameters[i] = this;
+					}
+					else
+					{
+						parameters = null;
+						break;
+					}
+				}
+
+				if (parameters == null)
+					continue;
+
+				resultBinding = constructor.Invoke(parameters) as BindingType;
+				break;
+			}
+
+			if (resultBinding == null)
+			{
+				throw new ArgumentException("Unsupported contructor");
+			}
+
+			return resultBinding;
 		}
 	}
 }
