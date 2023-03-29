@@ -124,7 +124,11 @@ namespace MiniIT.Snipe
 		{
 			return "";
 		}
-		
+
+		/// <summary>
+		/// Resets stored authorization data to this account.
+		/// </summary>
+		/// <param name="callback">Parameter is <c>errorCode</c></param>
 		public void ResetAuth(Action<string> callback)
 		{
 			SnipeObject data = new SnipeObject()
