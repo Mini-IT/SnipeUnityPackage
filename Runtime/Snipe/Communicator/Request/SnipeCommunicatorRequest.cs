@@ -64,7 +64,7 @@ namespace MiniIT.Snipe
 				
 				if (_communicator.AllowRequestsToWaitForLogin)
 				{
-					DebugLogger.Log($"[SnipeCommunicatorRequest] Waiting for login - {MessageType} - {Data?.ToJSONString()}");
+					DebugLogger.Log($"[{nameof(SnipeCommunicatorRequest)}] Waiting for login - {MessageType} - {Data?.ToJSONString()}");
 
 					_authSubsystem.LoginSucceeded += OnCommunicatorReady;
 				}
@@ -86,7 +86,7 @@ namespace MiniIT.Snipe
 			
 			if (WaitingForRoomJoined && _communicator.RoomJoined == true)
 			{
-				DebugLogger.Log($"[SnipeCommunicatorRequest] OnMessageReceived - Room joined. Send {MessageType}, id = {_requestId}");
+				DebugLogger.Log($"[{nameof(SnipeCommunicatorRequest)}] OnMessageReceived - Room joined. Send {MessageType}, id = {_requestId}");
 				
 				WaitingForRoomJoined = false;
 				DoSendRequest();
