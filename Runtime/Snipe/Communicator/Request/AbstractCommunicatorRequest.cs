@@ -33,10 +33,7 @@ namespace MiniIT.Snipe
 			MessageType = messageType;
 			Data = data;
 			
-			if (_communicator != null)
-			{	
-				_communicator.Requests.Add(this);
-			}
+			_communicator?.Requests.Add(this);
 		}
 
 		public void Request(SnipeObject data, ResponseHandler callback = null)
@@ -166,7 +163,7 @@ namespace MiniIT.Snipe
 			
 			if (_requestId != 0)
 			{
-				DebugLogger.Log($"[AbstractCommunicatorRequest] DoSendRequest - Same request found: {MessageType}, id = {_requestId}, mWaitingForResponse = {_waitingForResponse}");
+				DebugLogger.Log($"[{nameof(AbstractCommunicatorRequest)}] DoSendRequest - Same request found: {MessageType}, id = {_requestId}, mWaitingForResponse = {_waitingForResponse}");
 				
 				if (!_waitingForResponse)
 				{
@@ -201,7 +198,7 @@ namespace MiniIT.Snipe
 				_communicator.ConnectionSucceeded -= OnCommunicatorReady;
 				_communicator.MessageReceived -= OnMessageReceived;
 				
-				DebugLogger.Log($"[AbstractCommunicatorRequest] Waiting for connection - {MessageType}");
+				DebugLogger.Log($"[{nameof(AbstractCommunicatorRequest)}] Waiting for connection - {MessageType}");
 				
 				_communicator.ConnectionSucceeded += OnCommunicatorReady;
 				
@@ -244,7 +241,7 @@ namespace MiniIT.Snipe
 				}
 				catch (Exception e)
 				{
-					DebugLogger.Log($"[AbstractCommunicatorRequest] {MessageType} Callback invokation error: {e}");
+					DebugLogger.Log($"[{nameof(AbstractCommunicatorRequest)}] {MessageType} Callback invokation error: {e}");
 				}
 			}
 		}
