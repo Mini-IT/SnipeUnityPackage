@@ -138,8 +138,16 @@ namespace MiniIT.Snipe
 			if (type.IsAbstract)
 				return null;
 
+			AbstractSnipeApiService.RequestFactoryMethod requestFactory = (messageType, data) =>
+			{
+				if (Communicator.BatchMode && !Communicator.LoggedIn)
+				{
+					return new UnauthorizedRequest(Communicator, messageType, data);
+				}
+				return new SnipeCommunicatorRequest(Communicator, Auth, messageType, data);
+			};
+
 			var constructor = type.GetConstructor(new Type[] { typeof(SnipeCommunicator), typeof(AbstractSnipeApiService.RequestFactoryMethod) });
-			AbstractSnipeApiService.RequestFactoryMethod requestFactory = (messageType, data) => new SnipeCommunicatorRequest(Communicator, Auth, messageType, data);
 			return (AbstractSnipeApiService)constructor.Invoke(new object[] { Communicator, requestFactory });
 		}
 

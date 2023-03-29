@@ -22,6 +22,7 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public event AccountBindingCollisionHandler AccountBindingCollision;
 
+		public event Action LoginRequested;
 		public event Action LoginSucceeded;
 
 		/// <summary>
@@ -72,7 +73,7 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public bool JustRegistered { get; private set; } = false;
 		
-		private SnipeCommunicator _communicator;
+		private readonly SnipeCommunicator _communicator;
 		
 		private AdvertisingIdFetcher _advertisingIdFetcher;
 		private DeviceIdFetcher _deviceIdFetcher;
@@ -81,12 +82,11 @@ namespace MiniIT.Snipe
 
 		private int _loginAttempt;
 
-		private TaskScheduler _mainThreadScheduler;
+		private readonly TaskScheduler _mainThreadScheduler;
 
 		public AuthSubsystem(SnipeCommunicator communicator)
 		{
 			_communicator = communicator;
-			_communicator.ConnectionSucceeded -= OnConnectionSucceeded;
 			_communicator.ConnectionSucceeded += OnConnectionSucceeded;
 
 			_mainThreadScheduler = (SynchronizationContext.Current != null) ?
@@ -117,7 +117,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			DebugLogger.Log($"[{GetType().Name}] ({_communicator.InstanceId}) Authorize");
+			DebugLogger.Log($"[{nameof(AuthSubsystem)}] ({_communicator.InstanceId}) Authorize");
 
 			if (!LoginWithInternalAuthData())
 			{
@@ -171,15 +171,15 @@ namespace MiniIT.Snipe
 			
 			var stopwatch = Stopwatch.StartNew();
 
-			new UnauthorizedRequest(_communicator, SnipeMessageTypes.USER_LOGIN, data)
+			RunAuthRequest(() => new UnauthorizedRequest(_communicator, SnipeMessageTypes.USER_LOGIN, data)
 				.Request((error_code, response) =>
 				{
 					stopwatch?.Stop();
-					
+
 					Analytics.TrackEvent(SnipeMessageTypes.USER_LOGIN, new SnipeObject()
-						{
-							["request_time"] = stopwatch?.ElapsedMilliseconds,
-						});
+					{
+						["request_time"] = stopwatch?.ElapsedMilliseconds,
+					});
 
 					switch (error_code)
 					{
@@ -187,7 +187,7 @@ namespace MiniIT.Snipe
 						case SnipeErrorCodes.ALREADY_LOGGED_IN:
 							UserID = response.SafeGetValue<int>("id");
 							StartBindings();
-							
+
 							UserName = data.SafeGetString("name");
 							AutoLogin = true;
 							_loginAttempt = 0;
@@ -223,13 +223,13 @@ namespace MiniIT.Snipe
 
 						case SnipeErrorCodes.GAME_SERVERS_OFFLINE:
 						default: // unexpected error code
-							DebugLogger.LogError($"[{GetType().Name}] ({_communicator.InstanceId}) {SnipeMessageTypes.USER_LOGIN} - Unexpected error code: {error_code}");
+							DebugLogger.LogError($"[{nameof(AuthSubsystem)}] ({_communicator.InstanceId}) {SnipeMessageTypes.USER_LOGIN} - Unexpected error code: {error_code}");
 							_communicator.Disconnect();
 							break;
 					}
-				}
+				})
 			);
-			
+
 			return true;
 		}
 		
@@ -241,13 +241,10 @@ namespace MiniIT.Snipe
 				return;
 			}
 			
-			if (_advertisingIdFetcher == null)
-				_advertisingIdFetcher = new AdvertisingIdFetcher();
-			
+			_advertisingIdFetcher ??= new AdvertisingIdFetcher();
 			_advertisingIdFetcher.Fetch(false, adid =>
 			{
-				if (_deviceIdFetcher == null)
-					_deviceIdFetcher = new DeviceIdFetcher();
+				_deviceIdFetcher ??= new DeviceIdFetcher();
 				_deviceIdFetcher.Fetch(false, dvid =>
 				{
 					var providers = new List<SnipeObject>();
@@ -290,20 +287,20 @@ namespace MiniIT.Snipe
 			{
 				data["flagCanPack"] = true;
 			}
-			
-			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN).Request(data,
-				(error_code, response) =>
+
+			RunAuthRequest(() => new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN)
+				.Request(data, (error_code, response) =>
 				{
 					if (error_code == SnipeErrorCodes.OK)
 					{
 						//ClearAllBindings();
 						UserID = response.SafeGetValue<int>("id");
 						SetAuthData(response.SafeGetString("uid"), response.SafeGetString("password"));
-						
+
 						JustRegistered = response.SafeGetValue<bool>("registrationDone", false);
-						
+
 						if (response["authsBinded"] is IList list)
-						{	
+						{
 							for (int i = 0; i < list.Count; i++)
 							{
 								var item = list[i] as SnipeObject;
@@ -317,7 +314,7 @@ namespace MiniIT.Snipe
 								}
 							}
 						}
-						
+
 #if !BINDING_DISABLED
 						StartBindings();
 #endif
@@ -326,9 +323,21 @@ namespace MiniIT.Snipe
 					}
 					// else
 					// {
-						// callback?.Invoke(false);
+					// callback?.Invoke(false);
 					// }
-				});
+				})
+			);
+		}
+
+		private void RunAuthRequest(Action action)
+		{
+			bool batchMode = _communicator.BatchMode;
+			_communicator.BatchMode = true;
+
+			action.Invoke();
+			LoginRequested?.Invoke();
+
+			_communicator.BatchMode = batchMode;
 		}
 		
 		private void SetAuthData(string uid, string password)
@@ -477,47 +486,14 @@ namespace MiniIT.Snipe
 		/// <exception cref="ArgumentException">No constructor found matching required parameters types</exception>
 		private BindingType CreateBinding<BindingType>() where BindingType : AuthBinding
 		{
-			BindingType resultBinding = null;
+			var constructor = typeof(BindingType).GetConstructor(new Type[] { typeof(SnipeCommunicator), typeof(AuthSubsystem) });
 
-			var constructors = typeof(BindingType).GetConstructors();
-			foreach (var constructor in constructors)
-			{
-				var parametersInfo = constructor.GetParameters();
-				if (parametersInfo.Length != 2)
-					continue;
-
-				var parameters = new object[parametersInfo.Length];
-				for (int i = 0; i < parametersInfo.Length; i++)
-				{
-					Type parameterType = parametersInfo[i].ParameterType;
-					if (parameterType == typeof(SnipeCommunicator))
-					{
-						parameters[i] = _communicator;
-					}
-					else if (parameterType == typeof(AuthSubsystem))
-					{
-						parameters[i] = this;
-					}
-					else
-					{
-						parameters = null;
-						break;
-					}
-				}
-
-				if (parameters == null)
-					continue;
-
-				resultBinding = constructor.Invoke(parameters) as BindingType;
-				break;
-			}
-
-			if (resultBinding == null)
+			if (constructor == null)
 			{
 				throw new ArgumentException("Unsupported contructor");
 			}
 
-			return resultBinding;
+			return constructor.Invoke(new object[] { _communicator, this }) as BindingType;
 		}
 	}
 }
