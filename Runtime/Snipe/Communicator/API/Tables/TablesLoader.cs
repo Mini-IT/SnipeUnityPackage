@@ -201,7 +201,7 @@ namespace MiniIT.Snipe
 				{
 					await Task.Delay(500, cancellation_token);
 				}
-				catch (OperationCanceledException e)
+				catch (OperationCanceledException)
 				{
 					DebugLogger.Log($"[TablesLoader] LoadVersion task canceled");
 					return false;
