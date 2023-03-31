@@ -67,7 +67,7 @@ namespace MiniIT.Snipe
 		private ConcurrentQueue<SnipeObject> _batchedRequests;
 		private readonly object _batchLock = new object();
 
-		private int mRequestId = 0;
+		private int _requestId = 0;
 
 		private TaskScheduler _mainThreadScheduler;
 
@@ -234,7 +234,7 @@ namespace MiniIT.Snipe
 			if (!Connected || message == null)
 				return 0;
 
-			int request_id = ++mRequestId;
+			int request_id = ++_requestId;
 			message["id"] = request_id;
 
 			SnipeObject data = null;
@@ -302,7 +302,7 @@ namespace MiniIT.Snipe
 				_serverReactionStopwatch = Stopwatch.StartNew();
 			}
 
-			AddResponseMonitoringItem(mRequestId, message.SafeGetString("t"));
+			AddResponseMonitoringItem(_requestId, message.SafeGetString("t"));
 		}
 
 		private void DoSendBatch(List<SnipeObject> messages)
