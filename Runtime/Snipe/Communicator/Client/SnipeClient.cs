@@ -441,12 +441,22 @@ namespace MiniIT.Snipe
 
 			lock (_batchLock)
 			{
-				List<SnipeObject> messages = new List<SnipeObject>(MAX_BATCH_SIZE);
-				while (_batchedRequests.TryDequeue(out SnipeObject message))
+				if (_batchedRequests.Count == 1)
 				{
-					messages.Add(message);
+					if (_batchedRequests.TryDequeue(out SnipeObject message))
+					{
+						DoSendRequest(message);
+					}
 				}
-				DoSendBatch(messages);
+				else
+				{
+					List<SnipeObject> messages = new List<SnipeObject>(_batchedRequests.Count);
+					while (_batchedRequests.TryDequeue(out SnipeObject message))
+					{
+						messages.Add(message);
+					}
+					DoSendBatch(messages);
+				}
 			}
 		}
 	}
