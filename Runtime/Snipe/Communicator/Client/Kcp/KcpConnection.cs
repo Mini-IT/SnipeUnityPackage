@@ -292,7 +292,7 @@ namespace MiniIT.Snipe
 				}
 			}
 
-			if (length > 0) // if there is any cumulated data to send
+			if (length > 0) // if there is any acumulated data to send
 			{
 				int messagesCount = data.Count - startMessageIndex;
 				SendBatchData(data, startMessageIndex, messagesCount, length);
@@ -301,31 +301,24 @@ namespace MiniIT.Snipe
 
 		private void SendBatchData(List<ArraySegment<byte>> data, int startIndex, int count, int bufferLength)
 		{
-			if (count > 1)
-			{
-				byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferLength);
-				int offset = 0;
+			byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferLength);
+			int offset = 0;
 				
-				for (int i = 0; i < count; i++)
-				{
-					int index = startIndex + i;
-					var messageData = data[index];
-					BytesUtil.WriteInt3(buffer, offset, messageData.Count);
-					offset += 3;
-					Buffer.BlockCopy(messageData.Array, messageData.Offset, buffer, offset, messageData.Count);
-					offset += messageData.Count;
-				}
-
-				// NOTE: at this point offset must be equal to bufferLength
-
-				SendReliable(KcpHeader.Batch, new ArraySegment<byte>(buffer, 0, offset));
-				
-				ArrayPool<byte>.Shared.Return(buffer);
-			}
-			else
+			for (int i = 0; i < count; i++)
 			{
-				SendReliable(KcpHeader.Data, data[startIndex]);
+				int index = startIndex + i;
+				var messageData = data[index];
+				BytesUtil.WriteInt3(buffer, offset, messageData.Count);
+				offset += 3;
+				Buffer.BlockCopy(messageData.Array, messageData.Offset, buffer, offset, messageData.Count);
+				offset += messageData.Count;
 			}
+
+			// NOTE: at this point offset must be equal to bufferLength
+
+			SendReliable(KcpHeader.Batch, new ArraySegment<byte>(buffer, 0, offset));
+				
+			ArrayPool<byte>.Shared.Return(buffer);
 		}
 
 		public void Tick()

@@ -60,6 +60,12 @@ namespace MiniIT.Snipe
 
 		public void SendBatch(List<SnipeObject> messages)
 		{
+			if (messages.Count == 1)
+			{
+				DoSendRequest(messages[0]);
+				return;
+			}
+
 			DoSendBatch(messages);
 		}
 
