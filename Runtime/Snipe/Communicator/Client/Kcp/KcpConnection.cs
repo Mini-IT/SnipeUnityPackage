@@ -20,6 +20,7 @@ namespace MiniIT.Snipe
 
 		private const int CHANNEL_HEADER_SIZE = 1;
 		public const int PING_INTERVAL = 1000;
+		public const int MAX_PINGLESS_INTERVAL = 60000 - PING_INTERVAL;
 		private const int KCP_SEND_WINDOW_SIZE = 4096;    // Kcp.WND_SND; 32 by default
 		private const int KCP_RECEIVE_WINDOW_SIZE = 4096; // Kcp.WND_RCV; 128 by default
 		private const int QUEUE_DISCONNECT_THRESHOLD = 10000;
@@ -89,6 +90,7 @@ namespace MiniIT.Snipe
 		private readonly Stopwatch _refTime = new Stopwatch();
 
 		private uint _lastPingTime;
+		private uint _pingsCount = 0;
 		public uint PingTime { get; private set; }
 		
 		private readonly object _kcpLock = new object();
@@ -544,7 +546,7 @@ namespace MiniIT.Snipe
 			if (msgLength < 1)
 				return;
 
-			// DebugLogger.Log($"KCP RawReceive {msgLength} / {buffer.Length}\n{BitConverter.ToString(buffer, 0, buffer.Length)}");
+			// DebugLogger.Log($"KCP RawReceive {msgLength} / {buffer.Length}\n{BitConverter.ToString(buffer, 0, msgLength)}");
 
 			byte channel = buffer[0];
 			switch (channel)
@@ -555,7 +557,7 @@ namespace MiniIT.Snipe
 					
 					lock(_kcpLock)
 					{
-						_kcp.Input(buffer, 1, msgLength - 1);
+						input = _kcp.Input(buffer, 1, msgLength - 1);
 					}
 					
 					if (input != 0)
@@ -672,6 +674,7 @@ namespace MiniIT.Snipe
 		private void UpdateLastReceiveTime()
 		{
 			_lastReceiveTime = (uint)_refTime.ElapsedMilliseconds;
+			_pingsCount = 0;
 		}
 
 		private void HandleReliableData(ArraySegment<byte> message)
@@ -758,6 +761,12 @@ namespace MiniIT.Snipe
 			//       only ever happen if the connection is truly gone.
 			if (time >= _lastReceiveTime + timeout)
 			{
+				if (_state == KcpState.Authenticated && _pingsCount < 3 && time < _lastPingTime + MAX_PINGLESS_INTERVAL)
+				{
+					DebugLogger.Log($"KCP: HandleTimeout - Waiting for ping {_pingsCount}");
+					return;
+				}
+
 				DebugLogger.LogWarning($"KCP: Connection timed out after not receiving any message for {timeout}ms. Disconnecting.");
 				Disconnect();
 			}
@@ -779,8 +788,10 @@ namespace MiniIT.Snipe
 			// enough time elapsed since last ping?
 			if (time >= _lastPingTime + PING_INTERVAL)
 			{
+				// DebugLogger.Log("kcp send ping");
 				SendReliable(KcpHeader.Ping);
 				_lastPingTime = time;
+				_pingsCount++;
 			}
 		}
 
