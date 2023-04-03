@@ -177,18 +177,6 @@ namespace MiniIT.Snipe
 			return MessagePackDeserializer.Parse(raw_data) as SnipeObject;
 		}
 		
-		// private void DoSendRequest(byte[] msg)
-		// {
-			// // opcode + length (4 bytes) + msg
-			// int data_length = msg.Length + 5;
-			// byte[] data = mBytesPool.Rent(data_length);
-			// data[0] = OPCODE_SNIPE_REQUEST;
-			// WriteInt(data, 1, msg.Length);
-			// Array.ConstrainedCopy(msg, 0, data, 5, msg.Length);
-			// _kcpConnection.Send(new ArraySegment<byte>(data, 0, data_length), KcpChannel.Reliable);
-			// mBytesPool.Return(data);
-		// }
-		
 		private async void DoSendRequest(SnipeObject message)
 		{
 			try
