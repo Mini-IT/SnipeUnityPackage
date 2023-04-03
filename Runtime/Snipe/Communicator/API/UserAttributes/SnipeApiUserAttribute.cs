@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Google.Protobuf.WellKnownTypes;
 
 namespace MiniIT.Snipe.Api
 {
@@ -26,7 +25,6 @@ namespace MiniIT.Snipe.Api
 
 	public class SnipeApiReadOnlyUserAttribute<AttrValueType> : SnipeApiUserAttribute
 	{
-		
 		public delegate void ValueChangedHandler(AttrValueType oldValue, AttrValueType value);
 		public event ValueChangedHandler ValueChanged;
 
