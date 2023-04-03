@@ -154,10 +154,8 @@ namespace MiniIT.Snipe
 
 			SendReliable(KcpHeader.Handshake);
 			
-			lock(_kcpLock)
-			{
-				_kcp.Flush(); // force sending handshake immediately
-			}
+			// force sending handshake immediately
+			TickOutgoing();
 		}
 
 		private void OnSocketDisconnected()
@@ -213,9 +211,15 @@ namespace MiniIT.Snipe
 
 		public void SendData(ArraySegment<byte> data, KcpChannel channel)
 		{
+			if (_state == KcpState.Disconnected)
+			{
+				DebugLogger.LogWarning("KcpConnection: tried sending while disconnected");
+				return;
+			}
+			
 			if (data.Count == 0)
 			{
-				DebugLogger.LogWarning("KcpConnection: tried sending empty message. This should never happen. Disconnecting.");
+				DebugLogger.LogWarning("KcpConnection: tried sending empty message");
 				return;
 			}
 
@@ -264,6 +268,18 @@ namespace MiniIT.Snipe
 
 		public void SendBatchReliable(List<ArraySegment<byte>> data)
 		{
+			if (_state == KcpState.Disconnected)
+			{
+				DebugLogger.LogWarning("KcpConnection: tried sending while disconnected");
+				return;
+			}
+			
+			if (data.Count == 0)
+			{
+				DebugLogger.LogWarning("KcpConnection: tried sending empty batch");
+				return;
+			}
+			
 			int length = 0;
 			int startMessageIndex = 0;
 			for (int i = 0; i < data.Count; i++)
@@ -511,7 +527,7 @@ namespace MiniIT.Snipe
 		{
 			try
 			{
-				if (_socket != null)
+				if (_socket != null && _state != KcpState.Disconnected)
 				{
 					while (_socket.Poll(0, SelectMode.SelectRead))
 					{
@@ -538,6 +554,10 @@ namespace MiniIT.Snipe
 			catch (SocketException)
 			{
 				// this is fine, the socket might have been closed in the other end
+			}
+			catch (ObjectDisposedException)
+			{
+				Disconnect();
 			}
 		}
 
