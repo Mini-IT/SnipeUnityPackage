@@ -20,7 +20,7 @@ namespace MiniIT.Snipe
 
 		private const int CHANNEL_HEADER_SIZE = 1;
 		public const int PING_INTERVAL = 1000;
-		public const int MAX_PINGLESS_INTERVAL = 60000 - PING_INTERVAL;
+		public const int MAX_PINGLESS_INTERVAL = 5 * 60000 - PING_INTERVAL * 2; // 5 minutes
 		private const int KCP_SEND_WINDOW_SIZE = 4096;    // Kcp.WND_SND; 32 by default
 		private const int KCP_RECEIVE_WINDOW_SIZE = 4096; // Kcp.WND_RCV; 128 by default
 		private const int QUEUE_DISCONNECT_THRESHOLD = 10000;
