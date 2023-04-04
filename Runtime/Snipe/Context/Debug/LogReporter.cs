@@ -70,6 +70,8 @@ namespace MiniIT
 				return false;
 			}
 
+			snipeContext ??= SnipeContext.GetInstance(initialize: false);
+
 			return await _instance.DoSendAsync(SnipeConfig.ClientKey, SnipeConfig.LogReporterUrl, snipeContext);
 		}
 
