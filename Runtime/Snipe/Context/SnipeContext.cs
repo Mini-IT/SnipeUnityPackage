@@ -11,7 +11,7 @@ namespace MiniIT.Snipe
 		/// <summary>
 		/// An instance of <see cref="SnipeContext"/> that uses an empty string as a <see cref="PlayerCode"/>
 		/// </summary>
-		public static SnipeContext Default => Instantiate();
+		public static SnipeContext Default => GetInstance();
 
 		/// <summary>
 		/// All <see cref="SnipeContext"/>s that have been created. This may include disposed contexts
@@ -21,11 +21,14 @@ namespace MiniIT.Snipe
 		private static Dictionary<string, SnipeContext> s_instances = new Dictionary<string, SnipeContext>();
 
 		/// <summary>
-		/// Create or retrieve a <see cref="SnipeContext"/> for the given <see cref="PlayerCode"/>. There is only one instance of a context per <see cref="PlayerCode"/>.
+		/// Create or retrieve a <see cref="SnipeContext"/> for the given <see cref="PlayerCode"/>.
+		/// There is only one instance of a context per <see cref="PlayerCode"/>.
 		/// </summary>
 		/// <param name="playerCode">A named code that represents a player slot on the device. The <see cref="Default"/> context uses an empty string. </param>
-		/// <returns></returns>
-		public static SnipeContext Instantiate(string playerCode = null)
+		/// <param name="initialize">Create and initialize a new instance if no existing one is found or reinitialize the old one if it was stopped.</param>
+		/// <returns>A reference to the <see cref="SnipeContext"/> instance, corresponding to the specified <paramref name="playerCode"/>.
+		/// Can return <c>null</c> if <paramref name="initialize"/> is set to <c>false</c></returns>
+		public static SnipeContext GetInstance(string playerCode = null, bool initialize = true)
 		{
 			playerCode ??= string.Empty;
 
@@ -34,12 +37,17 @@ namespace MiniIT.Snipe
 			// there should only be one context per playerCode.
 			if (s_instances.TryGetValue(playerCode, out context))
 			{
-				if (context.IsStopped)
+				if (context.IsStopped && initialize)
 				{
 					context.Init(playerCode);
 				}
 
 				return context;
+			}
+
+			if (!initialize)
+			{
+				return null;
 			}
 
 			context = new SnipeContext();
@@ -72,7 +80,7 @@ namespace MiniIT.Snipe
 		private bool _isStopped;
 
 		/// <summary>
-		/// Protected constructor. Use <see cref="Default"/> or <see cref="Instantiate(string)"/> to get an instance
+		/// Protected constructor. Use <see cref="Default"/> or <see cref="GetInstance(string)"/> to get an instance
 		/// </summary>
 		protected SnipeContext() { }
 
@@ -82,12 +90,12 @@ namespace MiniIT.Snipe
 		/// If the context hasn't been stopped, this method won't do anything meaningful.
 		/// </summary>
 		/// <returns>The same context instance</returns>
-		public SnipeContext Start() => Instantiate(playerCode: PlayerCode);
+		public SnipeContext Start() => GetInstance(playerCode: PlayerCode);
 
 		/// <summary>
 		/// Tear down a <see cref="SnipeContext"/> and notify all internal services that the context should be destroyed.
 		/// <para />
-		/// If you call <see cref="Start"/> or <see cref="Instantiate"/> with the disposed context's <see cref="PlayerCode"/>
+		/// If you call <see cref="Start"/> or <see cref="GetInstance"/> with the disposed context's <see cref="PlayerCode"/>
 		/// after the context has been disposed, then the disposed instance will be reinitialized
 		/// </summary>
 		public void Stop()
