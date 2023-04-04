@@ -74,7 +74,6 @@ namespace MiniIT.Snipe.Api
 
 		public override string ToString() => Convert.ToString(_value);
 
-		[UnityEngine.Scripting.Preserve]
 		public static implicit operator AttrValueType(SnipeApiReadOnlyUserAttribute<AttrValueType> attr)
 		{
 			return attr._value;
@@ -217,7 +216,6 @@ namespace MiniIT.Snipe.Api
 			});
 		}
 
-		[UnityEngine.Scripting.Preserve]
 		public static implicit operator AttrValueType(SnipeApiUserAttribute<AttrValueType> attr)
 		{
 			return attr._value;
