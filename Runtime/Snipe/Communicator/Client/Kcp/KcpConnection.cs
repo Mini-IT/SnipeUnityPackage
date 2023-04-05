@@ -20,6 +20,7 @@ namespace MiniIT.Snipe
 
 		private const int CHANNEL_HEADER_SIZE = 1;
 		public const int PING_INTERVAL = 1000;
+		public const int MAX_PINGLESS_INTERVAL = 5 * 60000 - PING_INTERVAL * 2; // 5 minutes
 		private const int KCP_SEND_WINDOW_SIZE = 4096;    // Kcp.WND_SND; 32 by default
 		private const int KCP_RECEIVE_WINDOW_SIZE = 4096; // Kcp.WND_RCV; 128 by default
 		private const int QUEUE_DISCONNECT_THRESHOLD = 10000;
@@ -89,6 +90,7 @@ namespace MiniIT.Snipe
 		private readonly Stopwatch _refTime = new Stopwatch();
 
 		private uint _lastPingTime;
+		private uint _pingsCount = 0;
 		public uint PingTime { get; private set; }
 		
 		private readonly object _kcpLock = new object();
@@ -152,10 +154,8 @@ namespace MiniIT.Snipe
 
 			SendReliable(KcpHeader.Handshake);
 			
-			lock(_kcpLock)
-			{
-				_kcp.Flush(); // force sending handshake immediately
-			}
+			// force sending handshake immediately
+			TickOutgoing();
 		}
 
 		private void OnSocketDisconnected()
@@ -211,9 +211,15 @@ namespace MiniIT.Snipe
 
 		public void SendData(ArraySegment<byte> data, KcpChannel channel)
 		{
+			if (_state == KcpState.Disconnected)
+			{
+				DebugLogger.LogWarning("KcpConnection: tried sending while disconnected");
+				return;
+			}
+			
 			if (data.Count == 0)
 			{
-				DebugLogger.LogWarning("KcpConnection: tried sending empty message. This should never happen. Disconnecting.");
+				DebugLogger.LogWarning("KcpConnection: tried sending empty message");
 				return;
 			}
 
@@ -262,6 +268,18 @@ namespace MiniIT.Snipe
 
 		public void SendBatchReliable(List<ArraySegment<byte>> data)
 		{
+			if (_state == KcpState.Disconnected)
+			{
+				DebugLogger.LogWarning("KcpConnection: tried sending while disconnected");
+				return;
+			}
+			
+			if (data.Count == 0)
+			{
+				DebugLogger.LogWarning("KcpConnection: tried sending empty batch");
+				return;
+			}
+			
 			int length = 0;
 			int startMessageIndex = 0;
 			for (int i = 0; i < data.Count; i++)
@@ -509,7 +527,7 @@ namespace MiniIT.Snipe
 		{
 			try
 			{
-				if (_socket != null)
+				if (_socket != null && _state != KcpState.Disconnected)
 				{
 					while (_socket.Poll(0, SelectMode.SelectRead))
 					{
@@ -537,6 +555,10 @@ namespace MiniIT.Snipe
 			{
 				// this is fine, the socket might have been closed in the other end
 			}
+			catch (ObjectDisposedException)
+			{
+				Disconnect();
+			}
 		}
 
 		private void RawInput(byte[] buffer, int msgLength)
@@ -544,7 +566,7 @@ namespace MiniIT.Snipe
 			if (msgLength < 1)
 				return;
 
-			// DebugLogger.Log($"KCP RawReceive {msgLength} / {buffer.Length}\n{BitConverter.ToString(buffer, 0, buffer.Length)}");
+			// DebugLogger.Log($"KCP RawReceive {msgLength} / {buffer.Length}\n{BitConverter.ToString(buffer, 0, msgLength)}");
 
 			byte channel = buffer[0];
 			switch (channel)
@@ -555,7 +577,7 @@ namespace MiniIT.Snipe
 					
 					lock(_kcpLock)
 					{
-						_kcp.Input(buffer, 1, msgLength - 1);
+						input = _kcp.Input(buffer, 1, msgLength - 1);
 					}
 					
 					if (input != 0)
@@ -672,6 +694,7 @@ namespace MiniIT.Snipe
 		private void UpdateLastReceiveTime()
 		{
 			_lastReceiveTime = (uint)_refTime.ElapsedMilliseconds;
+			_pingsCount = 0;
 		}
 
 		private void HandleReliableData(ArraySegment<byte> message)
@@ -758,6 +781,12 @@ namespace MiniIT.Snipe
 			//       only ever happen if the connection is truly gone.
 			if (time >= _lastReceiveTime + timeout)
 			{
+				if (_state == KcpState.Authenticated && _pingsCount < 3 && time < _lastPingTime + MAX_PINGLESS_INTERVAL)
+				{
+					DebugLogger.Log($"KCP: HandleTimeout - Waiting for ping {_pingsCount}");
+					return;
+				}
+
 				DebugLogger.LogWarning($"KCP: Connection timed out after not receiving any message for {timeout}ms. Disconnecting.");
 				Disconnect();
 			}
@@ -779,8 +808,10 @@ namespace MiniIT.Snipe
 			// enough time elapsed since last ping?
 			if (time >= _lastPingTime + PING_INTERVAL)
 			{
+				// DebugLogger.Log("kcp send ping");
 				SendReliable(KcpHeader.Ping);
 				_lastPingTime = time;
+				_pingsCount++;
 			}
 		}
 
