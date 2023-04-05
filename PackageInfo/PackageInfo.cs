@@ -2,6 +2,6 @@ namespace MiniIT.Snipe
 {
 	public static class PackageInfo
 	{
-		public static string VERSION = "4.0.2";
+		public static string VERSION = "4.0.3";
 	}
 }
