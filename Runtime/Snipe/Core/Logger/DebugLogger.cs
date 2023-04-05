@@ -8,10 +8,7 @@ namespace MiniIT
 {
 	public class DebugLogger
 	{
-		private const int DEFAULT_FONT_SIZE = 12;
-
 		public static bool IsEnabled = true;
-		public static int FontSize = 12;
 		
 		#region Log RichText
 
@@ -65,8 +62,12 @@ namespace MiniIT
 		{
 			if (!IsEnabled)
 				return;
-			
+
+#if ZSTRING
+			UnityEngine.Debug.Log(ApplyStyle(ZString.Format(format, args)));
+#else
 			UnityEngine.Debug.LogFormat(format, args);
+#endif
 		}
 		
 		public static void LogWarning(object message)
@@ -87,19 +88,12 @@ namespace MiniIT
 
 		private static string ApplyStyle(object message)
 		{
-			var log = (FontSize != DEFAULT_FONT_SIZE) ?
-				#if ZSTRING
-				ZString.Concat("<size=", FontSize, ">", message, "</size>") :
-				#else
-				"<size=" + FontSize.ToString()+ ">" + message + "</size>" :
-				#endif
-				message;
-			
-			#if ZSTRING
-			return ZString.Format("<i>{0:dd.MM.yyyy HH:mm:ss} UTC</i> {1}", System.DateTime.UtcNow, log);
-			#else
-			return $"<i>{System.DateTime.UtcNow.ToString("dd.MM.yyyy HH:mm:ss")} UTC</i> {log}";
-			#endif
+			string now = System.DateTime.UtcNow.ToString("dd.MM.yyyy HH:mm:ss");
+#if ZSTRING
+			return ZString.Concat("<i>", now, " UTC</i> ", message);
+#else
+			return $"<i>{now} UTC</i> {message}";
+#endif
 		}
 	}
 }
