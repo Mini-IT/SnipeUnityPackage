@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
-using MiniIT;
 using System.Diagnostics;
+using System.Threading.Tasks;
+using System.Threading;
+using UnityEngine;
 
 namespace MiniIT.Snipe
 {
@@ -11,7 +12,21 @@ namespace MiniIT.Snipe
 	{
 		public delegate void AccountBindingCollisionHandler(AuthBinding binding, string user_name = null);
 
+		/// <summary>
+		/// The provided account identifier is already bound to another profile.
+		/// <para/>For example when the user authorizes using theirs Facebook ID the server may find
+		/// another account associated to this ID, meaning that the user has already played this game
+		/// and theirs old account is found. In this case <see cref="AccountBindingCollision"/> event
+		/// will be rased.
+		/// <para/>Note: this event will not be raised if <see cref="AutomaticallyBindCollisions"/> is set to <c>true</c>
+		/// </summary>
 		public event AccountBindingCollisionHandler AccountBindingCollision;
+
+		/// <summary>
+		/// If set to <c>true</c> then <see cref="AccountBindingCollision"/> event will not be raised and
+		/// <see cref="AuthBinding.Bind(AuthBinding.BindResultCallback)"/> will be invoked automatically.
+		/// <para/>The account will be rebound to current profile
+		/// </summary>
 		public bool AutomaticallyBindCollisions = false;
 				
 		private int _userID = 0;
@@ -38,21 +53,29 @@ namespace MiniIT.Snipe
 				Analytics.SetUserId(_userID.ToString());
 			}
 		}
-		
+
+		/// <summary>
+		/// Indicates that a new registration is done during current session
+		/// </summary>
 		public bool JustRegistered { get; private set; } = false;
 		
-		private SnipeCommunicator _communicator;
+		private readonly SnipeCommunicator _communicator;
 		
 		private AdvertisingIdFetcher _advertisingIdFetcher;
 		private DeviceIdFetcher _deviceIdFetcher;
-		
-		private static List<AuthBinding> _bindings;
-		
+
+		private List<AuthBinding> _bindings;
+
+		private readonly TaskScheduler _mainThreadScheduler;
+
 		public AuthSubsystem(SnipeCommunicator communicator)
 		{
 			_communicator = communicator;
-			_communicator.ConnectionSucceeded -= OnConnectionSucceeded;
 			_communicator.ConnectionSucceeded += OnConnectionSucceeded;
+
+			_mainThreadScheduler = (SynchronizationContext.Current != null) ?
+				TaskScheduler.FromCurrentSynchronizationContext() :
+				TaskScheduler.Current;
 
 			_bindings = new List<AuthBinding>()
 			{
@@ -64,14 +87,28 @@ namespace MiniIT.Snipe
 			};
 		}
 
+		private void RunInMainThread(Action action)
+		{
+			new Task(action).RunSynchronously(_mainThreadScheduler);
+		}
+
 		public void Authorize()
 		{
+			if (_communicator == null
+				|| !_communicator.Connected
+				|| _communicator.LoggedIn)
+			{
+				return;
+			}
+
+			DebugLogger.Log($"[{nameof(AuthSubsystem)}] Authorize");
+
 			if (!LoginWithInternalAuthData())
 			{
 				RegisterAndLogin();
 			}
 		}
-		
+
 		private void OnConnectionSucceeded()
 		{
 			JustRegistered = false;
@@ -100,17 +137,17 @@ namespace MiniIT.Snipe
 			}
 			
 			var stopwatch = Stopwatch.StartNew();
-			
+
 			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.USER_LOGIN)?.RequestUnauthorized(data,
 				(error_code, response) =>
 				{
 					stopwatch?.Stop();
-					
+
 					Analytics.TrackEvent(SnipeMessageTypes.USER_LOGIN, new SnipeObject()
-						{
-							["request_time"] = stopwatch?.ElapsedMilliseconds,
-						});
-					
+					{
+						["request_time"] = stopwatch?.ElapsedMilliseconds,
+					});
+
 					if (error_code == SnipeErrorCodes.OK)
 					{
 						UserID = response.SafeGetValue<int>("id");
@@ -120,57 +157,58 @@ namespace MiniIT.Snipe
 					{
 						PlayerPrefs.DeleteKey(SnipePrefs.AUTH_UID);
 						PlayerPrefs.DeleteKey(SnipePrefs.AUTH_KEY);
-
 						RegisterAndLogin();
 					}
 				}
 			);
-			
+
 			return true;
 		}
 		
-		private void RegisterAndLogin()
+		private async void RegisterAndLogin()
 		{
 			if (_communicator == null)
 			{
-				//callback?.Invoke(false);
 				return;
 			}
-			
-			if (_advertisingIdFetcher == null)
-				_advertisingIdFetcher = new AdvertisingIdFetcher();
-			
-			_advertisingIdFetcher.Fetch(false, adid =>
-			{
-				if (_deviceIdFetcher == null)
-					_deviceIdFetcher = new DeviceIdFetcher();
-				_deviceIdFetcher.Fetch(false, dvid =>
-				{
-					var providers = new List<SnipeObject>();
-					
+
+			var providers = new List<SnipeObject>();
+
 #if !BINDING_DISABLED
-					if (!string.IsNullOrEmpty(adid))
-					{
-						providers.Add(new SnipeObject()
-						{
-							["provider"] = "adid",
-							["login"] = adid,
-						});
-					}
-					
-					if (!string.IsNullOrEmpty(dvid))
-					{
-						providers.Add(new SnipeObject()
-						{
-							["provider"] = "dvid",
-							["login"] = dvid,
-						});
-					}
-#endif
-					
-					RequestRegisterAndLogin(providers);
-				});
+			_advertisingIdFetcher ??= new AdvertisingIdFetcher();
+			_deviceIdFetcher ??= new DeviceIdFetcher();
+
+			await Task.WhenAll(new []
+			{
+				FetchLoginId("adid", _advertisingIdFetcher, providers),
+				FetchLoginId("dvid", _deviceIdFetcher, providers)
 			});
+#endif
+
+			RequestRegisterAndLogin(providers);
+		}
+
+		private async Task FetchLoginId(string provider, AuthIdFetcher fetcher, List<SnipeObject> providers)
+		{
+			bool done = false;
+
+			fetcher.Fetch(false, uid =>
+			{
+				if (!string.IsNullOrEmpty(uid))
+				{
+					providers.Add(new SnipeObject()
+					{
+						["provider"] = provider,
+						["login"] = uid,
+					});
+				}
+				done = true;
+			});
+
+			while (!done)
+			{
+				await Task.Delay(20);
+			}
 		}
 		
 		private void RequestRegisterAndLogin(List<SnipeObject> providers)
@@ -186,7 +224,7 @@ namespace MiniIT.Snipe
 			{
 				data["flagCanPack"] = true;
 			}
-			
+
 			_communicator.CreateRequest(SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN)?.RequestUnauthorized(
 				data,
 				(error_code, response) =>
@@ -196,11 +234,11 @@ namespace MiniIT.Snipe
 						//ClearAllBindings();
 						UserID = response.SafeGetValue<int>("id");
 						SetAuthData(response.SafeGetString("uid"), response.SafeGetString("password"));
-						
+
 						JustRegistered = response.SafeGetValue<bool>("registrationDone", false);
-						
+
 						if (response["authsBinded"] is IList list)
-						{	
+						{
 							for (int i = 0; i < list.Count; i++)
 							{
 								var item = list[i] as SnipeObject;
@@ -214,17 +252,11 @@ namespace MiniIT.Snipe
 								}
 							}
 						}
-						
+
 #if !BINDING_DISABLED
 						StartBindings();
 #endif
-
-						//callback?.Invoke(true);
 					}
-					// else
-					// {
-						// callback?.Invoke(false);
-					// }
 				});
 		}
 		
@@ -284,60 +316,61 @@ namespace MiniIT.Snipe
 		}
 
 		/// <summary>
-		/// Gets or creates a new instance of <c>AuthBinding</c>
+		/// Gets or creates a new instance of <see cref="AuthBinding"/>
 		/// </summary>
 		public BindingType GetBinding<BindingType>() where BindingType : AuthBinding, new()
 		{
-			var target_binding_type = typeof(BindingType);
-			
-			//if (target_binding_type == typeof(InternalAuthProvider))
+			var targetBindingType = typeof(BindingType);
+
+			//if (targetBindingType == typeof(InternalAuthProvider))
 			//{
 			//	if (mInternalAuthProvider == null)
 			//		mInternalAuthProvider = new InternalAuthProvider();
 			//	return mInternalAuthProvider as ProviderType;
 			//}
-			
-			BindingType result_binding = null;
+
+			BindingType resultBinding = null;
 			if (_bindings == null)
 			{
-				result_binding = new BindingType();
+
+				resultBinding = new BindingType();
 				_bindings = new List<AuthBinding>()
 				{
-					result_binding,
+					resultBinding,
 				};
 			}
 			else
 			{
 				foreach (var binding in _bindings)
 				{
-					if (binding != null && binding.GetType() == target_binding_type)
+					if (binding != null && binding.GetType() == targetBindingType)
 					{
-						result_binding = binding as BindingType;
+						resultBinding = binding as BindingType;
 						break;
 					}
 				}
 				
 				// if no exact type match found, try base classes
-				if (result_binding == null)
+				if (resultBinding == null)
 				{
 					foreach (var binding in _bindings)
 					{
 						if (binding != null && binding is BindingType)
 						{
-							result_binding = binding as BindingType;
+							resultBinding = binding as BindingType;
 							break;
 						}
 					}
 				}
 			}
 			
-			if (result_binding == null)
+			if (resultBinding == null)
 			{
-				result_binding = new BindingType();
-				_bindings.Add(result_binding);
+				resultBinding = new BindingType();
+				_bindings.Add(resultBinding);
 			}
 
-			return result_binding;
+			return resultBinding;
 		}
 
 		public void ClearAllBindings()
