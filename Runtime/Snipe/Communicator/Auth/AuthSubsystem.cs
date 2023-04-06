@@ -186,7 +186,9 @@ namespace MiniIT.Snipe
 						case SnipeErrorCodes.OK:
 						case SnipeErrorCodes.ALREADY_LOGGED_IN:
 							UserID = response.SafeGetValue<int>("id");
+#if !BINDING_DISABLED
 							StartBindings();
+#endif
 
 							UserName = data.SafeGetString("name");
 							AutoLogin = true;
@@ -196,8 +198,7 @@ namespace MiniIT.Snipe
 							{
 								RunInMainThread(() =>
 								{
-									//RaiseEvent(LoginSucceeded);
-									LoginSucceeded?.Invoke();
+									RaiseEvent(LoginSucceeded);
 								});
 							}
 							break;
@@ -233,45 +234,50 @@ namespace MiniIT.Snipe
 			return true;
 		}
 		
-		private void RegisterAndLogin()
+		private async void RegisterAndLogin()
 		{
 			if (_communicator == null)
 			{
-				//callback?.Invoke(false);
 				return;
 			}
-			
-			_advertisingIdFetcher ??= new AdvertisingIdFetcher();
-			_advertisingIdFetcher.Fetch(false, adid =>
-			{
-				_deviceIdFetcher ??= new DeviceIdFetcher();
-				_deviceIdFetcher.Fetch(false, dvid =>
-				{
-					var providers = new List<SnipeObject>();
-					
+
+			var providers = new List<SnipeObject>();
+
 #if !BINDING_DISABLED
-					if (!string.IsNullOrEmpty(adid))
-					{
-						providers.Add(new SnipeObject()
-						{
-							["provider"] = "adid",
-							["login"] = adid,
-						});
-					}
-					
-					if (!string.IsNullOrEmpty(dvid))
-					{
-						providers.Add(new SnipeObject()
-						{
-							["provider"] = "dvid",
-							["login"] = dvid,
-						});
-					}
-#endif
-					
-					RequestRegisterAndLogin(providers);
-				});
+			_advertisingIdFetcher ??= new AdvertisingIdFetcher();
+			_deviceIdFetcher ??= new DeviceIdFetcher();
+
+			await Task.WhenAll(new []
+			{
+				FetchLoginId("adid", _advertisingIdFetcher, providers),
+				FetchLoginId("dvid", _deviceIdFetcher, providers)
 			});
+#endif
+
+			RequestRegisterAndLogin(providers);
+		}
+
+		private async Task FetchLoginId(string provider, AuthIdFetcher fetcher, List<SnipeObject> providers)
+		{
+			bool done = false;
+
+			fetcher.Fetch(false, uid =>
+			{
+				if (!string.IsNullOrEmpty(uid))
+				{
+					providers.Add(new SnipeObject()
+					{
+						["provider"] = provider,
+						["login"] = uid,
+					});
+				}
+				done = true;
+			});
+
+			while (!done)
+			{
+				await Task.Delay(20);
+			}
 		}
 		
 		private void RequestRegisterAndLogin(List<SnipeObject> providers)
@@ -319,12 +325,14 @@ namespace MiniIT.Snipe
 						StartBindings();
 #endif
 
-						//callback?.Invoke(true);
+						if (LoginSucceeded != null)
+						{
+							RunInMainThread(() =>
+							{
+								RaiseEvent(LoginSucceeded);
+							});
+						}
 					}
-					// else
-					// {
-					// callback?.Invoke(false);
-					// }
 				})
 			);
 		}
@@ -495,5 +503,35 @@ namespace MiniIT.Snipe
 
 			return constructor.Invoke(new object[] { _communicator, this }) as BindingType;
 		}
+
+		#region Safe events raising
+
+		// https://www.codeproject.com/Articles/36760/C-events-fundamentals-and-exception-handling-in-mu#exceptions
+
+		private void RaiseEvent(Delegate event_delegate, params object[] args)
+		{
+			if (event_delegate != null)
+			{
+				foreach (Delegate handler in event_delegate.GetInvocationList())
+				{
+					if (handler == null)
+						continue;
+
+					try
+					{
+						handler.DynamicInvoke(args);
+					}
+					catch (Exception e)
+					{
+						string message = (e is System.Reflection.TargetInvocationException tie) ?
+							$"{tie.InnerException?.Message}\n{tie.InnerException?.StackTrace}" :
+							$"{e.Message}\n{e.StackTrace}";
+						DebugLogger.Log($"[{nameof(AuthSubsystem)}] RaiseEvent - Error in the handler {handler?.Method?.Name}: {message}");
+					}
+				}
+			}
+		}
+
+		#endregion
 	}
 }
