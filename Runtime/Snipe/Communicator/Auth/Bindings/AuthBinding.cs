@@ -76,11 +76,9 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		public void Bind(BindResultCallback bind_callback = null)
+		public void Bind(BindResultCallback callback = null)
 		{
-			// Override this method.
-
-			_bindResultCallback = bind_callback;
+			_bindResultCallback = callback;
 
 			if (IsBindDone)
 			{
@@ -225,7 +223,9 @@ namespace MiniIT.Snipe
 
 			bool is_me = data.SafeGetValue("isSame", false);
 			if (/*AccountExists == true &&*/ is_me)
+			{
 				IsBindDone = _communicator.LoggedIn;
+			}
 
 			if (callback != null)
 			{
@@ -252,9 +252,10 @@ namespace MiniIT.Snipe
 			DebugLogger.Log($"[AuthBinding] ({ProviderId}) InvokeBindResultCallback - {error_code}");
 
 			if (_bindResultCallback != null)
+			{
 				_bindResultCallback.Invoke(this, error_code);
-
-			_bindResultCallback = null;
+				_bindResultCallback = null;
+			}
 		}
 		
 		protected void SetBindDoneFlag(bool value, bool invoke_callback)
@@ -267,7 +268,9 @@ namespace MiniIT.Snipe
 				PlayerPrefs.SetInt(BindDonePrefsKey, value ? 1 : 0);
 
 				if (value && invoke_callback)
+				{
 					OnBindDone();
+				}
 			}
 		}
 
