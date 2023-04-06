@@ -137,6 +137,15 @@ namespace MiniIT.Snipe
 			return _api as T;
 		}
 
+		public AbstractCommunicatorRequest CreateRequest(string messageType, SnipeObject data)
+		{
+			if (Communicator.BatchMode && !Communicator.LoggedIn)
+			{
+				return new UnauthorizedRequest(Communicator, messageType, data);
+			}
+			return new SnipeCommunicatorRequest(Communicator, Auth, messageType, data);
+		}
+
 		private AbstractSnipeApiService CreateApi<ApiType>()
 		{
 			if (_api != null)
@@ -146,14 +155,7 @@ namespace MiniIT.Snipe
 			if (type.IsAbstract)
 				return null;
 
-			AbstractSnipeApiService.RequestFactoryMethod requestFactory = (messageType, data) =>
-			{
-				if (Communicator.BatchMode && !Communicator.LoggedIn)
-				{
-					return new UnauthorizedRequest(Communicator, messageType, data);
-				}
-				return new SnipeCommunicatorRequest(Communicator, Auth, messageType, data);
-			};
+			AbstractSnipeApiService.RequestFactoryMethod requestFactory = CreateRequest;
 
 			var constructor = type.GetConstructor(new Type[] { typeof(SnipeCommunicator), typeof(AbstractSnipeApiService.RequestFactoryMethod) });
 			return (AbstractSnipeApiService)constructor.Invoke(new object[] { Communicator, requestFactory });
