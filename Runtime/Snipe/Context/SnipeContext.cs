@@ -127,6 +127,15 @@ namespace MiniIT.Snipe
 			UnityTerminator.Run();
 		}
 
+		public AbstractCommunicatorRequest CreateRequest(string messageType, SnipeObject data)
+		{
+			if (Communicator.BatchMode && !Communicator.LoggedIn)
+			{
+				return new UnauthorizedRequest(Communicator, messageType, data);
+			}
+			return new SnipeCommunicatorRequest(Communicator, Auth, messageType, data);
+		}
+
 		#region Api
 
 		private AbstractSnipeApiService _api;
@@ -135,15 +144,6 @@ namespace MiniIT.Snipe
 		{
 			_api ??= CreateApi<T>();
 			return _api as T;
-		}
-
-		public AbstractCommunicatorRequest CreateRequest(string messageType, SnipeObject data)
-		{
-			if (Communicator.BatchMode && !Communicator.LoggedIn)
-			{
-				return new UnauthorizedRequest(Communicator, messageType, data);
-			}
-			return new SnipeCommunicatorRequest(Communicator, Auth, messageType, data);
 		}
 
 		private AbstractSnipeApiService CreateApi<ApiType>()
