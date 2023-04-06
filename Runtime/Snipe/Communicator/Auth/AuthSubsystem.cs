@@ -253,9 +253,7 @@ namespace MiniIT.Snipe
 							}
 						}
 
-#if !BINDING_DISABLED
 						StartBindings();
-#endif
 					}
 				});
 		}
@@ -269,10 +267,12 @@ namespace MiniIT.Snipe
 
 		private void StartBindings()
 		{
+#if !BINDING_DISABLED
 			foreach (var binding in _bindings)
 			{
 				binding?.Start();
 			}
+#endif
 		}
 
 		public void BindAll()
