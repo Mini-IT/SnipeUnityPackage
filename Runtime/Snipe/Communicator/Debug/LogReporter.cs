@@ -138,10 +138,10 @@ namespace MiniIT
 					await _semaphore.WaitAsync();
 					
 					_log.Clear();
-					_running = false;
 				}
 				finally
 				{
+					_running = false;
 					_semaphore.Release();
 				}
 			}
