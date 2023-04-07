@@ -385,21 +385,17 @@ namespace MiniIT.Snipe
 					["ckey"] = SnipeConfig.ClientKey,
 					["token"] = token,
 				},
-				(error_code, response) =>
+				(errorCode, response) =>
 				{
-					if (error_code == "ok")
+					bool success = (errorCode == "ok");
+					if (success)
 					{
 						ClearAllBindings();
 						UserID = 0;
-						PlayerPrefs.SetString(SnipePrefs.AUTH_UID, response.SafeGetString("uid"));
-						PlayerPrefs.SetString(SnipePrefs.AUTH_KEY, response.SafeGetString("password"));
-						PlayerPrefs.Save();
-						callback?.Invoke(true);
+						SetAuthData(response.SafeGetString("uid"), response.SafeGetString("password"));
 					}
-					else
-					{
-						callback?.Invoke(false);
-					}
+					
+					callback?.Invoke(success);
 				});
 		}
 
