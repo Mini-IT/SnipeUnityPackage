@@ -27,6 +27,8 @@ namespace MiniIT
 		}
 
 		private const int PORTION_SIZE = 200; // messages
+		
+		private bool _running = false;
 
 		private readonly List<LogRecord> _log = new List<LogRecord>();
 		private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
@@ -82,6 +84,22 @@ namespace MiniIT
 				Debug.LogWarning("[LogReporter] Invalid apiKey or url");
 				return false;
 			}
+			
+			try
+			{
+				await _semaphore.WaitAsync();
+				
+				if (_running)
+				{
+					Debug.LogWarning("[LogReporter] Already running");
+					return false;
+				}
+				_running = true;
+			}
+			finally
+			{
+				_semaphore.Release();
+			}
 
 			int connectionId = 0;
 			int userId = 0;
@@ -129,6 +147,7 @@ namespace MiniIT
 				}
 				finally
 				{
+					_running = false;
 					_semaphore.Release();
 				}
 			}
