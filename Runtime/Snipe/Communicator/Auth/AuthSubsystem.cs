@@ -303,9 +303,7 @@ namespace MiniIT.Snipe
 					{
 						ClearAllBindings();
 						UserID = 0;
-						PlayerPrefs.SetString(SnipePrefs.AUTH_UID, response.SafeGetString("uid"));
-						PlayerPrefs.SetString(SnipePrefs.AUTH_KEY, response.SafeGetString("password"));
-						PlayerPrefs.Save();
+						SetAuthData(response.SafeGetString("uid"), response.SafeGetString("password"));
 						callback?.Invoke(true);
 					}
 					else
