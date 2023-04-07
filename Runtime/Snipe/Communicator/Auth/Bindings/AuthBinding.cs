@@ -72,8 +72,6 @@ namespace MiniIT.Snipe
 
 		public void Bind(BindResultCallback bind_callback = null)
 		{
-			// Override this method.
-
 			_bindResultCallback = bind_callback;
 
 			if (IsBindDone)
