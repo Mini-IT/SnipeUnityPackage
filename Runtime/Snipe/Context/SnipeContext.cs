@@ -9,7 +9,7 @@ namespace MiniIT.Snipe
 		#region static
 
 		/// <summary>
-		/// An instance of <see cref="SnipeContext"/> that uses an empty string as a <see cref="PlayerCode"/>
+		/// An instance of <see cref="SnipeContext"/> that uses an empty string as a <see cref="Id"/>
 		/// </summary>
 		public static SnipeContext Default => GetInstance();
 
@@ -18,28 +18,28 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public static IEnumerable<SnipeContext> All => s_instances.Values;
 
-		private static Dictionary<string, SnipeContext> s_instances = new Dictionary<string, SnipeContext>();
+		private static readonly Dictionary<string, SnipeContext> s_instances = new Dictionary<string, SnipeContext>();
 
 		/// <summary>
-		/// Create or retrieve a <see cref="SnipeContext"/> for the given <see cref="PlayerCode"/>.
-		/// There is only one instance of a context per <see cref="PlayerCode"/>.
+		/// Create or retrieve a <see cref="SnipeContext"/> for the given <see cref="Id"/>.
+		/// There is only one instance of a context per <see cref="Id"/>.
 		/// </summary>
-		/// <param name="playerCode">A named code that represents a player slot on the device. The <see cref="Default"/> context uses an empty string. </param>
+		/// <param name="id">A named code that represents a player slot on the device. The <see cref="Default"/> context uses an empty string. </param>
 		/// <param name="initialize">Create and initialize a new instance if no existing one is found or reinitialize the old one if it was stopped.</param>
-		/// <returns>A reference to the <see cref="SnipeContext"/> instance, corresponding to the specified <paramref name="playerCode"/>.
+		/// <returns>A reference to the <see cref="SnipeContext"/> instance, corresponding to the specified <paramref name="id"/>.
 		/// Can return <c>null</c> if <paramref name="initialize"/> is set to <c>false</c></returns>
-		public static SnipeContext GetInstance(string playerCode = null, bool initialize = true)
+		public static SnipeContext GetInstance(string id = null, bool initialize = true)
 		{
-			playerCode ??= string.Empty;
+			id ??= string.Empty;
 
 			SnipeContext context;
 
-			// there should only be one context per playerCode.
-			if (s_instances.TryGetValue(playerCode, out context))
+			// there should only be one context per instance id.
+			if (s_instances.TryGetValue(id, out context))
 			{
 				if (context.IsStopped && initialize)
 				{
-					context.Init(playerCode);
+					context.Init(id);
 				}
 
 				return context;
@@ -51,19 +51,18 @@ namespace MiniIT.Snipe
 			}
 
 			context = new SnipeContext();
-			context.Init(playerCode);
-			s_instances[playerCode] = context;
+			context.Init(id);
+			s_instances[id] = context;
 			return context;
 		}
 
 		#endregion static
 
 		/// <summary>
-		/// <para>TODO: Rename to InstanceName or something like this</para>
-		/// The <see cref="PlayerCode"/> is the name of a player's slot on the device. The <see cref="Default"/> context uses an empty string,
-		/// but you could use values like "player1" and "player2" to enable a feature like couch-coop.
+		/// The player's context identifier. The <see cref="Default"/> context uses an empty string,
+		/// but you can use values like "Player1" and "Player2" to get two different concurrently running contexts.
 		/// </summary>
-		public string PlayerCode { get; private set; }
+		public string Id { get; private set; }
 
 		/// <summary>
 		/// If the <see cref="Stop"/> method has been run, this property will return true. Once a context is disposed, you shouldn't use
@@ -75,7 +74,7 @@ namespace MiniIT.Snipe
 		public SnipeCommunicator Communicator { get; private set; }
 		public AuthSubsystem Auth { get; private set; }
 
-		public bool IsDefault => string.IsNullOrEmpty(PlayerCode);
+		public bool IsDefault => string.IsNullOrEmpty(Id);
 
 		private bool _isStopped;
 
@@ -90,12 +89,12 @@ namespace MiniIT.Snipe
 		/// If the context hasn't been stopped, this method won't do anything meaningful.
 		/// </summary>
 		/// <returns>The same context instance</returns>
-		public SnipeContext Start() => GetInstance(playerCode: PlayerCode);
+		public SnipeContext Start() => GetInstance(Id);
 
 		/// <summary>
 		/// Tear down a <see cref="SnipeContext"/> and notify all internal services that the context should be destroyed.
 		/// <para />
-		/// If you call <see cref="Start"/> or <see cref="GetInstance"/> with the disposed context's <see cref="PlayerCode"/>
+		/// If you call <see cref="Start"/> or <see cref="GetInstance"/> with the disposed context's <see cref="Id"/>
 		/// after the context has been disposed, then the disposed instance will be reinitialized
 		/// </summary>
 		public void Stop()
@@ -114,9 +113,9 @@ namespace MiniIT.Snipe
 			Stop();
 		}
 
-		protected void Init(string playerCode)
+		protected void Init(string id)
 		{
-			PlayerCode = playerCode;
+			Id = id;
 
 			if (Communicator != null)
 				return;
