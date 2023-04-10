@@ -17,7 +17,7 @@ namespace MiniIT.Snipe
 		/// <para/>For example when the user authorizes using theirs Facebook ID the server may find
 		/// another account associated to this ID, meaning that the user has already played this game
 		/// and theirs old account is found. In this case <see cref="AccountBindingCollision"/> event
-		/// will be rased.
+		/// will be raised.
 		/// <para/>Note: this event will not be raised if <see cref="AutomaticallyBindCollisions"/> is set to <c>true</c>
 		/// </summary>
 		public event AccountBindingCollisionHandler AccountBindingCollision;
