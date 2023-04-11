@@ -3,8 +3,8 @@ namespace MiniIT.Snipe
 {
 	public class AmazonBinding : AuthBinding<AmazonIdFetcher>
 	{
-		public AmazonBinding(SnipeCommunicator communicator, AuthSubsystem authSubsystem)
-			: base("amzn", communicator, authSubsystem)
+		public AmazonBinding(SnipeCommunicator communicator, AuthSubsystem authSubsystem, SnipeConfig config)
+			: base("amzn", communicator, authSubsystem, config)
 		{
 		}
 

@@ -14,10 +14,8 @@ using Cysharp.Text;
 
 namespace MiniIT
 {
-	public class LogReporter : MonoBehaviour
+	public class LogReporter
 	{
-		private static LogReporter _instance;
-
 		internal class LogRecord
 		{
 			internal long _time;
@@ -27,58 +25,28 @@ namespace MiniIT
 		}
 
 		private const int PORTION_SIZE = 200; // messages
-		
+
+		private SnipeContext _snipeContext;
 		private bool _running = false;
 
-		private readonly List<LogRecord> _log = new List<LogRecord>();
-		private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
+		private static readonly List<LogRecord> _log = new List<LogRecord>();
+		private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
 
-		public static void InitInstance()
+		static LogReporter()
 		{
-			if (_instance != null)
-				return;
-
-			_instance = FindObjectOfType<LogReporter>();
-
-			if (_instance == null)
-			{
-				_instance = new GameObject("[LogReporter]").AddComponent<LogReporter>();
-			}
-		}
-
-		private void Awake()
-		{
-			if (_instance != null && _instance != this)
-			{
-				DestroyImmediate(this.gameObject);
-				return;
-			}
-			_instance = this;
-			DontDestroyOnLoad(this.gameObject);
-
 			Application.logMessageReceivedThreaded += OnLogMessageReceived;
 		}
 
-		private void OnDestroy()
+		public LogReporter(SnipeContext snipeContext)
 		{
-			Application.logMessageReceivedThreaded -= OnLogMessageReceived;
+			_snipeContext = snipeContext;
 		}
 
-		public static async Task<bool> SendAsync(SnipeContext snipeContext = null)
+		public async Task<bool> SendAsync()
 		{
-			if (_instance == null)
-			{
-				Debug.LogWarning("[LogReporter] Instance not initialized");
-				return false;
-			}
+			string apiKey = _snipeContext.Config.ClientKey;
+			string url = _snipeContext.Config.LogReporterUrl;
 
-			snipeContext ??= SnipeContext.GetInstance(initialize: false);
-
-			return await _instance.DoSendAsync(SnipeConfig.ClientKey, SnipeConfig.LogReporterUrl, snipeContext);
-		}
-
-		private async Task<bool> DoSendAsync(string apiKey, string url, SnipeContext snipeContext)
-		{
 			if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(url))
 			{
 				Debug.LogWarning("[LogReporter] Invalid apiKey or url");
@@ -103,10 +71,10 @@ namespace MiniIT
 
 			int connectionId = 0;
 			int userId = 0;
-			if (snipeContext?.Communicator != null)
+			if (_snipeContext?.Communicator != null)
 			{
-				int.TryParse(snipeContext.Communicator.ConnectionId, out connectionId);
-				userId = snipeContext.Auth?.UserID ?? 0;
+				int.TryParse(_snipeContext.Communicator.ConnectionId, out connectionId);
+				userId = _snipeContext.Auth?.UserID ?? 0;
 			}
 
 			bool succeeded = true;
@@ -200,7 +168,7 @@ namespace MiniIT
 			return result;
 		}
 
-		private async void OnLogMessageReceived(string condition, string stackTrace, LogType type)
+		private static async void OnLogMessageReceived(string condition, string stackTrace, LogType type)
 		{
 			try
 			{

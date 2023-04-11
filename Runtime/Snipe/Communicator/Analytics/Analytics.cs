@@ -37,6 +37,7 @@ namespace MiniIT.Snipe
 		private static IAnalyticsTracker _tracker;
 		
 		private static string _userId = null;
+		private static string _debugId = null;
 		private static readonly object _userIdLock = new object();
 
 		/// <summary>
@@ -69,15 +70,20 @@ namespace MiniIT.Snipe
 						_tracker.SetUserId(_userId);
 						_userId = null;
 						
-						if (!string.IsNullOrEmpty(SnipeConfig.DebugId))
+						if (!string.IsNullOrEmpty(_debugId))
 						{
-							_tracker.SetUserProperty("debugID", SnipeConfig.DebugId);
+							_tracker.SetUserProperty("debugID", _debugId);
 						}
 					}
 				}
 			}
 			
 			return ready;
+		}
+
+		public static void SetDebugId(string id)
+		{
+			_debugId = id;
 		}
 		
 		public static void SetUserId(string uid)

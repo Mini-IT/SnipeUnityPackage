@@ -71,8 +71,10 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public bool IsStopped { get; private set; }
 
+		public SnipeConfig Config { get; private set; }
 		public SnipeCommunicator Communicator { get; private set; }
 		public AuthSubsystem Auth { get; private set; }
+		public LogReporter LogReporter { get; private set; }
 
 		public bool IsDefault => string.IsNullOrEmpty(Id);
 
@@ -120,8 +122,10 @@ namespace MiniIT.Snipe
 			if (Communicator != null)
 				return;
 
-			Communicator = new SnipeCommunicator();
-			Auth = new AuthSubsystem(Communicator);
+			Config = new SnipeConfig();
+			Communicator = new SnipeCommunicator(Config);
+			Auth = new AuthSubsystem(Communicator, Config);
+			LogReporter = new LogReporter(this);
 
 			UnityTerminator.Run();
 		}

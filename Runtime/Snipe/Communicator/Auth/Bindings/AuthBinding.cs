@@ -5,8 +5,8 @@ namespace MiniIT.Snipe
 {
 	public class AuthBinding<FetcherType> : AuthBinding where FetcherType : AuthIdFetcher, new()
 	{
-		public AuthBinding(string provider_id, SnipeCommunicator communicator, AuthSubsystem authSubsystem)
-			: base(communicator, authSubsystem)
+		public AuthBinding(string provider_id, SnipeCommunicator communicator, AuthSubsystem authSubsystem, SnipeConfig config)
+			: base(communicator, authSubsystem, config)
 		{
 			ProviderId = provider_id;
 			_fetcher = new FetcherType();
@@ -27,6 +27,7 @@ namespace MiniIT.Snipe
 		protected AuthIdFetcher _fetcher;
 		protected readonly SnipeCommunicator _communicator;
 		private readonly AuthSubsystem _authSubsystem;
+		private readonly SnipeConfig _config;
 
 		public string BindDonePrefsKey
 		{
@@ -45,10 +46,11 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		public AuthBinding(SnipeCommunicator communicator, AuthSubsystem authSubsystem)
+		public AuthBinding(SnipeCommunicator communicator, AuthSubsystem authSubsystem, SnipeConfig config)
 		{
 			_communicator = communicator;
 			_authSubsystem = authSubsystem;
+			_config = config;
 
 			if (IsBindDone)
 			{
@@ -94,7 +96,7 @@ namespace MiniIT.Snipe
 			{
 				SnipeObject data = new SnipeObject()
 				{
-					["ckey"] = SnipeConfig.ClientKey,
+					["ckey"] = _config.ClientKey,
 					["provider"] = ProviderId,
 					["login"] = uid,
 					["loginInt"] = auth_login,
@@ -131,7 +133,7 @@ namespace MiniIT.Snipe
 		{
 			SnipeObject data = new SnipeObject()
 			{
-				["ckey"] = SnipeConfig.ClientKey,
+				["ckey"] = _config.ClientKey,
 				["provider"] = ProviderId,
 				["login"] = GetUserId(),
 				["auth"] = GetAuthPassword(),
@@ -156,23 +158,6 @@ namespace MiniIT.Snipe
 				});
 		}
 
-		// base.OnAuthResetResponse(error_code, response_data);
-		// }
-
-		// protected override void OnAuthLoginResponse(string error_code, SnipeObject data)
-		// {
-		// if (!string.IsNullOrEmpty(error_code))
-		// {
-		// AccountExists = (error_code == SnipeErrorCodes.OK);
-		// if (AccountExists != true)
-		// {
-		// SetBindDoneFlag(false, false);
-		// }
-		// }
-
-		// base.OnAuthLoginResponse(error_code, data);
-		// }
-
 		public void CheckAuthExists(CheckAuthExistsCallback callback = null)
 		{
 			_fetcher?.Fetch(false, uid =>
@@ -187,7 +172,7 @@ namespace MiniIT.Snipe
 
 			SnipeObject data = new SnipeObject()
 			{
-				["ckey"] = SnipeConfig.ClientKey,
+				["ckey"] = _config.ClientKey,
 				["provider"] = ProviderId,
 				["login"] = user_id,
 			};

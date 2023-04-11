@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace MiniIT.Snipe
 {
-	public static class SnipeConfig
+	public class SnipeConfig
 	{
 		public class UdpAddress
 		{
@@ -20,29 +20,29 @@ namespace MiniIT.Snipe
 			WebSocketSharp,
 			ClientWebSocket,
 		}
-		public static WebSocketImplementations WebSocketImplementation = WebSocketImplementations.WebSocketSharp;
+		public WebSocketImplementations WebSocketImplementation = WebSocketImplementations.WebSocketSharp;
 
-		public static string ClientKey;
-		public static string AppInfo;
-		public static string DebugId;
+		public string ClientKey;
+		public string AppInfo;
+		public string DebugId { get; private set; }
 
-		public static List<string> ServerWebSocketUrls = new List<string>();
-		public static List<UdpAddress> ServerUdpUrls = new List<UdpAddress>();
+		public List<string> ServerWebSocketUrls = new List<string>();
+		public List<UdpAddress> ServerUdpUrls = new List<UdpAddress>();
 		
-		public static bool CompressionEnabled = true;
-		public static int MinMessageBytesToCompress = 13 * 1024;
+		public bool CompressionEnabled = true;
+		public int MinMessageBytesToCompress = 13 * 1024;
 
-		public static SnipeObject LoginParameters;
+		public SnipeObject LoginParameters;
 
-		public static string LogReporterUrl;
+		public string LogReporterUrl;
 
-		public static string PersistentDataPath { get; private set; }
-		public static string StreamingAssetsPath { get; private set; }
+		public string PersistentDataPath { get; private set; }
+		public string StreamingAssetsPath { get; private set; }
 
-		private static int _serverWebSocketUrlIndex = 0;
-		private static int _serverUdpUrlIndex = 0;
+		private int _serverWebSocketUrlIndex = 0;
+		private int _serverUdpUrlIndex = 0;
 
-		private static TaskScheduler _mainThreadScheduler;
+		private TaskScheduler _mainThreadScheduler;
 
 		public enum TablesVersionsResolving
 		{
@@ -53,10 +53,17 @@ namespace MiniIT.Snipe
 
 		public static TablesVersionsResolving TablesVersioning = TablesVersionsResolving.Default;
 
+		public SnipeConfig()
+		{
+			_mainThreadScheduler = SynchronizationContext.Current != null ?
+				TaskScheduler.FromCurrentSynchronizationContext() :
+				TaskScheduler.Current;
+		}
+
 		/// <summary>
 		/// Should be called from the main Unity thread
 		/// </summary>
-		public static void InitFromJSON(string json_string)
+		public void InitFromJSON(string json_string)
 		{
 			Init(SnipeObject.FromJSONString(json_string));
 		}
@@ -64,12 +71,8 @@ namespace MiniIT.Snipe
 		/// <summary>
 		/// Should be called from the main Unity thread
 		/// </summary>
-		public static void Init(IDictionary<string, object> data)
+		public void Init(IDictionary<string, object> data)
 		{
-			_mainThreadScheduler = SynchronizationContext.Current != null ?
-				TaskScheduler.FromCurrentSynchronizationContext() :
-				TaskScheduler.Current;
-
 			ClientKey = SnipeObject.SafeGetString(data, "client_key");
 
 			if (ServerWebSocketUrls == null)
@@ -156,8 +159,6 @@ namespace MiniIT.Snipe
 				}
 			}
 
-			TablesConfig.Init(data);
-
 			if (data.TryGetValue("log_reporter", out var log_reporter_field) &&
 				log_reporter_field is IDictionary<string, object> log_reporter)
 			{
@@ -174,13 +175,13 @@ namespace MiniIT.Snipe
 			_serverWebSocketUrlIndex = PlayerPrefs.GetInt(SnipePrefs.WEBSOCKET_URL_INDEX, 0);
 			_serverUdpUrlIndex = PlayerPrefs.GetInt(SnipePrefs.UDP_URL_INDEX, 0);
 
-			PersistentDataPath = Application.persistentDataPath;
-			StreamingAssetsPath = Application.streamingAssetsPath;
+			TablesConfig.Init(data);
+			TablesConfig.PersistentDataPath = Application.persistentDataPath;
 
 			InitAppInfo();
 		}
 
-		private static void InitAppInfo()
+		private void InitAppInfo()
 		{
 			AppInfo = new SnipeObject()
 			{
@@ -195,10 +196,11 @@ namespace MiniIT.Snipe
 				string id = SystemInfo.deviceUniqueIdentifier + Application.identifier;
 				byte[] hashBytes = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(id));
 				DebugId = System.Convert.ToBase64String(hashBytes).Substring(0, 16);
+				Analytics.SetDebugId(DebugId);
 			}
 		}
 
-		public static string GetWebSocketUrl()
+		public string GetWebSocketUrl()
 		{
 			_serverWebSocketUrlIndex = GetValidIndex(ServerWebSocketUrls, _serverWebSocketUrlIndex, false);
 			if (_serverWebSocketUrlIndex >= 0)
@@ -209,7 +211,7 @@ namespace MiniIT.Snipe
 			return null;
 		}
 
-		public static UdpAddress GetUdpAddress()
+		public UdpAddress GetUdpAddress()
 		{
 			_serverUdpUrlIndex = GetValidIndex(ServerUdpUrls, _serverUdpUrlIndex, false);
 			if (_serverUdpUrlIndex >= 0)
@@ -220,14 +222,14 @@ namespace MiniIT.Snipe
 			return null;
 		}
 
-		public static void NextWebSocketUrl()
+		public void NextWebSocketUrl()
 		{
 			_serverWebSocketUrlIndex = GetValidIndex(ServerWebSocketUrls, _serverWebSocketUrlIndex, true);
 
 			RunInMainThread(() => PlayerPrefs.SetInt(SnipePrefs.WEBSOCKET_URL_INDEX, _serverWebSocketUrlIndex));
 		}
 
-		public static bool NextUdpUrl()
+		public bool NextUdpUrl()
 		{
 			int prev = _serverUdpUrlIndex;
 			_serverUdpUrlIndex = GetValidIndex(ServerUdpUrls, _serverUdpUrlIndex, true);
@@ -237,7 +239,7 @@ namespace MiniIT.Snipe
 			return _serverUdpUrlIndex > prev;
 		}
 
-		public static bool CheckUdpAvailable()
+		public bool CheckUdpAvailable()
 		{
 			if (ServerUdpUrls == null || ServerUdpUrls.Count < 1)
 				return false;
@@ -268,7 +270,7 @@ namespace MiniIT.Snipe
 			return index;
 		}
 
-		private static void RunInMainThread(Action action)
+		private void RunInMainThread(Action action)
 		{
 			new Task(action).RunSynchronously(_mainThreadScheduler);
 		}

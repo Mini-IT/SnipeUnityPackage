@@ -6,8 +6,8 @@ namespace MiniIT.Snipe
 {
 	public class FacebookBinding : AuthBinding<FacebookIdFetcher>
 	{
-		public FacebookBinding(SnipeCommunicator communicator, AuthSubsystem authSubsystem)
-			: base("fb", communicator, authSubsystem)
+		public FacebookBinding(SnipeCommunicator communicator, AuthSubsystem authSubsystem, SnipeConfig config)
+			: base("fb", communicator, authSubsystem, config)
 		{
 		}
 

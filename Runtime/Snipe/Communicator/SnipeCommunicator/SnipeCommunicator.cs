@@ -75,14 +75,17 @@ namespace MiniIT.Snipe
 			}
 		}
 
+		private SnipeConfig _config;
 		private bool _disconnecting = false;
 		
 		private TaskScheduler _mainThreadScheduler;
 		private CancellationTokenSource _delayedInitCancellation;
 		
-		public SnipeCommunicator()
+		public SnipeCommunicator(SnipeConfig config)
 		{
 			DebugLogger.Log($"[SnipeCommunicator] PACKAGE VERSION: {PackageInfo.VERSION}");
+
+			_config = config;
 		}
 		
 		/// <summary>
@@ -113,7 +116,7 @@ namespace MiniIT.Snipe
 
 			if (Client == null)
 			{
-				Client = new SnipeClient();
+				Client = new SnipeClient(_config);
 				Client.ConnectionOpened += OnClientConnectionOpened;
 				Client.ConnectionClosed += OnClientConnectionClosed;
 				Client.UdpConnectionFailed += OnClientUdpConnectionFailed;

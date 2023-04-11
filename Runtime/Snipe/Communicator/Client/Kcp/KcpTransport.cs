@@ -18,6 +18,12 @@ namespace MiniIT.Snipe
 		private CancellationTokenSource _networkLoopCancellation;
 
 		private readonly object _lock = new object();
+		private readonly SnipeConfig _config;
+
+		internal KcpTransport(SnipeConfig config)
+		{
+			_config = config;
+		}
 
 		public async void Connect()
 		{
@@ -35,7 +41,7 @@ namespace MiniIT.Snipe
 			{
 				lock (_lock)
 				{
-					var address = SnipeConfig.GetUdpAddress();
+					var address = _config.GetUdpAddress();
 					_kcpConnection.Connect(address.Host, address.Port, 3000, 5000);
 				}
 			});
@@ -87,7 +93,7 @@ namespace MiniIT.Snipe
 
 			if (!ConnectionEstablished) // failed to establish connection
 			{
-				if (SnipeConfig.NextUdpUrl())
+				if (_config.NextUdpUrl())
 				{
 					DebugLogger.Log("[SnipeClient] Next udp url");
 					//Connect();
@@ -232,7 +238,7 @@ namespace MiniIT.Snipe
 
 			ArraySegment<byte> msg_data = await Task.Run(() => _messageSerializer.Serialize(ref _messageSerializationBuffer, offset, message));
 
-			if (SnipeConfig.CompressionEnabled && msg_data.Count >= SnipeConfig.MinMessageBytesToCompress) // compression needed
+			if (_config.CompressionEnabled && msg_data.Count >= _config.MinMessageBytesToCompress) // compression needed
 			{
 				await Task.Run(() =>
 				{

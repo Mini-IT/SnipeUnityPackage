@@ -70,6 +70,12 @@ namespace MiniIT.Snipe
 		private int _requestId = 0;
 
 		private TaskScheduler _mainThreadScheduler;
+		private readonly SnipeConfig _config;
+
+		internal SnipeClient(SnipeConfig config)
+		{
+			_config = config;
+		}
 
 		public void Connect()
 		{
@@ -77,7 +83,7 @@ namespace MiniIT.Snipe
 				TaskScheduler.FromCurrentSynchronizationContext() :
 				TaskScheduler.Current;
 
-			if (SnipeConfig.CheckUdpAvailable())
+			if (_config.CheckUdpAvailable())
 			{
 				ConnectUdpClient();
 			}
@@ -99,7 +105,7 @@ namespace MiniIT.Snipe
 
 			if (_kcp == null)
 			{
-				_kcp = new KcpTransport();
+				_kcp = new KcpTransport(_config);
 				_kcp.ConnectionOpenedHandler = () =>
 				{
 					Analytics.UdpConnectionTime = _connectionStopwatch.Elapsed;
@@ -138,7 +144,7 @@ namespace MiniIT.Snipe
 
 			if (_webSocket == null)
 			{
-				_webSocket = new WebSocketTransport();
+				_webSocket = new WebSocketTransport(_config);
 				_webSocket.ConnectionOpenedHandler = OnConnected;
 				_webSocket.ConnectionClosedHandler = () => Disconnect(true);
 				_webSocket.MessageReceivedHandler = ProcessMessage;
@@ -242,14 +248,14 @@ namespace MiniIT.Snipe
 			if (!_loggedIn)
 			{
 				data = message["data"] as SnipeObject ?? new SnipeObject();
-				data["ckey"] = SnipeConfig.ClientKey;
+				data["ckey"] = _config.ClientKey;
 				message["data"] = data;
 			}
 
-			if (SnipeConfig.DebugId != null)
+			if (_config.DebugId != null)
 			{
 				data ??= message["data"] as SnipeObject ?? new SnipeObject();
-				data["debugID"] = SnipeConfig.DebugId;
+				data["debugID"] = _config.DebugId;
 			}
 
 			if (BatchMode)

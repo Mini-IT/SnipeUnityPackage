@@ -78,34 +78,52 @@ namespace MiniIT.Snipe
 		private AdvertisingIdFetcher _advertisingIdFetcher;
 		private DeviceIdFetcher _deviceIdFetcher;
 
-		private List<AuthBinding> _bindings;
+		private readonly List<AuthBinding> _bindings;
 
 		private int _loginAttempt;
 
+		private SnipeConfig _config;
 		private readonly TaskScheduler _mainThreadScheduler;
 
-		public AuthSubsystem(SnipeCommunicator communicator)
+		public AuthSubsystem(SnipeCommunicator communicator, SnipeConfig config)
 		{
 			_communicator = communicator;
 			_communicator.ConnectionSucceeded += OnConnectionSucceeded;
+
+			_config = config;
 
 			_mainThreadScheduler = (SynchronizationContext.Current != null) ?
 				TaskScheduler.FromCurrentSynchronizationContext() :
 				TaskScheduler.Current;
 
-			_bindings = new List<AuthBinding>()
-			{
-				new AdvertisingIdBinding(_communicator, this),
-#if SNIPE_FACEBOOK
-				new FacebookBinding(_communicator, this),
-#endif
-				new AmazonBinding(_communicator, this),
-			};
+			_bindings = new List<AuthBinding>();
+			//if (BindingEnabled)
+			InitBindings();
 		}
 
 		private void RunInMainThread(Action action)
 		{
 			new Task(action).RunSynchronously(_mainThreadScheduler);
+		}
+
+		private void InitBindings()
+		{
+			if (FindBinding<AdvertisingIdBinding>(false) == null)
+			{
+				_bindings.Add(new AdvertisingIdBinding(_communicator, this, _config));
+			}
+
+#if SNIPE_FACEBOOK
+			if (FindBinding<FacebookBinding>(false) == null)
+			{
+				_bindings.Add(new FacebookBinding(_communicator, this, _config));
+			}
+#endif
+
+			if (FindBinding<AmazonBinding>(false) == null)
+			{
+				_bindings.Add(new AmazonBinding(_communicator, this, _config));
+			}
 		}
 
 		public void Authorize()
@@ -157,14 +175,14 @@ namespace MiniIT.Snipe
 				return false;
 			}
 			
-			SnipeObject data = SnipeConfig.LoginParameters != null ? new SnipeObject(SnipeConfig.LoginParameters) : new SnipeObject();
+			SnipeObject data = _config.LoginParameters != null ? new SnipeObject(_config.LoginParameters) : new SnipeObject();
 			data["login"] = login;
 			data["auth"] = password;
 			data["version"] = SnipeClient.SNIPE_VERSION;
-			data["appInfo"] = SnipeConfig.AppInfo;
+			data["appInfo"] = _config.AppInfo;
 			data["flagAutoJoinRoom"] = true;
 			
-			if (SnipeConfig.CompressionEnabled)
+			if (_config.CompressionEnabled)
 			{
 				data["flagCanPack"] = true;
 			}
@@ -282,14 +300,14 @@ namespace MiniIT.Snipe
 		
 		private void RequestRegisterAndLogin(List<SnipeObject> providers)
 		{
-			SnipeObject data = SnipeConfig.LoginParameters != null ? new SnipeObject(SnipeConfig.LoginParameters) : new SnipeObject();
+			SnipeObject data = _config.LoginParameters != null ? new SnipeObject(_config.LoginParameters) : new SnipeObject();
 			data["version"] = SnipeClient.SNIPE_VERSION;
-			data["appInfo"] = SnipeConfig.AppInfo;
-			data["ckey"] = SnipeConfig.ClientKey;
+			data["appInfo"] = _config.AppInfo;
+			data["ckey"] = _config.ClientKey;
 			data["auths"] = providers;
 			data["flagAutoJoinRoom"] = true;
 			
-			if (SnipeConfig.CompressionEnabled)
+			if (_config.CompressionEnabled)
 			{
 				data["flagCanPack"] = true;
 			}
@@ -382,7 +400,7 @@ namespace MiniIT.Snipe
 			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_RESTORE)
 				.Request(new SnipeObject()
 				{
-					["ckey"] = SnipeConfig.ClientKey,
+					["ckey"] = _config.ClientKey,
 					["token"] = token,
 				},
 				(errorCode, response) =>
@@ -404,26 +422,23 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public BindingType GetBinding<BindingType>() where BindingType : AuthBinding
 		{
-			var targetBindingType = typeof(BindingType);
+			BindingType resultBinding = FindBinding<BindingType>();
 
-			//if (targetBindingType == typeof(InternalAuthProvider))
-			//{
-			//	if (mInternalAuthProvider == null)
-			//		mInternalAuthProvider = new InternalAuthProvider();
-			//	return mInternalAuthProvider as ProviderType;
-			//}
-
-			BindingType resultBinding = null;
-			if (_bindings == null)
+			if (resultBinding == null)
 			{
-
 				resultBinding = CreateBinding<BindingType>();
-				_bindings = new List<AuthBinding>()
-				{
-					resultBinding,
-				};
+				_bindings.Add(resultBinding);
 			}
-			else
+
+			return resultBinding;
+		}
+
+		private BindingType FindBinding<BindingType>(bool tryBaseClasses = true) where BindingType : AuthBinding
+		{
+			Type targetBindingType = typeof(BindingType);
+			BindingType resultBinding = null;
+
+			if (_bindings.Count > 0)
 			{
 				foreach (var binding in _bindings)
 				{
@@ -433,9 +448,9 @@ namespace MiniIT.Snipe
 						break;
 					}
 				}
-				
+
 				// if no exact type match found, try base classes
-				if (resultBinding == null)
+				if (resultBinding == null && tryBaseClasses)
 				{
 					foreach (var binding in _bindings)
 					{
@@ -447,12 +462,6 @@ namespace MiniIT.Snipe
 					}
 				}
 			}
-			
-			if (resultBinding == null)
-			{
-				resultBinding = CreateBinding<BindingType>();
-				_bindings.Add(resultBinding);
-			}
 
 			return resultBinding;
 		}
@@ -461,12 +470,9 @@ namespace MiniIT.Snipe
 		{
 			PlayerPrefs.DeleteKey(SnipePrefs.AUTH_BIND_DONE + "dvid");
 
-			if (_bindings != null)
+			foreach (var binding in _bindings)
 			{
-				foreach (var binding in _bindings)
-				{
-					PlayerPrefs.DeleteKey(binding.BindDonePrefsKey);
-				}
+				PlayerPrefs.DeleteKey(binding.BindDonePrefsKey);
 			}
 		}
 
@@ -490,14 +496,14 @@ namespace MiniIT.Snipe
 		/// <exception cref="ArgumentException">No constructor found matching required parameters types</exception>
 		private BindingType CreateBinding<BindingType>() where BindingType : AuthBinding
 		{
-			var constructor = typeof(BindingType).GetConstructor(new Type[] { typeof(SnipeCommunicator), typeof(AuthSubsystem) });
+			var constructor = typeof(BindingType).GetConstructor(new Type[] { typeof(SnipeCommunicator), typeof(AuthSubsystem), typeof(SnipeConfig) });
 
 			if (constructor == null)
 			{
 				throw new ArgumentException("Unsupported contructor");
 			}
 
-			return constructor.Invoke(new object[] { _communicator, this }) as BindingType;
+			return constructor.Invoke(new object[] { _communicator, this, _config }) as BindingType;
 		}
 
 		#region Safe events raising

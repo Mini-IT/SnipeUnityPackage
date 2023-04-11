@@ -27,7 +27,7 @@ namespace MiniIT.Snipe
 
 		internal static string GetCacheDirectoryPath()
 		{
-			return Path.Combine(SnipeConfig.PersistentDataPath, "SnipeTables");
+			return Path.Combine(TablesConfig.PersistentDataPath, "SnipeTables");
 		}
 
 		internal static string GetCachePath(string table_name, long version)
