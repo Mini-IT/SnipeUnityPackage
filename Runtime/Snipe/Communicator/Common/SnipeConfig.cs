@@ -63,15 +63,15 @@ namespace MiniIT.Snipe
 		/// <summary>
 		/// Should be called from the main Unity thread
 		/// </summary>
-		public void InitFromJSON(string json_string)
+		public void InitializeFromJSON(string json_string)
 		{
-			Init(SnipeObject.FromJSONString(json_string));
+			Inititialize(SnipeObject.FromJSONString(json_string));
 		}
 
 		/// <summary>
 		/// Should be called from the main Unity thread
 		/// </summary>
-		public void Init(IDictionary<string, object> data)
+		public void Inititialize(IDictionary<string, object> data)
 		{
 			ClientKey = SnipeObject.SafeGetString(data, "client_key");
 
