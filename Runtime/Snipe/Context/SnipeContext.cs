@@ -39,7 +39,7 @@ namespace MiniIT.Snipe
 			{
 				if (context.IsStopped && initialize)
 				{
-					context.Init(id);
+					context.Initialize(id);
 				}
 
 				return context;
@@ -51,7 +51,7 @@ namespace MiniIT.Snipe
 			}
 
 			context = new SnipeContext();
-			context.Init(id);
+			context.Initialize(id);
 			s_instances[id] = context;
 			return context;
 		}
@@ -115,7 +115,7 @@ namespace MiniIT.Snipe
 			Stop();
 		}
 
-		protected void Init(string id)
+		protected void Initialize(string id)
 		{
 			Id = id;
 
