@@ -14,42 +14,22 @@ namespace MiniIT.Snipe
 			PlayerPrefs.DeleteKey(key);
 		}
 
-		public bool GetBool(string key)
-		{
-			return PlayerPrefs.GetInt(key) != 0;
-		}
-
-		public bool GetBool(string key, bool defaultValue)
+		public bool GetBool(string key, bool defaultValue = default)
 		{
 			return PlayerPrefs.GetInt(key, defaultValue ? 1 : 0) != 0;
 		}
 
-		public float GetFloat(string key)
-		{
-			return PlayerPrefs.GetFloat(key);
-		}
-
-		public float GetFloat(string key, float defaultValue)
+		public float GetFloat(string key, float defaultValue = default)
 		{
 			return PlayerPrefs.GetFloat(key, defaultValue);
 		}
 
-		public int GetInt(string key)
-		{
-			return PlayerPrefs.GetInt(key);
-		}
-
-		public int GetInt(string key, int defaultValue)
+		public int GetInt(string key, int defaultValue = default)
 		{
 			return PlayerPrefs.GetInt(key, defaultValue);
 		}
 
-		public string GetString(string key)
-		{
-			return PlayerPrefs.GetString(key);
-		}
-
-		public string GetString(string key, string defaultValue)
+		public string GetString(string key, string defaultValue = default)
 		{
 			return PlayerPrefs.GetString(key, defaultValue);
 		}

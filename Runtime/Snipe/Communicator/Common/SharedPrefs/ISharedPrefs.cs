@@ -4,24 +4,20 @@ namespace MiniIT.Snipe
 	public interface ISharedPrefs
 	{
 		bool HasKey(string key);
-		void Save();
-		void DeleteAll();
 		void DeleteKey(string key);
-		
-		float GetFloat(string key);
-		float GetFloat(string key, float defaultValue);
+		void DeleteAll();
+		void Save();
+
+		float GetFloat(string key, float defaultValue = default);
 		void SetFloat(string key, float value);
 		
-		int GetInt(string key);
-		int GetInt(string key, int defaultValue);
+		int GetInt(string key, int defaultValue = default);
 		void SetInt(string key, int value);
 		
-		string GetString(string key);
-		string GetString(string key, string defaultValue);
+		string GetString(string key, string defaultValue = default);
 		void SetString(string key, string value);
 		
-		bool GetBool(string key);
-		bool GetBool(string key, bool defaultValue);
+		bool GetBool(string key, bool defaultValue = default);
 		void SetBool(string key, bool value);
 	}
 }

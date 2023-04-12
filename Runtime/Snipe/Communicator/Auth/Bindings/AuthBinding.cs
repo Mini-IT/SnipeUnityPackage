@@ -38,7 +38,7 @@ namespace MiniIT.Snipe
 		{
 			get
 			{
-				return PlayerPrefs.GetInt(BindDonePrefsKey, 0) == 1;
+				return SharedPrefs.GetInt(BindDonePrefsKey, 0) == 1;
 			}
 			internal set
 			{
@@ -88,8 +88,8 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			string auth_login = PlayerPrefs.GetString(SnipePrefs.AUTH_UID);
-			string auth_token = PlayerPrefs.GetString(SnipePrefs.AUTH_KEY);
+			string auth_login = SharedPrefs.GetString(SnipePrefs.AUTH_UID);
+			string auth_token = SharedPrefs.GetString(SnipePrefs.AUTH_KEY);
 			string uid = GetUserId();
 
 			if (!string.IsNullOrEmpty(auth_login) && !string.IsNullOrEmpty(auth_token) && !string.IsNullOrEmpty(uid))
@@ -149,8 +149,8 @@ namespace MiniIT.Snipe
 						
 						if (!string.IsNullOrEmpty(auth_login) && !string.IsNullOrEmpty(auth_token))
 						{
-							PlayerPrefs.SetString(SnipePrefs.AUTH_UID, auth_login);
-							PlayerPrefs.SetString(SnipePrefs.AUTH_KEY, auth_token);
+							SharedPrefs.SetString(SnipePrefs.AUTH_UID, auth_login);
+							SharedPrefs.SetString(SnipePrefs.AUTH_KEY, auth_token);
 						}
 					}
 					
@@ -245,12 +245,12 @@ namespace MiniIT.Snipe
 		
 		protected void SetBindDoneFlag(bool value, bool invoke_callback)
 		{
-			bool current_value = PlayerPrefs.GetInt(BindDonePrefsKey, 0) == 1;
+			bool current_value = SharedPrefs.GetInt(BindDonePrefsKey, 0) == 1;
 			if (value != current_value)
 			{
 				DebugLogger.Log($"[AuthBinding] ({ProviderId}) Set bind done flag to {value}");
 
-				PlayerPrefs.SetInt(BindDonePrefsKey, value ? 1 : 0);
+				SharedPrefs.SetInt(BindDonePrefsKey, value ? 1 : 0);
 
 				if (value && invoke_callback)
 				{
