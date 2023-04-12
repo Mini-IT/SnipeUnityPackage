@@ -91,7 +91,7 @@ namespace MiniIT.Snipe
 		/// <summary>
 		/// Should be called from the main Unity thread
 		/// </summary>
-		public void StartCommunicator()
+		public void Start()
 		{
 			_mainThreadScheduler = (SynchronizationContext.Current != null) ?
 				TaskScheduler.FromCurrentSynchronizationContext() :
