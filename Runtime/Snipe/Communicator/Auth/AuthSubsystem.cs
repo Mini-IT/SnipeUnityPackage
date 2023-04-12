@@ -37,9 +37,19 @@ namespace MiniIT.Snipe
 		{
 			get
 			{
-				if (_userID <= 0)
+				if (_userID == 0)
 				{
-					_userID = Convert.ToInt32(PlayerPrefs.GetString(SnipePrefs.LOGIN_USER_ID, "0"));
+					_userID = PlayerPrefs.GetInt(SnipePrefs.LOGIN_USER_ID, 0);
+					if (_userID == 0)
+					{
+						// Try read a string value for backward compatibility
+						string stringValue = PlayerPrefs.GetString(SnipePrefs.LOGIN_USER_ID);
+						if (!string.IsNullOrEmpty(stringValue) && int.TryParse(stringValue, out _userID))
+						{
+							// resave the value as int
+							PlayerPrefs.SetInt(SnipePrefs.LOGIN_USER_ID, _userID);
+						}
+					}
 
 					if (_userID != 0)
 					{
@@ -51,7 +61,7 @@ namespace MiniIT.Snipe
 			private set
 			{
 				_userID = value;
-				PlayerPrefs.SetString(SnipePrefs.LOGIN_USER_ID, _userID.ToString());
+				PlayerPrefs.SetInt(SnipePrefs.LOGIN_USER_ID, _userID);
 				
 				Analytics.SetUserId(_userID.ToString());
 			}
