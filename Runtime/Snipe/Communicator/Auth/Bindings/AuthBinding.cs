@@ -9,30 +9,21 @@ namespace MiniIT.Snipe
 			: base(communicator, authSubsystem, config)
 		{
 			ProviderId = provider_id;
-			_fetcher = new FetcherType();
+			Fetcher = new FetcherType();
 		}
 	}
 
 	public class AuthBinding
 	{
-		public string ProviderId { get; protected set; }
-	
-		//public bool? AccountExists { get; protected set; } = null;
-
 		public delegate void BindResultCallback(AuthBinding binding, string error_code);
 		public delegate void CheckAuthExistsCallback(AuthBinding binding, bool exists, bool is_me, string user_name = null);
 
-		protected BindResultCallback _bindResultCallback;
+		public string ProviderId { get; protected set; }
+		public AuthIdFetcher Fetcher { get; protected set; }
 
-		protected AuthIdFetcher _fetcher;
-		protected readonly SnipeCommunicator _communicator;
-		private readonly AuthSubsystem _authSubsystem;
-		private readonly SnipeConfig _config;
+		//public bool? AccountExists { get; protected set; } = null;
 
-		public string BindDonePrefsKey
-		{
-			get { return SnipePrefs.AUTH_BIND_DONE + ProviderId; }
-		}
+		public string BindDonePrefsKey => SnipePrefs.AUTH_BIND_DONE + ProviderId;
 
 		public bool IsBindDone
 		{
@@ -45,6 +36,12 @@ namespace MiniIT.Snipe
 				SetBindDoneFlag(value, true);
 			}
 		}
+
+		protected BindResultCallback _bindResultCallback;
+
+		protected readonly SnipeCommunicator _communicator;
+		private readonly AuthSubsystem _authSubsystem;
+		private readonly SnipeConfig _config;
 
 		public AuthBinding(SnipeCommunicator communicator, AuthSubsystem authSubsystem, SnipeConfig config)
 		{
@@ -61,10 +58,10 @@ namespace MiniIT.Snipe
 		public void Start()
 		{
 			Debug.Log($"[AuthBinding] [{ProviderId}] Start");
-			if (_fetcher != null && !IsBindDone)
+			if (Fetcher != null && !IsBindDone)
 			{
 				Debug.Log($"[AuthBinding] [{ProviderId}] Fetch");
-				_fetcher.Fetch(true, OnIdFetched);
+				Fetcher.Fetch(true, OnIdFetched);
 			}
 		}
 
@@ -117,7 +114,7 @@ namespace MiniIT.Snipe
 
 		public string GetUserId()
 		{
-			return _fetcher?.Value ?? "";
+			return Fetcher?.Value ?? "";
 		}
 
 		protected virtual string GetAuthPassword()
@@ -160,7 +157,7 @@ namespace MiniIT.Snipe
 
 		public void CheckAuthExists(CheckAuthExistsCallback callback = null)
 		{
-			_fetcher?.Fetch(false, uid =>
+			Fetcher?.Fetch(false, uid =>
 			{
 				CheckAuthExists(uid, callback);
 			});

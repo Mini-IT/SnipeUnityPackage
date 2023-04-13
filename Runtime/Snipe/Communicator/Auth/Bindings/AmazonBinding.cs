@@ -10,7 +10,7 @@ namespace MiniIT.Snipe
 
 		public void SetUserId(string uid)
 		{
-			if (_fetcher is AmazonIdFetcher fetcher)
+			if (Fetcher is AmazonIdFetcher fetcher)
 			{
 				fetcher.SetValue(uid);
 			}

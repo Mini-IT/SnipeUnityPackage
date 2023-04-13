@@ -25,12 +25,25 @@ namespace MiniIT.Snipe
 		public event Action LoginSucceeded;
 
 		/// <summary>
+		/// If true then the authorization will start automatically after connection is opened.
+		/// Otherwise you'll need to run <see cref="Authorize"/> method manually
+		/// </summary>
+		public bool AutoLogin { get; set; } = true;
+
+		/// <summary>
 		/// If set to <c>true</c> then <see cref="AccountBindingCollision"/> event will not be raised and
 		/// <see cref="AuthBinding.Bind(AuthBinding.BindResultCallback)"/> will be invoked automatically.
 		/// <para/>The account will be rebound to current profile
 		/// </summary>
-		public bool AutomaticallyBindCollisions = false;
-				
+		public bool AutomaticallyBindCollisions { get; set; } = false;
+
+		/// <summary>
+		/// Indicates that a new registration is done during current session
+		/// </summary>
+		public bool JustRegistered { get; private set; } = false;
+
+		public bool UseDefaultBindings { get; set; } = true;
+
 		private int _userID = 0;
 		public int UserID
 		{
@@ -71,22 +84,7 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public string UserName { get; private set; }
 
-		/// <summary>
-		/// If true then the authorization will start automatically after connection is opened.
-		/// Otherwise you'll need to run <see cref="Authorize"/> method manually
-		/// </summary>
-		public bool AutoLogin { get; set; } = true;
-
-		/// <summary>
-		/// Indicates that a new registration is done during current session
-		/// </summary>
-		public bool JustRegistered { get; private set; } = false;
-		
 		private readonly SnipeCommunicator _communicator;
-		
-		private AdvertisingIdFetcher _advertisingIdFetcher;
-		private DeviceIdFetcher _deviceIdFetcher;
-
 		private readonly List<AuthBinding> _bindings;
 
 		private int _loginAttempt;
@@ -106,8 +104,6 @@ namespace MiniIT.Snipe
 				TaskScheduler.Current;
 
 			_bindings = new List<AuthBinding>();
-			//if (BindingEnabled)
-			InitBindings();
 		}
 
 		private void RunInMainThread(Action action)
@@ -115,8 +111,13 @@ namespace MiniIT.Snipe
 			new Task(action).RunSynchronously(_mainThreadScheduler);
 		}
 
-		private void InitBindings()
+		private void InitDefaultBindings()
 		{
+			if (FindBinding<DeviceIdBinding>(false) == null)
+			{
+				_bindings.Add(new DeviceIdBinding(_communicator, this, _config));
+			}
+
 			if (FindBinding<AdvertisingIdBinding>(false) == null)
 			{
 				_bindings.Add(new AdvertisingIdBinding(_communicator, this, _config));
@@ -145,6 +146,11 @@ namespace MiniIT.Snipe
 			}
 
 			DebugLogger.Log($"[{nameof(AuthSubsystem)}] ({_communicator.InstanceId}) Authorize");
+
+			if (UseDefaultBindings)
+			{
+				InitDefaultBindings();
+			}
 
 			if (!LoginWithInternalAuthData())
 			{
@@ -213,9 +219,8 @@ namespace MiniIT.Snipe
 						case SnipeErrorCodes.OK:
 						case SnipeErrorCodes.ALREADY_LOGGED_IN:
 							UserID = response.SafeGetValue<int>("id");
-#if !BINDING_DISABLED
+
 							StartBindings();
-#endif
 
 							UserName = data.SafeGetString("name");
 							AutoLogin = true;
@@ -270,16 +275,20 @@ namespace MiniIT.Snipe
 
 			var providers = new List<SnipeObject>();
 
-#if !BINDING_DISABLED
-			_advertisingIdFetcher ??= new AdvertisingIdFetcher();
-			_deviceIdFetcher ??= new DeviceIdFetcher();
-
-			await Task.WhenAll(new []
+			if (_bindings.Count > 0)
 			{
-				FetchLoginId("adid", _advertisingIdFetcher, providers),
-				FetchLoginId("dvid", _deviceIdFetcher, providers)
-			});
-#endif
+				var tasks = new List<Task>(_bindings.Count);
+
+				foreach (AuthBinding binding in _bindings)
+				{
+					if (binding?.Fetcher != null)
+					{
+						tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers));
+					}
+				}
+
+				await Task.WhenAll(tasks.ToArray());
+			}
 
 			RequestRegisterAndLogin(providers);
 		}
@@ -348,9 +357,7 @@ namespace MiniIT.Snipe
 							}
 						}
 
-#if !BINDING_DISABLED
 						StartBindings();
-#endif
 
 						if (LoginSucceeded != null)
 						{
