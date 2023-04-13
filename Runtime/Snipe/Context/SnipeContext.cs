@@ -19,6 +19,7 @@ namespace MiniIT.Snipe
 		public static IEnumerable<SnipeContext> All => s_instances.Values;
 
 		private static readonly Dictionary<string, SnipeContext> s_instances = new Dictionary<string, SnipeContext>();
+		private static readonly object _instancesLock = new object();
 
 		/// <summary>
 		/// Create or retrieve a <see cref="SnipeContext"/> for the given <see cref="Id"/>.
@@ -34,25 +35,27 @@ namespace MiniIT.Snipe
 
 			SnipeContext context;
 
-			// there should only be one context per instance id.
-			if (s_instances.TryGetValue(id, out context))
+			lock (_instancesLock)
 			{
-				if (context.IsStopped && initialize)
+				// there should only be one context per instance id.
+				if (s_instances.TryGetValue(id, out context))
 				{
-					context.Initialize(id);
+					if (context.IsStopped && initialize)
+					{
+						context.Initialize(id);
+					}
+
+					return context;
 				}
 
-				return context;
+				if (initialize)
+				{
+					context = new SnipeContext();
+					context.Initialize(id);
+					s_instances[id] = context;
+				}
 			}
 
-			if (!initialize)
-			{
-				return null;
-			}
-
-			context = new SnipeContext();
-			context.Initialize(id);
-			s_instances[id] = context;
 			return context;
 		}
 
@@ -65,9 +68,9 @@ namespace MiniIT.Snipe
 		public string Id { get; private set; }
 
 		/// <summary>
-		/// If the <see cref="Stop"/> method has been run, this property will return true. Once a context is disposed, you shouldn't use
-		/// it anymore, and the <see cref="ServiceProvider"/> will throw exceptions if you do.
-		/// You can re-initialize the context by using <see cref="InParent"/>
+		/// If the <see cref="Stop"/> method has been run, this property will return true.
+		/// Once a context is disposed, you shouldn't use it anymore.
+		/// You can re-initialize the context by using <see cref="Start"/>
 		/// </summary>
 		public bool IsStopped { get; private set; }
 
