@@ -163,7 +163,8 @@ namespace MiniIT.Snipe
 
 			_restoreConnectionAttempt = 0;
 			_disconnecting = false;
-			
+			Analytics.ConnectionEventsEnabled = true;
+
 			RunInMainThread(() =>
 			{
 				AnalyticsTrackConnectionSucceeded();
@@ -203,7 +204,9 @@ namespace MiniIT.Snipe
 				
 				_restoreConnectionAttempt++;
 				DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) Attempt to restore connection {_restoreConnectionAttempt}");
-				
+
+				Analytics.ConnectionEventsEnabled = false;
+
 				if (_delayedInitCancellation == null)
 				{
 					_delayedInitCancellation = new CancellationTokenSource();
@@ -393,6 +396,9 @@ namespace MiniIT.Snipe
 
 		private void AnalyticsTrackStartConnection()
 		{
+			if (!Analytics.ConnectionEventsEnabled)
+				return;
+
 			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_START_CONNECTION);
 		}
 		
@@ -434,6 +440,9 @@ namespace MiniIT.Snipe
 		
 		private void AnalyticsTrackConnectionFailed()
 		{
+			if (!Analytics.ConnectionEventsEnabled)
+				return;
+
 			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_DISCONNECTED, new SnipeObject()
 			{
 				//["communicator"] = this.name,
@@ -458,6 +467,9 @@ namespace MiniIT.Snipe
 		
 		private void AnalyticsTrackUdpConnectionFailed()
 		{
+			if (!Analytics.ConnectionEventsEnabled)
+				return;
+
 			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_DISCONNECTED + " UDP", new SnipeObject()
 			{
 				["connection_type"] = "udp",
