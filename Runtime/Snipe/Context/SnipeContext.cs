@@ -125,7 +125,7 @@ namespace MiniIT.Snipe
 			if (Communicator != null)
 				return;
 
-			Config = new SnipeConfig();
+			Config = new SnipeConfig(Id);
 			Communicator = new SnipeCommunicator(Config);
 			Auth = new AuthSubsystem(Communicator, Config);
 			LogReporter = new LogReporter(this);

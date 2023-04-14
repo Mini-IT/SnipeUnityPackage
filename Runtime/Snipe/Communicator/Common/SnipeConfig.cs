@@ -22,6 +22,8 @@ namespace MiniIT.Snipe
 		}
 		public WebSocketImplementations WebSocketImplementation = WebSocketImplementations.WebSocketSharp;
 
+		public string ContextId { get; }
+
 		public string ClientKey;
 		public string AppInfo;
 		public string DebugId { get; private set; }
@@ -53,11 +55,13 @@ namespace MiniIT.Snipe
 
 		public static TablesVersionsResolving TablesVersioning = TablesVersionsResolving.Default;
 
-		public SnipeConfig()
+		public SnipeConfig(string contextId)
 		{
 			_mainThreadScheduler = SynchronizationContext.Current != null ?
 				TaskScheduler.FromCurrentSynchronizationContext() :
 				TaskScheduler.Current;
+
+			ContextId = contextId ?? "";
 		}
 
 		/// <summary>
@@ -172,8 +176,8 @@ namespace MiniIT.Snipe
 				MinMessageBytesToCompress = SnipeObject.SafeGetValue<int>(compression, "min_size");
 			}
 
-			_serverWebSocketUrlIndex = SharedPrefs.GetInt(SnipePrefs.WEBSOCKET_URL_INDEX, 0);
-			_serverUdpUrlIndex = SharedPrefs.GetInt(SnipePrefs.UDP_URL_INDEX, 0);
+			_serverWebSocketUrlIndex = SharedPrefs.GetInt(SnipePrefs.WebSocketUrlIndex(ContextId), 0);
+			_serverUdpUrlIndex = SharedPrefs.GetInt(SnipePrefs.UdpUrlIndex(ContextId), 0);
 
 			TablesConfig.Init(data);
 			TablesConfig.PersistentDataPath = Application.persistentDataPath;
@@ -226,7 +230,7 @@ namespace MiniIT.Snipe
 		{
 			_serverWebSocketUrlIndex = GetValidIndex(ServerWebSocketUrls, _serverWebSocketUrlIndex, true);
 
-			RunInMainThread(() => SharedPrefs.SetInt(SnipePrefs.WEBSOCKET_URL_INDEX, _serverWebSocketUrlIndex));
+			RunInMainThread(() => SharedPrefs.SetInt(SnipePrefs.WebSocketUrlIndex(ContextId), _serverWebSocketUrlIndex));
 		}
 
 		public bool NextUdpUrl()
@@ -234,7 +238,7 @@ namespace MiniIT.Snipe
 			int prev = _serverUdpUrlIndex;
 			_serverUdpUrlIndex = GetValidIndex(ServerUdpUrls, _serverUdpUrlIndex, true);
 
-			RunInMainThread(() => SharedPrefs.SetInt(SnipePrefs.UDP_URL_INDEX, _serverUdpUrlIndex));
+			RunInMainThread(() => SharedPrefs.SetInt(SnipePrefs.UdpUrlIndex(ContextId), _serverUdpUrlIndex));
 
 			return _serverUdpUrlIndex > prev;
 		}

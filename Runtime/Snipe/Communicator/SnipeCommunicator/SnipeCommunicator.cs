@@ -24,8 +24,8 @@ namespace MiniIT.Snipe
 		public event MessageReceivedHandler MessageReceived;
 		public event PreDestroyHandler PreDestroy;
 		
-		public string ConnectionId { get { return Client?.ConnectionId; } }
-		public TimeSpan CurrentRequestElapsed { get { return Client?.CurrentRequestElapsed ?? new TimeSpan(0); } }
+		public string ConnectionId => Client?.ConnectionId;
+		public TimeSpan CurrentRequestElapsed => Client?.CurrentRequestElapsed ?? new TimeSpan(0);
 
 		internal SnipeClient Client { get; private set; }
 

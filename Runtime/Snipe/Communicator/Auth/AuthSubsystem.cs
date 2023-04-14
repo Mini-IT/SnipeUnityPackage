@@ -51,15 +51,16 @@ namespace MiniIT.Snipe
 			{
 				if (_userID == 0)
 				{
-					_userID = SharedPrefs.GetInt(SnipePrefs.LOGIN_USER_ID, 0);
+					string key = SnipePrefs.LoginUserID(_config.ContextId);
+					_userID = SharedPrefs.GetInt(key, 0);
 					if (_userID == 0)
 					{
 						// Try read a string value for backward compatibility
-						string stringValue = SharedPrefs.GetString(SnipePrefs.LOGIN_USER_ID);
+						string stringValue = SharedPrefs.GetString(key);
 						if (!string.IsNullOrEmpty(stringValue) && int.TryParse(stringValue, out _userID))
 						{
 							// resave the value as int
-							SharedPrefs.SetInt(SnipePrefs.LOGIN_USER_ID, _userID);
+							SharedPrefs.SetInt(key, _userID);
 						}
 					}
 
@@ -73,7 +74,7 @@ namespace MiniIT.Snipe
 			private set
 			{
 				_userID = value;
-				SharedPrefs.SetInt(SnipePrefs.LOGIN_USER_ID, _userID);
+				SharedPrefs.SetInt(SnipePrefs.LoginUserID(_config.ContextId), _userID);
 				
 				Analytics.SetUserId(_userID.ToString());
 			}
@@ -182,8 +183,10 @@ namespace MiniIT.Snipe
 		
 		private bool LoginWithInternalAuthData()
 		{
-			string login = SharedPrefs.GetString(SnipePrefs.AUTH_UID);
-			string password = SharedPrefs.GetString(SnipePrefs.AUTH_KEY);
+			string authUidKey = SnipePrefs.AuthUID(_config.ContextId);
+			string authKeyKey = SnipePrefs.AuthKey(_config.ContextId);
+			string login = SharedPrefs.GetString(authUidKey);
+			string password = SharedPrefs.GetString(authKeyKey);
 
 			if (string.IsNullOrEmpty(login) || string.IsNullOrEmpty(password))
 			{
@@ -237,8 +240,8 @@ namespace MiniIT.Snipe
 
 						case SnipeErrorCodes.NO_SUCH_USER:
 						case SnipeErrorCodes.LOGIN_DATA_WRONG:
-							SharedPrefs.DeleteKey(SnipePrefs.AUTH_UID);
-							SharedPrefs.DeleteKey(SnipePrefs.AUTH_KEY);
+							SharedPrefs.DeleteKey(authUidKey);
+							SharedPrefs.DeleteKey(authKeyKey);
 							RegisterAndLogin();
 							break;
 
@@ -351,7 +354,7 @@ namespace MiniIT.Snipe
 									string provider = item.SafeGetString("provider");
 									if (!string.IsNullOrEmpty(provider))
 									{
-										SharedPrefs.SetInt(SnipePrefs.AUTH_BIND_DONE + provider, 1);
+										SharedPrefs.SetInt(SnipePrefs.AuthBindDone(_config.ContextId) + provider, 1);
 									}
 								}
 							}
@@ -384,8 +387,8 @@ namespace MiniIT.Snipe
 		
 		private void SetAuthData(string uid, string password)
 		{
-			SharedPrefs.SetString(SnipePrefs.AUTH_UID, uid);
-			SharedPrefs.SetString(SnipePrefs.AUTH_KEY, password);
+			SharedPrefs.SetString(SnipePrefs.AuthUID(_config.ContextId), uid);
+			SharedPrefs.SetString(SnipePrefs.AuthKey(_config.ContextId), password);
 			SharedPrefs.Save();
 		}
 
@@ -484,7 +487,7 @@ namespace MiniIT.Snipe
 
 		public void ClearAllBindings()
 		{
-			SharedPrefs.DeleteKey(SnipePrefs.AUTH_BIND_DONE + "dvid");
+			SharedPrefs.DeleteKey(SnipePrefs.AuthBindDone(_config.ContextId) + "dvid");
 
 			foreach (var binding in _bindings)
 			{
