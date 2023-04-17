@@ -32,6 +32,8 @@ namespace MiniIT.Snipe
 		public static TimeSpan UdpDnsResolveTime { get; internal set; }
 		public static TimeSpan UdpSocketConnectTime { get; internal set; }
 		public static TimeSpan UdpSendHandshakeTime { get; internal set; }
+		
+		public static bool ConnectionEventsEnabled { get; internal set; } = true;
 
 		private static IAnalyticsTracker _tracker;
 		
@@ -209,6 +211,9 @@ namespace MiniIT.Snipe
 		
 		internal static void TrackSocketStartConnection(string socketName)
 		{
+			if (!ConnectionEventsEnabled)
+				return;
+			
 			TrackEvent("Socket Start Connection", new Dictionary<string, object>()
 			{
 				["socket"] = socketName,
