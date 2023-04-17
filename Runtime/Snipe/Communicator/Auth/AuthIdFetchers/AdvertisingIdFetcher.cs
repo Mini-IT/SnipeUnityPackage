@@ -1,5 +1,6 @@
-﻿using System;
+﻿﻿using System;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -7,6 +8,8 @@ namespace MiniIT.Snipe
 {
 	public class AdvertisingIdFetcher : AuthIdFetcher
 	{
+		private TaskScheduler _mainThreadScheduler;
+		
 		public override void Fetch(bool wait_initialization, Action<string> callback = null)
 		{
 			if (!string.IsNullOrEmpty(Value))
@@ -15,11 +18,19 @@ namespace MiniIT.Snipe
 				return;
 			}
 			
+			_mainThreadScheduler = (SynchronizationContext.Current != null) ?
+				TaskScheduler.FromCurrentSynchronizationContext() :
+				TaskScheduler.Current;
+			
 #if MINI_IT_ADVERTISING_ID
 			MiniIT.Utils.AdvertisingIdFetcher.RequestAdvertisingId((advertising_id) =>
 			{
 				SetAdvertisingId(advertising_id);
-				callback?.Invoke(Value);
+				
+				if (callback != null)
+				{
+					RunInMainThread(() => callback.Invoke(Value));
+				}
 			});
 #else
 			if (!Application.RequestAdvertisingIdentifierAsync((advertising_id, tracking_enabled, error) =>
@@ -31,7 +42,10 @@ namespace MiniIT.Snipe
 #if UNITY_IOS
 				if (wait_initialization && string.IsNullOrEmpty(Value))
 				{
-					Task.Run(() => WaitForInitialization(callback));
+					if (callback != null)
+					{
+						Task.Run(() => WaitForInitialization(callback));
+					}
 					return;
 				}
 #endif
@@ -47,7 +61,7 @@ namespace MiniIT.Snipe
 			{
 				await Task.Delay(100);
 			}
-			callback?.Invoke(Value);
+			RunInMainThread(() => callback.Invoke(Value));
 		}
 #endif
 
@@ -66,6 +80,11 @@ namespace MiniIT.Snipe
 
 			// on IOS value may be "00000000-0000-0000-0000-000000000000"
 			return Regex.IsMatch(advertising_id, @"[^0\W]");
+		}
+		
+		private void RunInMainThread(Action action)
+		{
+			new Task(action).RunSynchronously(_mainThreadScheduler);
 		}
 	}
 }
