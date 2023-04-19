@@ -25,11 +25,13 @@ namespace MiniIT.Snipe
 
 		public string BindDonePrefsKey => SnipePrefs.GetAuthBindDone(_config.ContextId) + ProviderId;
 
+		private bool? _isBindDone = null;
 		public bool IsBindDone
 		{
 			get
 			{
-				return SharedPrefs.GetInt(BindDonePrefsKey, 0) == 1;
+				_isBindDone ??= (SharedPrefs.GetInt(BindDonePrefsKey, 0) == 1);
+				return _isBindDone.Value;
 			}
 			internal set
 			{
@@ -247,19 +249,24 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		protected void SetBindDoneFlag(bool value, bool invoke_callback)
+		private void SetBindDoneFlag(bool value, bool invoke_callback)
 		{
-			bool current_value = SharedPrefs.GetInt(BindDonePrefsKey, 0) == 1;
-			if (value != current_value)
+			if (value == IsBindDone)
 			{
-				DebugLogger.Log($"[AuthBinding] ({ProviderId}) Set bind done flag to {value}");
+				return;
+			}
 
-				SharedPrefs.SetInt(BindDonePrefsKey, value ? 1 : 0);
+			DebugLogger.Log($"[AuthBinding] ({ProviderId}) Set bind done flag to {value}");
 
-				if (value && invoke_callback)
-				{
-					OnBindDone();
-				}
+			_isBindDone = value;
+			if (value)
+				SharedPrefs.SetInt(BindDonePrefsKey, 1);
+			else
+				SharedPrefs.DeleteKey(BindDonePrefsKey);
+
+			if (value && invoke_callback)
+			{
+				OnBindDone();
 			}
 		}
 

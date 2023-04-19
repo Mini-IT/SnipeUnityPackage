@@ -489,11 +489,9 @@ namespace MiniIT.Snipe
 
 		public void ClearAllBindings()
 		{
-			SharedPrefs.DeleteKey(SnipePrefs.GetAuthBindDone(_config.ContextId) + "dvid");
-
 			foreach (var binding in _bindings)
 			{
-				SharedPrefs.DeleteKey(binding.BindDonePrefsKey);
+				binding.IsBindDone = false;
 			}
 		}
 
