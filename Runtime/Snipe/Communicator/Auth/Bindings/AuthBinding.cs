@@ -23,7 +23,7 @@ namespace MiniIT.Snipe
 
 		//public bool? AccountExists { get; protected set; } = null;
 
-		public string BindDonePrefsKey => SnipePrefs.AuthBindDone(_config.ContextId) + ProviderId;
+		public string BindDonePrefsKey => SnipePrefs.GetAuthBindDone(_config.ContextId) + ProviderId;
 
 		public bool IsBindDone
 		{
@@ -85,8 +85,8 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			string auth_login = SharedPrefs.GetString(SnipePrefs.AuthUID(_config.ContextId));
-			string auth_token = SharedPrefs.GetString(SnipePrefs.AuthKey(_config.ContextId));
+			string auth_login = SharedPrefs.GetString(SnipePrefs.GetAuthUID(_config.ContextId));
+			string auth_token = SharedPrefs.GetString(SnipePrefs.GetAuthKey(_config.ContextId));
 			string uid = GetUserId();
 
 			if (!string.IsNullOrEmpty(auth_login) && !string.IsNullOrEmpty(auth_token) && !string.IsNullOrEmpty(uid))
@@ -151,8 +151,8 @@ namespace MiniIT.Snipe
 						
 						if (!string.IsNullOrEmpty(auth_login) && !string.IsNullOrEmpty(auth_token))
 						{
-							SharedPrefs.SetString(SnipePrefs.AuthUID(_config.ContextId), auth_login);
-							SharedPrefs.SetString(SnipePrefs.AuthKey(_config.ContextId), auth_token);
+							SharedPrefs.SetString(SnipePrefs.GetAuthUID(_config.ContextId), auth_login);
+							SharedPrefs.SetString(SnipePrefs.GetAuthKey(_config.ContextId), auth_token);
 						}
 					}
 					

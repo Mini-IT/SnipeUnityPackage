@@ -51,7 +51,7 @@ namespace MiniIT.Snipe
 			{
 				if (_userID == 0)
 				{
-					string key = SnipePrefs.LoginUserID(_config.ContextId);
+					string key = SnipePrefs.GetLoginUserID(_config.ContextId);
 					_userID = SharedPrefs.GetInt(key, 0);
 					if (_userID == 0)
 					{
@@ -74,7 +74,7 @@ namespace MiniIT.Snipe
 			private set
 			{
 				_userID = value;
-				SharedPrefs.SetInt(SnipePrefs.LoginUserID(_config.ContextId), _userID);
+				SharedPrefs.SetInt(SnipePrefs.GetLoginUserID(_config.ContextId), _userID);
 				
 				_analytics.SetUserId(_userID.ToString());
 			}
@@ -185,8 +185,8 @@ namespace MiniIT.Snipe
 		
 		private bool LoginWithInternalAuthData()
 		{
-			string authUidKey = SnipePrefs.AuthUID(_config.ContextId);
-			string authKeyKey = SnipePrefs.AuthKey(_config.ContextId);
+			string authUidKey = SnipePrefs.GetAuthUID(_config.ContextId);
+			string authKeyKey = SnipePrefs.GetAuthKey(_config.ContextId);
 			string login = SharedPrefs.GetString(authUidKey);
 			string password = SharedPrefs.GetString(authKeyKey);
 
@@ -356,7 +356,7 @@ namespace MiniIT.Snipe
 									string provider = item.SafeGetString("provider");
 									if (!string.IsNullOrEmpty(provider))
 									{
-										SharedPrefs.SetInt(SnipePrefs.AuthBindDone(_config.ContextId) + provider, 1);
+										SharedPrefs.SetInt(SnipePrefs.GetAuthBindDone(_config.ContextId) + provider, 1);
 									}
 								}
 							}
@@ -389,8 +389,8 @@ namespace MiniIT.Snipe
 		
 		private void SetAuthData(string uid, string password)
 		{
-			SharedPrefs.SetString(SnipePrefs.AuthUID(_config.ContextId), uid);
-			SharedPrefs.SetString(SnipePrefs.AuthKey(_config.ContextId), password);
+			SharedPrefs.SetString(SnipePrefs.GetAuthUID(_config.ContextId), uid);
+			SharedPrefs.SetString(SnipePrefs.GetAuthKey(_config.ContextId), password);
 			SharedPrefs.Save();
 		}
 
@@ -489,7 +489,7 @@ namespace MiniIT.Snipe
 
 		public void ClearAllBindings()
 		{
-			SharedPrefs.DeleteKey(SnipePrefs.AuthBindDone(_config.ContextId) + "dvid");
+			SharedPrefs.DeleteKey(SnipePrefs.GetAuthBindDone(_config.ContextId) + "dvid");
 
 			foreach (var binding in _bindings)
 			{
