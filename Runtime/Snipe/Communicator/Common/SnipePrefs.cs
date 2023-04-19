@@ -3,7 +3,7 @@ namespace MiniIT.Snipe
 {
 	public class SnipePrefs
 	{
-		private static string PREFIX = "com.miniit.snipe.";
+		private const string PREFIX = "com.miniit.snipe.";
 
 		public static string GetLoginUserID(string contextId) => PREFIX + contextId + "LoginUserID";
 
