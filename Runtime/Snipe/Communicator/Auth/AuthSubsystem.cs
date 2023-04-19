@@ -9,7 +9,7 @@ namespace MiniIT.Snipe
 {
 	public class AuthSubsystem
 	{
-		public delegate void AccountBindingCollisionHandler(AuthBinding binding, string user_name = null);
+		public delegate void AccountBindingCollisionHandler(AuthBinding binding, string userName = null);
 
 		/// <summary>
 		/// The provided account identifier is already bound to another profile.
@@ -307,7 +307,7 @@ namespace MiniIT.Snipe
 					providers.Add(new SnipeObject()
 					{
 						["provider"] = provider,
-						["login"] = uid,
+						["login"] = _config.ContextId + uid,
 					});
 				}
 				done = true;

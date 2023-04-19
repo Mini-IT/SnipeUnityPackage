@@ -114,7 +114,12 @@ namespace MiniIT.Snipe
 
 		public string GetUserId()
 		{
-			return Fetcher?.Value ?? "";
+			return GetContextBoundUserId(Fetcher?.Value ?? "");
+		}
+
+		private string GetContextBoundUserId(string uid)
+		{
+			return _config.ContextId + uid;
 		}
 
 		protected virtual string GetAuthPassword()
@@ -165,6 +170,8 @@ namespace MiniIT.Snipe
 
 		protected virtual void CheckAuthExists(string user_id, CheckAuthExistsCallback callback = null)
 		{
+			user_id = GetContextBoundUserId(user_id);
+
 			DebugLogger.Log($"[AuthBinding] ({ProviderId}) CheckAuthExists {user_id}");
 
 			SnipeObject data = new SnipeObject()
