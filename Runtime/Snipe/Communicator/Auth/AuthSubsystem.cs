@@ -66,7 +66,7 @@ namespace MiniIT.Snipe
 
 					if (_userID != 0)
 					{
-						Analytics.SetUserId(_userID.ToString());
+						_analytics.SetUserId(_userID.ToString());
 					}
 				}
 				return _userID;
@@ -76,7 +76,7 @@ namespace MiniIT.Snipe
 				_userID = value;
 				SharedPrefs.SetInt(SnipePrefs.LoginUserID(_config.ContextId), _userID);
 				
-				Analytics.SetUserId(_userID.ToString());
+				_analytics.SetUserId(_userID.ToString());
 			}
 		}
 
@@ -90,7 +90,8 @@ namespace MiniIT.Snipe
 
 		private int _loginAttempt;
 
-		private SnipeConfig _config;
+		private readonly SnipeConfig _config;
+		private readonly Analytics _analytics;
 		private readonly TaskScheduler _mainThreadScheduler;
 
 		public AuthSubsystem(SnipeCommunicator communicator, SnipeConfig config)
@@ -99,6 +100,7 @@ namespace MiniIT.Snipe
 			_communicator.ConnectionSucceeded += OnConnectionSucceeded;
 
 			_config = config;
+			_analytics = Analytics.GetInstance(_config.ContextId);
 
 			_mainThreadScheduler = (SynchronizationContext.Current != null) ?
 				TaskScheduler.FromCurrentSynchronizationContext() :
@@ -212,7 +214,7 @@ namespace MiniIT.Snipe
 				{
 					stopwatch?.Stop();
 
-					Analytics.TrackEvent(SnipeMessageTypes.USER_LOGIN, new SnipeObject()
+					_analytics.TrackEvent(SnipeMessageTypes.USER_LOGIN, new SnipeObject()
 					{
 						["request_time"] = stopwatch?.ElapsedMilliseconds,
 					});

@@ -75,7 +75,9 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private SnipeConfig _config;
+		private readonly SnipeConfig _config;
+		private readonly Analytics _analytics;
+
 		private bool _disconnecting = false;
 		
 		private TaskScheduler _mainThreadScheduler;
@@ -86,6 +88,7 @@ namespace MiniIT.Snipe
 			DebugLogger.Log($"[SnipeCommunicator] PACKAGE VERSION: {PackageInfo.VERSION}");
 
 			_config = config;
+			_analytics = Analytics.GetInstance(config.ContextId);
 		}
 		
 		/// <summary>
@@ -163,7 +166,7 @@ namespace MiniIT.Snipe
 
 			_restoreConnectionAttempt = 0;
 			_disconnecting = false;
-			Analytics.ConnectionEventsEnabled = true;
+			_analytics.ConnectionEventsEnabled = true;
 
 			RunInMainThread(() =>
 			{
@@ -205,7 +208,7 @@ namespace MiniIT.Snipe
 				_restoreConnectionAttempt++;
 				DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) Attempt to restore connection {_restoreConnectionAttempt}");
 
-				Analytics.ConnectionEventsEnabled = false;
+				_analytics.ConnectionEventsEnabled = false;
 
 				if (_delayedInitCancellation == null)
 				{
@@ -258,7 +261,7 @@ namespace MiniIT.Snipe
 			{
 				RunInMainThread(() =>
 				{
-					Analytics.TrackErrorCodeNotOk(message_type, error_code, data);
+					_analytics.TrackErrorCodeNotOk(message_type, error_code, data);
 				});
 			}
 		}
@@ -396,10 +399,10 @@ namespace MiniIT.Snipe
 
 		private void AnalyticsTrackStartConnection()
 		{
-			if (!Analytics.ConnectionEventsEnabled)
+			if (!_analytics.ConnectionEventsEnabled)
 				return;
 
-			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_START_CONNECTION);
+			_analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_START_CONNECTION);
 		}
 		
 		private void AnalyticsTrackConnectionSucceeded()
@@ -407,85 +410,58 @@ namespace MiniIT.Snipe
 			var data = Client.UdpClientConnected ? new SnipeObject()
 			{
 				["connection_type"] = "udp",
-				["connection_time"] = Analytics.UdpConnectionTime.TotalMilliseconds,
-				["connection_url"] = Analytics.ConnectionUrl,
-				
-				["udp dns resolve"] = Analytics.UdpDnsResolveTime.TotalMilliseconds,
-				["udp socket connect"] = Analytics.UdpSocketConnectTime.TotalMilliseconds,
-				["udp handshake request"] = Analytics.UdpSendHandshakeTime.TotalMilliseconds,
-				["udp misc"] = Analytics.UdpConnectionTime.TotalMilliseconds <= 0 ? 0:
-					Analytics.UdpConnectionTime.TotalMilliseconds -
-					Analytics.UdpDnsResolveTime.TotalMilliseconds -
-					Analytics.UdpSocketConnectTime.TotalMilliseconds -
-					Analytics.UdpSendHandshakeTime.TotalMilliseconds,
+				["connection_time"] = _analytics.UdpConnectionTime.TotalMilliseconds,
+				["connection_url"] = _analytics.ConnectionUrl,
 			} :
 			new SnipeObject()
 			{
 				["connection_type"] = "websocket",
-				["connection_time"] = Analytics.ConnectionEstablishmentTime.TotalMilliseconds,
-				["connection_url"] = Analytics.ConnectionUrl,
+				["connection_time"] = _analytics.ConnectionEstablishmentTime.TotalMilliseconds,
+				["connection_url"] = _analytics.ConnectionUrl,
 				
-				["ws tcp client connection"] = Analytics.WebSocketTcpClientConnectionTime.TotalMilliseconds,
-				["ws ssl auth"] = Analytics.WebSocketSslAuthenticateTime.TotalMilliseconds,
-				["ws upgrade request"] = Analytics.WebSocketHandshakeTime.TotalMilliseconds,
-				["ws misc"] = Analytics.ConnectionEstablishmentTime.TotalMilliseconds <= 0 ? 0:
-					Analytics.ConnectionEstablishmentTime.TotalMilliseconds - 
-					Analytics.WebSocketTcpClientConnectionTime.TotalMilliseconds -
-					Analytics.WebSocketSslAuthenticateTime.TotalMilliseconds -
-					Analytics.WebSocketHandshakeTime.TotalMilliseconds,
+				["ws tcp client connection"] = _analytics.WebSocketTcpClientConnectionTime.TotalMilliseconds,
+				["ws ssl auth"] = _analytics.WebSocketSslAuthenticateTime.TotalMilliseconds,
+				["ws upgrade request"] = _analytics.WebSocketHandshakeTime.TotalMilliseconds,
+				["ws misc"] = _analytics.ConnectionEstablishmentTime.TotalMilliseconds <= 0 ? 0:
+					_analytics.ConnectionEstablishmentTime.TotalMilliseconds - 
+					_analytics.WebSocketTcpClientConnectionTime.TotalMilliseconds -
+					_analytics.WebSocketSslAuthenticateTime.TotalMilliseconds -
+					_analytics.WebSocketHandshakeTime.TotalMilliseconds,
 			};
 			
-			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_CONNECTED, data);
+			_analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_CONNECTED, data);
 		}
 		
 		private void AnalyticsTrackConnectionFailed()
 		{
-			if (!Analytics.ConnectionEventsEnabled)
+			if (!_analytics.ConnectionEventsEnabled)
 				return;
 
-			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_DISCONNECTED, new SnipeObject()
+			_analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_DISCONNECTED, new SnipeObject()
 			{
 				//["communicator"] = this.name,
 				["connection_id"] = Client?.ConnectionId,
 				//["disconnect_reason"] = Client?.DisconnectReason,
 				//["check_connection_message"] = Client?.CheckConnectionMessageType,
-				["connection_url"] = Analytics.ConnectionUrl,
+				["connection_url"] = _analytics.ConnectionUrl,
 				
-				["ws tcp client connection"] = Analytics.WebSocketTcpClientConnectionTime.TotalMilliseconds,
-				["ws ssl auth"] = Analytics.WebSocketSslAuthenticateTime.TotalMilliseconds,
-				["ws upgrade request"] = Analytics.WebSocketHandshakeTime.TotalMilliseconds,
-				["ws disconnect reason"] = Analytics.WebSocketDisconnectReason,
-				
-				["udp connection_time"] = Analytics.UdpConnectionTime.TotalMilliseconds,
-				["udp dns resolve"] = Analytics.UdpDnsResolveTime.TotalMilliseconds,
-				["udp socket connect"] = Analytics.UdpSocketConnectTime.TotalMilliseconds,
-				["udp handshake request"] = Analytics.UdpSendHandshakeTime.TotalMilliseconds,
-				["udp exception"] = Analytics.UdpException?.ToString(),
-				["udp dns resolved"] = Analytics.UdpDnsResolved,
+				["ws tcp client connection"] = _analytics.WebSocketTcpClientConnectionTime.TotalMilliseconds,
+				["ws ssl auth"] = _analytics.WebSocketSslAuthenticateTime.TotalMilliseconds,
+				["ws upgrade request"] = _analytics.WebSocketHandshakeTime.TotalMilliseconds,
+				["ws disconnect reason"] = _analytics.WebSocketDisconnectReason,
 			});
 		}
 		
 		private void AnalyticsTrackUdpConnectionFailed()
 		{
-			if (!Analytics.ConnectionEventsEnabled)
+			if (!_analytics.ConnectionEventsEnabled)
 				return;
 
-			Analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_DISCONNECTED + " UDP", new SnipeObject()
+			_analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_DISCONNECTED + " UDP", new SnipeObject()
 			{
 				["connection_type"] = "udp",
-				["connection_time"] = Analytics.UdpConnectionTime.TotalMilliseconds,
-				["connection_url"] = Analytics.ConnectionUrl,
-				
-				["udp dns resolve"] = Analytics.UdpDnsResolveTime.TotalMilliseconds,
-				["udp socket connect"] = Analytics.UdpSocketConnectTime.TotalMilliseconds,
-				["udp handshake request"] = Analytics.UdpSendHandshakeTime.TotalMilliseconds,
-				["udp misc"] = Analytics.UdpConnectionTime.TotalMilliseconds <= 0 ? 0 :
-					Analytics.UdpConnectionTime.TotalMilliseconds -
-					Analytics.UdpDnsResolveTime.TotalMilliseconds -
-					Analytics.UdpSocketConnectTime.TotalMilliseconds -
-					Analytics.UdpSendHandshakeTime.TotalMilliseconds,
-				["udp exception"] = Analytics.UdpException?.ToString(),
-				["udp dns resolved"] = Analytics.UdpDnsResolved,
+				["connection_time"] = _analytics.UdpConnectionTime.TotalMilliseconds,
+				["connection_url"] = _analytics.ConnectionUrl,
 			});
 		}
 		

@@ -71,10 +71,12 @@ namespace MiniIT.Snipe
 
 		private TaskScheduler _mainThreadScheduler;
 		private readonly SnipeConfig _config;
+		private readonly Analytics _analytics;
 
 		internal SnipeClient(SnipeConfig config)
 		{
 			_config = config;
+			_analytics = Analytics.GetInstance(config.ContextId);
 		}
 
 		public void Connect()
@@ -108,7 +110,7 @@ namespace MiniIT.Snipe
 				_kcp = new KcpTransport(_config);
 				_kcp.ConnectionOpenedHandler = () =>
 				{
-					Analytics.UdpConnectionTime = _connectionStopwatch.Elapsed;
+					_analytics.UdpConnectionTime = _connectionStopwatch.Elapsed;
 					OnConnected();
 				};
 				_kcp.ConnectionClosedHandler = () =>
@@ -158,7 +160,7 @@ namespace MiniIT.Snipe
 		private void OnConnected()
 		{
 			_connectionStopwatch?.Stop();
-			Analytics.ConnectionEstablishmentTime = _connectionStopwatch?.Elapsed ?? TimeSpan.Zero;
+			_analytics.ConnectionEstablishmentTime = _connectionStopwatch?.Elapsed ?? TimeSpan.Zero;
 
 			RunInMainThread(() =>
 			{
@@ -169,7 +171,7 @@ namespace MiniIT.Snipe
 				catch (Exception e)
 				{
 					DebugLogger.Log($"[SnipeClient] ConnectionOpened invocation error: {e}");
-					Analytics.TrackError("ConnectionOpened invocation error", e);
+					_analytics.TrackError("ConnectionOpened invocation error", e);
 				}
 			});
 		}
@@ -185,7 +187,7 @@ namespace MiniIT.Snipe
 				catch (Exception e)
 				{
 					DebugLogger.Log($"[SnipeClient] ConnectionClosed invocation error: {e}");
-					Analytics.TrackError("ConnectionClosed invocation error", e);
+					_analytics.TrackError("ConnectionClosed invocation error", e);
 				}
 			});
 		}
@@ -201,8 +203,8 @@ namespace MiniIT.Snipe
 			ConnectionId = "";
 			
 			_connectionStopwatch?.Stop();
-			Analytics.PingTime = TimeSpan.Zero;
-			Analytics.ServerReaction = TimeSpan.Zero;
+			_analytics.PingTime = TimeSpan.Zero;
+			_analytics.ServerReaction = TimeSpan.Zero;
 
 			StopResponseMonitoring();
 
@@ -336,7 +338,7 @@ namespace MiniIT.Snipe
 			if (_serverReactionStopwatch != null)
 			{
 				_serverReactionStopwatch.Stop();
-				Analytics.ServerReaction = _serverReactionStopwatch.Elapsed;
+				_analytics.ServerReaction = _serverReactionStopwatch.Elapsed;
 			}
 
 			string message_type = message.SafeGetString("t");
@@ -387,7 +389,7 @@ namespace MiniIT.Snipe
 								catch (Exception e)
 								{
 									DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginSucceeded invocation error: {e}");
-									Analytics.TrackError("LoginSucceeded invocation error", e);
+									_analytics.TrackError("LoginSucceeded invocation error", e);
 								}
 							});
 						}
@@ -407,7 +409,7 @@ namespace MiniIT.Snipe
 								catch (Exception e)
 								{
 									DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginFailed invocation error: {e}");
-									Analytics.TrackError("LoginFailed invocation error", e);
+									_analytics.TrackError("LoginFailed invocation error", e);
 								}
 							});
 						}
@@ -426,7 +428,7 @@ namespace MiniIT.Snipe
 					catch (Exception e)
 					{
 						DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - MessageReceived invocation error: {e}");
-						Analytics.TrackError("MessageReceived invocation error", e, new Dictionary<string, object>()
+						_analytics.TrackError("MessageReceived invocation error", e, new Dictionary<string, object>()
 						{
 							["messageType"] = message_type,
 							["errorCode"] = error_code,

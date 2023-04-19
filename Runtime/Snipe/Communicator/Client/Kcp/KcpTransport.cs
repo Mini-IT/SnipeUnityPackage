@@ -19,10 +19,12 @@ namespace MiniIT.Snipe
 
 		private readonly object _lock = new object();
 		private readonly SnipeConfig _config;
+		private readonly Analytics _analytics;
 
 		internal KcpTransport(SnipeConfig config)
 		{
 			_config = config;
+			_analytics = Analytics.GetInstance(config.ContextId);
 		}
 
 		public async void Connect()
@@ -32,16 +34,19 @@ namespace MiniIT.Snipe
 
 			ConnectionEstablished = false;
 
-			_kcpConnection = new KcpConnection();
-			_kcpConnection.OnAuthenticated = OnClientConnected;
-			_kcpConnection.OnData = OnClientDataReceived;
-			_kcpConnection.OnDisconnected = OnClientDisconnected;
+			_kcpConnection = new KcpConnection
+			{
+				OnAuthenticated = OnClientConnected,
+				OnData = OnClientDataReceived,
+				OnDisconnected = OnClientDisconnected
+			};
 
 			await Task.Run(() =>
 			{
 				lock (_lock)
 				{
 					var address = _config.GetUdpAddress();
+					_analytics.ConnectionUrl = $"{address.Host}:{address.Port}";
 					_kcpConnection.Connect(address.Host, address.Port, 3000, 5000);
 				}
 			});
@@ -302,12 +307,12 @@ namespace MiniIT.Snipe
 				try
 				{
 					_kcpConnection?.Tick();
-					//Analytics.PingTime = _kcpConnection?.connection?.PingTime ?? 0;
+					//_analytics.PingTime = _kcpConnection?.connection?.PingTime ?? 0;
 				}
 				catch (Exception e)
 				{
 					DebugLogger.Log($"[SnipeClient] NetworkLoop - Exception: {e}");
-					Analytics.TrackError("NetworkLoop error", e);
+					_analytics.TrackError("NetworkLoop error", e);
 					OnClientDisconnected();
 					return;
 				}

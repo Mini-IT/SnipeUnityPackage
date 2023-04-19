@@ -200,7 +200,7 @@ namespace MiniIT.Snipe
 				string id = SystemInfo.deviceUniqueIdentifier + Application.identifier;
 				byte[] hashBytes = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(id));
 				DebugId = System.Convert.ToBase64String(hashBytes).Substring(0, 16);
-				Analytics.SetDebugId(DebugId);
+				Analytics.GetInstance(ContextId).SetDebugId(DebugId);
 			}
 		}
 

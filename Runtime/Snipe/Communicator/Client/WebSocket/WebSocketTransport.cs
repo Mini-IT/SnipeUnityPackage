@@ -45,6 +45,7 @@ namespace MiniIT.Snipe
 		private ConcurrentQueue<List<SnipeObject>> _batchMessages;
 
 		private readonly SnipeConfig _config;
+		private readonly Analytics _analytics;
 
 		private bool _connected;
 		private bool _loggedIn;
@@ -52,6 +53,7 @@ namespace MiniIT.Snipe
 		internal WebSocketTransport(SnipeConfig config)
 		{
 			_config = config;
+			_analytics = Analytics.GetInstance(config.ContextId);
 		}
 
 		public void Connect()
@@ -71,7 +73,7 @@ namespace MiniIT.Snipe
 
 			Task.Run(() =>
 			{
-				Analytics.ConnectionUrl = url;
+				_analytics.ConnectionUrl = url;
 				_webSocket.Connect(url);
 			});
 		}
@@ -312,7 +314,7 @@ namespace MiniIT.Snipe
 				{
 					var e = task_exception is AggregateException ae ? ae.InnerException : task_exception;
 					DebugLogger.Log($"[SnipeClient] [] SendTask Exception: {e}");
-					Analytics.TrackError("WebSocket SendTask error", e);
+					_analytics.TrackError("WebSocket SendTask error", e);
 					
 					StopSendTask();
 				}
@@ -418,10 +420,10 @@ namespace MiniIT.Snipe
 							{
 								pinging = false;
 								_pingStopwatch?.Stop();
-								Analytics.PingTime = pong && _pingStopwatch != null ? _pingStopwatch.Elapsed : TimeSpan.Zero;
+								_analytics.PingTime = pong && _pingStopwatch != null ? _pingStopwatch.Elapsed : TimeSpan.Zero;
 								
 								if (pong)
-									DebugLogger.Log($"[SnipeClient] [] Heartbeat pong {Analytics.PingTime.TotalMilliseconds} ms");
+									DebugLogger.Log($"[SnipeClient] [] Heartbeat pong {_analytics.PingTime.TotalMilliseconds} ms");
 								else
 									DebugLogger.Log($"[SnipeClient] [] Heartbeat pong NOT RECEIVED");
 							});
