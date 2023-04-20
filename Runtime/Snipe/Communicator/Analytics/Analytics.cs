@@ -180,19 +180,21 @@ namespace MiniIT.Snipe
 		{
 			if (CheckReady())
 			{
-				// Some trackers (for example Amplitude) may crash if used not in the main Unity thread.
-				
-				if (properties == null)
-					properties = new Dictionary<string, object>(2);
+				properties ??= new Dictionary<string, object>()
+				{
+					["event_type"] = name,
+					["snipe_package_version"] = PackageInfo.VERSION,
+				};
 
-				properties["event_type"] = name;
-				properties["snipe_package_version"] = PackageInfo.VERSION;
+				if (!string.IsNullOrEmpty(_contextId))
+					properties["sinpe_context"] = _contextId;
 
 				if (PingTime.TotalMilliseconds > 0)
 					properties["ping_time"] = PingTime.TotalMilliseconds;
 				if (ServerReaction.TotalMilliseconds > 0)
 					properties["server_reaction"] = ServerReaction.TotalMilliseconds;
 
+				// Some trackers (for example Amplitude) may crash if used not in the main Unity thread.
 				RunInMainThread(() =>
 				{
 					s_tracker.TrackEvent(EVENT_NAME, properties);
@@ -234,6 +236,12 @@ namespace MiniIT.Snipe
 		{
 			if (CheckReady())
 			{
+				if (!string.IsNullOrEmpty(_contextId))
+				{
+					properties ??= new Dictionary<string, object>();
+					properties["sinpe_context"] = _contextId;
+				}
+
 				RunInMainThread(() =>
 				{
 					s_tracker.TrackError(name, exception, properties);
