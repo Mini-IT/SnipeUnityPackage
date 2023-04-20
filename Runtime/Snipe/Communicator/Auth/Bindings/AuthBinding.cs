@@ -6,10 +6,8 @@ namespace MiniIT.Snipe
 	public class AuthBinding<FetcherType> : AuthBinding where FetcherType : AuthIdFetcher, new()
 	{
 		public AuthBinding(string provider_id, SnipeCommunicator communicator, AuthSubsystem authSubsystem, SnipeConfig config)
-			: base(communicator, authSubsystem, config)
+			: base(provider_id, new FetcherType(), communicator, authSubsystem, config)
 		{
-			ProviderId = provider_id;
-			Fetcher = new FetcherType();
 		}
 	}
 
@@ -18,8 +16,8 @@ namespace MiniIT.Snipe
 		public delegate void BindResultCallback(AuthBinding binding, string error_code);
 		public delegate void CheckAuthExistsCallback(AuthBinding binding, bool exists, bool is_me, string user_name = null);
 
-		public string ProviderId { get; protected set; }
-		public AuthIdFetcher Fetcher { get; protected set; }
+		public string ProviderId { get; }
+		public AuthIdFetcher Fetcher { get; }
 
 		//public bool? AccountExists { get; protected set; } = null;
 
@@ -45,11 +43,18 @@ namespace MiniIT.Snipe
 		private readonly AuthSubsystem _authSubsystem;
 		private readonly SnipeConfig _config;
 
-		public AuthBinding(SnipeCommunicator communicator, AuthSubsystem authSubsystem, SnipeConfig config)
+		public AuthBinding(string provider_id,
+			AuthIdFetcher fetcher,
+			SnipeCommunicator communicator,
+			AuthSubsystem authSubsystem,
+			SnipeConfig config)
 		{
 			_communicator = communicator;
 			_authSubsystem = authSubsystem;
 			_config = config;
+
+			ProviderId = provider_id;
+			Fetcher = fetcher;
 
 			if (IsBindDone)
 			{
@@ -209,18 +214,17 @@ namespace MiniIT.Snipe
 		protected void OnCheckAuthExistsResponse(string error_code, SnipeObject data, CheckAuthExistsCallback callback)
 		{
 			bool account_exists = (error_code == SnipeErrorCodes.OK);
-			//if (!string.IsNullOrEmpty(error_code))
 			//	AccountExists = (error_code == SnipeErrorCodes.OK);
 
 			bool is_me = data.SafeGetValue("isSame", false);
 			if (/*AccountExists == true &&*/ is_me)
 			{
-				IsBindDone = _communicator.LoggedIn;
+				IsBindDone = true; // _communicator.LoggedIn;
 			}
 
 			if (callback != null)
 			{
-				callback.Invoke(this, account_exists/* == true*/, is_me, data.SafeGetString("name"));
+				callback.Invoke(this, account_exists, is_me, data.SafeGetString("name"));
 				callback = null;
 			}
 

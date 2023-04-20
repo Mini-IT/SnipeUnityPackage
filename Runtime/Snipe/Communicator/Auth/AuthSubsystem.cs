@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Threading;
+using System.Linq;
 
 namespace MiniIT.Snipe
 {
@@ -356,7 +357,15 @@ namespace MiniIT.Snipe
 									string provider = item.SafeGetString("provider");
 									if (!string.IsNullOrEmpty(provider))
 									{
-										SharedPrefs.SetInt(SnipePrefs.GetAuthBindDone(_config.ContextId) + provider, 1);
+										AuthBinding binding = _bindings.FirstOrDefault(b => b.ProviderId == provider);
+										if (binding != null)
+										{
+											binding.IsBindDone = true;
+										}
+										else
+										{
+											SharedPrefs.SetInt(SnipePrefs.GetAuthBindDone(_config.ContextId) + provider, 1);
+										}
 									}
 								}
 							}
