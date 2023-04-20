@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace MiniIT.Snipe.Api
@@ -31,7 +32,16 @@ namespace MiniIT.Snipe.Api
 			}
 			return table;
 		}
-		
+
+		public SnipeTable<ItemType> GetTable<ItemType>()
+			where ItemType : SnipeTableItem, new()
+		{
+			lock (_lock)
+			{
+				return (SnipeTable<ItemType>)_tables.FirstOrDefault(t => t is SnipeTable<ItemType>);
+			}
+		}
+
 		public async Task Load(bool restart = false)
 		{
 			if (Loading)

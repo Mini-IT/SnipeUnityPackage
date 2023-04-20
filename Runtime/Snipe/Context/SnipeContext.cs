@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
-using MiniIT.Snipe.Api;
+using System.Linq;
+using System.Reflection;
 
 namespace MiniIT.Snipe
 {
@@ -19,7 +20,7 @@ namespace MiniIT.Snipe
 		public static IEnumerable<SnipeContext> All => s_instances.Values;
 
 		private static readonly Dictionary<string, SnipeContext> s_instances = new Dictionary<string, SnipeContext>();
-		private static readonly object _instancesLock = new object();
+		private static readonly object s_instancesLock = new object();
 
 		/// <summary>
 		/// Create or retrieve a <see cref="SnipeContext"/> for the given <see cref="Id"/>.
@@ -30,27 +31,48 @@ namespace MiniIT.Snipe
 		/// <returns>A reference to the <see cref="SnipeContext"/> instance, corresponding to the specified <paramref name="id"/>.
 		/// Can return <c>null</c> if <paramref name="initialize"/> is set to <c>false</c></returns>
 		public static SnipeContext GetInstance(string id = null, bool initialize = true)
+			=> GetInstance<SnipeContext>(id, initialize);
+
+		protected static TContext GetInstance<TContext>(string id = null, bool initialize = true) where TContext : SnipeContext
 		{
 			id ??= string.Empty;
+			TContext context = null;
 
-			SnipeContext context;
-
-			lock (_instancesLock)
+			lock (s_instancesLock)
 			{
 				// there should only be one context per instance id.
-				if (s_instances.TryGetValue(id, out context))
+				if (s_instances.TryGetValue(id, out SnipeContext existingContext))
 				{
-					if (context.IsStopped && initialize)
+					if (existingContext is TContext apiContext)
 					{
-						context.Initialize(id);
-					}
+						context = apiContext;
 
-					return context;
+						if (!context.IsDisposed)
+						{
+							initialize = false;
+						}
+					}
+					else
+					{
+						throw new InvalidCastException($"Unable to cast {nameof(SnipeContext)} of type '{existingContext.GetType()}' to type '{typeof(TContext)}'");
+					}
 				}
 
 				if (initialize)
 				{
-					context = new SnipeContext();
+					if (context == null)
+					{
+						BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+						ConstructorInfo[] constructors = typeof(TContext).GetConstructors(flags);
+						ConstructorInfo constructor = constructors.FirstOrDefault(c => c.GetParameters().Length == 0);
+
+						if (constructor == null)
+						{
+							throw new Exception($"No parameterless constructor found for type '{typeof(TContext)}'");
+						}
+
+						context = (TContext)constructor.Invoke(new object[] { });
+					}
 					context.Initialize(id);
 					s_instances[id] = context;
 				}
@@ -68,11 +90,11 @@ namespace MiniIT.Snipe
 		public string Id { get; private set; }
 
 		/// <summary>
-		/// If the <see cref="Stop"/> method has been run, this property will return true.
+		/// If the <see cref="Dispose"/> method has been run, this property will return true.
 		/// Once a context is disposed, you shouldn't use it anymore.
 		/// You can re-initialize the context by using <see cref="Start"/>
 		/// </summary>
-		public bool IsStopped { get; private set; }
+		public bool IsDisposed => _isDisposed;
 
 		public SnipeConfig Config { get; private set; }
 		public SnipeCommunicator Communicator { get; private set; }
@@ -81,7 +103,7 @@ namespace MiniIT.Snipe
 
 		public bool IsDefault => string.IsNullOrEmpty(Id);
 
-		private bool _isStopped;
+		protected bool _isDisposed;
 
 		/// <summary>
 		/// Protected constructor. Use <see cref="Default"/> or <see cref="GetInstance(string)"/> to get an instance
@@ -89,9 +111,9 @@ namespace MiniIT.Snipe
 		protected SnipeContext() { }
 
 		/// <summary>
-		/// After a context has been Stopped with the <see cref="Stop"/> method, this method can restart the instance.
+		/// After a context has been disposed with the <see cref="Dispose"/> method, this method can restart the instance.
 		/// <para/>
-		/// If the context hasn't been stopped, this method won't do anything meaningful.
+		/// If the context hasn't been disposed, this method won't do anything meaningful.
 		/// </summary>
 		/// <returns>The same context instance</returns>
 		public SnipeContext Start() => GetInstance(Id);
@@ -102,23 +124,21 @@ namespace MiniIT.Snipe
 		/// If you call <see cref="Start"/> or <see cref="GetInstance"/> with the disposed context's <see cref="Id"/>
 		/// after the context has been disposed, then the disposed instance will be reinitialized
 		/// </summary>
-		public void Stop()
+		public virtual void Dispose()
 		{
-			if (_isStopped)
+			if (_isDisposed)
 				return;
 
-			_isStopped = true;
+			_isDisposed = true;
 
-			_api?.Dispose();
-			Communicator?.Dispose();
+			if (Communicator != null)
+			{
+				Communicator.Dispose();
+				Communicator = null;
+			}
 		}
 
-		public void Dispose()
-		{
-			Stop();
-		}
-
-		protected void Initialize(string id)
+		protected virtual void Initialize(string id)
 		{
 			Id = id;
 
@@ -141,32 +161,5 @@ namespace MiniIT.Snipe
 			}
 			return new SnipeCommunicatorRequest(Communicator, Auth, messageType, data);
 		}
-
-		#region Api
-
-		private AbstractSnipeApiService _api;
-
-		public T GetApiAs<T>() where T : AbstractSnipeApiService
-		{
-			_api ??= CreateApi<T>();
-			return _api as T;
-		}
-
-		private AbstractSnipeApiService CreateApi<ApiType>()
-		{
-			if (_api != null)
-				return _api;
-
-			Type type = typeof(ApiType);
-			if (type.IsAbstract)
-				return null;
-
-			AbstractSnipeApiService.RequestFactoryMethod requestFactory = CreateRequest;
-
-			var constructor = type.GetConstructor(new Type[] { typeof(SnipeCommunicator), typeof(AbstractSnipeApiService.RequestFactoryMethod) });
-			return (AbstractSnipeApiService)constructor.Invoke(new object[] { Communicator, requestFactory });
-		}
-
-		#endregion Api
 	}
 }

@@ -31,18 +31,9 @@ namespace MiniIT.Snipe.Api
 
 		private readonly AbstractSnipeApiService _snipeApi;
 
-		public LogicManager(AbstractSnipeApiService snipeApi)
+		public LogicManager(AbstractSnipeApiService snipeApi, SnipeTable<SnipeTableLogicItem> logic_table)
 		{
 			_snipeApi = snipeApi;
-		}
-
-		~LogicManager()
-		{
-			Dispose();
-		}
-
-		public void Init(SnipeTable<SnipeTableLogicItem> logic_table)
-		{
 			_logicTable = logic_table;
 
 			ClearCommunicatorReference();
@@ -50,6 +41,11 @@ namespace MiniIT.Snipe.Api
 			_snipeCommunicator = _snipeApi.Communicator;
 			_snipeCommunicator.MessageReceived += OnSnipeMessageReceived;
 			_snipeCommunicator.PreDestroy += OnSnipeCommunicatorPreDestroy;
+		}
+
+		~LogicManager()
+		{
+			Dispose();
 		}
 
 		private void OnSnipeCommunicatorPreDestroy()

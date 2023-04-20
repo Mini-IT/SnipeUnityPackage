@@ -5,13 +5,14 @@ namespace MiniIT.Snipe
 {
 	public class CalendarManager : IDisposable
 	{
-		public TimeZoneInfo ServerTimeZone = TimeZoneInfo.CreateCustomTimeZone("server time", TimeSpan.FromHours(3), "server time", "server time");
+		public TimeZoneInfo ServerTimeZone;
 
 		private SnipeTable<SnipeTableCalendarItem> _calendarTable = null;
 
-		public void Init(SnipeTable<SnipeTableCalendarItem> calendar_table)
+		public CalendarManager(SnipeTable<SnipeTableCalendarItem> calendar_table, TimeZoneInfo serverTimeZone)
 		{
 			_calendarTable = calendar_table;
+			ServerTimeZone = serverTimeZone;
 		}
 
 		~CalendarManager()
