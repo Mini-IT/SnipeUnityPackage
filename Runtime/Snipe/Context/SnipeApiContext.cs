@@ -72,7 +72,7 @@ namespace MiniIT.Snipe
 
 		public override void Dispose()
 		{
-			if (_isDisposed)
+			if (IsDisposed)
 				return;
 
 			LogicManager?.Dispose();

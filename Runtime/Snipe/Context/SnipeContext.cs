@@ -94,7 +94,7 @@ namespace MiniIT.Snipe
 		/// Once a context is disposed, you shouldn't use it anymore.
 		/// You can re-initialize the context by using <see cref="Start"/>
 		/// </summary>
-		public bool IsDisposed => _isDisposed;
+		public bool IsDisposed { get; private set; }
 
 		public SnipeConfig Config { get; private set; }
 		public SnipeCommunicator Communicator { get; private set; }
@@ -102,8 +102,6 @@ namespace MiniIT.Snipe
 		public LogReporter LogReporter { get; private set; }
 
 		public bool IsDefault => string.IsNullOrEmpty(Id);
-
-		protected bool _isDisposed;
 
 		/// <summary>
 		/// Protected constructor. Use <see cref="Default"/> or <see cref="GetInstance(string)"/> to get an instance
@@ -126,10 +124,10 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public virtual void Dispose()
 		{
-			if (_isDisposed)
+			if (IsDisposed)
 				return;
 
-			_isDisposed = true;
+			IsDisposed = true;
 
 			if (Communicator != null)
 			{
