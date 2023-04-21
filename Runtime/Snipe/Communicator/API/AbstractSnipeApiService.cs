@@ -7,9 +7,6 @@ namespace MiniIT.Snipe.Api
 	{
 		public delegate AbstractCommunicatorRequest RequestFactoryMethod(string messageType, SnipeObject data);
 
-		public SnipeCommunicator Communicator => _communicator;
-		public TimeZoneInfo ServerTimeZone { get; protected set; }
-
 		protected readonly SnipeCommunicator _communicator;
 		private readonly RequestFactoryMethod _requestFactory;
 
@@ -37,6 +34,12 @@ namespace MiniIT.Snipe.Api
 		protected void AddMergeableRequestType(SnipeRequestDescriptor descriptor)
 		{
 			_communicator.MergeableRequestTypes.Add(descriptor);
+		}
+
+		internal void SubscribeOnMessageReceived(SnipeCommunicator.MessageReceivedHandler handler)
+		{
+			_communicator.MessageReceived -= handler;
+			_communicator.MessageReceived += handler;
 		}
 	}
 }

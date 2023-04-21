@@ -19,6 +19,8 @@ namespace MiniIT.Snipe
 		public LogicManager LogicManager { get; private set; }
 		public CalendarManager CalendarManager { get; private set; }
 
+		protected TimeZoneInfo _serverTimeZone;
+
 		private TApi CreateApi()
 		{
 			Type type = typeof(TApi);
@@ -52,13 +54,13 @@ namespace MiniIT.Snipe
 			var logicTable = Tables.GetTable<SnipeTableLogicItem>();
 			if (logicTable != null)
 			{
-				LogicManager = new LogicManager(Api, logicTable);
+				LogicManager = new LogicManager(Communicator, CreateRequest, logicTable);
 			}
 
 			var calendarTable = Tables.GetTable<SnipeTableCalendarItem>();
 			if (calendarTable != null)
 			{
-				CalendarManager = new CalendarManager(calendarTable, Api.ServerTimeZone);
+				CalendarManager = new CalendarManager(calendarTable, _serverTimeZone);
 			}
 		}
 

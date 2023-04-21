@@ -23,22 +23,21 @@ namespace MiniIT.Snipe.Api
 		private SnipeTable<SnipeTableLogicItem> _logicTable = null;
 
 		private SnipeCommunicator _snipeCommunicator;
+		private readonly AbstractSnipeApiService.RequestFactoryMethod _requestFactory;
 		private TimeSpan _updateRequestedTime = TimeSpan.Zero;
 		private SnipeObject _logicGetRequestParameters;
 		
 		private Stopwatch _refTime = Stopwatch.StartNew();
 		private Timer _secondsTimer;
 
-		private readonly AbstractSnipeApiService _snipeApi;
-
-		public LogicManager(AbstractSnipeApiService snipeApi, SnipeTable<SnipeTableLogicItem> logic_table)
+		public LogicManager(SnipeCommunicator communicator, AbstractSnipeApiService.RequestFactoryMethod requestFactory, SnipeTable<SnipeTableLogicItem> logic_table)
 		{
-			_snipeApi = snipeApi;
+			_requestFactory = requestFactory;
 			_logicTable = logic_table;
 
 			ClearCommunicatorReference();
 
-			_snipeCommunicator = _snipeApi.Communicator;
+			_snipeCommunicator = communicator;
 			_snipeCommunicator.MessageReceived += OnSnipeMessageReceived;
 			_snipeCommunicator.PreDestroy += OnSnipeCommunicatorPreDestroy;
 		}
@@ -147,7 +146,7 @@ namespace MiniIT.Snipe.Api
 			if (_logicGetRequestParameters == null)
 				_logicGetRequestParameters = new SnipeObject() { ["noDump"] = false };
 
-			var request = _snipeApi.CreateRequest("logic.get", _logicGetRequestParameters);
+			var request = _requestFactory.Invoke("logic.get", _logicGetRequestParameters);
 			request?.Request();
 		}
 
@@ -166,7 +165,7 @@ namespace MiniIT.Snipe.Api
 				request_data["treeID"] = tree_id;
 			//if (amount != 0)
 			//	request_data["amount"] = amount;
-			var request = _snipeApi.CreateRequest("logic.incVar", request_data);
+			var request = _requestFactory.Invoke("logic.incVar", request_data);
 			if (request != null)
 			{
 				request.Request();
