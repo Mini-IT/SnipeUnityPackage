@@ -1,5 +1,4 @@
 ﻿using System;
-using UnityEngine;
 
 namespace MiniIT.Snipe
 {
@@ -64,17 +63,17 @@ namespace MiniIT.Snipe
 
 		public void Start()
 		{
-			Debug.Log($"[AuthBinding] [{ProviderId}] Start");
+			DebugLogger.Log($"[AuthBinding] [{ProviderId}] Start");
 			if (Fetcher != null && !IsBindDone)
 			{
-				Debug.Log($"[AuthBinding] [{ProviderId}] Fetch");
+				DebugLogger.Log($"[AuthBinding] [{ProviderId}] Fetch");
 				Fetcher.Fetch(true, OnIdFetched);
 			}
 		}
 
 		protected void OnIdFetched(string uid)
 		{
-			Debug.Log($"[AuthBinding] [{ProviderId}] OnIdFetched: {uid}");
+			DebugLogger.Log($"[AuthBinding] [{ProviderId}] OnIdFetched: {uid}");
 
 			if (!string.IsNullOrEmpty(uid) && !IsBindDone)
 			{
