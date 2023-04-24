@@ -146,7 +146,7 @@ namespace MiniIT
 		private string GetPortionContent(ref int startIndex, int connectionId, int userId, string version, RuntimePlatform platform)
 		{
 #if ZSTRING
-			var content = ZString.CreateStringBuilder(true);
+			ursing var content = ZString.CreateStringBuilder(true);
 			content.Append("{");
 #else
 			var content = new StringBuilder("{");
@@ -179,11 +179,7 @@ namespace MiniIT
 			}
 
 			content.Append("]}");
-			string result = content.ToString();
-#if ZSTRING
-			content.Dispose();
-#endif
-			return result;
+			return content.ToString();
 		}
 
 		private static async void OnLogMessageReceived(string condition, string stackTrace, LogType type)
