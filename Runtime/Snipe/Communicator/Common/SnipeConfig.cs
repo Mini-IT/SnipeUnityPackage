@@ -20,7 +20,7 @@ namespace MiniIT.Snipe
 			WebSocketSharp,
 			ClientWebSocket,
 		}
-		public WebSocketImplementations WebSocketImplementation = WebSocketImplementations.WebSocketSharp;
+		public WebSocketImplementations WebSocketImplementation = WebSocketImplementations.ClientWebSocket;
 
 		public string ContextId { get; }
 
