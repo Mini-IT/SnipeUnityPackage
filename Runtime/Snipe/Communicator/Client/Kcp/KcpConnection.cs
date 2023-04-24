@@ -94,6 +94,8 @@ namespace MiniIT.Snipe
 		public uint PingTime { get; private set; }
 		
 		private readonly object _kcpLock = new object();
+		private readonly object _kcpSendBufferLock = new object();
+		private readonly object _socketSendBufferLock = new object();
 
 		public void Connect(string host, ushort port, int timeout = 10000, int authenticationTimeout = 0)
 		{
@@ -113,39 +115,45 @@ namespace MiniIT.Snipe
 
 		private void OnSocketConnected()
 		{
-			// Create a new Kcp instance
-			// even if _kcp != null its buffers may content some data from the previous connection
-			_kcp = new Kcp(0, SocketSendReliable);
+			lock (_kcpLock)
+			{
+				// Create a new Kcp instance
+				// even if _kcp != null its buffers may content some data from the previous connection
+				_kcp = new Kcp(0, SocketSendReliable);
 
-			_kcp.SetNoDelay(1u, // NoDelay is recommended to reduce latency
-				10,             // internal update interval. 100ms is KCP default, but a lower interval is recommended to minimize latency and to scale to more networked entities
-				2,              // fastresend. Faster resend for the cost of higher bandwidth. 0 in normal mode, 2 in turbo mode
-				true);          // no congestion window. Congestion window is enabled in normal mode, disabled in turbo mode.
+				_kcp.SetNoDelay(1u, // NoDelay is recommended to reduce latency
+					10,             // internal update interval. 100ms is KCP default, but a lower interval is recommended to minimize latency and to scale to more networked entities
+					2,              // fastresend. Faster resend for the cost of higher bandwidth. 0 in normal mode, 2 in turbo mode
+					true);          // no congestion window. Congestion window is enabled in normal mode, disabled in turbo mode.
 
-			_kcp.SetWindowSize(KCP_SEND_WINDOW_SIZE, KCP_RECEIVE_WINDOW_SIZE);
+				_kcp.SetWindowSize(KCP_SEND_WINDOW_SIZE, KCP_RECEIVE_WINDOW_SIZE);
 
-			// IMPORTANT: high level needs to add 1 channel byte to each raw
-			// message. so while Kcp.MTU_DEF is perfect, we actually need to
-			// tell _kcp to use MTU-1 so we can still put the header into the
-			// message afterwards.
-			_kcp.SetMtu(Kcp.MTU_DEF - CHANNEL_HEADER_SIZE);
+				// IMPORTANT: high level needs to add 1 channel byte to each raw
+				// message. so while Kcp.MTU_DEF is perfect, we actually need to
+				// tell _kcp to use MTU-1 so we can still put the header into the
+				// message afterwards.
+				_kcp.SetMtu(Kcp.MTU_DEF - CHANNEL_HEADER_SIZE);
 
-			// set maximum retransmits (aka dead_link)
-			// KCP will try to retransmit lost messages up to MaxRetransmit (aka dead_link) before disconnecting. default prematurely disconnects a lot of people (#3022). use 2x
-			_kcp.dead_link = Kcp.DEADLINK * 2;
+				// set maximum retransmits (aka dead_link)
+				// KCP will try to retransmit lost messages up to MaxRetransmit (aka dead_link) before disconnecting. default prematurely disconnects a lot of people (#3022). use 2x
+				_kcp.dead_link = Kcp.DEADLINK * 2;
+			}
 
-			// create message buffers AFTER window size is set
-			// see comments on buffer definition for the "+1" part
-			//int bufferSize = 1 + ReliableMaxMessageSize(KCP_RECEIVE_WINDOW_SIZE);
+			lock (_kcpSendBufferLock)
+			{
+				// create message buffers AFTER window size is set
+				// see comments on buffer definition for the "+1" part
+				//int bufferSize = 1 + ReliableMaxMessageSize(KCP_RECEIVE_WINDOW_SIZE);
 
-			// Server side implementation does not support message fragmentation.
-			// That is why we use custom algorythm of breaking large messages into chunks.
-			// In this case we don't need buffers larger than MAX_KCP_MESSAGE_SIZE
-			int bufferSize = MAX_KCP_MESSAGE_SIZE;
-			_kcpReceiveBuffer = new byte[bufferSize];
-			_kcpSendBuffer = new byte[bufferSize];
+				// Server side implementation does not support message fragmentation.
+				// That is why we use custom algorythm of breaking large messages into chunks.
+				// In this case we don't need buffers larger than MAX_KCP_MESSAGE_SIZE
+				int bufferSize = MAX_KCP_MESSAGE_SIZE;
+				_kcpReceiveBuffer = new byte[bufferSize];
+				_kcpSendBuffer = new byte[bufferSize];
 
-			_chunkedMessages = new Dictionary<byte, ChunkedMessageItem>(1);
+				_chunkedMessages = new Dictionary<byte, ChunkedMessageItem>(1);
+			}
 
 			_state = KcpState.Connected;
 			DebugLogger.Log("KcpState.Connected");
@@ -177,7 +185,7 @@ namespace MiniIT.Snipe
 				{
 					SendReliable(KcpHeader.Disconnect);
 					
-					lock(_kcpLock)
+					lock (_kcpLock)
 					{
 						_kcp.Flush();
 					}
@@ -486,24 +494,27 @@ namespace MiniIT.Snipe
 
 		private void SendReliable(KcpHeader header, ArraySegment<byte> content = default)
 		{
-			int msgLength = 1 + content.Count; // 1 byte for header
-			if (_kcpSendBuffer.Length < msgLength)
+			lock (_kcpSendBufferLock)
 			{
-				DebugLogger.LogError($"SendReliable failed. Message length ({msgLength} bytes) is greater than the buffer size ({_kcpSendBuffer.Length})");
-				return;
-			}
-			
-			_kcpSendBuffer[0] = (byte)header;
-			if (content.Count > 0)
-			{
-				Buffer.BlockCopy(content.Array, content.Offset, _kcpSendBuffer, 1, content.Count);
-			}
-			
-			// send to kcp for processing
-			int sent = _kcp.Send(_kcpSendBuffer, 0, msgLength);
-			if (sent < 0)
-			{
-				DebugLogger.LogWarning($"Send failed with error={sent} for content with length={content.Count}");
+				int msgLength = 1 + content.Count; // 1 byte for header
+				if (_kcpSendBuffer.Length < msgLength)
+				{
+					DebugLogger.LogError($"SendReliable failed. Message length ({msgLength} bytes) is greater than the buffer size ({_kcpSendBuffer.Length})");
+					return;
+				}
+
+				_kcpSendBuffer[0] = (byte)header;
+				if (content.Count > 0)
+				{
+					Buffer.BlockCopy(content.Array, content.Offset, _kcpSendBuffer, 1, content.Count);
+				}
+
+				// send to kcp for processing
+				int sent = _kcp.Send(_kcpSendBuffer, 0, msgLength);
+				if (sent < 0)
+				{
+					DebugLogger.LogWarning($"Send failed with error={sent} for content with length={content.Count}");
+				}
 			}
 		}
 
@@ -514,13 +525,16 @@ namespace MiniIT.Snipe
 
 		private void SocketSend(KcpChannel channel, byte[] data, int offset, int length)
 		{
-			// copy channel header, data into raw send buffer, then send
-			_socketSendBuffer[0] = (byte)channel;
-			if (length > 0)
+			lock (_socketSendBufferLock)
 			{
-				Buffer.BlockCopy(data, offset, _socketSendBuffer, 1, length);
+				// copy channel header, data into raw send buffer, then send
+				_socketSendBuffer[0] = (byte)channel;
+				if (length > 0)
+				{
+					Buffer.BlockCopy(data, offset, _socketSendBuffer, 1, length);
+				}
+				_socket.Send(_socketSendBuffer, length + 1);
 			}
-			_socket.Send(_socketSendBuffer, length + 1);
 		}
 
 		private void SocketReceive()
@@ -575,7 +589,7 @@ namespace MiniIT.Snipe
 					// input into kcp, but skip channel byte
 					int input = 0;
 					
-					lock(_kcpLock)
+					lock (_kcpLock)
 					{
 						input = _kcp.Input(buffer, 1, msgLength - 1);
 					}
