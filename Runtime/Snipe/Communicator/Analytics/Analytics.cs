@@ -37,7 +37,7 @@ namespace MiniIT.Snipe
 			return instance;
 		}
 
-		private static IAnalyticsTracker s_tracker;
+		private static ISnipeCommunicatorAnalyticsTracker s_tracker;
 
 		#endregion
 
@@ -67,7 +67,7 @@ namespace MiniIT.Snipe
 		/// <summary>
 		/// Should be called from the main Unity thread
 		/// </summary>
-		public static void SetTracker(IAnalyticsTracker tracker)
+		public static void SetTracker(ISnipeCommunicatorAnalyticsTracker tracker)
 		{
 			s_tracker = tracker;
 			

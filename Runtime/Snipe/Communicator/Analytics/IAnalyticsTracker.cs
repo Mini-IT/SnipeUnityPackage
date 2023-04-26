@@ -1,11 +1,9 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using MiniIT;
 
 namespace MiniIT.Snipe
 {
-	public interface IAnalyticsTracker
+	public interface ISnipeCommunicatorAnalyticsTracker
 	{
 		bool IsInitialized { get; }
 		
