@@ -1,6 +1,6 @@
 {
 	"name": "com.miniit.snipe.client",
-	"version": "5.0.0",
+	"version": "5.0.0-preview",
 	"dependencies": {
 		"com.miniit.fastjson": "1.0.0",
 		"com.gwiazdorrr.betterstreamingassets": "1.6.0"
