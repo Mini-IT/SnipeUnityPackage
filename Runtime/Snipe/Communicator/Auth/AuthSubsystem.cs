@@ -450,11 +450,11 @@ namespace MiniIT.Snipe
 		/// <summary>
 		/// Gets or creates a new instance of <see cref="AuthBinding"/>
 		/// </summary>
-		public BindingType GetBinding<BindingType>() where BindingType : AuthBinding
+		public BindingType GetBinding<BindingType>(bool create = true) where BindingType : AuthBinding
 		{
 			BindingType resultBinding = FindBinding<BindingType>();
 
-			if (resultBinding == null)
+			if (resultBinding == null && create)
 			{
 				resultBinding = CreateBinding<BindingType>();
 				_bindings.Add(resultBinding);
