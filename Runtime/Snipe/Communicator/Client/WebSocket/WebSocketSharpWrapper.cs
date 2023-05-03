@@ -13,8 +13,6 @@ namespace MiniIT.Snipe
 		public override async void Connect(string url)
 		{
 			Disconnect();
-			
-			Analytics.TrackSocketStartConnection("WebSocketSharpWrapper");
 
 			_webSocket = new WebSocket(url);
 			_webSocket.OnOpen += OnWebSocketConnected;
@@ -59,9 +57,6 @@ namespace MiniIT.Snipe
 			
 			if (_webSocket != null)
 			{
-				SetConnectionAnalyticsValues();
-				Analytics.WebSocketDisconnectReason = "Manual disconnect";
-
 				_webSocket.OnOpen -= OnWebSocketConnected;
 				_webSocket.OnClose -= OnWebSocketClosed;
 				_webSocket.OnMessage -= OnWebSocketMessage;
@@ -73,9 +68,6 @@ namespace MiniIT.Snipe
 		protected void OnWebSocketConnected(object sender, EventArgs e)
 		{
 			_connectionWaitingCancellation = null;
-			
-			SetConnectionAnalyticsValues();
-			Analytics.WebSocketDisconnectReason = null;
 
 			OnConnectionOpened?.Invoke();
 		}
@@ -85,7 +77,6 @@ namespace MiniIT.Snipe
 			DebugLogger.Log($"[WebSocketWrapper] OnWebSocketClosed: {e?.Reason}");
 			
 			Disconnect();
-			Analytics.WebSocketDisconnectReason = e?.Reason;
 
 			OnConnectionClosed?.Invoke();
 		}
@@ -98,7 +89,7 @@ namespace MiniIT.Snipe
 		protected void OnWebSocketError(object sender, ErrorEventArgs e)
 		{
 			DebugLogger.Log($"[WebSocketWrapper] OnWebSocketError: {e}");
-			Analytics.TrackError($"WebSocketError: {e.Message}", e.Exception);
+			//Analytics.TrackError($"WebSocketError: {e.Message}", e.Exception);
 		}
 		
 		//public override void SendRequest(string message)
@@ -145,13 +136,6 @@ namespace MiniIT.Snipe
 			}
 
 			_webSocket.PingAsync(callback);
-		}
-
-		private void SetConnectionAnalyticsValues()
-		{
-			Analytics.WebSocketTcpClientConnectionTime = _webSocket.TcpClientConnectionTime;
-			Analytics.WebSocketSslAuthenticateTime = _webSocket.SslAuthenticateTime;
-			Analytics.WebSocketHandshakeTime = _webSocket.HandshakeTime;
 		}
 
 		protected override bool IsConnected()

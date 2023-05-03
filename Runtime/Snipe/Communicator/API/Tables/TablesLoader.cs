@@ -27,7 +27,7 @@ namespace MiniIT.Snipe
 
 		internal static string GetCacheDirectoryPath()
 		{
-			return Path.Combine(SnipeConfig.PersistentDataPath, "SnipeTables");
+			return Path.Combine(TablesConfig.PersistentDataPath, "SnipeTables");
 		}
 
 		internal static string GetCachePath(string table_name, long version)
@@ -143,7 +143,7 @@ namespace MiniIT.Snipe
 
 								if (_versions == null)
 								{
-									Analytics.TrackEvent($"Tables - LoadVersion Failed to prase versions json", new SnipeObject()
+									Analytics.GetInstance().TrackEvent($"Tables - LoadVersion Failed to prase versions json", new SnipeObject()
 									{
 										["url"] = url,
 										["json"] = json,
@@ -157,7 +157,7 @@ namespace MiniIT.Snipe
 							}
 							else
 							{
-								Analytics.TrackEvent($"Tables - LoadVersion Failed to load url", new SnipeObject()
+								Analytics.GetInstance().TrackEvent($"Tables - LoadVersion Failed to load url", new SnipeObject()
 								{
 									["HttpStatus"] = load_task.Result.StatusCode,
 									["HttpStatusCode"] = (int)load_task.Result.StatusCode,
@@ -201,7 +201,7 @@ namespace MiniIT.Snipe
 				{
 					await Task.Delay(500, cancellation_token);
 				}
-				catch (OperationCanceledException e)
+				catch (OperationCanceledException)
 				{
 					DebugLogger.Log($"[TablesLoader] LoadVersion task canceled");
 					return false;
@@ -211,7 +211,7 @@ namespace MiniIT.Snipe
 			if (_versions == null)
 			{
 				DebugLogger.Log($"[TablesLoader] LoadVersion Failed");
-				Analytics.TrackEvent("Tables - LoadVersion Failed");
+				Analytics.GetInstance().TrackEvent("Tables - LoadVersion Failed");
 				return false;
 			}
 
@@ -281,7 +281,7 @@ namespace MiniIT.Snipe
 
 				if (!cancelled)
 				{
-					Analytics.TrackError($"Tables - Failed to load table '{name}'", exception);
+					Analytics.GetInstance().TrackError($"Tables - Failed to load table '{name}'", exception);
 				}
 
 				StopLoading();

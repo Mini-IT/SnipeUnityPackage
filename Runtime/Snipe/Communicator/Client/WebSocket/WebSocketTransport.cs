@@ -44,16 +44,25 @@ namespace MiniIT.Snipe
 		private ConcurrentQueue<SnipeObject> _sendMessages;
 		private ConcurrentQueue<List<SnipeObject>> _batchMessages;
 
-		protected bool _connected;
-		protected bool _loggedIn;
+		private readonly SnipeConfig _config;
+		private readonly Analytics _analytics;
+
+		private bool _connected;
+		private bool _loggedIn;
+
+		internal WebSocketTransport(SnipeConfig config)
+		{
+			_config = config;
+			_analytics = Analytics.GetInstance(config.ContextId);
+		}
 
 		public void Connect()
 		{
-			string url = SnipeConfig.GetWebSocketUrl();
+			string url = _config.GetWebSocketUrl();
 
 			DebugLogger.Log("[SnipeClient] WebSocket Connect to " + url);
 
-			if (SnipeConfig.WebSocketImplementation == SnipeConfig.WebSocketImplementations.ClientWebSocket)
+			if (_config.WebSocketImplementation == SnipeConfig.WebSocketImplementations.ClientWebSocket)
 				_webSocket = new WebSocketClientWrapper();
 			else
 				_webSocket = new WebSocketSharpWrapper();
@@ -64,7 +73,7 @@ namespace MiniIT.Snipe
 
 			Task.Run(() =>
 			{
-				Analytics.ConnectionUrl = url;
+				_analytics.ConnectionUrl = url;
 				_webSocket.Connect(url);
 			});
 		}
@@ -119,7 +128,7 @@ namespace MiniIT.Snipe
 
 			if (!_connected) // failed to establish connection
 			{
-				SnipeConfig.NextWebSocketUrl();
+				_config.NextWebSocketUrl();
 			}
 
 			ConnectionClosedHandler?.Invoke();
@@ -196,7 +205,7 @@ namespace MiniIT.Snipe
 
 				var msg_data = await Task.Run(() => _messageSerializer.Serialize(ref _messageSerializationBuffer, message));
 
-				if (SnipeConfig.CompressionEnabled && msg_data.Count >= SnipeConfig.MinMessageBytesToCompress) // compression needed
+				if (_config.CompressionEnabled && msg_data.Count >= _config.MinMessageBytesToCompress) // compression needed
 				{
 					await Task.Run(() =>
 					{
@@ -305,7 +314,7 @@ namespace MiniIT.Snipe
 				{
 					var e = task_exception is AggregateException ae ? ae.InnerException : task_exception;
 					DebugLogger.Log($"[SnipeClient] [] SendTask Exception: {e}");
-					Analytics.TrackError("WebSocket SendTask error", e);
+					_analytics.TrackError("WebSocket SendTask error", e);
 					
 					StopSendTask();
 				}
@@ -356,7 +365,7 @@ namespace MiniIT.Snipe
 			mHeartbeatCancellation?.Cancel();
 
 			// Custom heartbeating is needed only for WebSocketSharp
-			if (_webSocket == null && SnipeConfig.WebSocketImplementation != SnipeConfig.WebSocketImplementations.WebSocketSharp ||
+			if (_webSocket == null && _config.WebSocketImplementation != SnipeConfig.WebSocketImplementations.WebSocketSharp ||
 				_webSocket != null && !(_webSocket is WebSocketSharpWrapper))
 			{
 				_heartbeatEnabled = false;
@@ -411,10 +420,10 @@ namespace MiniIT.Snipe
 							{
 								pinging = false;
 								_pingStopwatch?.Stop();
-								Analytics.PingTime = pong && _pingStopwatch != null ? _pingStopwatch.Elapsed : TimeSpan.Zero;
+								_analytics.PingTime = pong && _pingStopwatch != null ? _pingStopwatch.Elapsed : TimeSpan.Zero;
 								
 								if (pong)
-									DebugLogger.Log($"[SnipeClient] [] Heartbeat pong {Analytics.PingTime.TotalMilliseconds} ms");
+									DebugLogger.Log($"[SnipeClient] [] Heartbeat pong {_analytics.PingTime.TotalMilliseconds} ms");
 								else
 									DebugLogger.Log($"[SnipeClient] [] Heartbeat pong NOT RECEIVED");
 							});
@@ -453,8 +462,8 @@ namespace MiniIT.Snipe
 
 		public bool BadConnection { get; private set; } = false;
 
-		private CancellationTokenSource mCheckConnectionCancellation;
-		
+		private CancellationTokenSource _checkConnectionCancellation;
+
 		private void StartCheckConnection()
 		{
 			if (!_loggedIn)
@@ -462,18 +471,18 @@ namespace MiniIT.Snipe
 			
 			// DebugLogger.Log($"[SnipeClient] [] StartCheckConnection");
 
-			mCheckConnectionCancellation?.Cancel();
+			_checkConnectionCancellation?.Cancel();
 
-			mCheckConnectionCancellation = new CancellationTokenSource();
-			Task.Run(() => CheckConnectionTask(mCheckConnectionCancellation.Token));
+			_checkConnectionCancellation = new CancellationTokenSource();
+			Task.Run(() => CheckConnectionTask(_checkConnectionCancellation.Token));
 		}
 
 		private void StopCheckConnection()
 		{
-			if (mCheckConnectionCancellation != null)
+			if (_checkConnectionCancellation != null)
 			{
-				mCheckConnectionCancellation.Cancel();
-				mCheckConnectionCancellation = null;
+				_checkConnectionCancellation.Cancel();
+				_checkConnectionCancellation = null;
 
 				// DebugLogger.Log($"[SnipeClient] [] StopCheckConnection");
 			}

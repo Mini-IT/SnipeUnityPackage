@@ -4,43 +4,40 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 
-namespace MiniIT.Snipe
+namespace MiniIT.Snipe.Api
 {
-	public class LogicManager
+	public class LogicManager : IDisposable
 	{
 		public static TimeSpan UpdateMinTimeout = TimeSpan.FromSeconds(30);
 
 		public delegate void LogicUpdatedHandler(Dictionary<int, LogicNode> nodes);
 		public delegate void ExitNodeHandler(LogicNode node, List<object> results);
+		public delegate void NodeProgressHandler(LogicNode node, SnipeLogicNodeVar nodeVar, int oldValue);
 
 		public event LogicUpdatedHandler LogicUpdated;
 		public event ExitNodeHandler ExitNode;
+		public event NodeProgressHandler NodeProgress;
 
 		public Dictionary<int, LogicNode> Nodes { get; private set; } = new Dictionary<int, LogicNode>();
 		private Dictionary<string, LogicNode> _taggedNodes;
 		private SnipeTable<SnipeTableLogicItem> _logicTable = null;
 
 		private SnipeCommunicator _snipeCommunicator;
+		private readonly AbstractSnipeApiService.RequestFactoryMethod _requestFactory;
 		private TimeSpan _updateRequestedTime = TimeSpan.Zero;
 		private SnipeObject _logicGetRequestParameters;
 		
 		private Stopwatch _refTime = Stopwatch.StartNew();
 		private Timer _secondsTimer;
 
-		public void Init(SnipeTable<SnipeTableLogicItem> logic_table)
+		public LogicManager(SnipeCommunicator communicator, AbstractSnipeApiService.RequestFactoryMethod requestFactory, SnipeTable<SnipeTableLogicItem> logic_table)
 		{
+			_requestFactory = requestFactory;
 			_logicTable = logic_table;
 
-			if (_snipeCommunicator != null)
-			{
-				_snipeCommunicator.MessageReceived -= OnSnipeMessageReceived;
-				_snipeCommunicator.PreDestroy -= OnSnipeCommunicatorPreDestroy;
-				_snipeCommunicator = null;
-			}
+			ClearCommunicatorReference();
 
-			_snipeCommunicator = SnipeCommunicator.Instance;
-			_snipeCommunicator.MessageReceived -= OnSnipeMessageReceived;
-			_snipeCommunicator.PreDestroy -= OnSnipeCommunicatorPreDestroy;
+			_snipeCommunicator = communicator;
 			_snipeCommunicator.MessageReceived += OnSnipeMessageReceived;
 			_snipeCommunicator.PreDestroy += OnSnipeCommunicatorPreDestroy;
 		}
@@ -59,16 +56,21 @@ namespace MiniIT.Snipe
 		{
 			StopSecondsTimer();
 
+			ClearCommunicatorReference();
+
+			_logicTable = null;
+			Nodes.Clear();
+			_taggedNodes = null;
+		}
+
+		private void ClearCommunicatorReference()
+		{
 			if (_snipeCommunicator != null)
 			{
 				_snipeCommunicator.MessageReceived -= OnSnipeMessageReceived;
 				_snipeCommunicator.PreDestroy -= OnSnipeCommunicatorPreDestroy;
 				_snipeCommunicator = null;
 			}
-
-			_logicTable = null;
-			Nodes.Clear();
-			_taggedNodes = null;
 		}
 
 		public LogicNode GetNodeById(int id)
@@ -144,7 +146,7 @@ namespace MiniIT.Snipe
 			if (_logicGetRequestParameters == null)
 				_logicGetRequestParameters = new SnipeObject() { ["noDump"] = false };
 
-			var request = SnipeApiBase.CreateRequest("logic.get", _logicGetRequestParameters);
+			var request = _requestFactory.Invoke("logic.get", _logicGetRequestParameters);
 			request?.Request();
 		}
 
@@ -163,7 +165,7 @@ namespace MiniIT.Snipe
 				request_data["treeID"] = tree_id;
 			//if (amount != 0)
 			//	request_data["amount"] = amount;
-			var request = SnipeApiBase.CreateRequest("logic.incVar", request_data);
+			var request = _requestFactory.Invoke("logic.incVar", request_data);
 			if (request != null)
 			{
 				request.Request();
@@ -183,7 +185,11 @@ namespace MiniIT.Snipe
 				case "logic.exitNode":
 					OnLogicExitNode(data);
 					break;
-					
+
+				case "logic.progress":
+					OnLogicProgress(data);
+					break;
+
 				case "logic.incVar":
 					RequestLogicGet(true);
 					break;
@@ -197,122 +203,158 @@ namespace MiniIT.Snipe
 			if (_logicTable == null || response_data == null)
 				return;
 
-			if (error_code == "ok")
+			if (error_code != "ok")
+				return;
+
+			var logic_nodes = new List<LogicNode>();
+			if (response_data["logic"] is IList src_logic)
 			{
-				var logic_nodes = new List<LogicNode>();
-				if (response_data["logic"] is IList src_logic)
+				foreach (object o in src_logic)
 				{
-					foreach (var o in src_logic)
+					if (o is SnipeObject so && so?["node"] is SnipeObject node)
 					{
-						if (o is SnipeObject so && so?["node"] is SnipeObject node)
-							logic_nodes.Add(new LogicNode(node, _logicTable));
+						logic_nodes.Add(new LogicNode(node, _logicTable));
 					}
 				}
+			}
 				
-				bool timer_finished = false;
+			bool timer_finished = false;
 
-				if (Nodes.Count == 0)
+			if (Nodes.Count == 0)
+			{
+				_taggedNodes = new Dictionary<string, LogicNode>();
+				foreach (LogicNode node in logic_nodes)
 				{
-					_taggedNodes = new Dictionary<string, LogicNode>();
-					foreach (var node in logic_nodes)
-					{
-						if (node == null)
-							continue;
+					if (node == null)
+						continue;
 						
-						Nodes.Add(node.id, node);
-						AddTaggedNode(node);
+					Nodes.Add(node.id, node);
+					AddTaggedNode(node);
+				}
+			}
+			else
+			{
+				_taggedNodes.Clear();
+
+				foreach (var node in logic_nodes)
+				{
+					if (node != null && node.id > 0)
+					{
+						if (node.timeleft == 0) // (-1) means that the node does not have a timer
+						{
+							timer_finished = true;
+						}
+
+						if (Nodes.TryGetValue(node.id, out var stored_node))
+						{
+							stored_node.CopyVars(node);
+							AddTaggedNode(stored_node);
+						}
+						else
+						{
+							Nodes.Add(node.id, node);
+							AddTaggedNode(node);
+						}
 					}
 				}
-				else
-				{
-					_taggedNodes.Clear();
 
+				List<int> nodes_to_exclude = null;
+				foreach (var stored_node_id in Nodes.Keys)
+				{
+					bool found = false;
 					foreach (var node in logic_nodes)
 					{
-						if (node != null && node.id > 0)
+						if (node != null && node.id == stored_node_id)
 						{
-							if (node.timeleft == 0) // (-1) means that the node does not have a timer
-							{
-								timer_finished = true;
-							}
-
-							if (Nodes.TryGetValue(node.id, out var stored_node))
-							{
-								stored_node.CopyVars(node);
-								AddTaggedNode(stored_node);
-							}
-							else
-							{
-								Nodes.Add(node.id, node);
-								AddTaggedNode(node);
-							}
+							found = true;
+							break;
 						}
 					}
-
-					List<int> nodes_to_exclude = null;
-					foreach (var stored_node_id in Nodes.Keys)
+					if (!found)
 					{
-						bool found = false;
-						foreach (var node in logic_nodes)
-						{
-							if (node != null && node.id == stored_node_id)
-							{
-								found = true;
-								break;
-							}
-						}
-						if (!found)
-						{
-							if (nodes_to_exclude == null)
-								nodes_to_exclude = new List<int>();
-							nodes_to_exclude.Add(stored_node_id);
-						}
+						nodes_to_exclude ??= new List<int>();
+						nodes_to_exclude.Add(stored_node_id);
 					}
+				}
 
-					if (nodes_to_exclude != null)
+				if (nodes_to_exclude != null)
+				{
+					foreach (int key in nodes_to_exclude)
 					{
-						foreach (int key in nodes_to_exclude)
-						{
-							Nodes.Remove(key);
-						}
+						Nodes.Remove(key);
 					}
 				}
+			}
 
-				// Highly unlikely but sometimes
-				// messages may contain zero timer values (because of rounding).
-				// In this case just request once more
-				if (timer_finished)
-				{
-					RequestLogicGet(true);
-				}
-				else
-				{
-					LogicUpdated?.Invoke(Nodes);
-					StartSecondsTimer();
-				}
+			// Highly unlikely but sometimes
+			// messages may contain zero timer values (because of rounding).
+			// In this case just request once more
+			if (timer_finished)
+			{
+				RequestLogicGet(true);
+			}
+			else
+			{
+				LogicUpdated?.Invoke(Nodes);
+				StartSecondsTimer();
 			}
 		}
 		
 		private void AddTaggedNode(LogicNode node)
 		{
-			if (node?.tree?.tags != null)
+			if (node?.tree?.tags == null)
+				return;
+
+			foreach (string tag in node.tree.tags)
 			{
-				foreach (string tag in node.tree.tags)
+				if (!string.IsNullOrEmpty(tag))
 				{
-					if (!string.IsNullOrEmpty(tag))
-					{
-						_taggedNodes[tag] = node;
-					}
+					_taggedNodes[tag] = node;
 				}
 			}
 		}
 
 		private void OnLogicExitNode(SnipeObject data)
 		{
-			ExitNode?.Invoke(GetNodeById(data.SafeGetValue("id", 0)),
-				data["results"] as List<object>);
+			LogicNode node = GetNodeById(data.SafeGetValue("id", 0));
+			ExitNode?.Invoke(node, data["results"] as List<object>);
 
 			RequestLogicGet(true);
+		}
+
+		private void OnLogicProgress(SnipeObject data)
+		{
+			//Progress?.Invoke(data.SafeGetValue<int>("id"),
+			//			data.SafeGetValue<int>("treeID"),
+			//			data.SafeGetValue<int>("oldValue"),
+			//			data.SafeGetValue<int>("value"),
+			//			data.SafeGetValue<int>("maxValue"));
+
+			LogicNode node = GetNodeById(data.SafeGetValue("id", 0));
+			if (node == null)
+				return;
+
+			string varName = data.SafeGetString("name");
+			if (string.IsNullOrEmpty(varName))
+				return;
+
+			SnipeLogicNodeVar nodeVar = null;
+			foreach (SnipeLogicNodeVar v in node.vars)
+			{
+				if (string.Equals(v.name, varName, StringComparison.Ordinal))
+				{
+					nodeVar = v;
+					break;
+				}
+			}
+
+			if (nodeVar != null)
+			{
+				nodeVar.value = data.SafeGetValue<int>("value");
+
+				int oldValue = data.SafeGetValue<int>("oldValue");
+				NodeProgress?.Invoke(node, nodeVar, oldValue);
+			}
 		}
 
 		#region SecondsTimer

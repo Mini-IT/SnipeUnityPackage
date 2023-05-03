@@ -41,8 +41,6 @@ namespace MiniIT.Snipe
 		public override void Connect(string url)
 		{
 			Disconnect();
-			
-			Analytics.TrackSocketStartConnection("WebSocketClientWrapper");
 
 			_cancellation = new CancellationTokenSource();
 			_ = Task.Run(() => StartConnection(new Uri(url), _cancellation.Token));
@@ -104,9 +102,6 @@ namespace MiniIT.Snipe
 			
 			if (_webSocket != null)
 			{
-				// SetConnectionAnalyticsValues();
-				Analytics.WebSocketDisconnectReason = reason;
-
 				_webSocket.Dispose();
 				_webSocket = null;
 			}
@@ -202,9 +197,6 @@ namespace MiniIT.Snipe
 
 		protected void OnWebSocketConnected()
 		{
-			// SetConnectionAnalyticsValues();
-			Analytics.WebSocketDisconnectReason = null;
-
 			new Task(() => OnConnectionOpened?.Invoke()).RunSynchronously(_taskScheduler);
 		}
 

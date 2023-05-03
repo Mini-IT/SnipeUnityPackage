@@ -3,13 +3,14 @@ namespace MiniIT.Snipe
 {
 	public class AmazonBinding : AuthBinding<AmazonIdFetcher>
 	{
-		public AmazonBinding() : base("amzn")
+		public AmazonBinding(SnipeCommunicator communicator, AuthSubsystem authSubsystem, SnipeConfig config)
+			: base("amzn", communicator, authSubsystem, config)
 		{
 		}
 
 		public void SetUserId(string uid)
 		{
-			if (_fetcher is AmazonIdFetcher fetcher)
+			if (Fetcher is AmazonIdFetcher fetcher)
 			{
 				fetcher.SetValue(uid);
 			}

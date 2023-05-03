@@ -1,40 +1,34 @@
 ﻿using System;
-using UnityEngine;
 
 namespace MiniIT.Snipe
 {
 	public class AuthBinding<FetcherType> : AuthBinding where FetcherType : AuthIdFetcher, new()
 	{
-		public AuthBinding(string provider_id) : base()
+		public AuthBinding(string provider_id, SnipeCommunicator communicator, AuthSubsystem authSubsystem, SnipeConfig config)
+			: base(provider_id, new FetcherType(), communicator, authSubsystem, config)
 		{
-			ProviderId = provider_id;
-			_fetcher = new FetcherType();
 		}
 	}
 
 	public class AuthBinding
 	{
-		public string ProviderId { get; protected set; }
-	
-		//public bool? AccountExists { get; protected set; } = null;
-
 		public delegate void BindResultCallback(AuthBinding binding, string error_code);
 		public delegate void CheckAuthExistsCallback(AuthBinding binding, bool exists, bool is_me, string user_name = null);
 
-		protected BindResultCallback _bindResultCallback;
+		public string ProviderId { get; }
+		public AuthIdFetcher Fetcher { get; }
 
-		protected AuthIdFetcher _fetcher;
+		//public bool? AccountExists { get; protected set; } = null;
 
-		public string BindDonePrefsKey
-		{
-			get { return SnipePrefs.AUTH_BIND_DONE + ProviderId; }
-		}
+		public string BindDonePrefsKey => SnipePrefs.GetAuthBindDone(_config.ContextId) + ProviderId;
 
+		private bool? _isBindDone = null;
 		public bool IsBindDone
 		{
 			get
 			{
-				return PlayerPrefs.GetInt(BindDonePrefsKey, 0) == 1;
+				_isBindDone ??= (SharedPrefs.GetInt(BindDonePrefsKey, 0) == 1);
+				return _isBindDone.Value;
 			}
 			internal set
 			{
@@ -42,8 +36,25 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		public AuthBinding()
+		protected BindResultCallback _bindResultCallback;
+
+		protected readonly SnipeCommunicator _communicator;
+		private readonly AuthSubsystem _authSubsystem;
+		private readonly SnipeConfig _config;
+
+		public AuthBinding(string provider_id,
+			AuthIdFetcher fetcher,
+			SnipeCommunicator communicator,
+			AuthSubsystem authSubsystem,
+			SnipeConfig config)
 		{
+			_communicator = communicator;
+			_authSubsystem = authSubsystem;
+			_config = config;
+
+			ProviderId = provider_id;
+			Fetcher = fetcher;
+
 			if (IsBindDone)
 			{
 				OnBindDone();
@@ -52,17 +63,17 @@ namespace MiniIT.Snipe
 
 		public void Start()
 		{
-			Debug.Log($"[AuthBinding] [{ProviderId}] Start");
-			if (_fetcher != null && !IsBindDone)
+			DebugLogger.Log($"[AuthBinding] [{ProviderId}] Start");
+			if (Fetcher != null && !IsBindDone)
 			{
-				Debug.Log($"[AuthBinding] [{ProviderId}] Fetch");
-				_fetcher.Fetch(true, OnIdFetched);
+				DebugLogger.Log($"[AuthBinding] [{ProviderId}] Fetch");
+				Fetcher.Fetch(true, OnIdFetched);
 			}
 		}
 
 		protected void OnIdFetched(string uid)
 		{
-			Debug.Log($"[AuthBinding] [{ProviderId}] OnIdFetched: {uid}");
+			DebugLogger.Log($"[AuthBinding] [{ProviderId}] OnIdFetched: {uid}");
 
 			if (!string.IsNullOrEmpty(uid) && !IsBindDone)
 			{
@@ -70,9 +81,9 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		public void Bind(BindResultCallback bind_callback = null)
+		public void Bind(BindResultCallback callback = null)
 		{
-			_bindResultCallback = bind_callback;
+			_bindResultCallback = callback;
 
 			if (IsBindDone)
 			{
@@ -80,15 +91,15 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			string auth_login = PlayerPrefs.GetString(SnipePrefs.AUTH_UID);
-			string auth_token = PlayerPrefs.GetString(SnipePrefs.AUTH_KEY);
+			string auth_login = SharedPrefs.GetString(SnipePrefs.GetAuthUID(_config.ContextId));
+			string auth_token = SharedPrefs.GetString(SnipePrefs.GetAuthKey(_config.ContextId));
 			string uid = GetUserId();
 
 			if (!string.IsNullOrEmpty(auth_login) && !string.IsNullOrEmpty(auth_token) && !string.IsNullOrEmpty(uid))
 			{
 				SnipeObject data = new SnipeObject()
 				{
-					["ckey"] = SnipeConfig.ClientKey,
+					["ckey"] = _config.ClientKey,
 					["provider"] = ProviderId,
 					["login"] = uid,
 					["loginInt"] = auth_login,
@@ -100,7 +111,8 @@ namespace MiniIT.Snipe
 					data["auth"] = pass;
 
 				DebugLogger.Log($"[AuthBinding] ({ProviderId}) send user.bind " + data.ToJSONString());
-				SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_BIND)?.RequestUnauthorized(data, OnBindResponse);
+				new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_BIND, data)
+					.Request(OnBindResponse);
 
 				return;
 			}
@@ -108,26 +120,35 @@ namespace MiniIT.Snipe
 
 		public string GetUserId()
 		{
-			return _fetcher?.Value ?? "";
+			return GetContextBoundUserId(Fetcher?.Value ?? "");
+		}
+
+		private string GetContextBoundUserId(string uid)
+		{
+			return _config.ContextId + uid;
 		}
 
 		protected virtual string GetAuthPassword()
 		{
 			return "";
 		}
-		
+
+		/// <summary>
+		/// Resets stored authorization data to this account.
+		/// </summary>
+		/// <param name="callback">Parameter is <c>errorCode</c></param>
 		public void ResetAuth(Action<string> callback)
 		{
 			SnipeObject data = new SnipeObject()
 			{
-				["ckey"] = SnipeConfig.ClientKey,
+				["ckey"] = _config.ClientKey,
 				["provider"] = ProviderId,
 				["login"] = GetUserId(),
 				["auth"] = GetAuthPassword(),
 			};
-			
-			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_RESET)?.RequestUnauthorized(data,
-				(string error_code, SnipeObject response_data) =>
+
+			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_RESET, data)
+				.Request((string error_code, SnipeObject response_data) =>
 				{
 					if (error_code == SnipeErrorCodes.OK)
 					{
@@ -136,8 +157,8 @@ namespace MiniIT.Snipe
 						
 						if (!string.IsNullOrEmpty(auth_login) && !string.IsNullOrEmpty(auth_token))
 						{
-							PlayerPrefs.SetString(SnipePrefs.AUTH_UID, auth_login);
-							PlayerPrefs.SetString(SnipePrefs.AUTH_KEY, auth_token);
+							SharedPrefs.SetString(SnipePrefs.GetAuthUID(_config.ContextId), auth_login);
+							SharedPrefs.SetString(SnipePrefs.GetAuthKey(_config.ContextId), auth_token);
 						}
 					}
 					
@@ -145,26 +166,9 @@ namespace MiniIT.Snipe
 				});
 		}
 
-		// base.OnAuthResetResponse(error_code, response_data);
-		// }
-
-		// protected override void OnAuthLoginResponse(string error_code, SnipeObject data)
-		// {
-		// if (!string.IsNullOrEmpty(error_code))
-		// {
-		// AccountExists = (error_code == SnipeErrorCodes.OK);
-		// if (AccountExists != true)
-		// {
-		// SetBindDoneFlag(false, false);
-		// }
-		// }
-
-		// base.OnAuthLoginResponse(error_code, data);
-		// }
-
 		public void CheckAuthExists(CheckAuthExistsCallback callback = null)
 		{
-			_fetcher?.Fetch(false, uid =>
+			Fetcher?.Fetch(false, uid =>
 			{
 				CheckAuthExists(uid, callback);
 			});
@@ -172,23 +176,25 @@ namespace MiniIT.Snipe
 
 		protected virtual void CheckAuthExists(string user_id, CheckAuthExistsCallback callback = null)
 		{
+			user_id = GetContextBoundUserId(user_id);
+
 			DebugLogger.Log($"[AuthBinding] ({ProviderId}) CheckAuthExists {user_id}");
 
 			SnipeObject data = new SnipeObject()
 			{
-				["ckey"] = SnipeConfig.ClientKey,
+				["ckey"] = _config.ClientKey,
 				["provider"] = ProviderId,
 				["login"] = user_id,
 			};
 
-			int login_id = SnipeCommunicator.Instance.Auth.UserID;
+			int login_id = _authSubsystem.UserID;
 			if (login_id != 0)
 			{
 				data["userID"] = login_id;
 			}
 
-			SnipeCommunicator.Instance.CreateRequest(SnipeMessageTypes.AUTH_EXISTS)?.RequestUnauthorized(data,
-				(error_code, response_data) => OnCheckAuthExistsResponse(error_code, response_data, callback));
+			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_EXISTS, data)
+				.Request((error_code, response_data) => OnCheckAuthExistsResponse(error_code, response_data, callback));
 		}
 
 		protected virtual void OnBindResponse(string error_code, SnipeObject data)
@@ -207,20 +213,21 @@ namespace MiniIT.Snipe
 		protected void OnCheckAuthExistsResponse(string error_code, SnipeObject data, CheckAuthExistsCallback callback)
 		{
 			bool account_exists = (error_code == SnipeErrorCodes.OK);
-			//if (!string.IsNullOrEmpty(error_code))
 			//	AccountExists = (error_code == SnipeErrorCodes.OK);
 
 			bool is_me = data.SafeGetValue("isSame", false);
 			if (/*AccountExists == true &&*/ is_me)
-				IsBindDone = SnipeCommunicator.Instance.LoggedIn;
+			{
+				IsBindDone = true; // _communicator.LoggedIn;
+			}
 
 			if (callback != null)
 			{
-				callback.Invoke(this, account_exists/* == true*/, is_me, data.SafeGetString("name"));
+				callback.Invoke(this, account_exists, is_me, data.SafeGetString("name"));
 				callback = null;
 			}
 
-			if (/*AccountExists.HasValue && */SnipeCommunicator.Instance.LoggedIn)
+			if (/*AccountExists.HasValue && */_communicator.LoggedIn)
 			{
 				if (!account_exists) //(AccountExists == false)
 				{
@@ -229,7 +236,7 @@ namespace MiniIT.Snipe
 				else if (!is_me)
 				{
 					DebugLogger.Log($"[AuthBinding] ({ProviderId}) OnCheckAuthExistsResponse - another account found - InvokeAccountBindingCollisionEvent");
-					SnipeCommunicator.Instance.Auth.OnAccountBindingCollision(this, data.SafeGetString("name"));
+					_authSubsystem.OnAccountBindingCollision(this, data.SafeGetString("name"));
 				}
 			}
 		}
@@ -239,22 +246,30 @@ namespace MiniIT.Snipe
 			DebugLogger.Log($"[AuthBinding] ({ProviderId}) InvokeBindResultCallback - {error_code}");
 
 			if (_bindResultCallback != null)
+			{
 				_bindResultCallback.Invoke(this, error_code);
-
-			_bindResultCallback = null;
+				_bindResultCallback = null;
+			}
 		}
 		
-		protected void SetBindDoneFlag(bool value, bool invoke_callback)
+		private void SetBindDoneFlag(bool value, bool invoke_callback)
 		{
-			bool current_value = PlayerPrefs.GetInt(BindDonePrefsKey, 0) == 1;
-			if (value != current_value)
+			if (value == IsBindDone)
 			{
-				DebugLogger.Log($"[AuthBinding] ({ProviderId}) Set bind done flag to {value}");
+				return;
+			}
 
-				PlayerPrefs.SetInt(BindDonePrefsKey, value ? 1 : 0);
+			DebugLogger.Log($"[AuthBinding] ({ProviderId}) Set bind done flag to {value}");
 
-				if (value && invoke_callback)
-					OnBindDone();
+			_isBindDone = value;
+			if (value)
+				SharedPrefs.SetInt(BindDonePrefsKey, 1);
+			else
+				SharedPrefs.DeleteKey(BindDonePrefsKey);
+
+			if (value && invoke_callback)
+			{
+				OnBindDone();
 			}
 		}
 

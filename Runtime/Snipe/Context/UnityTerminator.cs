@@ -18,7 +18,10 @@ namespace MiniIT.Snipe
 
 		private void OnApplicationQuit()
 		{
-			SnipeCommunicator.DestroyInstance();
+			foreach (var context in SnipeContext.All)
+			{
+				context?.Dispose();
+			}
 		}
 	}
 }

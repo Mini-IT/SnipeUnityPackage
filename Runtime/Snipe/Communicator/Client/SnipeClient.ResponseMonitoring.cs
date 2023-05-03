@@ -49,7 +49,7 @@ namespace MiniIT.Snipe
 				{
 					if (item.message_type != message_type)
 					{
-						Analytics.TrackEvent("Wrong response type", new SnipeObject()
+						_analytics.TrackEvent("Wrong response type", new SnipeObject()
 							{
 								["request_id"] = request_id,
 								["request_type"] = item.message_type,
@@ -124,7 +124,7 @@ namespace MiniIT.Snipe
 							keys_to_remove ??= new List<int>();
 							keys_to_remove.Add(request_id);
 							
-							Analytics.TrackEvent("Response not found", new SnipeObject()
+							_analytics.TrackEvent("Response not found", new SnipeObject()
 								{
 									["request_id"] = request_id,
 									["message_type"] = item.message_type,

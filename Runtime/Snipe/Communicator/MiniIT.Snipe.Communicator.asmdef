@@ -6,9 +6,9 @@
         "MiniIT.Snipe.Core",
         "MiniIT.Snipe.Social",
         "MiniIT.Snipe.MessagePack",
+        "MiniIT.AdvertisingIdFetcher",
         "BetterStreamingAssets",
         "fastJSON",
-        "MiniIT.AdvertisingIdFetcher",
         "WebSocketSharp",
         "kcp2k",
         "ZString"

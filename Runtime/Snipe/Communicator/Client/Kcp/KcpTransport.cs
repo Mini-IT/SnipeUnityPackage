@@ -18,6 +18,14 @@ namespace MiniIT.Snipe
 		private CancellationTokenSource _networkLoopCancellation;
 
 		private readonly object _lock = new object();
+		private readonly SnipeConfig _config;
+		private readonly Analytics _analytics;
+
+		internal KcpTransport(SnipeConfig config)
+		{
+			_config = config;
+			_analytics = Analytics.GetInstance(config.ContextId);
+		}
 
 		public async void Connect()
 		{
@@ -26,16 +34,19 @@ namespace MiniIT.Snipe
 
 			ConnectionEstablished = false;
 
-			_kcpConnection = new KcpConnection();
-			_kcpConnection.OnAuthenticated = OnClientConnected;
-			_kcpConnection.OnData = OnClientDataReceived;
-			_kcpConnection.OnDisconnected = OnClientDisconnected;
+			_kcpConnection = new KcpConnection
+			{
+				OnAuthenticated = OnClientConnected,
+				OnData = OnClientDataReceived,
+				OnDisconnected = OnClientDisconnected
+			};
 
 			await Task.Run(() =>
 			{
 				lock (_lock)
 				{
-					var address = SnipeConfig.GetUdpAddress();
+					var address = _config.GetUdpAddress();
+					_analytics.ConnectionUrl = $"{address.Host}:{address.Port}";
 					_kcpConnection.Connect(address.Host, address.Port, 3000, 5000);
 				}
 			});
@@ -87,7 +98,7 @@ namespace MiniIT.Snipe
 
 			if (!ConnectionEstablished) // failed to establish connection
 			{
-				if (SnipeConfig.NextUdpUrl())
+				if (_config.NextUdpUrl())
 				{
 					DebugLogger.Log("[SnipeClient] Next udp url");
 					//Connect();
@@ -177,18 +188,6 @@ namespace MiniIT.Snipe
 			return MessagePackDeserializer.Parse(raw_data) as SnipeObject;
 		}
 		
-		// private void DoSendRequest(byte[] msg)
-		// {
-			// // opcode + length (4 bytes) + msg
-			// int data_length = msg.Length + 5;
-			// byte[] data = mBytesPool.Rent(data_length);
-			// data[0] = OPCODE_SNIPE_REQUEST;
-			// WriteInt(data, 1, msg.Length);
-			// Array.ConstrainedCopy(msg, 0, data, 5, msg.Length);
-			// _kcpConnection.Send(new ArraySegment<byte>(data, 0, data_length), KcpChannel.Reliable);
-			// mBytesPool.Return(data);
-		// }
-		
 		private async void DoSendRequest(SnipeObject message)
 		{
 			try
@@ -244,7 +243,7 @@ namespace MiniIT.Snipe
 
 			ArraySegment<byte> msg_data = await Task.Run(() => _messageSerializer.Serialize(ref _messageSerializationBuffer, offset, message));
 
-			if (SnipeConfig.CompressionEnabled && msg_data.Count >= SnipeConfig.MinMessageBytesToCompress) // compression needed
+			if (_config.CompressionEnabled && msg_data.Count >= _config.MinMessageBytesToCompress) // compression needed
 			{
 				await Task.Run(() =>
 				{
@@ -308,12 +307,12 @@ namespace MiniIT.Snipe
 				try
 				{
 					_kcpConnection?.Tick();
-					//Analytics.PingTime = _kcpConnection?.connection?.PingTime ?? 0;
+					//_analytics.PingTime = _kcpConnection?.connection?.PingTime ?? 0;
 				}
 				catch (Exception e)
 				{
 					DebugLogger.Log($"[SnipeClient] NetworkLoop - Exception: {e}");
-					Analytics.TrackError("NetworkLoop error", e);
+					_analytics.TrackError("NetworkLoop error", e);
 					OnClientDisconnected();
 					return;
 				}

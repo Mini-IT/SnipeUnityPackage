@@ -8,13 +8,16 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using MiniIT.Snipe;
 using UnityEngine;
+using System.Linq;
+
+#if ZSTRING
+using Cysharp.Text;
+#endif
 
 namespace MiniIT
 {
-	public class LogReporter : MonoBehaviour
+	public class LogReporter
 	{
-		private static LogReporter _instance;
-
 		internal class LogRecord
 		{
 			internal long _time;
@@ -23,60 +26,32 @@ namespace MiniIT
 			internal string _stackTrace;
 		}
 
-		private const int PORTION_SIZE = 200; // messages
-		
+		private const int MAX_CHUNK_LENGTH = 200 * 1024;
+
+		private SnipeContext _snipeContext;
 		private bool _running = false;
 
-		private readonly List<LogRecord> _log = new List<LogRecord>();
-		private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
+		private static readonly List<LogRecord> _log = new List<LogRecord>();
+		private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
 
-		public static void InitInstance()
+		static LogReporter()
 		{
-			if (_instance != null)
-				return;
-
-			_instance = FindObjectOfType<LogReporter>();
-
-			if (_instance == null)
-			{
-				_instance = new GameObject("[LogReporter]").AddComponent<LogReporter>();
-			}
-		}
-
-		private void Awake()
-		{
-			if (_instance != null && _instance != this)
-			{
-				DestroyImmediate(this.gameObject);
-				return;
-			}
-			_instance = this;
-			DontDestroyOnLoad(this.gameObject);
-
 			Application.logMessageReceivedThreaded += OnLogMessageReceived;
 		}
 
-		private void OnDestroy()
+		public LogReporter(SnipeContext snipeContext)
 		{
-			Application.logMessageReceivedThreaded -= OnLogMessageReceived;
+			_snipeContext = snipeContext;
 		}
 
-		public static async Task<bool> SendAsync()
+		public async Task<bool> SendAsync()
 		{
-			if (_instance == null)
-			{
-				Debug.LogWarning("[LogReporter] Instance not initialized");
-				return false;
-			}
+			string apiKey = _snipeContext.Config.ClientKey;
+			string url = _snipeContext.Config.LogReporterUrl;
 
-			return await _instance.DoSendAsync(SnipeConfig.ClientKey, SnipeConfig.LogReporterUrl);
-		}
-
-		private async Task<bool> DoSendAsync(string apiKey, string url)
-		{
 			if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(url))
 			{
-				Debug.LogWarning("[LogReporter] Invalid apiKey or url");
+				Debug.LogWarning($"[{nameof(LogReporter)}] Invalid apiKey or url");
 				return false;
 			}
 			
@@ -86,7 +61,7 @@ namespace MiniIT
 				
 				if (_running)
 				{
-					Debug.LogWarning("[LogReporter] Already running");
+					Debug.LogWarning($"[{nameof(LogReporter)}] Already running");
 					return false;
 				}
 				_running = true;
@@ -98,11 +73,13 @@ namespace MiniIT
 
 			int connectionId = 0;
 			int userId = 0;
-			if (SnipeCommunicator.InstanceInitialized)
+			if (_snipeContext?.Communicator != null)
 			{
-				int.TryParse(SnipeCommunicator.Instance.ConnectionId, out connectionId);
-				userId = SnipeCommunicator.Instance.Auth?.UserID ?? 0;
+				int.TryParse(_snipeContext.Communicator.ConnectionId, out connectionId);
+				userId = _snipeContext.Auth?.UserID ?? 0;
 			}
+			string appVersion = Application.version;
+			RuntimePlatform appPlatform = Application.platform;
 
 			bool succeeded = true;
 			HttpStatusCode statusCode = default;
@@ -111,9 +88,26 @@ namespace MiniIT
 			{
 				httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
 
-				for (int i = 0; i < _log.Count; i += PORTION_SIZE)
+				for (int startIndex = 0; startIndex < _log.Count;)
 				{
-					string content = await GetPortionContent(i, connectionId, userId);
+					string content;
+					try
+					{
+						await _semaphore.WaitAsync();
+						content = await Task.Run(() => GetPortionContent(ref startIndex, connectionId, userId, appVersion, appPlatform));
+					}
+					catch (Exception ex)
+					{
+						succeeded = false;
+						statusCode = HttpStatusCode.BadRequest;
+						Debug.LogError($"[{nameof(LogReporter)}] - Error getting log portion: {ex}");
+						break;
+					}
+					finally
+					{
+						_semaphore.Release();
+					}
+					
 					var requestContent = new StringContent(content, Encoding.UTF8, "application/json");
 					var result = await httpClient.PostAsync(url, requestContent);
 
@@ -127,11 +121,11 @@ namespace MiniIT
 				}
 			}
 
-			Debug.Log($"[LogReporter] - Send result code = {(int)statusCode} {statusCode}");
+			Debug.Log($"[{nameof(LogReporter)}] - Send result code = {(int)statusCode} {statusCode}");
 
 			if (succeeded)
 			{
-				Debug.Log($"[LogReporter] - Sent successfully. UserId = {userId}, ConnectionId = {connectionId}");
+				Debug.Log($"[{nameof(LogReporter)}] - Sent successfully. UserId = {userId}, ConnectionId = {connectionId}");
 
 				try
 				{
@@ -149,43 +143,46 @@ namespace MiniIT
 			return succeeded;
 		}
 
-		private async Task<string> GetPortionContent(int startIndex, int connectionId, int userId)
+		private string GetPortionContent(ref int startIndex, int connectionId, int userId, string version, RuntimePlatform platform)
 		{
+#if ZSTRING
+			ursing var content = ZString.CreateStringBuilder(true);
+			content.Append("{");
+#else
 			var content = new StringBuilder("{");
+#endif
 			content.Append($"\"connectionID\":{connectionId},");
 			content.Append($"\"userID\":{userId},");
-			content.Append($"\"version\":\"{Application.version}\",");
-			content.Append($"\"platform\":\"{Application.platform}\",");
+			content.Append($"\"version\":\"{version}\",");
+			content.Append($"\"platform\":\"{platform}\",");
 			content.Append("\"list\":[");
 
-			for (int i = 0; i < PORTION_SIZE; i++)
+			bool linesAdded = false;
+			while (startIndex < _log.Count)
 			{
-				int index = startIndex + i;
-				if (index >= _log.Count)
-					break;
-
-				if (i > 0)
-					content.Append(",");
-
-				var item = _log[index];
+				var item = _log[startIndex];
 				
-				try
+				string line = $"{{\"time\":{item._time},\"level\":\"{item._type}\",\"msg\":\"{Escape(item._message)}\",\"stack\":\"{Escape(item._stackTrace)}\"}}";
+				if (linesAdded && content.Length + line.Length > MAX_CHUNK_LENGTH)
 				{
-					await _semaphore.WaitAsync();
-					
-					content.Append($"{{\"time\":{item._time},\"level\":\"{item._type}\",\"msg\":\"{Escape(item._message)}\",\"stack\":\"{Escape(item._stackTrace)}\"}}");
+					break;
 				}
-				finally
+
+				if (linesAdded)
 				{
-					_semaphore.Release();
+					content.Append(",");
 				}
+				content.Append(line);
+
+				startIndex++;
+				linesAdded = true;
 			}
 
 			content.Append("]}");
 			return content.ToString();
 		}
 
-		private async void OnLogMessageReceived(string condition, string stackTrace, LogType type)
+		private static async void OnLogMessageReceived(string condition, string stackTrace, LogType type)
 		{
 			try
 			{

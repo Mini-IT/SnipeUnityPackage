@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
@@ -19,12 +18,6 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[UdpSocketWrapper] connect to {host}:{port}");
 			
-			Analytics.ConnectionUrl = $"{host}:{port}";
-			Analytics.UdpException = null;
-			Analytics.TrackSocketStartConnection("UdpSocketWrapper");
-
-			var stopwatch = Stopwatch.StartNew();
-
 			IPAddress[] addresses;
 
 			try
@@ -37,26 +30,15 @@ namespace MiniIT.Snipe
 				addresses = null;
 			}
 
-			Analytics.UdpDnsResolveTime = stopwatch.Elapsed;
-			stopwatch.Restart();
-
 			if (addresses != null && addresses.Length > 0)
 			{
-				Analytics.UdpDnsResolved = true;
-
 				_socket = await ConnectSocket(addresses, port);
 				
-				Analytics.UdpSocketConnectTime = stopwatch.Elapsed;
-
 				if (_socket != null)
 				{
 					OnConnected?.Invoke();
 					return;
 				}
-			}
-			else
-			{
-				Analytics.UdpDnsResolved = false;
 			}
 
 			OnDisconnected?.Invoke();
@@ -73,7 +55,6 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception e)
 			{
-				Analytics.UdpException = e;
 				Dispose();
 				OnDisconnected?.Invoke();
 			}
@@ -123,7 +104,6 @@ namespace MiniIT.Snipe
 				catch (Exception e)
 				{
 					socket = null;
-					Analytics.UdpException = e;
 				}
 
 				if (socket != null && socket.Connected)
