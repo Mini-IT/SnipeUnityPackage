@@ -180,11 +180,9 @@ namespace MiniIT.Snipe
 		{
 			if (CheckReady())
 			{
-				properties ??= new Dictionary<string, object>()
-				{
-					["event_type"] = name,
-					["snipe_package_version"] = PackageInfo.VERSION,
-				};
+				properties ??= new Dictionary<string, object>();
+				properties["event_type"] = name;
+				properties["snipe_package_version"] = PackageInfo.VERSION;
 
 				if (!string.IsNullOrEmpty(_contextId))
 					properties["sinpe_context"] = _contextId;
