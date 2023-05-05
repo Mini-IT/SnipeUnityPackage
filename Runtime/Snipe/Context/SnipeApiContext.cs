@@ -46,6 +46,12 @@ namespace MiniIT.Snipe
 		protected override void Initialize(string id)
 		{
 			base.Initialize(id);
+			
+			if (Api != null)
+			{
+				return;
+			}
+			
 			Communicator.ConnectionSucceeded += OnCommunicatorConnected;
 
 			Api = CreateApi();
