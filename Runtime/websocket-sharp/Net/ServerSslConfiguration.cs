@@ -63,7 +63,7 @@ namespace WebSocketSharp.Net
     /// </summary>
     public ServerSslConfiguration ()
     {
-      _enabledSslProtocols = SslProtocols.None;
+      _enabledSslProtocols = SslProtocols.Default;
     }
 
     /// <summary>
@@ -77,7 +77,7 @@ namespace WebSocketSharp.Net
     public ServerSslConfiguration (X509Certificate2 serverCertificate)
     {
       _serverCert = serverCertificate;
-      _enabledSslProtocols = SslProtocols.None;
+      _enabledSslProtocols = SslProtocols.Default;
     }
 
     /// <summary>
@@ -191,7 +191,7 @@ namespace WebSocketSharp.Net
     ///   the protocols used for authentication.
     ///   </para>
     ///   <para>
-    ///   The default value is <see cref="SslProtocols.None"/>.
+    ///   The default value is <see cref="SslProtocols.Default"/>.
     ///   </para>
     /// </value>
     public SslProtocols EnabledSslProtocols {
