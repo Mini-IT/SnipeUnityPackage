@@ -283,11 +283,11 @@ namespace MiniIT.Snipe
 
 			if (_bindings.Count > 0)
 			{
-				var tasks = new List<Task>(_bindings.Count);
+				var tasks = new List<Task>(2);
 
 				foreach (AuthBinding binding in _bindings)
 				{
-					if (binding?.Fetcher != null)
+					if (binding?.Fetcher != null && (binding is DeviceIdBinding || binding is AdvertisingIdBinding))
 					{
 						tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers));
 					}
