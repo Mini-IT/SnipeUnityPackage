@@ -427,7 +427,7 @@ namespace MiniIT.Snipe
 					}
 					catch (Exception e)
 					{
-						DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - MessageReceived invocation error: {e}");
+						DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - {message_type} - MessageReceived invocation error: {e}");
 						_analytics.TrackError("MessageReceived invocation error", e, new Dictionary<string, object>()
 						{
 							["messageType"] = message_type,
