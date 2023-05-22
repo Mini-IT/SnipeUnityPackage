@@ -99,18 +99,21 @@ namespace MiniIT.Snipe
 
 		public void Connect(string host, ushort port, int timeout = 10000, int authenticationTimeout = 0)
 		{
-			if (_socket != null)
-				return;
+			lock (_kcpLock)
+			{
+				if (_socket != null)
+					return;
 
-			_timeout = timeout;
-			_authenticationTimeout = authenticationTimeout > 0 ? authenticationTimeout : timeout;
-			
-			_state = KcpState.Disconnected;
+				_timeout = timeout;
+				_authenticationTimeout = authenticationTimeout > 0 ? authenticationTimeout : timeout;
 
-			_socket = new UdpSocketWrapper();
-			_socket.OnConnected += OnSocketConnected;
-			_socket.OnDisconnected += OnSocketDisconnected;
-			_socket.Connect(host, port);
+				_state = KcpState.Disconnected;
+
+				_socket = new UdpSocketWrapper();
+				_socket.OnConnected += OnSocketConnected;
+				_socket.OnDisconnected += OnSocketDisconnected;
+				_socket.Connect(host, port);
+			}
 		}
 
 		private void OnSocketConnected()
@@ -355,7 +358,10 @@ namespace MiniIT.Snipe
 
 		public void TickIncoming()
 		{
-			SocketReceive();
+			lock (_kcpLock)
+			{
+				SocketReceive();
+			}
 
 			if (_state == KcpState.Disconnected || _kcp == null)
 				return;
@@ -561,6 +567,7 @@ namespace MiniIT.Snipe
 						{
 							DebugLogger.LogError($"KCP ClientConnection: message of size {msgLength} does not fit into buffer of size {_socketReceiveBuffer.Length}. The excess was silently dropped. Disconnecting.");
 							Disconnect();
+							break;
 						}
 					}
 				}
@@ -587,13 +594,7 @@ namespace MiniIT.Snipe
 			{
 				case (byte)KcpChannel.Reliable:
 					// input into kcp, but skip channel byte
-					int input = 0;
-					
-					lock (_kcpLock)
-					{
-						input = _kcp.Input(buffer, 1, msgLength - 1);
-					}
-					
+					int input = _kcp.Input(buffer, 1, msgLength - 1);
 					if (input != 0)
 					{
 						DebugLogger.LogWarning($"KCP Input failed with error={input} for buffer with length={msgLength - 1}");

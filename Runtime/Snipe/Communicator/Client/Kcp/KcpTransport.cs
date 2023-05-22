@@ -27,21 +27,24 @@ namespace MiniIT.Snipe
 			_analytics = Analytics.GetInstance(config.ContextId);
 		}
 
-		public async void Connect()
+		public void Connect()
 		{
-			if (_kcpConnection != null) // already connected or trying to connect
-				return;
-
-			ConnectionEstablished = false;
-
-			_kcpConnection = new KcpConnection
+			lock (_lock)
 			{
-				OnAuthenticated = OnClientConnected,
-				OnData = OnClientDataReceived,
-				OnDisconnected = OnClientDisconnected
-			};
+				if (_kcpConnection != null) // already connected or trying to connect
+					return;
 
-			await Task.Run(() =>
+				ConnectionEstablished = false;
+
+				_kcpConnection = new KcpConnection
+				{
+					OnAuthenticated = OnClientConnected,
+					OnData = OnClientDataReceived,
+					OnDisconnected = OnClientDisconnected
+				};
+			}
+
+			Task.Run(() =>
 			{
 				lock (_lock)
 				{
