@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -23,12 +24,12 @@ namespace MiniIT.Snipe.Api
 		public abstract void SetValue(object val, SetCallback callback = null);
 	}
 
-	public class SnipeApiReadOnlyUserAttribute<AttrValueType> : SnipeApiUserAttribute
+	public class SnipeApiReadOnlyUserAttribute<TAttrValue> : SnipeApiUserAttribute
 	{
-		public delegate void ValueChangedHandler(AttrValueType oldValue, AttrValueType value);
+		public delegate void ValueChangedHandler(TAttrValue oldValue, TAttrValue value);
 		public event ValueChangedHandler ValueChanged;
 
-		protected AttrValueType _value;
+		protected TAttrValue _value;
 		protected bool _initialized;
 
 		public SnipeApiReadOnlyUserAttribute(AbstractSnipeApiService snipeApi, string key) : base(snipeApi, key)
@@ -36,23 +37,31 @@ namespace MiniIT.Snipe.Api
 			_initialized = false;
 		}
 
-		public AttrValueType GetValue()
+		public TAttrValue GetValue()
 		{
 			return _value;
 		}
 
 		public override void SetValue(object val, SetCallback callback = null)
 		{
-			AttrValueType value = (AttrValueType)Convert.ChangeType(val, typeof(AttrValueType));
+			TAttrValue value;
+			if (val == null && typeof(TAttrValue).IsValueType)
+			{
+				value = (TAttrValue)Convert.ChangeType(0, typeof(TAttrValue), CultureInfo.InvariantCulture);
+			}
+			else
+			{
+				value = (TAttrValue)Convert.ChangeType(val, typeof(TAttrValue), CultureInfo.InvariantCulture);
+			}
 			DoSetValue(value, callback);
 		}
 
-		public void SetValue(AttrValueType val, SetCallback callback = null)
+		public void SetValue(TAttrValue val, SetCallback callback = null)
 		{
 			DoSetValue(val, callback);
 		}
 
-		protected virtual void DoSetValue(AttrValueType val, SetCallback callback = null)
+		protected virtual void DoSetValue(TAttrValue val, SetCallback callback = null)
 		{
 			var oldValue = _value;
 			_value = val;
@@ -67,14 +76,14 @@ namespace MiniIT.Snipe.Api
 			_initialized = true;
 		}
 
-		protected void RaiseValueChangedEvent(AttrValueType oldValue, AttrValueType newValue)
+		protected void RaiseValueChangedEvent(TAttrValue oldValue, TAttrValue newValue)
 		{
 			ValueChanged?.Invoke(oldValue, newValue);
 		}
 
 		public override string ToString() => Convert.ToString(_value);
 
-		public static implicit operator AttrValueType(SnipeApiReadOnlyUserAttribute<AttrValueType> attr)
+		public static implicit operator TAttrValue(SnipeApiReadOnlyUserAttribute<TAttrValue> attr)
 		{
 			return attr._value;
 		}
