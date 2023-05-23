@@ -12,7 +12,7 @@ namespace MiniIT.Snipe
 		private ClientWebSocket _webSocket = null;
 		private CancellationTokenSource _cancellation;
 
-		private TaskScheduler _taskScheduler;
+		private readonly TaskScheduler _taskScheduler;
 
 		private readonly SemaphoreSlim _sendSemaphore = new SemaphoreSlim(1);
 		private readonly SemaphoreSlim _readSemaphore = new SemaphoreSlim(1);
@@ -20,7 +20,7 @@ namespace MiniIT.Snipe
 
 		private byte[] _receiveMessageBuffer;
 
-		private ConcurrentQueue<ArraySegment<byte>> _sendQueue = new ConcurrentQueue<ArraySegment<byte>>();
+		private readonly ConcurrentQueue<ArraySegment<byte>> _sendQueue = new ConcurrentQueue<ArraySegment<byte>>();
 
 		/// <summary>
 		/// <c>System.Net.WebSockets.ClientWebSocket</c> wrapper. Reads incoming messages by chunks
