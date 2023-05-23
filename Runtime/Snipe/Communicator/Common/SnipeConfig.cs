@@ -46,15 +46,6 @@ namespace MiniIT.Snipe
 
 		private TaskScheduler _mainThreadScheduler;
 
-		public enum TablesVersionsResolving
-		{
-			Default,
-			ForceBuiltIn,
-			ForceExternal,
-		}
-
-		public static TablesVersionsResolving TablesVersioning = TablesVersionsResolving.Default;
-
 		public SnipeConfig(string contextId)
 		{
 			_mainThreadScheduler = SynchronizationContext.Current != null ?
