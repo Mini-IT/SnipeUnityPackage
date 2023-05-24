@@ -102,12 +102,13 @@ namespace MiniIT.Snipe
 							s_tracker.SetUserId(_userId);
 						}
 						_userId = null;
-						
-						if (!string.IsNullOrEmpty(_debugId))
-						{
-							string prefix = string.IsNullOrEmpty(_contextId) ? "" : $"{_contextId} ";
-							s_tracker.SetUserProperty(prefix + "debugID", _debugId);
-						}
+					}
+
+					if (!string.IsNullOrEmpty(_debugId))
+					{
+						string prefix = string.IsNullOrEmpty(_contextId) ? "" : $"{_contextId} ";
+						s_tracker.SetUserProperty(prefix + "debugID", _debugId);
+						_debugId = null;
 					}
 				}
 			}
@@ -118,6 +119,7 @@ namespace MiniIT.Snipe
 		public void SetDebugId(string id)
 		{
 			_debugId = id;
+			CheckReady();
 		}
 		
 		public void SetUserId(string uid)
