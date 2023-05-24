@@ -44,7 +44,7 @@ namespace MiniIT.Snipe
 		private int _serverWebSocketUrlIndex = 0;
 		private int _serverUdpUrlIndex = 0;
 
-		private TaskScheduler _mainThreadScheduler;
+		private readonly TaskScheduler _mainThreadScheduler;
 
 		public SnipeConfig(string contextId)
 		{
