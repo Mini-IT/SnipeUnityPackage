@@ -110,7 +110,7 @@ namespace MiniIT.Snipe.Api
 					{
 						if (table == null)
 							continue;
-						if (!table.LoadingFailed)
+						if (table.LoadingFailed)
 							return true;
 					}
 					
