@@ -150,6 +150,11 @@ namespace MiniIT.Snipe
 				if (_batchMessages == null)
 					_batchMessages = new ConcurrentQueue<List<SnipeObject>>();
 				_batchMessages.Enqueue(messages);
+
+				if (_sendMessages == null)
+				{
+					StartSendTask();
+				}
 			}
 		}
 
