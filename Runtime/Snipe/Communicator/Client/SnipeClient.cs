@@ -38,7 +38,7 @@ namespace MiniIT.Snipe
 		private Stopwatch _connectionStopwatch;
 		
 		private Stopwatch _serverReactionStopwatch;
-		public TimeSpan CurrentRequestElapsed { get { return _serverReactionStopwatch?.Elapsed ?? new TimeSpan(0); } }
+		public TimeSpan CurrentRequestElapsed => _serverReactionStopwatch?.Elapsed ?? new TimeSpan(0);
 		
 		private bool _batchMode = false;
 		public bool BatchMode
