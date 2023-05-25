@@ -462,6 +462,12 @@ namespace MiniIT.Snipe
 					while (_batchedRequests.TryDequeue(out SnipeObject message))
 					{
 						messages.Add(message);
+
+						#if ZSTRING
+						DebugLogger.Log(ZString.Concat("[SnipeClient] Request batched - ", message.ToJSONString()));
+						#else
+						DebugLogger.Log($"[SnipeClient] Request batched - {message.ToJSONString()}");
+						#endif
 					}
 					DoSendBatch(messages);
 				}
