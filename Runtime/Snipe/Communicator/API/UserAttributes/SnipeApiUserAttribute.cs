@@ -1,7 +1,5 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -45,51 +43,8 @@ namespace MiniIT.Snipe.Api
 
 		public override void SetValue(object val, SetCallback callback = null)
 		{
-			TAttrValue value;
-			if (val == null)
-			{
-				if (typeof(TAttrValue).IsValueType)
-				{
-					value = (TAttrValue)Convert.ChangeType(0, typeof(TAttrValue), CultureInfo.InvariantCulture);
-				}
-				else
-				{
-					value = default;
-				}
-			}
-			else
-			{
-				Type attrValueType = typeof(TAttrValue);
-				if (attrValueType == typeof(object))
-				{
-					value = (TAttrValue)val;
-				}
-				else if (val is IEnumerable enumerable)
-				{
-					value = ConvertToList<TAttrValue>(enumerable);
-				}
-				else
-				{
-					value = (TAttrValue)Convert.ChangeType(val, attrValueType, CultureInfo.InvariantCulture);
-				}
-			}
+			TAttrValue value = TypeConverter.Convert<TAttrValue>(val);
 			DoSetValue(value, callback);
-		}
-
-		private static TList ConvertToList<TList>(IEnumerable enumerable)
-		{
-			var list = (IList)Activator.CreateInstance<TList>();
-			if (list == null)
-			{
-				return default;
-			}
-
-			foreach (var item in enumerable)
-			{
-				list.Add(item);
-			}
-
-			return (TList)list;
 		}
 
 		public void SetValue(TAttrValue val, SetCallback callback = null)
