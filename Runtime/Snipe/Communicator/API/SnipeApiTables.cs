@@ -7,13 +7,14 @@ namespace MiniIT.Snipe.Api
 {
 	public class SnipeApiTables
 	{
-		public bool Loading { get; private set; } = false;
-		
+		public bool Loading => _loadingTask?.IsCompleted ?? false;
+
 		private readonly HashSet<SnipeTable> _tables;
 		private readonly HashSet<Action> _loadMethods;
 		private readonly TablesLoader _loader;
 		private readonly object _lock = new object();
-		
+		private Task<bool> _loadingTask;
+
 		public SnipeApiTables()
 		{
 			_tables = new HashSet<SnipeTable>();
@@ -44,35 +45,50 @@ namespace MiniIT.Snipe.Api
 
 		public async Task Load(bool restart = false)
 		{
-			if (Loading)
-			{
-				if (!restart)
-					return;
+			Task<bool> task = null;
 
-				_loader.Reset();
-				
-				while (Loading)
-				{
-					await Task.Delay(100);
-				}
-			}
-			
 			lock (_lock)
 			{
-				if (_tables.Count > 0)
+				if (restart)
 				{
-					Loading = true;
-					_loader.Reset();
-					foreach (var method in _loadMethods)
-					{
-						method?.Invoke();
-					}
+					_loadingTask = null;
 				}
-			
-			}
-			await _loader.Load();
+				else if (Loaded)
+				{
+					return;
+				}
 
-			Loading = false;
+				if (_loadingTask == null)
+				{
+					if (_tables.Count > 0)
+					{
+						_loader.Reset();
+						foreach (var method in _loadMethods)
+						{
+							method?.Invoke();
+						}
+					}
+
+					_loadingTask = _loader.Load();
+				}
+
+				task = _loadingTask;
+			}
+
+			if (task == null)
+			{
+				return;
+			}
+
+			await task;
+
+			lock (_lock)
+			{
+				if (task == _loadingTask)
+				{
+					_loadingTask = null;
+				}
+			}
 		}
 
 		public bool Loaded
