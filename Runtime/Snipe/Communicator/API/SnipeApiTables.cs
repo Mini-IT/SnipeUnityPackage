@@ -52,6 +52,7 @@ namespace MiniIT.Snipe.Api
 				if (restart)
 				{
 					_loadingTask = null;
+					_loader.Reset();
 				}
 				else if (Loaded)
 				{
@@ -62,7 +63,6 @@ namespace MiniIT.Snipe.Api
 				{
 					if (_tables.Count > 0)
 					{
-						_loader.Reset();
 						foreach (var method in _loadMethods)
 						{
 							method?.Invoke();
