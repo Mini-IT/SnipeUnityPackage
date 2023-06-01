@@ -41,7 +41,6 @@ namespace MiniIT.Snipe.Tables
 
 				if (loaded)
 				{
-					//this.LoadedFrom = LoadingLocation.BuiltIn;
 					DebugLogger.Log($"[SnipeTable] Table ready (built-in) - {table_name}");
 				}
 			}

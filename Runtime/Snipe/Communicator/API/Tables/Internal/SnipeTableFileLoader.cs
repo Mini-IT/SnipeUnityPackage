@@ -20,7 +20,6 @@ namespace MiniIT.Snipe.Tables
 					if (await SnipeTableGZipParser.TryReadAsync<TItem, TWrapper>(items, read_stream))
 					{
 						loaded = true;
-						//this.LoadedFrom = LoadingLocation.Cache;
 						DebugLogger.Log($"[SnipeTable] Table ready (from cache) - {table_name}");
 					}
 					else
