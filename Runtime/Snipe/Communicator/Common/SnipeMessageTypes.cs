@@ -1,4 +1,3 @@
-using MiniIT;
 
 namespace MiniIT.Snipe
 {
@@ -10,7 +9,11 @@ namespace MiniIT.Snipe
 		public const string AUTH_REGISTER = "auth.register";
 		public const string AUTH_RESTORE = "auth.restore";
 		public const string AUTH_RESET = "auth.reset";
-		public const string AUTH_ATTR_GET = "attr.get";
+		public const string AUTH_ATTR_GET = "auth.getAttr";
+		public const string AUTH_ATTR_GET_MULTI = "auth.getAttrMulti";
+
+		public const string ATTR_GET = "attr.get";
+		public const string ATTR_GET_MULTI = "attr.getMulti";
 		
 		public const string AUTH_REGISTER_AND_LOGIN = "auth.registerAndLogin";
 		

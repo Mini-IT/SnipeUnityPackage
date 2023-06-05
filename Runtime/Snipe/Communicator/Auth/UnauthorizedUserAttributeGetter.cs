@@ -6,7 +6,7 @@ namespace MiniIT.Snipe
 	{
 		public delegate void GetUserAttributeCallback(string error_code, string user_name, string key, object value);
 		
-		private SnipeCommunicator _communicator;
+		private readonly SnipeCommunicator _communicator;
 		
 		public UnauthorizedUserAttributeGetter(SnipeCommunicator communicator)
 		{
