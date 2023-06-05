@@ -57,6 +57,22 @@ public class TestTypeConverter
 	}
 
 	[Test]
+	public void Convert_ListOfByte_ConvertsToListOfInt()
+	{
+		var val = new List<byte> { 10, 20, 30 };
+		List<int> result = TypeConverter.Convert<List<int>>(val);
+		CollectionAssert.AreEqual(val, result);
+	}
+
+	[Test]
+	public void Convert_ListOfStrings_ConvertsToListOfInt()
+	{
+		var val = new List<string> { "11", "22", "33" };
+		List<int> result = TypeConverter.Convert<List<int>>(val);
+		CollectionAssert.AreEqual(new List<int> { 11, 22, 33 }, result);
+	}
+
+	[Test]
 	public void Convert_ListOfStrings_ConvertsToList()
 	{
 		var val = new List<string> { "1", "2", "3" };

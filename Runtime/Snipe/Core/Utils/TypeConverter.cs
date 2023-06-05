@@ -45,12 +45,18 @@ namespace MiniIT
 				return default;
 			}
 
+			Type listType = typeof(TList);
+			Type targetType = listType.IsGenericType ? listType.GetGenericArguments()[0] : null;
+
 			foreach (var item in collection)
 			{
-				list.Add(item);
+				if (targetType != null)
+					list.Add(System.Convert.ChangeType(item, targetType));
+				else
+					list.Add(item);
 			}
 
 			return (TList)list;
 		}
-	}
+}
 }
