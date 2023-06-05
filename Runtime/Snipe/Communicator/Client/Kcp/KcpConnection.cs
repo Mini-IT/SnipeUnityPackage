@@ -580,6 +580,10 @@ namespace MiniIT.Snipe
 			{
 				Disconnect();
 			}
+			catch (NullReferenceException)
+			{
+				// The socket is disposed during disconnection
+			}
 		}
 
 		private void RawInput(byte[] buffer, int msgLength)
