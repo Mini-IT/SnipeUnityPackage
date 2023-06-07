@@ -55,6 +55,8 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[{nameof(TablesLoader)}] Reset");
 
+			Analytics.GetInstance().TrackError($"TablesLoader - Reset");
+
 			StopLoading();
 			
 			_versions = null;
