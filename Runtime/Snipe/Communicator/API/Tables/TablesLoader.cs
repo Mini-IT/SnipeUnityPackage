@@ -117,7 +117,7 @@ namespace MiniIT.Snipe
 			var tasks = new List<Task>(_loadingItems.Count);
 			foreach (var item in _loadingItems)
 			{
-				tasks.Add(Task.Run(() => LoadTable(item, cancellationToken)));
+				tasks.Add(Task.Run(async () => await LoadTable(item, cancellationToken)));
 			}
 
 			await Task.WhenAll(tasks);
