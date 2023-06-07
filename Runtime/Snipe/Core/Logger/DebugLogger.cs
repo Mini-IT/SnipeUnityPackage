@@ -75,7 +75,7 @@ namespace MiniIT
 			if (!IsEnabled)
 				return;
 			
-			UnityEngine.Debug.Log(ApplyStyle(message));
+			UnityEngine.Debug.LogWarning(ApplyStyle(message));
 		}
 		
 		public static void LogError(object message)
@@ -83,7 +83,7 @@ namespace MiniIT
 			if (!IsEnabled)
 				return;
 			
-			UnityEngine.Debug.Log(ApplyStyle(message));
+			UnityEngine.Debug.LogError(ApplyStyle(message));
 		}
 
 		private static string ApplyStyle(object message)
