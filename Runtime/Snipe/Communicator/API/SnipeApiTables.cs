@@ -10,7 +10,6 @@ namespace MiniIT.Snipe.Api
 		public bool Loading => _loadingTask?.IsCompleted ?? false;
 
 		private readonly HashSet<SnipeTable> _tables;
-		private readonly HashSet<Action> _loadMethods;
 		private readonly TablesLoader _loader;
 		private readonly object _lock = new object();
 		private Task<bool> _loadingTask;
@@ -18,7 +17,6 @@ namespace MiniIT.Snipe.Api
 		public SnipeApiTables()
 		{
 			_tables = new HashSet<SnipeTable>();
-			_loadMethods = new HashSet<Action>();
 			_loader = new TablesLoader();
 		}
 		
@@ -27,8 +25,10 @@ namespace MiniIT.Snipe.Api
 		{
 			lock (_lock)
 			{
-				_tables.Add(table);
-				_loadMethods.Add(() => _loader.Add(table, name));
+				if (_tables.Add(table))
+				{
+					_loader.Add(table, name);
+				}
 			}
 			return table;
 		}
@@ -58,25 +58,7 @@ namespace MiniIT.Snipe.Api
 					return;
 				}
 
-				if (_loadingTask == null)
-				{
-					if (_tables.Count > 0)
-					{
-						foreach (var method in _loadMethods)
-						{
-							method?.Invoke();
-						}
-					}
-
-					_loadingTask = _loader.Load();
-				}
-
-				task = _loadingTask;
-			}
-
-			if (task == null)
-			{
-				return;
+				task = _loadingTask ??= _loader.Load();
 			}
 
 			await task;

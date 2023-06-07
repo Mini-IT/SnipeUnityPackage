@@ -59,7 +59,6 @@ namespace MiniIT.Snipe
 			
 			_versions = null;
 			_failed = false;
-			_loadingItems?.Clear();
 		}
 
 		public void Add<TItem>(SnipeTable<TItem> table, string name)
