@@ -1,7 +1,9 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace MiniIT.Snipe.Api
 {
@@ -21,6 +23,56 @@ namespace MiniIT.Snipe.Api
 		}
 
 		public abstract void SetValue(object val, SetCallback callback = null);
+
+		public static bool AreEqual<T>(T objA, T objB)
+		{
+			if (ReferenceEquals(objA, objB))
+				return true;
+
+			if (objA == null)
+			{
+				if (objB == null)
+					return true;
+				if (objB is ICollection colB)
+					return (colB.Count == 0);
+
+				return false;
+			}
+
+			if (objB == null)
+			{
+				if (objA is ICollection colA)
+					return (colA.Count == 0);
+				return false;
+			}
+
+			if (objA.GetType() != objB.GetType())
+				return false;
+
+			if (objA is ICollection collectionA && objB is ICollection collectionB)
+			{
+				return AreCollectionsEqual(collectionA, collectionB);
+			}
+
+			return objA.Equals(objB);
+		}
+
+		private static bool AreCollectionsEqual(ICollection collectionA, ICollection collectionB)
+		{
+			if (collectionA.Count != collectionB.Count)
+				return false;
+
+			IEnumerator enumeratorA = collectionA.GetEnumerator();
+			IEnumerator enumeratorB = collectionB.GetEnumerator();
+
+			while (enumeratorA.MoveNext() && enumeratorB.MoveNext())
+			{
+				if (!AreEqual(enumeratorA.Current, enumeratorB.Current))
+					return false;
+			}
+
+			return true;
+		}
 	}
 
 	public class SnipeApiReadOnlyUserAttribute<TAttrValue> : SnipeApiUserAttribute
@@ -59,7 +111,7 @@ namespace MiniIT.Snipe.Api
 
 			callback?.Invoke("ok", _key, _value);
 
-			if (_initialized && !Equals(oldValue, _value))
+			if (_initialized && !AreEqual(oldValue, _value))
 			{
 				RaiseValueChangedEvent(oldValue, _value);
 			}
@@ -100,20 +152,20 @@ namespace MiniIT.Snipe.Api
 
 		protected override void DoSetValue(AttrValueType val, SetCallback callback = null)
 		{
-			if (Equals(val, _value))
+			if (AreEqual(val, _value))
 			{
 				callback?.Invoke("ok", _key, _value);
-				_initialized = true;
-				return;
 			}
-
-			var oldValue = _value;
-			_value = val;
-
-			if (_initialized)
+			else
 			{
-				RaiseValueChangedEvent(oldValue, _value);
-				AddSetRequest(_value, callback);
+				var oldValue = _value;
+				_value = val;
+
+				if (_initialized)
+				{
+					RaiseValueChangedEvent(oldValue, _value);
+					AddSetRequest(_value, callback);
+				}
 			}
 
 			_initialized = true;
