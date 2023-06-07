@@ -76,7 +76,7 @@ namespace MiniIT.Snipe.Tables
 					{
 						using (var file_content_stream = await response.Content.ReadAsStreamAsync())
 						{
-							await SnipeTableGZipParser.ReadAsync(wrapperType, items, file_content_stream);
+							await SnipeTableGZipReader.ReadAsync(wrapperType, items, file_content_stream);
 							loaded = true;
 						}
 

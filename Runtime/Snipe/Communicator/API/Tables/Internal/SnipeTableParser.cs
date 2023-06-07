@@ -1,59 +1,28 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
-using System.IO.Compression;
 using System.Reflection;
-using System.Threading.Tasks;
 using fastJSON;
 
 namespace MiniIT.Snipe.Tables
 {
-	public class SnipeTableGZipParser
+	public class SnipeTableParser
 	{
-		public static async Task<bool> TryReadAsync(Type wrapperType, IDictionary items, Stream stream)
-		{
-			try
-			{
-				await ReadAsync(wrapperType, items, stream);
-			}
-			catch (Exception)
-			{
-				return false;
-			}
-			return true;
-		}
-
-		public static async Task ReadAsync(Type wrapperType, IDictionary items, Stream stream)
-		{
-			using (GZipStream gzip = new GZipStream(stream, CompressionMode.Decompress))
-			{
-				using (StreamReader reader = new StreamReader(gzip))
-				{
-					string json = await reader.ReadToEndAsync();
-
-					ISnipeTableItemsListWrapper listWrapper = Parse(wrapperType, json) as ISnipeTableItemsListWrapper;
-					var list = listWrapper?.GetList();
-					if (list != null)
-					{
-						foreach (var item in list)
-						{
-							if (item is SnipeTableItem sti)
-							{
-								items[sti.id] = item;
-							}
-						}
-					}
-
-					//this.Loaded = true;
-				}
-			}
-		}
-
-		private static object Parse(Type wrapperType, string json)
+		public static void Parse(Type wrapperType, IDictionary items, string json)
 		{
 			Dictionary<string, object> jsonObject = JSON.ToObject<Dictionary<string, object>>(json);
-			return ParseInternal(wrapperType, jsonObject);
+			ISnipeTableItemsListWrapper listWrapper = ParseInternal(wrapperType, jsonObject) as ISnipeTableItemsListWrapper;
+			var list = listWrapper?.GetList();
+			if (list != null)
+			{
+				foreach (var item in list)
+				{
+					if (item is SnipeTableItem sti)
+					{
+						items[sti.id] = item;
+					}
+				}
+			}
 		}
 
 		private static object ParseInternal(Type type, Dictionary<string, object> jsonObject)

@@ -28,7 +28,7 @@ namespace MiniIT.Snipe.Tables
 				{
 					try
 					{
-						await SnipeTableGZipParser.ReadAsync(wrapperType, items, read_stream);
+						await SnipeTableGZipReader.ReadAsync(wrapperType, items, read_stream);
 						loaded = true;
 					}
 					catch (Exception e)

@@ -16,7 +16,7 @@ namespace MiniIT.Snipe.Tables
 			{
 				using (var read_stream = new FileStream(file_path, FileMode.Open))
 				{
-					if (await SnipeTableGZipParser.TryReadAsync(wrapperType, items, read_stream))
+					if (await SnipeTableGZipReader.TryReadAsync(wrapperType, items, read_stream))
 					{
 						loaded = true;
 						DebugLogger.Log($"[SnipeTable] Table ready (from cache) - {table_name}");
