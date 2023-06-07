@@ -55,7 +55,7 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[{nameof(TablesLoader)}] Reset");
 
-			Analytics.GetInstance().TrackError($"TablesLoader - Reset");
+			Analytics.GetInstance().TrackEvent($"TablesLoader - Reset");
 
 			StopLoading();
 			
@@ -91,6 +91,8 @@ namespace MiniIT.Snipe
 				_versions = null;
 				loaded = await LoadAll(false);
 			}
+			
+			Analytics.GetInstance().TrackEvent($"TablesLoader - " + (loaded ? "Loaded" : "Failed"));
 
 			return loaded;
 		}
