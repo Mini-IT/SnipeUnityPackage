@@ -1,21 +1,21 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Reflection;
 using System.Threading.Tasks;
+using fastJSON;
 
 namespace MiniIT.Snipe.Tables
 {
 	public class SnipeTableGZipParser
 	{
-		public static async Task<bool> TryReadAsync<TItem, TWrapper>(Dictionary<int, TItem> items, Stream stream)
-			where TItem : SnipeTableItem, new()
-			where TWrapper : class, ISnipeTableItemsListWrapper<TItem>, new()
-
+		public static async Task<bool> TryReadAsync(Type wrapperType, IDictionary items, Stream stream)
 		{
 			try
 			{
-				await ReadAsync<TItem, TWrapper>(items, stream);
+				await ReadAsync(wrapperType, items, stream);
 			}
 			catch (Exception)
 			{
@@ -24,9 +24,7 @@ namespace MiniIT.Snipe.Tables
 			return true;
 		}
 
-		public static async Task ReadAsync<TItem, TWrapper>(Dictionary<int, TItem> items, Stream stream)
-			where TItem : SnipeTableItem, new()
-			where TWrapper : class, ISnipeTableItemsListWrapper<TItem>, new()
+		public static async Task ReadAsync(Type wrapperType, IDictionary items, Stream stream)
 		{
 			using (GZipStream gzip = new GZipStream(stream, CompressionMode.Decompress))
 			{
@@ -34,34 +32,16 @@ namespace MiniIT.Snipe.Tables
 				{
 					string json = await reader.ReadToEndAsync();
 
-					TWrapper listWrapper = default;
-					var wrapperType = typeof(TWrapper);
-
-					if (wrapperType == typeof(SnipeTableLogicItemsWrapper))
+					ISnipeTableItemsListWrapper listWrapper = Parse(wrapperType, json) as ISnipeTableItemsListWrapper;
+					var list = listWrapper?.GetList();
+					if (list != null)
 					{
-						DebugLogger.Log("[SnipeTable] SnipeTableLogicItemsWrapper");
-
-						listWrapper = ParseListWrapper(json, SnipeTableLogicItemsWrapper.FromTableData) as TWrapper;
-					}
-					else if (wrapperType == typeof(SnipeTableCalendarItemsWrapper))
-					{
-						DebugLogger.Log("[SnipeTable] SnipeTableCalendarItemsWrapper");
-
-						listWrapper = ParseListWrapper(json, SnipeTableCalendarItemsWrapper.FromTableData) as TWrapper;
-					}
-					else
-					{
-						//lock (_parseJSONLock)
+						foreach (var item in list)
 						{
-							listWrapper = fastJSON.JSON.ToObject<TWrapper>(json);
-						}
-					}
-
-					if (listWrapper?.list != null)
-					{
-						foreach (TItem item in listWrapper.list)
-						{
-							items[item.id] = item;
+							if (item is SnipeTableItem sti)
+							{
+								items[sti.id] = item;
+							}
 						}
 					}
 
@@ -70,22 +50,81 @@ namespace MiniIT.Snipe.Tables
 			}
 		}
 
-		private static ISnipeTableItemsListWrapper ParseListWrapper(string json, Func<Dictionary<string, object>, ISnipeTableItemsListWrapper> parser)
+		private static object Parse(Type wrapperType, string json)
 		{
-			Dictionary<string, object> parsedData = null;
-			//lock (_parseJSONLock)
+			Dictionary<string, object> jsonObject = JSON.ToObject<Dictionary<string, object>>(json);
+			return ParseInternal(wrapperType, jsonObject);
+		}
+
+		private static object ParseInternal(Type type, Dictionary<string, object> jsonObject)
+		{
+			object instance = Activator.CreateInstance(type);
+
+			foreach (var kvp in jsonObject)
 			{
-				parsedData = SnipeObject.FromJSONString(json);
+				PropertyInfo property = type.GetProperty(kvp.Key);
+				if (property != null)
+				{
+					Type propertyType = property.PropertyType;
+					object parsedValue = ParseValue(kvp.Value, propertyType);
+					property.SetValue(instance, parsedValue);
+				}
+				else
+				{
+					FieldInfo field = type.GetField(kvp.Key);
+					if (field != null)
+					{
+						object parsedValue = ParseValue(kvp.Value, field.FieldType);
+						field.SetValue(instance, parsedValue);
+					}
+				}
 			}
 
-			var list_wrapper = parser.Invoke(parsedData);
+			return instance;
+		}
 
-			if (list_wrapper == null)
+		private static object ParseValue(object value, Type targetType)
+		{
+			if (value.GetType() == targetType)
 			{
-				DebugLogger.Log("[SnipeTable] parsed_data is null");
+				return value;
+			}
+			else if (value is Dictionary<string, object> nestedObj)
+			{
+				return ParseInternal(targetType, nestedObj);
+			}
+			else if (value is IList<object> itemList)
+			{
+				if (targetType.IsGenericType)
+				{
+					Type elementType = targetType.GetGenericArguments()[0];
+					IList list = (IList)Activator.CreateInstance(targetType);
+					foreach (var item in itemList)
+					{
+						if (item is Dictionary<string, object> nestedItemObj)
+						{
+							object nestedInstance = ParseInternal(elementType, nestedItemObj);
+							list.Add(nestedInstance);
+						}
+					}
+					return list;
+				}
+				else if (targetType.IsArray)
+				{
+					var elementType = targetType.GetElementType();
+					var array = Array.CreateInstance(elementType, itemList.Count);
+
+					for (int i = 0; i < itemList.Count; i++)
+					{
+						array.SetValue(Convert.ChangeType(itemList[i], elementType), i);
+					}
+
+					return array;
+				}
+				// else // ????
 			}
 
-			return list_wrapper;
+			return Convert.ChangeType(value, targetType);
 		}
 	}
 }

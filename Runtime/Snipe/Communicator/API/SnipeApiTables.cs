@@ -22,14 +22,13 @@ namespace MiniIT.Snipe.Api
 			_loader = new TablesLoader();
 		}
 		
-		public SnipeTable<ItemType> RegisterTable<ItemType, WrapperType>(SnipeTable<ItemType> table, string name)
-			where WrapperType : class, ISnipeTableItemsListWrapper<ItemType>, new()
+		public SnipeTable<ItemType> RegisterTable<ItemType>(SnipeTable<ItemType> table, string name)
 			where ItemType : SnipeTableItem, new()
 		{
 			lock (_lock)
 			{
 				_tables.Add(table);
-				_loadMethods.Add(() => _loader.Add<ItemType, WrapperType>(table, name));
+				_loadMethods.Add(() => _loader.Add(table, name));
 			}
 			return table;
 		}

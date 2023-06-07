@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 
 namespace MiniIT.Snipe
 {
@@ -9,10 +10,12 @@ namespace MiniIT.Snipe
 
 	public interface ISnipeTableItemsListWrapper
 	{
+		IList GetList();
 	}
 
-	public interface ISnipeTableItemsListWrapper<ItemType> : ISnipeTableItemsListWrapper
+	public class SnipeTableItemsListWrapper<TItem> : ISnipeTableItemsListWrapper
 	{
-		List<ItemType> list { get; set; }
+		public virtual List<TItem> list { get; set; }
+		public IList GetList() => list;
 	}
 }

@@ -18,7 +18,7 @@ namespace MiniIT.Snipe
 		private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(MAX_LOADERS_COUNT);
 		private bool _failed = false;
 
-		private List<Func<CancellationToken, Task>> _loadingTasks;
+		private HashSet<TablesLoaderItem> _loadingItems; 
 		private readonly TablesVersionsLoader _versionsLoader;
 
 		private HttpClient _httpClient;
@@ -59,18 +59,14 @@ namespace MiniIT.Snipe
 			
 			_versions = null;
 			_failed = false;
-			_loadingTasks?.Clear();
+			_loadingItems?.Clear();
 		}
 
-		public void Add<TItem, TWrapper>(SnipeTable<TItem> table, string name)
-			where TWrapper : class, ISnipeTableItemsListWrapper<TItem>, new()
+		public void Add<TItem>(SnipeTable<TItem> table, string name)
 			where TItem : SnipeTableItem, new()
 		{
-			_loadingTasks ??= new List<Func<CancellationToken, Task>>();
-			_loadingTasks.Add((CancellationToken cancellationToken) =>
-			{
-				return LoadTable<TItem, TWrapper>(table, name, cancellationToken);
-			});
+			_loadingItems ??= new HashSet<TablesLoaderItem>();
+			_loadingItems.Add(new TablesLoaderItem(typeof(SnipeTableItemsListWrapper<TItem>), table, name));
 		}
 
 		public async Task<bool> Load()
@@ -102,7 +98,7 @@ namespace MiniIT.Snipe
 		{
 			StopLoading();
 
-			if (_loadingTasks == null || _loadingTasks.Count == 0)
+			if (_loadingItems == null || _loadingItems.Count == 0)
 				return true;
 
 			_cancellation = new CancellationTokenSource();
@@ -112,15 +108,15 @@ namespace MiniIT.Snipe
 			{
 				_versions = await _versionsLoader.Load(cancellationToken);
 
-				if (cancellationToken.IsCancellationRequested || _loadingTasks == null)
+				if (cancellationToken.IsCancellationRequested || _loadingItems == null)
 					return false;
 			}
 
 			_failed = false;
-			var tasks = new List<Task>(_loadingTasks.Count);
-			foreach (var task in _loadingTasks)
+			var tasks = new List<Task>(_loadingItems.Count);
+			foreach (var item in _loadingItems)
 			{
-				tasks.Add(Task.Run(() => task.Invoke(cancellationToken)));
+				tasks.Add(Task.Run(() => LoadTable(item, cancellationToken)));
 			}
 
 			await Task.WhenAll(tasks);
@@ -130,9 +126,7 @@ namespace MiniIT.Snipe
 			return !_failed;
 		}
 
-		private async Task LoadTable<TItem, TWrapper>(SnipeTable<TItem> table, string name, CancellationToken cancellationToken)
-			where TItem : SnipeTableItem, new()
-			where TWrapper : class, ISnipeTableItemsListWrapper<TItem>, new()
+		private async Task LoadTable(TablesLoaderItem loaderItem, CancellationToken cancellationToken)
 		{
 			bool loaded = false;
 			bool cancelled = false;
@@ -145,8 +139,8 @@ namespace MiniIT.Snipe
 				if (!cancellationToken.IsCancellationRequested)
 				{
 					long version = 0;
-					_versions?.TryGetValue(name, out version);
-					loaded = await LoadTableAsync<TItem, TWrapper>(table, name, version, cancellationToken);
+					_versions?.TryGetValue(loaderItem.Name, out version);
+					loaded = await LoadTableAsync(loaderItem, version, cancellationToken);
 				}
 			}
 			catch (OperationCanceledException)
@@ -156,7 +150,7 @@ namespace MiniIT.Snipe
 			catch (Exception e)
 			{
 				exception = e;
-				DebugLogger.Log($"[{nameof(TablesLoader)}] Load {name} - Exception: {e}");
+				DebugLogger.Log($"[{nameof(TablesLoader)}] Load {loaderItem.Name} - Exception: {e}");
 			}
 			finally
 			{
@@ -166,55 +160,52 @@ namespace MiniIT.Snipe
 			if (!loaded && !_failed)
 			{
 				_failed = true;
-				DebugLogger.LogWarning($"[{nameof(TablesLoader)}] Loading failed: {name}. StopLoading.");
+				DebugLogger.LogWarning($"[{nameof(TablesLoader)}] Loading failed: {loaderItem.Name}. StopLoading.");
 
 				if (!cancelled)
 				{
-					Analytics.GetInstance().TrackError($"Tables - Failed to load table '{name}'", exception);
+					Analytics.GetInstance().TrackError($"Tables - Failed to load table '{loaderItem.Name}'", exception);
 				}
 
 				StopLoading();
 			}
 		}
 
-		private async Task<bool> LoadTableAsync<TItem, TWrapper>(SnipeTable<TItem> table, string table_name, long version, CancellationToken cancellation)
-			where TItem : SnipeTableItem, new()
-			where TWrapper : class, ISnipeTableItemsListWrapper<TItem>, new()
+		private async Task<bool> LoadTableAsync(TablesLoaderItem loaderItem, long version, CancellationToken cancellation)
 		{
 			if (cancellation.IsCancellationRequested)
 			{
-				DebugLogger.Log($"[SnipeTable] Failed to load table - {table_name}   (task canceled)");
+				DebugLogger.Log($"[SnipeTable] Failed to load table - {loaderItem.Name}   (task canceled)");
 				return false;
 			}
 
-			DebugLogger.Log($"[SnipeTable] LoadTask start - {table_name}");
+			DebugLogger.Log($"[SnipeTable] LoadTask start - {loaderItem.Name}");
 
 			// Try to load from cache
-			if (await LoadTableAsync(table,
+			if (await LoadTableAsync(loaderItem.Table,
 				SnipeTable.LoadingLocation.Cache,
-				SnipeTableFileLoader.LoadAsync<TItem, TWrapper>(table._items, table_name, version)))
+				SnipeTableFileLoader.LoadAsync(loaderItem.WrapperType, loaderItem.Table.GetItems(), loaderItem.Name, version)))
 			{
 				return true;
 			}
 
 			// If loading from cache failed
 			// try to load a built-in file
-			if (await LoadTableAsync(table,
+			if (await LoadTableAsync(loaderItem.Table,
 				SnipeTable.LoadingLocation.BuiltIn,
-				SnipeTableStreamingAssetsLoader.LoadAsync<TItem, TWrapper>(table._items, table_name, version)))
+				SnipeTableStreamingAssetsLoader.LoadAsync(loaderItem.WrapperType, loaderItem.Table.GetItems(), loaderItem.Name, version)))
 			{
 				return true;
 			}
 
 			// If loading from cache failed
 			// try loading from web
-			return await LoadTableAsync(table,
+			return await LoadTableAsync(loaderItem.Table,
 				SnipeTable.LoadingLocation.Network,
-				new SnipeTableWebLoader(_httpClient).LoadAsync<TItem, TWrapper>(table._items, table_name, version, cancellation));
+				new SnipeTableWebLoader(_httpClient).LoadAsync(loaderItem.WrapperType, loaderItem.Table.GetItems(), loaderItem.Name, version, cancellation));
 		}
 
-		private async Task<bool> LoadTableAsync<TItem>(SnipeTable<TItem> table, SnipeTable.LoadingLocation loadingLocation, Task<bool> task)
-			where TItem : SnipeTableItem, new()
+		private async Task<bool> LoadTableAsync(SnipeTable table, SnipeTable.LoadingLocation loadingLocation, Task<bool> task)
 		{
 			bool loaded = await task;
 			if (loaded)

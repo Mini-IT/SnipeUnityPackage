@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using System.Collections;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -7,9 +7,7 @@ namespace MiniIT.Snipe.Tables
 {
 	public static class SnipeTableStreamingAssetsLoader
 	{
-		public static async Task<bool> LoadAsync<TItem, TWrapper>(Dictionary<int, TItem> items, string table_name, long version)
-			where TItem : SnipeTableItem, new()
-			where TWrapper : class, ISnipeTableItemsListWrapper<TItem>, new()
+		public static async Task<bool> LoadAsync(Type wrapperType, IDictionary items, string table_name, long version)
 		{
 			DebugLogger.Log($"[SnipeTable] ReadFromStramingAssets - {table_name}");
 
@@ -30,7 +28,7 @@ namespace MiniIT.Snipe.Tables
 				{
 					try
 					{
-						await SnipeTableGZipParser.ReadAsync<TItem, TWrapper>(items, read_stream);
+						await SnipeTableGZipParser.ReadAsync(wrapperType, items, read_stream);
 						loaded = true;
 					}
 					catch (Exception e)

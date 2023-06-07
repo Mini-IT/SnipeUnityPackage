@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using System.Collections;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,9 +15,7 @@ namespace MiniIT.Snipe.Tables
 			_httpClient = httpClient;
 		}
 		
-		public async Task<bool> LoadAsync<TItem, TWrapper>(Dictionary<int, TItem> items, string table_name, long version, CancellationToken cancellation)
-			where TItem : SnipeTableItem, new()
-			where TWrapper : class, ISnipeTableItemsListWrapper<TItem>, new()
+		public async Task<bool> LoadAsync(Type wrapperType, IDictionary items, string table_name, long version, CancellationToken cancellation)
 		{
 			bool loaded = false;
 			
@@ -78,7 +76,7 @@ namespace MiniIT.Snipe.Tables
 					{
 						using (var file_content_stream = await response.Content.ReadAsStreamAsync())
 						{
-							await SnipeTableGZipParser.ReadAsync<TItem, TWrapper>(items, file_content_stream);
+							await SnipeTableGZipParser.ReadAsync(wrapperType, items, file_content_stream);
 							loaded = true;
 						}
 

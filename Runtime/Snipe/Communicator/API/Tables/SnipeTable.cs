@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeTable
+	public abstract class SnipeTable
 	{
 		public enum LoadingLocation
 		{
@@ -16,6 +16,8 @@ namespace MiniIT.Snipe
 		public bool Loaded { get; internal set; } = false;
 		public bool LoadingFailed { get; internal set; } = false;
 		public LoadingLocation LoadedFrom { get; internal set; } = LoadingLocation.Network;
+
+		abstract internal IDictionary GetItems();
 	}
 
 	public class SnipeTable<TItem> : SnipeTable, IReadOnlyDictionary<int, TItem>
@@ -23,6 +25,8 @@ namespace MiniIT.Snipe
 	{
 		internal readonly Dictionary<int, TItem> _items = new Dictionary<int, TItem>();
 		public IReadOnlyDictionary<int, TItem> Items => _items;
+
+		internal override IDictionary GetItems() => _items;
 
 		public TItem this[int id]
 		{

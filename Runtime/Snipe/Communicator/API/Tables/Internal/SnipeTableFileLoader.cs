@@ -1,4 +1,5 @@
-using System.Collections.Generic;
+using System;
+using System.Collections;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -6,9 +7,7 @@ namespace MiniIT.Snipe.Tables
 {
 	public static class SnipeTableFileLoader
 	{
-		public static async Task<bool> LoadAsync<TItem, TWrapper>(Dictionary<int, TItem> items, string table_name, long version)
-			where TItem : SnipeTableItem, new()
-			where TWrapper : class, ISnipeTableItemsListWrapper<TItem>, new()
+		public static async Task<bool> LoadAsync(Type wrapperType, IDictionary items, string table_name, long version)
 		{
 			bool loaded = false;
 			string file_path = GetFilePath(table_name, version);
@@ -17,7 +16,7 @@ namespace MiniIT.Snipe.Tables
 			{
 				using (var read_stream = new FileStream(file_path, FileMode.Open))
 				{
-					if (await SnipeTableGZipParser.TryReadAsync<TItem, TWrapper>(items, read_stream))
+					if (await SnipeTableGZipParser.TryReadAsync(wrapperType, items, read_stream))
 					{
 						loaded = true;
 						DebugLogger.Log($"[SnipeTable] Table ready (from cache) - {table_name}");
