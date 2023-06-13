@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
@@ -10,18 +11,9 @@ namespace MiniIT.Snipe.Tables
 {
 	public class TablesVersionsLoader
 	{
-		private readonly HttpClient _httpClient;
-
-		public TablesVersionsLoader(HttpClient httpClient)
-		{
-			_httpClient = httpClient;
-		}
-
 		public async Task<Dictionary<string, long>> Load(CancellationToken cancellationToken)
 		{
 			Dictionary<string, long> versions = null;
-
-			_httpClient.Timeout = TimeSpan.FromSeconds(1);
 
 			for (int retries_count = 0; retries_count < 3; retries_count++)
 			{
@@ -31,46 +23,53 @@ namespace MiniIT.Snipe.Tables
 				
 				try
 				{
-					var load_task = _httpClient.GetAsync(url); // , cancellationToken);
-					if (await Task.WhenAny(load_task, Task.Delay(1000, cancellationToken)) == load_task)
+					var webRequest = WebRequest.Create(new Uri(url));
+					var loadTask = webRequest.GetResponseAsync();
+					if (await Task.WhenAny(loadTask, Task.Delay(1000, cancellationToken)) == loadTask)
 					{
-						HttpResponseMessage response = load_task.Result;
-						string json = await response.Content.ReadAsStringAsync();
-
-						if (!string.IsNullOrEmpty(json))
+						using (HttpWebResponse response = (HttpWebResponse)loadTask.Result)
 						{
-							versions = ParseVersionsJson(json);
-
-							if (versions == null)
+							string json = null;
+							using (var reader = new StreamReader(response.GetResponseStream()))
 							{
-								Analytics.GetInstance().TrackEvent("Tables - LoadVersion Failed to prase versions json", new SnipeObject()
+								json = reader.ReadToEnd();
+							}
+
+							if (!string.IsNullOrEmpty(json))
+							{
+								versions = ParseVersionsJson(json);
+
+								if (versions == null)
 								{
-									["url"] = url,
-									["json"] = json,
-								});
+									Analytics.GetInstance().TrackEvent("Tables - LoadVersion Failed to prase versions json", new SnipeObject()
+									{
+										["url"] = url,
+										["json"] = json,
+									});
+								}
+								else
+								{
+									DebugLogger.Log($"[{nameof(TablesVersionsLoader)}] LoadVersion done - {versions.Count} items");
+								}
+
+								break;
 							}
 							else
 							{
-								DebugLogger.Log($"[{nameof(TablesVersionsLoader)}] LoadVersion done - {versions.Count} items");
-							}
-								
-							break;
-						}
-						else
-						{
-							Analytics.GetInstance().TrackEvent("Tables - LoadVersion Failed to load url", new SnipeObject()
-							{
-								["HttpStatus"] = response.StatusCode,
-								["HttpStatusCode"] = (int)response.StatusCode,
-								["url"] = url,
-							});
+								Analytics.GetInstance().TrackEvent("Tables - LoadVersion Failed to load url", new SnipeObject()
+								{
+									["HttpStatus"] = response.StatusCode,
+									["HttpStatusCode"] = (int)response.StatusCode,
+									["url"] = url,
+								});
 
-							if (response.StatusCode == HttpStatusCode.NotFound)
-							{
-								// HTTP Status: 404
-								// It is useless to retry loading
-								DebugLogger.Log($"[{nameof(TablesVersionsLoader)}] LoadVersion StatusCode = {response.StatusCode} - will not rety");
-								break;
+								if (response.StatusCode == HttpStatusCode.NotFound)
+								{
+									// HTTP Status: 404
+									// It is useless to retry loading
+									DebugLogger.Log($"[{nameof(TablesVersionsLoader)}] LoadVersion StatusCode = {response.StatusCode} - will not rety");
+									break;
+								}
 							}
 						}
 					}

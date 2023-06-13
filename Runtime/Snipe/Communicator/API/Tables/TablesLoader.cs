@@ -1,14 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using MiniIT.Snipe.Tables;
 
 namespace MiniIT.Snipe
 {
-	public class TablesLoader : IDisposable
+	public class TablesLoader
 	{
 		private const int MAX_LOADERS_COUNT = 4;
 
@@ -21,24 +20,10 @@ namespace MiniIT.Snipe
 		private HashSet<TablesLoaderItem> _loadingItems; 
 		private readonly TablesVersionsLoader _versionsLoader;
 
-		private HttpClient _httpClient;
-
 		public TablesLoader()
 		{
 			BetterStreamingAssets.Initialize();
-			_httpClient = new HttpClient();
-			_versionsLoader = new TablesVersionsLoader(_httpClient);
-		}
-
-		~TablesLoader()
-		{
-			Dispose();
-		}
-
-		public void Dispose()
-		{
-			_httpClient?.Dispose();
-			_httpClient = null;
+			_versionsLoader = new TablesVersionsLoader();
 		}
 
 		internal static string GetCacheDirectoryPath()
@@ -119,7 +104,7 @@ namespace MiniIT.Snipe
 			var tasks = new List<Task>(_loadingItems.Count);
 			foreach (var item in _loadingItems)
 			{
-				tasks.Add(Task.Run(async () => await LoadTable(item, cancellationToken)));
+				tasks.Add(LoadTable(item, cancellationToken));
 			}
 
 			await Task.WhenAll(tasks);
@@ -205,7 +190,7 @@ namespace MiniIT.Snipe
 			// try loading from web
 			return await LoadTableAsync(loaderItem.Table,
 				SnipeTable.LoadingLocation.Network,
-				new SnipeTableWebLoader(_httpClient).LoadAsync(loaderItem.WrapperType, loaderItem.Table.GetItems(), loaderItem.Name, version, cancellation));
+				new SnipeTableWebLoader().LoadAsync(loaderItem.WrapperType, loaderItem.Table.GetItems(), loaderItem.Name, version, cancellation));
 		}
 
 		private async Task<bool> LoadTableAsync(SnipeTable table, SnipeTable.LoadingLocation loadingLocation, Task<bool> task)

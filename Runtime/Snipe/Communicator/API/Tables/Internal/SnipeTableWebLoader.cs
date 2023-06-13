@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,18 +9,11 @@ namespace MiniIT.Snipe.Tables
 {
 	public class SnipeTableWebLoader
 	{
-		private readonly HttpClient _httpClient;
-		
-		public SnipeTableWebLoader(HttpClient httpClient)
-		{
-			_httpClient = httpClient;
-		}
-		
-		public async Task<bool> LoadAsync(Type wrapperType, IDictionary items, string table_name, long version, CancellationToken cancellation)
+		public async Task<bool> LoadAsync(Type wrapperType, IDictionary items, string tableName, long version, CancellationToken cancellation)
 		{
 			bool loaded = false;
 			
-			string url = GetTableUrl(table_name, version);
+			string url = GetTableUrl(tableName, version);
 			DebugLogger.Log("[SnipeTable] Loading table " + url);
 
 			int retry = 0;
@@ -27,74 +21,80 @@ namespace MiniIT.Snipe.Tables
 			{
 				if (cancellation.IsCancellationRequested)
 				{
-					DebugLogger.Log($"[SnipeTable] Failed to load table - {table_name}   (task canceled)");
+					DebugLogger.Log($"[SnipeTable] Failed to load table - {tableName}   (task canceled)");
 					return false;
 				}
 
 				if (retry > 0)
 				{
 					await Task.Delay(100, cancellation);
-					DebugLogger.Log($"[SnipeTable] Retry #{retry} to load table - {table_name}");
+					DebugLogger.Log($"[SnipeTable] Retry #{retry} to load table - {tableName}");
 				}
 
 				retry++;
-				HttpResponseMessage response = null;
+				HttpWebResponse response = null;
 
 				try
 				{
-					var loader_task = _httpClient.GetAsync(url, cancellation);
-					Task finished_task = await Task.WhenAny(loader_task, Task.Delay(3000, cancellation));
+					var webRequest = WebRequest.Create(new Uri(url));
+					var loadTask = webRequest.GetResponseAsync();
+					Task finished_task = await Task.WhenAny(loadTask, Task.Delay(3000, cancellation));
 
 					if (cancellation.IsCancellationRequested)
 					{
-						DebugLogger.Log($"[SnipeTable] Failed to load table - {table_name}   (task canceled)");
+						DebugLogger.Log($"[SnipeTable] Failed to load table - {tableName}   (task canceled)");
 						return false;
 					}
 
-					if (finished_task != loader_task)
+					if (finished_task != loadTask)
 					{
-						DebugLogger.Log($"[SnipeTable] Failed to load table - {table_name}   (timeout)");
+						DebugLogger.Log($"[SnipeTable] Failed to load table - {tableName}   (timeout)");
 						return false;
 					}
 
-					if (loader_task.IsFaulted || loader_task.IsCanceled || loader_task.Result == null || !loader_task.Result.IsSuccessStatusCode)
+					if (loadTask.IsFaulted || loadTask.IsCanceled)
 					{
-						DebugLogger.Log($"[SnipeTable] Failed to load table - {table_name}   (loader failed)");
+						DebugLogger.Log($"[SnipeTable] Failed to load table - {tableName}   (loader failed)");
 						continue;
 					}
 
-					response = loader_task.Result;
+					response = (HttpWebResponse)loadTask.Result;
+
+					if (response == null || !new HttpResponseMessage(response.StatusCode).IsSuccessStatusCode)
+					{
+						DebugLogger.Log($"[SnipeTable] Failed to load table - {tableName}   (loader failed)");
+						response.Dispose();
+						continue;
+					}
 				}
 				catch (Exception e)
 				{
-					DebugLogger.Log($"[SnipeTable] Failed to load table - {table_name} - {e}");
+					DebugLogger.Log($"[SnipeTable] Failed to load table - {tableName} - {e}");
 				}
 
 				if (response != null)
 				{
 					try
 					{
-						using (var file_content_stream = await response.Content.ReadAsStreamAsync())
+						using (var contentStream = response.GetResponseStream())
 						{
-							await SnipeTableGZipReader.ReadAsync(wrapperType, items, file_content_stream);
+							await SnipeTableGZipReader.ReadAsync(wrapperType, items, contentStream);
 							loaded = true;
-						}
 
-						if (loaded && version > 0)
-						{
-							DebugLogger.Log("[SnipeTable] Table ready - " + table_name);
-
-							// "using" block in ReadGZip closes the stream. We need to open it again
-							using (var file_content_stream = await response.Content.ReadAsStreamAsync())
+							if (version > 0)
 							{
-								SnipeTableSaver.SaveToCache(file_content_stream, table_name, version);
+								DebugLogger.Log("[SnipeTable] Table ready - " + tableName);
+
+								SnipeTableSaver.SaveToCache(contentStream, tableName, version);
 							}
 						}
 					}
 					catch (Exception e)
 					{
-						DebugLogger.Log($"[SnipeTable] Failed to parse table - {table_name} - {e}");
+						DebugLogger.Log($"[SnipeTable] Failed to parse table - {tableName} - {e}");
 					}
+
+					response.Dispose();
 				}
 			}
 
