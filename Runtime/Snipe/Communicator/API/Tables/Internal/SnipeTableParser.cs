@@ -54,7 +54,7 @@ namespace MiniIT.Snipe.Tables
 
 		private static object ParseValue(object value, Type targetType)
 		{
-			if (value.GetType() == targetType)
+			if (value.GetType() == targetType || targetType == typeof(object))
 			{
 				return value;
 			}
