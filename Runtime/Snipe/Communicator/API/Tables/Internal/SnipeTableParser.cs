@@ -11,7 +11,19 @@ namespace MiniIT.Snipe.Tables
 		public static void Parse(Type wrapperType, IDictionary items, string json)
 		{
 			Dictionary<string, object> jsonObject = JSON.ToObject<Dictionary<string, object>>(json);
-			ISnipeTableItemsListWrapper listWrapper = ParseInternal(wrapperType, jsonObject) as ISnipeTableItemsListWrapper;
+			ISnipeTableItemsListWrapper listWrapper;
+			if (wrapperType == typeof(SnipeTableItemsListWrapper<SnipeTableLogicItem>))
+			{
+				listWrapper = SnipeTableLogicItemsWrapper.FromTableData(jsonObject);
+			}
+			else if (wrapperType == typeof(SnipeTableItemsListWrapper<SnipeTableCalendarItem>))
+			{
+				listWrapper = SnipeTableCalendarItemsWrapper.FromTableData(jsonObject);
+			}
+			else
+			{
+				listWrapper = ParseInternal(wrapperType, jsonObject) as ISnipeTableItemsListWrapper;
+			}
 			var list = listWrapper?.GetList();
 			if (list != null)
 			{

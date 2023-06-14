@@ -15,7 +15,7 @@ namespace MiniIT.Snipe
 
 	public class SnipeTableItemsListWrapper<TItem> : ISnipeTableItemsListWrapper
 	{
-		public virtual List<TItem> list { get; set; }
+		public List<TItem> list { get; set; }
 		public IList GetList() => list;
 	}
 }
