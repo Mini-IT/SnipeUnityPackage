@@ -28,14 +28,18 @@ namespace MiniIT.Snipe.Tables
 
 					using (FileStream cache_write_stream = new FileStream(cache_path, FileMode.Create, FileAccess.Write))
 					{
-						stream.Position = 0;
 						await stream.CopyToAsync(cache_write_stream).ConfigureAwait(false);
 					}
 				}
 			}
 			catch (Exception e)
 			{
-				DebugLogger.Log("[SnipeTable] Failed to save to cache - " + table_name + " - " + e.Message);
+				DebugLogger.Log($"[SnipeTable] Failed to save to cache - {table_name} - {e}");
+
+				if (File.Exists(cache_path))
+				{
+					File.Delete(cache_path);
+				}
 			}
 		}
 	}
