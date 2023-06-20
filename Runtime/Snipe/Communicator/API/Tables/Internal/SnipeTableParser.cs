@@ -66,11 +66,7 @@ namespace MiniIT.Snipe.Tables
 
 		private static object ParseValue(object value, Type targetType)
 		{
-			if (value.GetType() == targetType || targetType == typeof(object))
-			{
-				return value;
-			}
-			else if (value is Dictionary<string, object> nestedObj)
+			if (value is Dictionary<string, object> nestedObj)
 			{
 				return ParseInternal(targetType, nestedObj);
 			}
@@ -86,6 +82,10 @@ namespace MiniIT.Snipe.Tables
 						{
 							object nestedInstance = ParseInternal(elementType, nestedItemObj);
 							list.Add(nestedInstance);
+						}
+						else
+						{
+							list.Add(ParseValue(item, elementType));
 						}
 					}
 					return list;
@@ -103,6 +103,10 @@ namespace MiniIT.Snipe.Tables
 					return array;
 				}
 				// else // ????
+			}
+			else if (value.GetType() == targetType || targetType == typeof(object))
+			{
+				return value;
 			}
 
 			return Convert.ChangeType(value, targetType);
