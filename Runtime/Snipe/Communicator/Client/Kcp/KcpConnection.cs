@@ -151,9 +151,10 @@ namespace MiniIT.Snipe
 				_kcpSendBuffer = new byte[bufferSize];
 
 				_chunkedMessages = new Dictionary<byte, ChunkedMessageItem>(1);
+
+				_state = KcpState.Connected;
 			}
 
-			_state = KcpState.Connected;
 			DebugLogger.Log("KcpState.Connected");
 
 			_refTime.Start();
