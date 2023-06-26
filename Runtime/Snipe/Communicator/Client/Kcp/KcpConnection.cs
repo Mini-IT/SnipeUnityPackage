@@ -562,14 +562,19 @@ namespace MiniIT.Snipe
 					}
 					catch (ObjectDisposedException)
 					{
-						Disconnect();
-						break;
+						msgLength = -1;
 					}
 					catch (NullReferenceException)
 					{
 						// The socket is disposed during disconnection
 						break;
 					}
+				}
+
+				if (msgLength < 0)
+				{
+					Disconnect();
+					break;
 				}
 
 				// DebugLogger.Log($"RAW RECV {msgLength} bytes = {BitConverter.ToString(_socketReceiveBuffer, 0, msgLength)}");
