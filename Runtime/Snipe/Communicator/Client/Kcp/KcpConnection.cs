@@ -93,13 +93,11 @@ namespace MiniIT.Snipe
 		private uint _pingsCount = 0;
 		public uint PingTime { get; private set; }
 		
-		private readonly object _kcpLock = new object();
-		private readonly object _kcpSendBufferLock = new object();
-		private readonly object _socketSendBufferLock = new object();
+		private readonly object _lock = new object();
 
 		public void Connect(string host, ushort port, int timeout = 10000, int authenticationTimeout = 0)
 		{
-			lock (_kcpLock)
+			lock (_lock)
 			{
 				if (_socket != null)
 					return;
@@ -118,7 +116,7 @@ namespace MiniIT.Snipe
 
 		private void OnSocketConnected()
 		{
-			lock (_kcpLock)
+			lock (_lock)
 			{
 				// Create a new Kcp instance
 				// even if _kcp != null its buffers may content some data from the previous connection
@@ -140,10 +138,7 @@ namespace MiniIT.Snipe
 				// set maximum retransmits (aka dead_link)
 				// KCP will try to retransmit lost messages up to MaxRetransmit (aka dead_link) before disconnecting. default prematurely disconnects a lot of people (#3022). use 2x
 				_kcp.dead_link = Kcp.DEADLINK * 2;
-			}
 
-			lock (_kcpSendBufferLock)
-			{
 				// create message buffers AFTER window size is set
 				// see comments on buffer definition for the "+1" part
 				//int bufferSize = 1 + ReliableMaxMessageSize(KCP_RECEIVE_WINDOW_SIZE);
@@ -188,7 +183,7 @@ namespace MiniIT.Snipe
 				{
 					SendReliable(KcpHeader.Disconnect);
 					
-					lock (_kcpLock)
+					lock (_lock)
 					{
 						_kcp.Flush();
 					}
@@ -346,7 +341,7 @@ namespace MiniIT.Snipe
 			// NOTE: at this point offset must be equal to bufferLength
 
 			SendReliable(KcpHeader.Batch, new ArraySegment<byte>(buffer, 0, offset));
-				
+			
 			ArrayPool<byte>.Shared.Return(buffer);
 		}
 
@@ -358,10 +353,7 @@ namespace MiniIT.Snipe
 
 		public void TickIncoming()
 		{
-			lock (_kcpLock)
-			{
-				SocketReceive();
-			}
+			SocketReceive();
 
 			if (_state == KcpState.Disconnected || _kcp == null)
 				return;
@@ -500,7 +492,7 @@ namespace MiniIT.Snipe
 
 		private void SendReliable(KcpHeader header, ArraySegment<byte> content = default)
 		{
-			lock (_kcpSendBufferLock)
+			lock (_lock)
 			{
 				int msgLength = 1 + content.Count; // 1 byte for header
 				if (_kcpSendBuffer.Length < msgLength)
@@ -531,7 +523,7 @@ namespace MiniIT.Snipe
 
 		private void SocketSend(KcpChannel channel, byte[] data, int offset, int length)
 		{
-			lock (_socketSendBufferLock)
+			lock (_lock)
 			{
 				// copy channel header, data into raw send buffer, then send
 				_socketSendBuffer[0] = (byte)channel;
@@ -545,44 +537,56 @@ namespace MiniIT.Snipe
 
 		private void SocketReceive()
 		{
-			try
+			if (_socket == null || _state == KcpState.Disconnected)
+				return;
+
+			while (true)
 			{
-				if (_socket != null && _state != KcpState.Disconnected)
+				int msgLength;
+
+				lock (_lock)
 				{
-					while (_socket.Poll(0, SelectMode.SelectRead))
+					try
 					{
-						int msgLength = _socket.Receive(_socketReceiveBuffer);
-
-						// DebugLogger.Log($"RAW RECV {msgLength} bytes = {BitConverter.ToString(_socketReceiveBuffer, 0, msgLength)}");
-
-						// IMPORTANT: detect if buffer was too small for the
-						//            received msgLength. otherwise the excess
-						//            data would be silently lost.
-						//            (see ReceiveFrom documentation)
-						if (msgLength <= _socketReceiveBuffer.Length)
+						if (!_socket.Poll(0, SelectMode.SelectRead))
 						{
-							RawInput(_socketReceiveBuffer, msgLength);
-						}
-						else
-						{
-							DebugLogger.LogError($"KCP ClientConnection: message of size {msgLength} does not fit into buffer of size {_socketReceiveBuffer.Length}. The excess was silently dropped. Disconnecting.");
-							Disconnect();
 							break;
 						}
+						msgLength = _socket.Receive(_socketReceiveBuffer);
+					}
+					catch (SocketException)
+					{
+						// this is fine, the socket might have been closed in the other end
+						break;
+					}
+					catch (ObjectDisposedException)
+					{
+						Disconnect();
+						break;
+					}
+					catch (NullReferenceException)
+					{
+						// The socket is disposed during disconnection
+						break;
 					}
 				}
-			}
-			catch (SocketException)
-			{
-				// this is fine, the socket might have been closed in the other end
-			}
-			catch (ObjectDisposedException)
-			{
-				Disconnect();
-			}
-			catch (NullReferenceException)
-			{
-				// The socket is disposed during disconnection
+
+				// DebugLogger.Log($"RAW RECV {msgLength} bytes = {BitConverter.ToString(_socketReceiveBuffer, 0, msgLength)}");
+
+				// IMPORTANT: detect if buffer was too small for the
+				//            received msgLength. otherwise the excess
+				//            data would be silently lost.
+				//            (see ReceiveFrom documentation)
+				if (msgLength <= _socketReceiveBuffer.Length)
+				{
+					RawInput(_socketReceiveBuffer, msgLength);
+				}
+				else
+				{
+					DebugLogger.LogError($"KCP ClientConnection: message of size {msgLength} does not fit into buffer of size {_socketReceiveBuffer.Length}. The excess was silently dropped. Disconnecting.");
+					Disconnect();
+					break;
+				}
 			}
 		}
 
@@ -598,7 +602,11 @@ namespace MiniIT.Snipe
 			{
 				case (byte)KcpChannel.Reliable:
 					// input into kcp, but skip channel byte
-					int input = _kcp.Input(buffer, 1, msgLength - 1);
+					int input;
+					lock (_lock)
+					{
+						input = _kcp.Input(buffer, 1, msgLength - 1);
+					}
 					if (input != 0)
 					{
 						DebugLogger.LogWarning($"KCP Input failed with error={input} for buffer with length={msgLength - 1}");
@@ -676,7 +684,11 @@ namespace MiniIT.Snipe
 				if (msgSize <= _kcpReceiveBuffer.Length)
 				{
 					// receive from kcp
-					int received = _kcp.Receive(_kcpReceiveBuffer, msgSize);
+					int received;
+					lock (_lock)
+					{
+						received = _kcp.Receive(_kcpReceiveBuffer, msgSize);
+					}
 					if (received >= 0)
 					{
 						// extract header & content without header
