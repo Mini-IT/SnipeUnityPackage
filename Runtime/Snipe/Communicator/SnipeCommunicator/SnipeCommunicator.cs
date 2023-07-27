@@ -35,35 +35,16 @@ namespace MiniIT.Snipe
 		private int _restoreConnectionAttempt;
 		
 		private List<AbstractCommunicatorRequest> _requests;
-		public List<AbstractCommunicatorRequest> Requests
-		{
-			get
-			{
-				_requests ??= new List<AbstractCommunicatorRequest>();
-				return _requests;
-			}
-		}
+		public List<AbstractCommunicatorRequest> Requests => _requests ??= new List<AbstractCommunicatorRequest>();
 
 		public readonly HashSet<SnipeRequestDescriptor> MergeableRequestTypes = new HashSet<SnipeRequestDescriptor>();
 
-		public bool Connected
-		{
-			get
-			{
-				return Client != null && Client.Connected;
-			}
-		}
+		public bool Connected => Client != null && Client.Connected;
 
-		public bool LoggedIn
-		{
-			get { return Client != null && Client.LoggedIn; }
-		}
+		public bool LoggedIn => Client != null && Client.LoggedIn;
 		
 		private bool? _roomJoined = null;
-		public bool? RoomJoined
-		{
-			get { return (Client != null && Client.LoggedIn) ? _roomJoined : null; }
-		}
+		public bool? RoomJoined => (Client != null && Client.LoggedIn) ? _roomJoined : null;
 
 		public bool BatchMode
 		{
