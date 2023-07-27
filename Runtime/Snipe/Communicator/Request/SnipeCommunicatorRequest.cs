@@ -5,7 +5,7 @@ namespace MiniIT.Snipe
 	{
 		public bool WaitingForRoomJoined { get; private set; } = false;
 
-		private AuthSubsystem _authSubsystem;
+		private readonly AuthSubsystem _authSubsystem;
 		
 		public SnipeCommunicatorRequest(SnipeCommunicator communicator,
 			AuthSubsystem authSubsystem,
