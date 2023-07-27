@@ -210,8 +210,6 @@ namespace MiniIT.Snipe
 			
 			var stopwatch = Stopwatch.StartNew();
 
-			DisposeOldLoginRequests();
-
 			RunAuthRequest(() => new UnauthorizedRequest(_communicator, SnipeMessageTypes.USER_LOGIN, data)
 				.Request((error_code, response) =>
 				{
@@ -338,8 +336,6 @@ namespace MiniIT.Snipe
 				data["flagCanPack"] = true;
 			}
 
-			DisposeOldLoginRequests();
-
 			RunAuthRequest(() => new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN)
 				.Request(data, (error_code, response) =>
 				{
@@ -391,6 +387,8 @@ namespace MiniIT.Snipe
 
 		private void RunAuthRequest(Action action)
 		{
+			DisposeOldLoginRequests();
+
 			bool batchMode = _communicator.BatchMode;
 			_communicator.BatchMode = true;
 
