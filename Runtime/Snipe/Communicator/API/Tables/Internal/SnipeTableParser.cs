@@ -39,12 +39,6 @@ namespace MiniIT.Snipe.Tables
 
 		private static object ParseInternal(Type type, Dictionary<string, object> jsonObject)
 		{
-			string typestring = type.ToString();
-			if (typestring.Contains("SnipeTableCarsItem"))
-			{
-				DebugLogger.Log($"ParseInternal {type} {jsonObject}");
-			}
-
 			object instance = Activator.CreateInstance(type);
 
 			foreach (var kvp in jsonObject)
