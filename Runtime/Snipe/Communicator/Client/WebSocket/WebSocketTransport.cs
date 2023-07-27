@@ -292,28 +292,28 @@ namespace MiniIT.Snipe
 
 		#region Send task
 
-		private CancellationTokenSource mSendTaskCancellation;
+		private CancellationTokenSource _sendTaskCancellation;
 
 		private void StartSendTask()
 		{
-			mSendTaskCancellation?.Cancel();
-			
+			_sendTaskCancellation?.Cancel();
+
 #if NET5_0_OR_GREATER
-			if (mSendMessages == null)
-				mSendMessages = new ConcurrentQueue<SnipeObject>();
+			if (_sendMessages == null)
+				_sendMessages = new ConcurrentQueue<SnipeObject>();
 			else
-				mSendMessages.Clear();
+				_sendMessages.Clear();
 #else
 			_sendMessages = new ConcurrentQueue<SnipeObject>();
 #endif
 
-			mSendTaskCancellation = new CancellationTokenSource();
+			_sendTaskCancellation = new CancellationTokenSource();
 			
 			Task.Run(() =>
 			{
 				try
 				{
-					SendTask(mSendTaskCancellation?.Token).GetAwaiter().GetResult();
+					SendTask(_sendTaskCancellation?.Token).GetAwaiter().GetResult();
 				}
 				catch (Exception task_exception)
 				{
@@ -330,10 +330,10 @@ namespace MiniIT.Snipe
 		{
 			StopCheckConnection();
 			
-			if (mSendTaskCancellation != null)
+			if (_sendTaskCancellation != null)
 			{
-				mSendTaskCancellation.Cancel();
-				mSendTaskCancellation = null;
+				_sendTaskCancellation.Cancel();
+				_sendTaskCancellation = null;
 			}
 			
 			_sendMessages = null;
@@ -361,13 +361,13 @@ namespace MiniIT.Snipe
 
 		#region Heartbeat
 
-		private long mHeartbeatTriggerTicks = 0;
+		private long _heartbeatTriggerTicks = 0;
 
-		private CancellationTokenSource mHeartbeatCancellation;
+		private CancellationTokenSource _heartbeatCancellation;
 
 		private void StartHeartbeat()
 		{
-			mHeartbeatCancellation?.Cancel();
+			_heartbeatCancellation?.Cancel();
 
 			// Custom heartbeating is needed only for WebSocketSharp
 			if (_webSocket == null && _config.WebSocketImplementation != SnipeConfig.WebSocketImplementations.WebSocketSharp ||
@@ -377,16 +377,16 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			mHeartbeatCancellation = new CancellationTokenSource();
-			Task.Run(() => HeartbeatTask(mHeartbeatCancellation.Token));
+			_heartbeatCancellation = new CancellationTokenSource();
+			Task.Run(() => HeartbeatTask(_heartbeatCancellation.Token));
 		}
 
 		private void StopHeartbeat()
 		{
-			if (mHeartbeatCancellation != null)
+			if (_heartbeatCancellation != null)
 			{
-				mHeartbeatCancellation.Cancel();
-				mHeartbeatCancellation = null;
+				_heartbeatCancellation.Cancel();
+				_heartbeatCancellation = null;
 			}
 		}
 
@@ -395,11 +395,11 @@ namespace MiniIT.Snipe
 			//ResetHeartbeatTimer();
 
 			// await Task.Delay(HEARTBEAT_TASK_DELAY, cancellation);
-			mHeartbeatTriggerTicks = 0;
+			_heartbeatTriggerTicks = 0;
 
 			while (cancellation != null && !cancellation.IsCancellationRequested && Connected)
 			{
-				if (DateTime.UtcNow.Ticks >= mHeartbeatTriggerTicks)
+				if (DateTime.UtcNow.Ticks >= _heartbeatTriggerTicks)
 				{
 					bool pinging = false;
 					if (pinging)
@@ -458,7 +458,7 @@ namespace MiniIT.Snipe
 
 		private void ResetHeartbeatTimer()
 		{
-			mHeartbeatTriggerTicks = DateTime.UtcNow.AddSeconds(HEARTBEAT_INTERVAL).Ticks;
+			_heartbeatTriggerTicks = DateTime.UtcNow.AddSeconds(HEARTBEAT_INTERVAL).Ticks;
 		}
 
 		#endregion
