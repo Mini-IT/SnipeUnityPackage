@@ -188,24 +188,32 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		protected virtual void OnConnectionClosed(bool will_retry = false)
+		protected void OnConnectionClosed(bool will_retry = false)
 		{
-			if (will_retry)
+			if (will_retry && _requestId == 0)
 			{
 				_waitingForResponse = false;
-
-				_communicator.ConnectionSucceeded -= OnCommunicatorReady;
-				_communicator.MessageReceived -= OnMessageReceived;
-				
-				DebugLogger.Log($"[{nameof(AbstractCommunicatorRequest)}] Waiting for connection - {MessageType}");
-				
-				_communicator.ConnectionSucceeded += OnCommunicatorReady;
-				
+				OnWillReconnect();
 			}
 			else
 			{
+				if (_requestId != 0) // if the request is considered sent but not responsed yet
+				{
+					DebugLogger.Log($"[{nameof(AbstractCommunicatorRequest)}] Disposing request {_requestId} {MessageType}");
+					InvokeCallback(SnipeErrorCodes.NOT_READY, EMPTY_DATA);
+				}
 				Dispose();
 			}
+		}
+
+		protected virtual void OnWillReconnect()
+		{
+			_communicator.ConnectionSucceeded -= OnCommunicatorReady;
+			_communicator.MessageReceived -= OnMessageReceived;
+
+			DebugLogger.Log($"[{nameof(AbstractCommunicatorRequest)}] Waiting for connection - {MessageType}");
+
+			_communicator.ConnectionSucceeded += OnCommunicatorReady;
 		}
 
 		protected virtual void OnMessageReceived(string message_type, string error_code, SnipeObject response_data, int request_id)

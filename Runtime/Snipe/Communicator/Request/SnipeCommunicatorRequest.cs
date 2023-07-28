@@ -51,31 +51,22 @@ namespace MiniIT.Snipe
 				DoSendRequest();
 			}
 		}
-		
-		protected override void OnConnectionClosed(bool will_retry = false)
+
+		protected override void OnWillReconnect()
 		{
-			if (will_retry)
+			_communicator.ConnectionSucceeded -= OnCommunicatorReady;
+			_authSubsystem.LoginSucceeded -= OnCommunicatorReady;
+			_communicator.MessageReceived -= OnMessageReceived;
+
+			if (_communicator.AllowRequestsToWaitForLogin)
 			{
-				_waitingForResponse = false;
+				DebugLogger.Log($"[{nameof(SnipeCommunicatorRequest)}] Waiting for login - {MessageType} - {Data?.ToJSONString()}");
 
-				_communicator.ConnectionSucceeded -= OnCommunicatorReady;
-				_authSubsystem.LoginSucceeded -= OnCommunicatorReady;
-				_communicator.MessageReceived -= OnMessageReceived;
-				
-				if (_communicator.AllowRequestsToWaitForLogin)
-				{
-					DebugLogger.Log($"[{nameof(SnipeCommunicatorRequest)}] Waiting for login - {MessageType} - {Data?.ToJSONString()}");
-
-					_authSubsystem.LoginSucceeded += OnCommunicatorReady;
-				}
-				else
-				{
-					InvokeCallback(SnipeErrorCodes.NOT_READY, EMPTY_DATA);
-				}
+				_authSubsystem.LoginSucceeded += OnCommunicatorReady;
 			}
 			else
 			{
-				Dispose();
+				InvokeCallback(SnipeErrorCodes.NOT_READY, EMPTY_DATA);
 			}
 		}
 
