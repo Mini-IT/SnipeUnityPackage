@@ -9,19 +9,23 @@ namespace MiniIT.Snipe
 	{
 		private WebSocket _webSocket = null;
 		private CancellationTokenSource _connectionWaitingCancellation;
+		private readonly object _lock = new object();
 
 		public override async void Connect(string url)
 		{
 			Disconnect();
 
-			_webSocket = new WebSocket(url);
-			_webSocket.OnOpen += OnWebSocketConnected;
-			_webSocket.OnClose += OnWebSocketClosed;
-			_webSocket.OnMessage += OnWebSocketMessage;
-			_webSocket.OnError += OnWebSocketError;
-			_webSocket.NoDelay = true;
-			//_webSocket.SslConfiguration.EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls12;
-			_webSocket.ConnectAsync();
+			lock (_lock)
+			{
+				_webSocket = new WebSocket(url);
+				_webSocket.OnOpen += OnWebSocketConnected;
+				_webSocket.OnClose += OnWebSocketClosed;
+				_webSocket.OnMessage += OnWebSocketMessage;
+				_webSocket.OnError += OnWebSocketError;
+				_webSocket.NoDelay = true;
+				//_webSocket.SslConfiguration.EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls12;
+				_webSocket.ConnectAsync();
+			}
 			
 			_connectionWaitingCancellation = new CancellationTokenSource();
 			await WaitForConnection(_connectionWaitingCancellation.Token);
@@ -54,14 +58,17 @@ namespace MiniIT.Snipe
 				_connectionWaitingCancellation.Cancel();
 				_connectionWaitingCancellation = null;
 			}
-			
-			if (_webSocket != null)
+
+			lock (_lock)
 			{
-				_webSocket.OnOpen -= OnWebSocketConnected;
-				_webSocket.OnClose -= OnWebSocketClosed;
-				_webSocket.OnMessage -= OnWebSocketMessage;
-				_webSocket.CloseAsync();
-				_webSocket = null;
+				if (_webSocket != null)
+				{
+					_webSocket.OnOpen -= OnWebSocketConnected;
+					_webSocket.OnClose -= OnWebSocketClosed;
+					_webSocket.OnMessage -= OnWebSocketMessage;
+					_webSocket.CloseAsync();
+					_webSocket = null;
+				}
 			}
 		}
 
@@ -97,7 +104,7 @@ namespace MiniIT.Snipe
 		//	if (!Connected)
 		//		return;
 
-		//	lock (_webSocket)
+		//	lock (_lock)
 		//	{
 		//		_webSocket.SendAsync(message, null);
 		//	}
@@ -108,7 +115,7 @@ namespace MiniIT.Snipe
 			if (!Connected)
 				return;
 
-			lock (_webSocket)
+			lock (_lock)
 			{
 				_webSocket.SendAsync(bytes, null);
 			}
@@ -119,7 +126,7 @@ namespace MiniIT.Snipe
 			if (!Connected)
 				return;
 
-			lock (_webSocket)
+			lock (_lock)
 			{
 				var bytes = new byte[data.Count];
 				Array.ConstrainedCopy(data.Array, data.Offset, bytes, 0, data.Count);
