@@ -210,8 +210,6 @@ namespace MiniIT.Snipe
 			
 			var stopwatch = Stopwatch.StartNew();
 
-			DisposeOldLoginRequests();
-
 			RunAuthRequest(() => new UnauthorizedRequest(_communicator, SnipeMessageTypes.USER_LOGIN, data)
 				.Request((error_code, response) =>
 				{
@@ -337,8 +335,6 @@ namespace MiniIT.Snipe
 			{
 				data["flagCanPack"] = true;
 			}
-
-			DisposeOldLoginRequests();
 
 			RunAuthRequest(() => new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN)
 				.Request(data, (error_code, response) =>
@@ -536,15 +532,6 @@ namespace MiniIT.Snipe
 			}
 
 			return constructor.Invoke(new object[] { _communicator, this, _config }) as BindingType;
-		}
-
-		private void DisposeOldLoginRequests()
-		{
-			_communicator.Requests
-				.FindAll(request =>
-					request.MessageType == SnipeMessageTypes.USER_LOGIN ||
-					request.MessageType == SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN)
-				.ForEach(request => request.Dispose());
 		}
 
 		#region Safe events raising
