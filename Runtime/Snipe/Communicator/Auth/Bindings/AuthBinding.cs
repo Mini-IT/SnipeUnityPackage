@@ -37,6 +37,7 @@ namespace MiniIT.Snipe
 		}
 
 		protected BindResultCallback _bindResultCallback;
+		private bool _started = false;
 
 		protected readonly SnipeCommunicator _communicator;
 		private readonly AuthSubsystem _authSubsystem;
@@ -63,6 +64,13 @@ namespace MiniIT.Snipe
 
 		public void Start()
 		{
+			if (_started)
+			{
+				DebugLogger.Log($"[AuthBinding] [{ProviderId}] Start - Already started");
+				return;
+			}
+			_started = true;
+			
 			DebugLogger.Log($"[AuthBinding] [{ProviderId}] Start");
 			if (Fetcher != null && !IsBindDone)
 			{
