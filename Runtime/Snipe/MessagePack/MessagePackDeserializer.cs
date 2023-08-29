@@ -152,7 +152,7 @@ namespace MiniIT.MessagePack
 			{
 				var raw_bytes = new byte[2];
 				ms.Read(raw_bytes, 0, 2);
-				var len = EndianBitConverter.Big.ToInt16(raw_bytes, 0);
+				int len = EndianBitConverter.Big.ToUInt16(raw_bytes, 0);
 				return ReadArray(ms, len);
 			}
 			else if (format_byte == 0xDD)  // array 32
@@ -166,7 +166,7 @@ namespace MiniIT.MessagePack
 			{
 				var raw_bytes = new byte[2];
 				ms.Read(raw_bytes, 0, 2);
-				var len = EndianBitConverter.Big.ToInt16(raw_bytes, 0);
+				int len = EndianBitConverter.Big.ToUInt16(raw_bytes, 0);
 				return ReadMap(ms, len);
 			}
 			else if (format_byte == 0xDF)  // map 32
