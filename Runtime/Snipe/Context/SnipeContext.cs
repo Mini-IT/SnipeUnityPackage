@@ -139,6 +139,7 @@ namespace MiniIT.Snipe
 		protected virtual void Initialize(string id)
 		{
 			Id = id;
+			IsDisposed = false;
 
 			if (Communicator != null)
 				return;
