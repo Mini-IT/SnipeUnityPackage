@@ -23,7 +23,7 @@ namespace MiniIT.Snipe.Tables
 
 		public static async Task ReadAsync(Type wrapperType, IDictionary items, Stream stream)
 		{
-			using (GZipStream gzip = new GZipStream(stream, CompressionMode.Decompress))
+			using (GZipStream gzip = new GZipStream(stream, CompressionMode.Decompress, true))
 			{
 				using (StreamReader reader = new StreamReader(gzip))
 				{

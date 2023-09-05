@@ -77,22 +77,15 @@ namespace MiniIT.Snipe.Tables
 				{
 					try
 					{
-						byte[] buffer = null;
-						using (var contentStream = response.GetResponseStream())
+						using (var stream = new MemoryStream())
 						{
-							int length = (int)contentStream.Length;
-							buffer = new byte[length];
-							int bytesRead = await contentStream.ReadAsync(buffer, 0, length);
-							if (bytesRead != length)
-								buffer = null;
-						}
-
-						if (buffer != null)
-						{
-							using (var stream = new MemoryStream(buffer))
+							using (var contentStream = response.GetResponseStream())
 							{
-								await SnipeTableGZipReader.ReadAsync(wrapperType, items, stream);
+								contentStream.CopyTo(stream);
 							}
+
+							stream.Position = 0;
+							await SnipeTableGZipReader.ReadAsync(wrapperType, items, stream);
 
 							loaded = true;
 
@@ -100,14 +93,9 @@ namespace MiniIT.Snipe.Tables
 							{
 								DebugLogger.Log("[SnipeTable] Table ready - " + tableName);
 							}
-						}
 
-						if (loaded && version > 0)
-						{
-							using (var stream = new MemoryStream(buffer))
-							{
-								SnipeTableSaver.SaveToCache(stream, tableName, version);
-							}
+							stream.Position = 0;
+							SnipeTableSaver.SaveToCache(stream, tableName, version);
 						}
 					}
 					catch (Exception e)
