@@ -11,8 +11,8 @@ namespace MiniIT.Snipe
 	{
 		public bool ConnectionEstablished { get; private set; } = false;
 		
-		public bool Started => _kcpConnection != null;
-		public bool Connected => _kcpConnection != null && _kcpConnection.Connected;
+		public override bool Started => _kcpConnection != null;
+		public override bool Connected => _kcpConnection != null && _kcpConnection.Connected;
 		
 		private KcpConnection _kcpConnection;
 		private CancellationTokenSource _networkLoopCancellation;
@@ -27,7 +27,7 @@ namespace MiniIT.Snipe
 			_analytics = Analytics.GetInstance(config.ContextId);
 		}
 
-		public void Connect()
+		public override void Connect()
 		{
 			lock (_lock)
 			{
@@ -57,7 +57,7 @@ namespace MiniIT.Snipe
 			StartNetworkLoop();
 		}
 
-		public void Disconnect()
+		public override void Disconnect()
 		{
 			if (_kcpConnection != null)
 			{
@@ -67,12 +67,12 @@ namespace MiniIT.Snipe
 			ConnectionEstablished = false;
 		}
 
-		public void SendMessage(SnipeObject message)
+		public override void SendMessage(SnipeObject message)
 		{
 			DoSendRequest(message);
 		}
 
-		public void SendBatch(List<SnipeObject> messages)
+		public override void SendBatch(List<SnipeObject> messages)
 		{
 			if (messages.Count == 1)
 			{

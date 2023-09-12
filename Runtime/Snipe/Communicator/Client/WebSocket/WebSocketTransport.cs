@@ -33,8 +33,8 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		public bool Started => _webSocket != null;
-		public bool Connected => _webSocket != null && _webSocket.Connected;
+		public override bool Started => _webSocket != null;
+		public override bool Connected => _webSocket != null && _webSocket.Connected;
 
 		private Stopwatch _pingStopwatch;
 
@@ -56,7 +56,7 @@ namespace MiniIT.Snipe
 			_analytics = Analytics.GetInstance(config.ContextId);
 		}
 
-		public void Connect()
+		public override void Connect()
 		{
 			string url = _config.GetWebSocketUrl();
 
@@ -78,7 +78,7 @@ namespace MiniIT.Snipe
 			});
 		}
 
-		public void Disconnect()
+		public override void Disconnect()
 		{
 			_connected = false;
 			_loggedIn = false;
@@ -134,7 +134,7 @@ namespace MiniIT.Snipe
 			ConnectionClosedHandler?.Invoke();
 		}
 		
-		public void SendMessage(SnipeObject message)
+		public override void SendMessage(SnipeObject message)
 		{
 			if (_sendMessages == null)
 			{
@@ -143,7 +143,7 @@ namespace MiniIT.Snipe
 			_sendMessages.Enqueue(message);
 		}
 
-		public void SendBatch(List<SnipeObject> messages)
+		public override void SendBatch(List<SnipeObject> messages)
 		{
 			lock (_lock)
 			{

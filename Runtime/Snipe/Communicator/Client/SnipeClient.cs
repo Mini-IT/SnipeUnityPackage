@@ -23,15 +23,15 @@ namespace MiniIT.Snipe
 		public event Action<string> LoginFailed;
 		public event Action UdpConnectionFailed;
 
-		private WebSocketTransport _webSocket;
-		private KcpTransport _kcp;
+		private Transport _transport;
 
 		protected bool _loggedIn = false;
 
-		public bool Connected => UdpClientConnected || WebSocketConnected;
+		public bool Connected => _transport != null && _transport.Connected;
 		public bool LoggedIn { get { return _loggedIn && Connected; } }
-		public bool WebSocketConnected => _webSocket != null && _webSocket.Connected;
-		public bool UdpClientConnected => _kcp != null && _kcp.Connected;
+		public bool WebSocketConnected => Connected && _transport is WebSocketTransport;
+		public bool UdpClientConnected => Connected && _transport is KcpTransport;
+		public bool HttpClientConnected => Connected && _transport is HttpTransport;
 
 		public string ConnectionId { get; private set; }
 
@@ -85,14 +85,15 @@ namespace MiniIT.Snipe
 				TaskScheduler.FromCurrentSynchronizationContext() :
 				TaskScheduler.Current;
 
-			if (_config.CheckUdpAvailable())
-			{
-				ConnectUdpClient();
-			}
-			else
-			{
-				ConnectWebSocket();
-			}
+			//if (_config.CheckUdpAvailable())
+			//{
+			//	StartKcpTransport();
+			//}
+			//else
+			//{
+			//	StartWebSocketTransport();
+			//}
+			StartHttpTransport();
 		}
 
 		private void RunInMainThread(Action action)
@@ -100,61 +101,79 @@ namespace MiniIT.Snipe
 			new Task(action).RunSynchronously(_mainThreadScheduler);
 		}
 
-		private void ConnectUdpClient()
+		private void StartKcpTransport()
 		{
-			if (_kcp != null && _kcp.Started)  // already connected or trying to connect
+			if (_transport != null && _transport.Started)  // already connected or trying to connect
 				return;
 
-			if (_kcp == null)
+			if (_transport == null)
 			{
-				_kcp = new KcpTransport(_config);
-				_kcp.ConnectionOpenedHandler = () =>
+				_transport = new KcpTransport(_config);
+				_transport.ConnectionOpenedHandler = () =>
 				{
 					_analytics.UdpConnectionTime = _connectionStopwatch.Elapsed;
 					OnConnected();
 				};
-				_kcp.ConnectionClosedHandler = () =>
+				_transport.ConnectionClosedHandler = () =>
 				{
 					RunInMainThread(() =>
 					{
 						UdpConnectionFailed?.Invoke();
 					});
 
-					if (_kcp.ConnectionEstablished)
+					if ((_transport as KcpTransport).ConnectionEstablished)
 					{
 						Disconnect(true);
 					}
 					else // not connected yet, try websocket
 					{
-						ConnectWebSocket();
+						StartWebSocketTransport();
 					}
 				};
-				_kcp.MessageReceivedHandler = ProcessMessage;
+				_transport.MessageReceivedHandler = ProcessMessage;
 			}
 
 			_connectionStopwatch = Stopwatch.StartNew();
 
-			_kcp.Connect();
+			_transport.Connect();
 		}
 
-		private void ConnectWebSocket()
+		private void StartWebSocketTransport()
 		{
-			if (_webSocket != null && _webSocket.Started)  // already connected or trying to connect
+			if (_transport != null && _transport.Started)  // already connected or trying to connect
 				return;
 
 			Disconnect(false); // clean up
 
-			if (_webSocket == null)
+			if (_transport == null)
 			{
-				_webSocket = new WebSocketTransport(_config);
-				_webSocket.ConnectionOpenedHandler = OnConnected;
-				_webSocket.ConnectionClosedHandler = () => Disconnect(true);
-				_webSocket.MessageReceivedHandler = ProcessMessage;
+				_transport = new WebSocketTransport(_config);
+				_transport.ConnectionOpenedHandler = OnConnected;
+				_transport.ConnectionClosedHandler = () => Disconnect(true);
+				_transport.MessageReceivedHandler = ProcessMessage;
 			}
 
 			_connectionStopwatch = Stopwatch.StartNew();
 
-			_webSocket.Connect();
+			_transport.Connect();
+		}
+
+		private void StartHttpTransport()
+		{
+			if (_transport != null && _transport.Started)
+				return;
+
+			Disconnect(false); // clean up
+
+			if (_transport == null)
+			{
+				_transport = new HttpTransport(_config);
+				_transport.ConnectionOpenedHandler = OnConnected;
+				_transport.ConnectionClosedHandler = () => Disconnect(true);
+				_transport.MessageReceivedHandler = ProcessMessage;
+			}
+
+			_transport.Connect();
 		}
 
 		private void OnConnected()
@@ -208,12 +227,10 @@ namespace MiniIT.Snipe
 
 			StopResponseMonitoring();
 
-			_kcp?.Disconnect();
-
-			if (_webSocket != null)
+			if (_transport != null)
 			{
-				_webSocket.Disconnect();
-				_webSocket = null;
+				_transport.Disconnect();
+				_transport = null;
 			}
 
 			if (raise_event)
@@ -291,14 +308,7 @@ namespace MiniIT.Snipe
 				#endif
 			}
 			
-			if (UdpClientConnected)
-			{
-				_kcp.SendMessage(message);
-			}
-			else if (WebSocketConnected)
-			{
-				_webSocket.SendMessage(message);
-			}
+			_transport.SendMessage(message);
 
 			if (_serverReactionStopwatch != null)
 			{
@@ -320,14 +330,7 @@ namespace MiniIT.Snipe
 
 			DebugLogger.Log($"[SnipeClient] DoSendBatch - {messages.Count} items");
 
-			if (UdpClientConnected)
-			{
-				_kcp.SendBatch(messages);
-			}
-			else if (WebSocketConnected)
-			{
-				_webSocket.SendBatch(messages);
-			}
+			_transport.SendBatch(messages);
 		}
 
 		private void ProcessMessage(SnipeObject message)
@@ -367,7 +370,10 @@ namespace MiniIT.Snipe
 						
 						_loggedIn = true;
 
-						_webSocket?.SetLoggedIn(true);
+						if (_transport is WebSocketTransport webSocketTransport)
+						{
+							webSocketTransport.SetLoggedIn(true);
+						}
 
 						if (response_data != null)
 						{

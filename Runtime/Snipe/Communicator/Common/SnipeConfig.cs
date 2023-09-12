@@ -217,6 +217,11 @@ namespace MiniIT.Snipe
 			return null;
 		}
 
+		public string GetHttpAddress()
+		{
+			return "https://dev.snipe.dev/";
+		}
+
 		public void NextWebSocketUrl()
 		{
 			_serverWebSocketUrlIndex = GetValidIndex(ServerWebSocketUrls, _serverWebSocketUrlIndex, true);
