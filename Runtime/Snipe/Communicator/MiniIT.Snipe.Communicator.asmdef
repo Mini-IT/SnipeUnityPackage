@@ -23,7 +23,7 @@
     "versionDefines": [
         {
             "name": "com.miniit.advertising-id",
-            "expression": "1.0.0",
+            "expression": "1.3.0",
             "define": "MINI_IT_ADVERTISING_ID"
         },
         {

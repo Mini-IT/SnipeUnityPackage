@@ -23,9 +23,9 @@ namespace MiniIT.Snipe
 				TaskScheduler.Current;
 			
 #if MINI_IT_ADVERTISING_ID
-			MiniIT.Utils.AdvertisingIdFetcher.RequestAdvertisingId((advertising_id) =>
+			MiniIT.Utils.AdvertisingIdFetcher.RequestAdvertisingId((advertisingId, trackingEnabled, errorMessage) =>
 			{
-				SetAdvertisingId(advertising_id);
+				SetAdvertisingId(advertisingId);
 				
 				if (callback != null)
 				{
@@ -33,9 +33,9 @@ namespace MiniIT.Snipe
 				}
 			});
 #else
-			if (!Application.RequestAdvertisingIdentifierAsync((advertising_id, tracking_enabled, error) =>
+			if (!Application.RequestAdvertisingIdentifierAsync((advertisingId, trackingEnabled, errorMessage) =>
 				{
-					SetAdvertisingId(advertising_id);
+					SetAdvertisingId(advertisingId);
 					callback?.Invoke(Value);
 				}))
 			{
@@ -65,21 +65,21 @@ namespace MiniIT.Snipe
 		}
 #endif
 
-		private void SetAdvertisingId(string advertising_id)
+		private void SetAdvertisingId(string advertisingId)
 		{
-			if (CheckAdvertisingIdValid(advertising_id))
-				Value = advertising_id;
+			if (CheckAdvertisingIdValid(advertisingId))
+				Value = advertisingId;
 			else
 				Value = "";
 		}
 		
-		private static bool CheckAdvertisingIdValid(string advertising_id)
+		private static bool CheckAdvertisingIdValid(string advertisingId)
 		{
-			if (string.IsNullOrEmpty(advertising_id))
+			if (string.IsNullOrEmpty(advertisingId))
 				return false;
 
 			// on IOS value may be "00000000-0000-0000-0000-000000000000"
-			return Regex.IsMatch(advertising_id, @"[^0\W]");
+			return Regex.IsMatch(advertisingId, @"[^0\W]");
 		}
 		
 		private void RunInMainThread(Action action)
