@@ -261,21 +261,7 @@ namespace MiniIT.Snipe
 			{
 				await _messageProcessingSemaphore.WaitAsync();
 
-				if (raw_data[0] == 0xAA && raw_data[1] == 0xBB) // compressed message
-				{
-					message = await Task.Run(() =>
-					{
-						var decompressed = _messageCompressor.Decompress(new ArraySegment<byte>(raw_data, 2, raw_data.Length - 2));
-						return MessagePackDeserializer.Parse(decompressed) as SnipeObject;
-					});
-				}
-				else // uncompressed
-				{
-					message = await Task.Run(() =>
-					{
-						return MessagePackDeserializer.Parse(raw_data) as SnipeObject;
-					});
-				}
+				message = await Task.Run(() => ReadMessage(raw_data));
 			}
 			finally
 			{
@@ -287,6 +273,20 @@ namespace MiniIT.Snipe
 			if (_heartbeatEnabled)
 			{
 				ResetHeartbeatTimer();
+			}
+		}
+
+		private SnipeObject ReadMessage(byte[] buffer)
+		{
+			bool compressed = (buffer[0] == COMPRESSED_HEADER[0] && buffer[1] == COMPRESSED_HEADER[1]);
+			if (compressed)
+			{
+				var decompressed = _messageCompressor.Decompress(new ArraySegment<byte>(buffer, 2, buffer.Length - 2));
+				return MessagePackDeserializer.Parse(decompressed) as SnipeObject;
+			}
+			else // uncompressed
+			{
+				return MessagePackDeserializer.Parse(buffer) as SnipeObject;
 			}
 		}
 
