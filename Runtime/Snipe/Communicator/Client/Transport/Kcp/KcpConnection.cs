@@ -792,7 +792,7 @@ namespace MiniIT.Snipe
 					// DebugLogger.Log($"[KcpConnection] CHUNKED_MESSAGE received: {BitConverter.ToString(item.buffer, 0, item.buffer.Length)}");
 
 					// opcode Snipe Response
-					item.buffer[0] = (byte)KcpOpCodes.SnipeResponse;
+					item.buffer[0] = (byte)KcpOpCode.SnipeResponse;
 
 					// length (4 bytes int)
 					BytesUtil.WriteInt(item.buffer, 1, item.length);

@@ -1,8 +1,9 @@
 namespace MiniIT.Snipe
 {
-	public enum KcpOpCodes : byte
+	public enum KcpOpCode : byte
 	{
 		None = 0,
+		Heartbeat = 200,
 		AuthenticationRequest = 0x01,
 		AuthenticationResponse = 0x02,
 		Authenticated = 0x03,

@@ -116,26 +116,16 @@ namespace MiniIT.Snipe
 		{
 			DebugLogger.Log($"[SnipeClient] OnUdpClientDataReceived");
 			
-			// get opcode
-			
-			byte opcode = buffer.Array[buffer.Offset];
-			
-			// kcp heartbeat
-			if (opcode == 200)
-				return;
-			
-			//DebugLogger.Log($"[SnipeClient] : Received opcode {opcode}");
-			
-			// auth request -> auth response -> authenticated
-			// handled in OnUdpClientConnected
-			//if (opcode == OPCODE_AUTHENTICATION_REQUEST)
+			var opcode = (KcpOpCode)buffer.Array[buffer.Offset];
+
+			//if (opcode == KcpOpCodes.Heartbeat)
 			//{
 			//	return;
 			//}
 
-			if (opcode == (byte)KcpOpCodes.SnipeResponse || opcode == (byte)KcpOpCodes.SnipeResponseCompressed)
+			if (opcode == KcpOpCode.SnipeResponse || opcode == KcpOpCode.SnipeResponseCompressed)
 			{
-				ProcessMessage(buffer, compressed || (opcode == (byte)KcpOpCodes.SnipeResponseCompressed));
+				ProcessMessage(buffer, compressed || (opcode == KcpOpCode.SnipeResponseCompressed));
 			}
 		}
 
@@ -256,7 +246,7 @@ namespace MiniIT.Snipe
 					ArraySegment<byte> msg_content = new ArraySegment<byte>(_messageSerializationBuffer, offset, msg_data.Count - offset);
 					ArraySegment<byte> compressed = _messageCompressor.Compress(msg_content);
 
-					_messageSerializationBuffer[0] = (byte)KcpOpCodes.SnipeRequestCompressed;
+					_messageSerializationBuffer[0] = (byte)KcpOpCode.SnipeRequestCompressed;
 
 					if (writeLength)
 					{
@@ -271,7 +261,7 @@ namespace MiniIT.Snipe
 			}
 			else // compression not needed
 			{
-				_messageSerializationBuffer[0] = (byte)KcpOpCodes.SnipeRequest;
+				_messageSerializationBuffer[0] = (byte)KcpOpCode.SnipeRequest;
 				if (writeLength)
 				{
 					BytesUtil.WriteInt(_messageSerializationBuffer, 1, msg_data.Count - 1); // msg_data.Count = opcode (1 byte) + length (4 bytes) + msg.Length
