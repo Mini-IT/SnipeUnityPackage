@@ -115,7 +115,7 @@ namespace MiniIT.Snipe
 
 		private KcpTransport CreateKcpTransport()
 		{
-			var transport = new KcpTransport(_config);
+			var transport = new KcpTransport(_config, _analytics);
 
 			transport.ConnectionOpenedHandler = () =>
 			{
@@ -147,7 +147,7 @@ namespace MiniIT.Snipe
 
 		private WebSocketTransport CreateWebSocketTransport()
 		{
-			return new WebSocketTransport(_config)
+			return new WebSocketTransport(_config, _analytics)
 			{
 				ConnectionOpenedHandler = OnConnected,
 				ConnectionClosedHandler = () => Disconnect(true),
@@ -157,7 +157,7 @@ namespace MiniIT.Snipe
 
 		private HttpTransport CreateHttpTransport()
 		{
-			return new HttpTransport(_config)
+			return new HttpTransport(_config, _analytics)
 			{
 				ConnectionOpenedHandler = OnConnected,
 				ConnectionClosedHandler = () => Disconnect(true),

@@ -21,10 +21,10 @@ namespace MiniIT.Snipe
 		private readonly SnipeConfig _config;
 		private readonly Analytics _analytics;
 
-		internal KcpTransport(SnipeConfig config)
+		internal KcpTransport(SnipeConfig config, Analytics analytics)
 		{
 			_config = config;
-			_analytics = Analytics.GetInstance(config.ContextId);
+			_analytics = analytics;
 		}
 
 		public override void Connect()

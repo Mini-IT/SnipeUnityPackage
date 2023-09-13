@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading;
 
 namespace MiniIT.Snipe
@@ -24,10 +25,10 @@ namespace MiniIT.Snipe
 		private readonly SnipeConfig _config;
 		private readonly Analytics _analytics;
 
-		internal HttpTransport(SnipeConfig config)
+		internal HttpTransport(SnipeConfig config, Analytics analytics)
 		{
 			_config = config;
-			_analytics = Analytics.GetInstance(config.ContextId);
+			_analytics = analytics;
 		}
 
 		public override void Connect()
@@ -154,30 +155,29 @@ namespace MiniIT.Snipe
 			try
 			{
 				var uri = new Uri(_baseUrl, requestType);
-				DebugLogger.Log($"+++ request ({uri}) - {json}");
+				var requestContent = new StringContent(json, Encoding.UTF8, "application/json");
 
-				using (var request = new HttpRequestMessage(HttpMethod.Post, uri))
+				DebugLogger.Log($"+++ <<< request ({uri}) - {json}");
+
+				using (var response = await _httpClient.PostAsync(uri, requestContent))
 				{
-					request.Content = new StringContent(json);
-					using (var response = await _httpClient.SendAsync(request))
+					// response.StatusCode:
+					//   200 - ok
+					//   401 - wrong auth token,
+					//   429 - {"errorCode":"rateLimit"}
+					//   500 - {"errorCode":"requestTimeout"}
+
+					string responseMessage = await response.Content.ReadAsStringAsync();
+
+					DebugLogger.Log($"+++ >>> response {requestType} ({(int)response.StatusCode} {response.StatusCode}) {responseMessage}");
+
+					if (response.IsSuccessStatusCode)
 					{
-						// response.StatusCode:
-						//   200 - ok
-						//   401 - wrong auth token,
-						//   429 - errorCode = rateLimit
-						//   500 - errorCode = requestTimeout
-
-						DebugLogger.Log($">>> response ({(int)response.StatusCode} {response.StatusCode})");
-
-						if (response.IsSuccessStatusCode)
-						{
-							string responseMessage = await response.Content.ReadAsStringAsync();
-							ProcessMessage(responseMessage);
-						}
-						else if (response.StatusCode == HttpStatusCode.Unauthorized) // 401 - wrong auth token
-						{
-							Disconnect();
-						}
+						ProcessMessage(responseMessage);
+					}
+					else if (response.StatusCode == HttpStatusCode.Unauthorized) // 401 - wrong auth token
+					{
+						Disconnect();
 					}
 				}
 			}

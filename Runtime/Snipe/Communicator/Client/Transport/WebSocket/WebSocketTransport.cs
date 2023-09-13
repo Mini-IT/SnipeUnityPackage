@@ -50,10 +50,10 @@ namespace MiniIT.Snipe
 		private bool _connected;
 		private bool _loggedIn;
 
-		internal WebSocketTransport(SnipeConfig config)
+		internal WebSocketTransport(SnipeConfig config, Analytics analytics)
 		{
 			_config = config;
-			_analytics = Analytics.GetInstance(config.ContextId);
+			_analytics = analytics;
 		}
 
 		public override void Connect()
