@@ -504,6 +504,31 @@ namespace MiniIT.Snipe
 			}
 		}
 
+		/// <summary>
+		/// Relogin to another account referenced by <paramref name="binding"/>
+		/// </summary>
+		/// <param name="binding">Instance of <see cref="AuthBinding"/> that references the target account</param>
+		/// <param name="destroyContext">Action that should gracefully destroy current <see cref="SnipeContext"/></param>
+		/// <param name="initContext">Action that initializes new <see cref="SnipeContext"/></param>
+		public void ReloginTo(AuthBinding binding, Action destroyContext, Action initContext)
+		{
+			binding.ResetAuth(async (errorCode) =>
+			{
+				// TODO:
+				// if (errorCode != "ok") {...}
+
+				ClearAllBindings();
+
+				destroyContext.Invoke();
+
+				binding.IsBindDone = false;
+				_userID = 0;
+
+				await Task.Delay(1000);
+				initContext.Invoke();
+			});
+		}
+
 		// Called by BindProvider
 		internal void OnAccountBindingCollision(AuthBinding binding, string user_name = null)
 		{
