@@ -14,7 +14,7 @@ namespace MiniIT.Snipe
 			{
 				if (FB.IsLoggedIn && AccessToken.CurrentAccessToken != null)
 				{
-					Value = AccessToken.CurrentAccessToken.UserId;
+					SetValue(AccessToken.CurrentAccessToken.UserId);
 				}
 			}
 
@@ -33,8 +33,30 @@ namespace MiniIT.Snipe
 			{
 				await Task.Delay(100);
 			}
-			Value = AccessToken.CurrentAccessToken.UserId;
-			callback?.Invoke(Value);
+
+			SetValue(AccessToken.CurrentAccessToken.UserId);
+
+			if (!string.IsNullOrEmpty(Value))
+			{
+				callback?.Invoke(Value);
+			}
+		}
+
+		private void SetValue(string value)
+		{
+			if (CheckValueValid(value))
+			{
+				Value = value;
+			}
+			else
+			{
+				Value = "";
+			}
+		}
+
+		private static bool CheckValueValid(string value)
+		{
+			return value != null && value.Length > 2;
 		}
 	}
 }
