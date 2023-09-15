@@ -3,7 +3,9 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using MiniIT.MessagePack;
+using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe
 {
@@ -18,13 +20,10 @@ namespace MiniIT.Snipe
 		private CancellationTokenSource _networkLoopCancellation;
 
 		private readonly object _lock = new object();
-		private readonly SnipeConfig _config;
-		private readonly Analytics _analytics;
 
 		internal KcpTransport(SnipeConfig config, Analytics analytics)
+			: base(config, analytics)
 		{
-			_config = config;
-			_analytics = analytics;
 		}
 
 		public override void Connect()
@@ -87,14 +86,14 @@ namespace MiniIT.Snipe
 		{
 			ConnectionEstablished = true;
 
-			DebugLogger.Log("[SnipeClient] OnUdpClientConnected");
+			_logger.Log("OnUdpClientConnected");
 
 			ConnectionOpenedHandler?.Invoke();
 		}
 
 		private void OnClientDisconnected()
 		{
-			DebugLogger.Log("[SnipeClient] OnUdpClientDisconnected");
+			_logger.Log("OnUdpClientDisconnected");
 			
 			StopNetworkLoop();
 			_kcpConnection = null;
@@ -103,7 +102,7 @@ namespace MiniIT.Snipe
 			{
 				if (_config.NextUdpUrl())
 				{
-					DebugLogger.Log("[SnipeClient] Next udp url");
+					_logger.Log("Next udp url");
 					//Connect();
 					//return;
 				}
@@ -114,7 +113,7 @@ namespace MiniIT.Snipe
 		
 		private void OnClientDataReceived(ArraySegment<byte> buffer, KcpChannel channel, bool compressed)
 		{
-			DebugLogger.Log($"[SnipeClient] OnUdpClientDataReceived");
+			_logger.Log("OnUdpClientDataReceived");
 			
 			var opcode = (KcpOpCode)buffer.Array[buffer.Offset];
 
@@ -165,7 +164,7 @@ namespace MiniIT.Snipe
 			
 			if (len > buffer.Count - 5)
 			{
-				DebugLogger.LogError($"[KcpTransport] ProcessMessage - Message lenght (${len} bytes) is greater than the buffer size (${buffer.Count} bytes)");
+				_logger.LogError($"ProcessMessage - Message lenght (${len} bytes) is greater than the buffer size (${buffer.Count} bytes)");
 				return null;
 			}
 			
@@ -240,8 +239,8 @@ namespace MiniIT.Snipe
 			{
 				await Task.Run(() =>
 				{
-					DebugLogger.Log("[SnipeClient] compress message");
-					// DebugLogger.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
+					_logger.Log("compress message");
+					// _logger.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
 
 					ArraySegment<byte> msg_content = new ArraySegment<byte>(_messageSerializationBuffer, offset, msg_data.Count - offset);
 					ArraySegment<byte> compressed = _messageCompressor.Compress(msg_content);
@@ -256,7 +255,7 @@ namespace MiniIT.Snipe
 
 					msg_data = new ArraySegment<byte>(_messageSerializationBuffer, 0, compressed.Count + offset);
 
-					// DebugLogger.Log("Compressed:   " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
+					// _logger.Log("Compressed:   " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
 				});
 			}
 			else // compression not needed
@@ -273,7 +272,7 @@ namespace MiniIT.Snipe
 
 		private void StartNetworkLoop()
 		{
-			DebugLogger.Log("[SnipeClient] StartNetworkLoop");
+			_logger.Log("StartNetworkLoop");
 			
 			_networkLoopCancellation?.Cancel();
 
@@ -284,7 +283,7 @@ namespace MiniIT.Snipe
 
 		public void StopNetworkLoop()
 		{
-			DebugLogger.Log("[SnipeClient] StopNetworkLoop");
+			_logger.Log("StopNetworkLoop");
 			
 			if (_networkLoopCancellation != null)
 			{
@@ -304,7 +303,7 @@ namespace MiniIT.Snipe
 				}
 				catch (Exception e)
 				{
-					DebugLogger.Log($"[SnipeClient] NetworkLoop - Exception: {e}");
+					_logger.Log($"NetworkLoop - Exception: {e}");
 					_analytics.TrackError("NetworkLoop error", e);
 					OnClientDisconnected();
 					return;
@@ -324,7 +323,7 @@ namespace MiniIT.Snipe
 		
 		//private async void UdpConnectionTimeout(CancellationToken cancellation)
 		//{
-		//	DebugLogger.Log("[SnipeClient] UdpConnectionTimeoutTask - start");
+		//	_logger.Log("UdpConnectionTimeoutTask - start");
 			
 		//	try
 		//	{
@@ -343,11 +342,11 @@ namespace MiniIT.Snipe
 			
 		//	if (!Connected)
 		//	{
-		//		DebugLogger.Log("[SnipeClient] UdpConnectionTimeoutTask - Calling Disconnect");
+		//		_logger.Log("UdpConnectionTimeoutTask - Calling Disconnect");
 		//		OnClientDisconnected();
 		//	}
 			
-		//	DebugLogger.Log("[SnipeClient] UdpConnectionTimeoutTask - finish");
+		//	_logger.Log("UdpConnectionTimeoutTask - finish");
 		//}
 	}
 }

@@ -203,12 +203,12 @@ namespace MiniIT.Utils
 					}
 					else
 					{
-						DebugLogger.Log($"[SimpleImageLoader] Error loading image: {url} - invalid image");
+						UnityEngine.Debug.Log($"[SimpleImageLoader] Error loading image: {url} - invalid image");
 					}					
 				}
 				else
 				{
-					DebugLogger.Log($"[SimpleImageLoader] Error loading image: {url} - {loader.error}");
+					UnityEngine.Debug.Log($"[SimpleImageLoader] Error loading image: {url} - {loader.error}");
 				}
 			}
 

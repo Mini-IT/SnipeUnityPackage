@@ -6,11 +6,20 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe.Tables
 {
 	public class TablesVersionsLoader
 	{
+		private ILogger _logger;
+
+		public TablesVersionsLoader()
+		{
+			_logger = LogManager.GetLogger(nameof(TablesVersionsLoader));
+		}
+
 		public async Task<Dictionary<string, long>> Load(CancellationToken cancellationToken)
 		{
 			Dictionary<string, long> versions = null;
@@ -19,7 +28,7 @@ namespace MiniIT.Snipe.Tables
 			{
 				string url = GetVersionsUrl();
 
-				DebugLogger.Log($"[{nameof(TablesVersionsLoader)}] LoadVersion ({retries_count}) " + url);
+				_logger.Log($"LoadVersion ({retries_count}) " + url);
 				
 				try
 				{
@@ -49,7 +58,7 @@ namespace MiniIT.Snipe.Tables
 								}
 								else
 								{
-									DebugLogger.Log($"[{nameof(TablesVersionsLoader)}] LoadVersion done - {versions.Count} items");
+									_logger.Log($"LoadVersion done - {versions.Count} items");
 								}
 
 								break;
@@ -67,7 +76,7 @@ namespace MiniIT.Snipe.Tables
 								{
 									// HTTP Status: 404
 									// It is useless to retry loading
-									DebugLogger.Log($"[{nameof(TablesVersionsLoader)}] LoadVersion StatusCode = {response.StatusCode} - will not rety");
+									_logger.Log($"LoadVersion StatusCode = {response.StatusCode} - will not rety");
 									break;
 								}
 							}
@@ -76,23 +85,23 @@ namespace MiniIT.Snipe.Tables
 				}
 				catch (Exception e) when (e is AggregateException ae && ae.InnerException is HttpRequestException)
 				{
-					DebugLogger.Log($"[{nameof(TablesVersionsLoader)}] LoadVersion HttpRequestException - network is unreachable - will not rety. {e}");
+					_logger.Log($"LoadVersion HttpRequestException - network is unreachable - will not rety. {e}");
 					break;
 				}
 				catch (Exception e) when (e is OperationCanceledException ||
 						e is AggregateException ae && ae.InnerException is OperationCanceledException)
 				{
-					DebugLogger.Log($"[{nameof(TablesVersionsLoader)}] LoadVersion - TaskCanceled");
+					_logger.Log($"LoadVersion - TaskCanceled");
 					break;
 				}
 				catch (Exception e)
 				{
-					DebugLogger.Log($"[{nameof(TablesVersionsLoader)}] LoadVersion - Exception: {e}");
+					_logger.Log($"LoadVersion - Exception: {e}");
 				}
 				
 				if (cancellationToken.IsCancellationRequested)
 				{
-					DebugLogger.Log($"[{nameof(TablesVersionsLoader)}] LoadVersion task canceled");
+					_logger.Log($"LoadVersion task canceled");
 					break;
 				}
 
@@ -102,14 +111,14 @@ namespace MiniIT.Snipe.Tables
 				}
 				catch (OperationCanceledException)
 				{
-					DebugLogger.Log($"[{nameof(TablesVersionsLoader)}] LoadVersion task canceled");
+					_logger.Log($"LoadVersion task canceled");
 					break;
 				}
 			}
 
 			if (versions == null)
 			{
-				DebugLogger.Log($"[{nameof(TablesVersionsLoader)}] LoadVersion Failed");
+				_logger.Log($"LoadVersion Failed");
 				Analytics.GetInstance().TrackEvent("Tables - LoadVersion Failed");
 				return null;
 			}
@@ -140,7 +149,7 @@ namespace MiniIT.Snipe.Tables
 				return versions;
 			}
 
-			DebugLogger.Log($"[{nameof(TablesVersionsLoader)}] Faield to prase versions json");
+			_logger.Log($"Faield to prase versions json");
 			return null;
 		}
 	}

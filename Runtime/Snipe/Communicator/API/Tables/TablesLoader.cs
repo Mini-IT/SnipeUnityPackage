@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using MiniIT.Snipe.Logging;
 using MiniIT.Snipe.Tables;
 
 namespace MiniIT.Snipe
@@ -19,11 +21,13 @@ namespace MiniIT.Snipe
 
 		private HashSet<TablesLoaderItem> _loadingItems; 
 		private readonly TablesVersionsLoader _versionsLoader;
+		private ILogger _logger;
 
 		public TablesLoader()
 		{
 			BetterStreamingAssets.Initialize();
 			_versionsLoader = new TablesVersionsLoader();
+			_logger = LogManager.GetLogger(nameof(TablesLoader));
 		}
 
 		internal static string GetCacheDirectoryPath()
@@ -38,9 +42,9 @@ namespace MiniIT.Snipe
 
 		public void Reset()
 		{
-			DebugLogger.Log($"[{nameof(TablesLoader)}] Reset");
+			_logger.Log("Reset");
 
-			Analytics.GetInstance().TrackEvent($"TablesLoader - Reset");
+			Analytics.GetInstance().TrackEvent("TablesLoader - Reset");
 
 			StopLoading();
 			
@@ -138,7 +142,7 @@ namespace MiniIT.Snipe
 			catch (Exception e)
 			{
 				exception = e;
-				DebugLogger.Log($"[{nameof(TablesLoader)}] Load {loaderItem.Name} - Exception: {e}");
+				_logger.Log($"Load {loaderItem.Name} - Exception: {e}");
 			}
 			finally
 			{
@@ -148,7 +152,7 @@ namespace MiniIT.Snipe
 			if (!loaded && !_failed)
 			{
 				_failed = true;
-				DebugLogger.LogWarning($"[{nameof(TablesLoader)}] Loading failed: {loaderItem.Name}. StopLoading.");
+				_logger.LogWarning($"Loading failed: {loaderItem.Name}. StopLoading.");
 
 				if (!cancelled)
 				{
@@ -163,11 +167,11 @@ namespace MiniIT.Snipe
 		{
 			if (cancellation.IsCancellationRequested)
 			{
-				DebugLogger.Log($"[SnipeTable] Failed to load table - {loaderItem.Name}   (task canceled)");
+				_logger.Log($"Failed to load table - {loaderItem.Name}   (task canceled)");
 				return false;
 			}
 
-			DebugLogger.Log($"[SnipeTable] LoadTask start - {loaderItem.Name}");
+			_logger.Log($"LoadTask start - {loaderItem.Name}");
 
 			// Try to load from cache
 			if (await LoadTableAsync(loaderItem.Table,
@@ -235,7 +239,7 @@ namespace MiniIT.Snipe
 					!_versions.TryGetValue(tableName, out long tableVersion) ||
 					Convert.ToInt64(version) != tableVersion)
 				{
-					DebugLogger.Log($"[{nameof(TablesLoader)}] RemoveMisversionedCache - Delete {filePath}");
+					_logger.Log($"RemoveMisversionedCache - Delete {filePath}");
 					File.Delete(filePath);
 				}
 			}
@@ -272,7 +276,7 @@ namespace MiniIT.Snipe
 					long cachedVersion = Convert.ToInt64(version);
 					if (cachedVersion < builtInVersion)
 					{
-						DebugLogger.Log($"[{nameof(TablesLoader)}] RemoveOutdatedCache - Delete {filePath}");
+						_logger.Log($"RemoveOutdatedCache - Delete {filePath}");
 						File.Delete(filePath);
 					}
 				}

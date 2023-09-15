@@ -2,7 +2,9 @@
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+#if !MINI_IT_ADVERTISING_ID
 using UnityEngine;
+#endif
 
 namespace MiniIT.Snipe
 {

@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe
 {
@@ -25,6 +27,8 @@ namespace MiniIT.Snipe
 		
 		private bool _sent = false;
 		protected bool _waitingForResponse = false;
+
+		private ILogger _logger;
 
 		public AbstractCommunicatorRequest(SnipeCommunicator communicator, string messageType = null, SnipeObject data = null)
 		{
@@ -162,7 +166,7 @@ namespace MiniIT.Snipe
 			
 			if (_requestId != 0)
 			{
-				DebugLogger.Log($"[{nameof(AbstractCommunicatorRequest)}] DoSendRequest - Same request found: {MessageType}, id = {_requestId}, mWaitingForResponse = {_waitingForResponse}");
+				GetLogger().Log($"DoSendRequest - Same request found: {MessageType}, id = {_requestId}, mWaitingForResponse = {_waitingForResponse}");
 				
 				if (!_waitingForResponse)
 				{
@@ -199,7 +203,7 @@ namespace MiniIT.Snipe
 			{
 				if (_requestId != 0) // if the request is considered sent but not responsed yet
 				{
-					DebugLogger.Log($"[{nameof(AbstractCommunicatorRequest)}] Disposing request {_requestId} {MessageType}");
+					GetLogger().Log($"Disposing request {_requestId} {MessageType}");
 					InvokeCallback(SnipeErrorCodes.NOT_READY, EMPTY_DATA);
 				}
 				Dispose();
@@ -211,7 +215,7 @@ namespace MiniIT.Snipe
 			_communicator.ConnectionSucceeded -= OnCommunicatorReady;
 			_communicator.MessageReceived -= OnMessageReceived;
 
-			DebugLogger.Log($"[{nameof(AbstractCommunicatorRequest)}] Waiting for connection - {MessageType}");
+			GetLogger().Log($"Waiting for connection - {MessageType}");
 
 			_communicator.ConnectionSucceeded += OnCommunicatorReady;
 		}
@@ -248,7 +252,7 @@ namespace MiniIT.Snipe
 				}
 				catch (Exception e)
 				{
-					DebugLogger.Log($"[{nameof(AbstractCommunicatorRequest)}] {MessageType} Callback invokation error: {e}");
+					GetLogger().Log($"{MessageType} Callback invokation error: {e}");
 				}
 			}
 		}
@@ -299,6 +303,12 @@ namespace MiniIT.Snipe
 			hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(MessageType);
 			hashCode = hashCode * -1521134295 + EqualityComparer<SnipeObject>.Default.GetHashCode(Data);
 			return hashCode;
+		}
+
+		private ILogger GetLogger()
+		{
+			_logger ??= LogManager.GetLogger(nameof(AbstractCommunicatorRequest));
+			return _logger;
 		}
 	}
 }

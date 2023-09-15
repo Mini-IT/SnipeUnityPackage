@@ -2,6 +2,8 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe
 {
@@ -14,9 +16,16 @@ namespace MiniIT.Snipe
 
 		private Socket _socket;
 
+		private readonly ILogger _logger;
+
+		public UdpSocketWrapper()
+		{
+			_logger = LogManager.GetLogger(nameof(UdpSocketWrapper));
+		}
+
 		public async void Connect(string host, ushort port)
 		{
-			DebugLogger.Log($"[UdpSocketWrapper] connect to {host}:{port}");
+			_logger.Log($"connect to {host}:{port}");
 			
 			IPAddress[] addresses;
 
@@ -26,7 +35,7 @@ namespace MiniIT.Snipe
 			}
 			catch (SocketException)
 			{
-				DebugLogger.Log($"[UdpSocketWrapper] Failed to resolve host: {host}");
+				_logger.Log($"Failed to resolve host: {host}");
 				addresses = null;
 			}
 
@@ -101,7 +110,7 @@ namespace MiniIT.Snipe
 				{
 					await socket.ConnectAsync(ipe);
 				}
-				catch (Exception e)
+				catch (Exception)
 				{
 					socket = null;
 				}

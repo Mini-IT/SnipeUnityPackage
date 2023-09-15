@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.IO;
 using System.Threading.Tasks;
+using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe.Tables
 {
@@ -9,13 +10,14 @@ namespace MiniIT.Snipe.Tables
 	{
 		public static async Task<bool> LoadAsync(Type wrapperType, IDictionary items, string table_name, long version)
 		{
-			DebugLogger.Log($"[SnipeTable] ReadFromStramingAssets - {table_name}");
+			var logger = LogManager.GetLogger("SnipeTable");
+			logger.Log($"ReadFromStramingAssets - {table_name}");
 
 			string file_path = GetFilePath(table_name, version);
 
 			if (!BetterStreamingAssets.FileExists(file_path))
 			{
-				DebugLogger.Log($"[SnipeTable] ReadFromStramingAssets - file not found: {file_path}");
+				logger.Log($"[SnipeTable] ReadFromStramingAssets - file not found: {file_path}");
 				return false;
 			}
 
@@ -33,13 +35,13 @@ namespace MiniIT.Snipe.Tables
 					}
 					catch (Exception e)
 					{
-						DebugLogger.Log($"[SnipeTable] Failed to read file - {table_name} - {e}");
+						logger.Log($"[SnipeTable] Failed to read file - {table_name} - {e}");
 					}
 				}
 
 				if (loaded)
 				{
-					DebugLogger.Log($"[SnipeTable] Table ready (built-in) - {table_name}");
+					logger.Log($"[SnipeTable] Table ready (built-in) - {table_name}");
 				}
 			}
 

@@ -1,6 +1,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
+using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe
 {
@@ -41,7 +43,7 @@ namespace MiniIT.Snipe
 
 			if (node == null)
 			{
-				DebugLogger.LogError($"[LogicNode] Table node not found. id = {id}");
+				LogManager.GetLogger(nameof(LogicNode)).LogError($"Table node not found. id = {id}");
 				return;
 			}
 			

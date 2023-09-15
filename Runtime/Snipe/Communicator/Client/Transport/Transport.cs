@@ -1,4 +1,6 @@
+using Microsoft.Extensions.Logging;
 using MiniIT.MessagePack;
+using MiniIT.Snipe.Logging;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -13,6 +15,17 @@ namespace MiniIT.Snipe
 
 		public virtual bool Started { get; } = false;
 		public virtual bool Connected { get; } = false;
+
+		protected readonly SnipeConfig _config;
+		protected readonly Analytics _analytics;
+		protected readonly ILogger _logger;
+
+		internal Transport(SnipeConfig config, Analytics analytics)
+		{
+			_config = config;
+			_analytics = analytics;
+			_logger = LogManager.GetLogger(GetType().Name);
+		}
 
 		public abstract void Connect();
 		public abstract void Disconnect();

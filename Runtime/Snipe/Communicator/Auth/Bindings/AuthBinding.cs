@@ -1,4 +1,6 @@
 ﻿using System;
+using Microsoft.Extensions.Logging;
+using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe
 {
@@ -42,6 +44,7 @@ namespace MiniIT.Snipe
 		protected readonly SnipeCommunicator _communicator;
 		private readonly AuthSubsystem _authSubsystem;
 		private readonly SnipeConfig _config;
+		private readonly ILogger _logger;
 
 		public AuthBinding(string provider_id,
 			AuthIdFetcher fetcher,
@@ -52,6 +55,8 @@ namespace MiniIT.Snipe
 			_communicator = communicator;
 			_authSubsystem = authSubsystem;
 			_config = config;
+
+			_logger = LogManager.GetLogger(GetType().Name);
 
 			ProviderId = provider_id;
 			Fetcher = fetcher;
@@ -66,22 +71,22 @@ namespace MiniIT.Snipe
 		{
 			if (_started)
 			{
-				DebugLogger.Log($"[AuthBinding] [{ProviderId}] Start - Already started");
+				_logger.Log("Start - Already started");
 				return;
 			}
 			_started = true;
 			
-			DebugLogger.Log($"[AuthBinding] [{ProviderId}] Start");
+			_logger.Log("Start");
 			if (Fetcher != null && !IsBindDone)
 			{
-				DebugLogger.Log($"[AuthBinding] [{ProviderId}] Fetch");
+				_logger.Log("Fetch");
 				Fetcher.Fetch(true, OnIdFetched);
 			}
 		}
 
 		protected void OnIdFetched(string uid)
 		{
-			DebugLogger.Log($"[AuthBinding] [{ProviderId}] OnIdFetched: {uid}");
+			_logger.Log("OnIdFetched: {uid}");
 
 			if (!string.IsNullOrEmpty(uid) && !IsBindDone)
 			{
@@ -118,7 +123,7 @@ namespace MiniIT.Snipe
 				if (!string.IsNullOrEmpty(pass))
 					data["auth"] = pass;
 
-				DebugLogger.Log($"[AuthBinding] ({ProviderId}) send user.bind " + data.ToJSONString());
+				_logger.Log($"({ProviderId}) send user.bind " + data.ToJSONString());
 				new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_BIND, data)
 					.Request(OnBindResponse);
 
@@ -186,7 +191,7 @@ namespace MiniIT.Snipe
 		{
 			user_id = GetContextBoundUserId(user_id);
 
-			DebugLogger.Log($"[AuthBinding] ({ProviderId}) CheckAuthExists {user_id}");
+			_logger.Log($"({ProviderId}) CheckAuthExists {user_id}");
 
 			SnipeObject data = new SnipeObject()
 			{
@@ -207,7 +212,7 @@ namespace MiniIT.Snipe
 
 		protected virtual void OnBindResponse(string error_code, SnipeObject data)
 		{
-			DebugLogger.Log($"[AuthBinding] ({ProviderId}) OnBindResponse - {error_code}");
+			_logger.Log($"({ProviderId}) OnBindResponse - {error_code}");
 
 			if (error_code == SnipeErrorCodes.OK)
 			{
@@ -243,7 +248,7 @@ namespace MiniIT.Snipe
 				}
 				else if (!is_me)
 				{
-					DebugLogger.Log($"[AuthBinding] ({ProviderId}) OnCheckAuthExistsResponse - another account found - InvokeAccountBindingCollisionEvent");
+					_logger.Log($"({ProviderId}) OnCheckAuthExistsResponse - another account found - InvokeAccountBindingCollisionEvent");
 					_authSubsystem.OnAccountBindingCollision(this, data.SafeGetString("name"));
 				}
 			}
@@ -251,7 +256,7 @@ namespace MiniIT.Snipe
 
 		protected virtual void InvokeBindResultCallback(string error_code)
 		{
-			DebugLogger.Log($"[AuthBinding] ({ProviderId}) InvokeBindResultCallback - {error_code}");
+			_logger.Log($"({ProviderId}) InvokeBindResultCallback - {error_code}");
 
 			if (_bindResultCallback != null)
 			{
@@ -267,7 +272,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			DebugLogger.Log($"[AuthBinding] ({ProviderId}) Set bind done flag to {value}");
+			_logger.Log($"({ProviderId}) Set bind done flag to {value}");
 
 			_isBindDone = value;
 			if (value)

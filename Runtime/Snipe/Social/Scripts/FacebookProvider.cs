@@ -1,12 +1,8 @@
 #if SNIPE_FACEBOOK
 
 using System;
-using System.Text.RegularExpressions;
-using System.Collections;
 using System.Collections.Generic;
 using Facebook.Unity;
-using MiniIT;
-using UnityEngine;
 
 namespace MiniIT.Social
 {
@@ -99,7 +95,7 @@ namespace MiniIT.Social
 
 		private void OnInitComplete()
 		{
-			DebugLogger.Log("[FacebookProvider] FB.Init completed. User logged in = " + FB.IsLoggedIn);
+			UnityEngine.Debug.Log("FB.Init completed. User logged in = " + FB.IsLoggedIn);
 			if (FB.IsLoggedIn)
 			{
 				GetPlayerProfile();
@@ -126,7 +122,7 @@ namespace MiniIT.Social
 		{
 			if (!FB.IsLoggedIn || !string.IsNullOrEmpty(result.Error))
 			{
-				DebugLogger.Log("[FacebookProvider] Login failed. Error: " + result.Error);
+				UnityEngine.Debug.Log("Login failed. Error: " + result.Error);
 
 				mInitializationFailedCallback?.Invoke();
 				
@@ -288,7 +284,7 @@ namespace MiniIT.Social
 			//profile.Online       = Convert.ToBoolean( data["online"] );
 
 			AddProfileToCache(profile);
-			DebugLogger.Log("[FacebookProvider] PrepareProfile " + profile.ToJSONString());
+			UnityEngine.Debug.Log("PrepareProfile " + profile.ToJSONString());
 			
 			return profile;
 		}
@@ -296,9 +292,9 @@ namespace MiniIT.Social
 		private bool AssertResult(IResult response)
 		{
 			// Some platforms return the empty string instead of null.
-			if (!String.IsNullOrEmpty(response.Error))
+			if (!string.IsNullOrEmpty(response.Error))
 			{
-				DebugLogger.Log("[FacebookProvider] response error: " + response.Error);
+				UnityEngine.Debug.Log("response error: " + response.Error);
 
 				//var error_data = new SnipeObject();
 				//error_data["error"] = response.Error;

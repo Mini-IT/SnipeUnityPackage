@@ -1,12 +1,20 @@
 ﻿using System;
 using System.Security.Cryptography;
 using System.Text;
+using MiniIT.Snipe.Logging;
 using UnityEngine;
 
 namespace MiniIT.Snipe
 {
 	public class DeviceIdFetcher : AuthIdFetcher
 	{
+		private readonly Microsoft.Extensions.Logging.ILogger _logger;
+
+		public DeviceIdFetcher()
+		{
+			_logger = LogManager.GetLogger(nameof(DeviceIdFetcher));
+		}
+
 		public override void Fetch(bool wait_initialization, Action<string> callback = null)
 		{
 			if (string.IsNullOrEmpty(Value))
@@ -18,11 +26,11 @@ namespace MiniIT.Snipe
 					if (string.IsNullOrEmpty(Value))
 					{
 						Value = SystemInfo.deviceUniqueIdentifier;
-						DebugLogger.Log($"[DeviceIdFetcher] Value = {Value}");
+						_logger.Log($"[DeviceIdFetcher] Value = {Value}");
 						if (Value.Length > 64)
 						{
 							Value = GetHashString(Value);
-							DebugLogger.Log($"[DeviceIdFetcher] Value Hash = {Value}");
+							_logger.Log($"[DeviceIdFetcher] Value Hash = {Value}");
 						}
 					}
 				}

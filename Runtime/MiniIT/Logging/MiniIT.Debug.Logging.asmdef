@@ -1,0 +1,13 @@
+{
+    "name": "MiniIT.Debug.Logging",
+    "references": [
+		"Microsoft.Extensions.Logging.Abstractions"
+	],
+    "optionalUnityReferences": [],
+    "excludePlatforms": [],
+	"allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": []
+}

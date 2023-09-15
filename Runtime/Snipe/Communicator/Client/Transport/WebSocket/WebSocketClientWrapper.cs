@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using System.Net.WebSockets;
 using System.Buffers;
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
+using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe
 {
@@ -21,6 +23,7 @@ namespace MiniIT.Snipe
 		private byte[] _receiveMessageBuffer;
 
 		private readonly ConcurrentQueue<ArraySegment<byte>> _sendQueue = new ConcurrentQueue<ArraySegment<byte>>();
+		private readonly ILogger _logger;
 
 		/// <summary>
 		/// <c>System.Net.WebSockets.ClientWebSocket</c> wrapper. Reads incoming messages by chunks
@@ -36,6 +39,8 @@ namespace MiniIT.Snipe
 			_taskScheduler = (SynchronizationContext.Current != null) ?
 				TaskScheduler.FromCurrentSynchronizationContext() :
 				TaskScheduler.Current;
+
+			_logger = LogManager.GetLogger(nameof(WebSocketClientWrapper));
 		}
 
 		public override void Connect(string url)
@@ -60,14 +65,14 @@ namespace MiniIT.Snipe
 
 				if (!connectionTask.IsCompleted)
 				{
-					DebugLogger.Log("[WebSocketClientWrapper] WaitForConnection - Connection timed out");
+					_logger.Log("WaitForConnection - Connection timed out");
 					OnWebSocketClosed("WebSocketWrapper - Connection timed out");
 					return;
 				}
 			}
 			catch (Exception e)
 			{
-				DebugLogger.Log($"[WebSocketClientWrapper] Connection failed: {e}");
+				_logger.Log($"Connection failed: {e}");
 				OnWebSocketClosed(e.ToString());
 			}
 
@@ -76,7 +81,7 @@ namespace MiniIT.Snipe
 
 			if (_webSocket.State != WebSocketState.Open)
 			{
-				DebugLogger.Log("[WebSocketClientWrapper] Connection failed");
+				_logger.Log("Connection failed");
 				OnWebSocketClosed("Connection failed");
 				return;
 			}
@@ -202,7 +207,7 @@ namespace MiniIT.Snipe
 
 		protected void OnWebSocketClosed(string reason)
 		{
-			DebugLogger.Log($"[WebSocketWrapper] OnWebSocketClosed: {reason}");
+			_logger.Log($"[WebSocketWrapper] OnWebSocketClosed: {reason}");
 			
 			Disconnect(reason);
 

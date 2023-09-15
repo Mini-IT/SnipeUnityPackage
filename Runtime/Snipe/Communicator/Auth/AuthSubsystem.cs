@@ -5,6 +5,8 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Linq;
+using Microsoft.Extensions.Logging;
+using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe
 {
@@ -93,6 +95,7 @@ namespace MiniIT.Snipe
 
 		private readonly SnipeConfig _config;
 		private readonly Analytics _analytics;
+		private readonly ILogger _logger;
 		private readonly TaskScheduler _mainThreadScheduler;
 
 		public AuthSubsystem(SnipeCommunicator communicator, SnipeConfig config)
@@ -102,6 +105,8 @@ namespace MiniIT.Snipe
 
 			_config = config;
 			_analytics = Analytics.GetInstance(_config.ContextId);
+
+			_logger = LogManager.GetLogger(nameof(AuthSubsystem));
 
 			_mainThreadScheduler = (SynchronizationContext.Current != null) ?
 				TaskScheduler.FromCurrentSynchronizationContext() :
@@ -149,7 +154,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			DebugLogger.Log($"[{nameof(AuthSubsystem)}] ({_communicator.InstanceId}) Authorize");
+			_logger.Log($"({_communicator.InstanceId}) Authorize");
 
 			if (UseDefaultBindings)
 			{
@@ -262,7 +267,7 @@ namespace MiniIT.Snipe
 
 						case SnipeErrorCodes.GAME_SERVERS_OFFLINE:
 						default: // unexpected error code
-							DebugLogger.LogError($"[{nameof(AuthSubsystem)}] ({_communicator.InstanceId}) {SnipeMessageTypes.USER_LOGIN} - Unexpected error code: {error_code}");
+							_logger.LogError($"({_communicator.InstanceId}) {SnipeMessageTypes.USER_LOGIN} - Unexpected error code: {error_code}");
 							_communicator.Disconnect();
 							break;
 					}
@@ -581,7 +586,7 @@ namespace MiniIT.Snipe
 						string message = (e is System.Reflection.TargetInvocationException tie) ?
 							$"{tie.InnerException?.Message}\n{tie.InnerException?.StackTrace}" :
 							$"{e.Message}\n{e.StackTrace}";
-						DebugLogger.Log($"[{nameof(AuthSubsystem)}] RaiseEvent - Error in the handler {handler?.Method?.Name}: {message}");
+						_logger.Log($"RaiseEvent - Error in the handler {handler?.Method?.Name}: {message}");
 					}
 				}
 			}

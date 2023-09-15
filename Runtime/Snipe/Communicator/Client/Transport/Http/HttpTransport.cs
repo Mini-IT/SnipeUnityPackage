@@ -6,6 +6,8 @@ using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
+using Microsoft.Extensions.Logging;
+using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe
 {
@@ -22,13 +24,10 @@ namespace MiniIT.Snipe
 		private Uri _baseUrl;
 		private bool _connected;
 		private readonly object _lock = new object();
-		private readonly SnipeConfig _config;
-		private readonly Analytics _analytics;
 
 		internal HttpTransport(SnipeConfig config, Analytics analytics)
+			: base(config, analytics)
 		{
-			_config = config;
-			_analytics = analytics;
 		}
 
 		public override void Connect()
@@ -90,14 +89,14 @@ namespace MiniIT.Snipe
 
 		private void OnClientConnected() 
 		{
-			DebugLogger.Log($"[{nameof(HttpTransport)}] OnClientConnected");
+			_logger.Log("OnClientConnected");
 
 			ConnectionOpenedHandler?.Invoke();
 		}
 
 		//private void OnClientDisconnected()
 		//{
-		//	DebugLogger.Log($"[{nameof(HttpTransport)}] OnClientDisconnected");
+		//	_logger.Log($"OnClientDisconnected");
 
 		//	//StopNetworkLoop();
 		//	Connected = false;
@@ -106,7 +105,7 @@ namespace MiniIT.Snipe
 		//	//{
 		//	//	if (_config.NextUdpUrl())
 		//	//	{
-		//	//		DebugLogger.Log($"[{nameof(HttpTransport)}] Next udp url");
+		//	//		_logger.Log($"Next udp url");
 		//	//	}
 		//	//}
 
@@ -157,7 +156,7 @@ namespace MiniIT.Snipe
 				var uri = new Uri(_baseUrl, requestType);
 				var requestContent = new StringContent(json, Encoding.UTF8, "application/json");
 
-				DebugLogger.Log($"+++ <<< request ({uri}) - {json}");
+				_logger.Log($"+++ <<< request ({uri}) - {json}");
 
 				using (var response = await _httpClient.PostAsync(uri, requestContent))
 				{
@@ -169,7 +168,7 @@ namespace MiniIT.Snipe
 
 					string responseMessage = await response.Content.ReadAsStringAsync();
 
-					DebugLogger.Log($"+++ >>> response {requestType} ({(int)response.StatusCode} {response.StatusCode}) {responseMessage}");
+					_logger.Log($"+++ >>> response {requestType} ({(int)response.StatusCode} {response.StatusCode}) {responseMessage}");
 
 					if (response.IsSuccessStatusCode)
 					{
@@ -183,7 +182,7 @@ namespace MiniIT.Snipe
 			}
 			catch (HttpRequestException e)
 			{
-				DebugLogger.LogError($"[{nameof(HttpTransport)}] {e}");
+				_logger.LogError(e, $"{e}");
 			}
 		}
 
@@ -204,7 +203,7 @@ namespace MiniIT.Snipe
 
 		private void StartNetworkLoop()
 		{
-			DebugLogger.Log($"[{nameof(HttpTransport)}] StartNetworkLoop");
+			_logger.Log($"StartNetworkLoop");
 			
 			_networkLoopCancellation?.Cancel();
 
@@ -215,7 +214,7 @@ namespace MiniIT.Snipe
 
 		public void StopNetworkLoop()
 		{
-			DebugLogger.Log($"[{nameof(HttpTransport)}] StopNetworkLoop");
+			_logger.Log($"StopNetworkLoop");
 			
 			if (_networkLoopCancellation != null)
 			{
@@ -235,7 +234,7 @@ namespace MiniIT.Snipe
 				}
 				catch (Exception e)
 				{
-					DebugLogger.Log($"[{nameof(HttpTransport)}] NetworkLoop - Exception: {e}");
+					_logger.Log($"NetworkLoop - Exception: {e}");
 					_analytics.TrackError("NetworkLoop error", e);
 					OnClientDisconnected();
 					return;
@@ -257,7 +256,7 @@ namespace MiniIT.Snipe
 		
 		//private async void UdpConnectionTimeout(CancellationToken cancellation)
 		//{
-		//	DebugLogger.Log($"[{nameof(HttpTransport)}] UdpConnectionTimeoutTask - start");
+		//	_logger.Log($"UdpConnectionTimeoutTask - start");
 			
 		//	try
 		//	{
@@ -276,11 +275,11 @@ namespace MiniIT.Snipe
 			
 		//	if (!Connected)
 		//	{
-		//		DebugLogger.Log($"[{nameof(HttpTransport)}] UdpConnectionTimeoutTask - Calling Disconnect");
+		//		_logger.Log($"UdpConnectionTimeoutTask - Calling Disconnect");
 		//		OnClientDisconnected();
 		//	}
 			
-		//	DebugLogger.Log($"[{nameof(HttpTransport)}] UdpConnectionTimeoutTask - finish");
+		//	_logger.Log($"UdpConnectionTimeoutTask - finish");
 		//}
 	}
 }

@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe
 {
@@ -56,20 +58,22 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private readonly SnipeConfig _config;
-		private readonly Analytics _analytics;
-
-		private bool _disconnecting = false;
+private bool _disconnecting = false;
 		
 		private TaskScheduler _mainThreadScheduler;
 		private CancellationTokenSource _delayedInitCancellation;
+
+		private readonly SnipeConfig _config;
+		private readonly Analytics _analytics;
+		private readonly ILogger _logger;
 		
 		public SnipeCommunicator(SnipeConfig config)
 		{
-			DebugLogger.Log($"[SnipeCommunicator] PACKAGE VERSION: {PackageInfo.VERSION}");
-
 			_config = config;
 			_analytics = Analytics.GetInstance(config.ContextId);
+			_logger = LogManager.GetLogger(nameof(SnipeCommunicator));
+
+			_logger.Log($"PACKAGE VERSION: {PackageInfo.VERSION}");
 		}
 		
 		/// <summary>
@@ -94,7 +98,7 @@ namespace MiniIT.Snipe
 
 			if (LoggedIn)
 			{
-				DebugLogger.LogWarning($"[SnipeCommunicator] ({InstanceId}) InitClient - already logged in");
+				_logger.LogWarning($"({InstanceId}) InitClient - already logged in");
 				return;
 			}
 
@@ -124,7 +128,7 @@ namespace MiniIT.Snipe
 
 		public void Disconnect()
 		{
-			DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) Disconnect");
+			_logger.Log($"({InstanceId}) Disconnect");
 
 			_roomJoined = null;
 			_disconnecting = true;
@@ -143,7 +147,7 @@ namespace MiniIT.Snipe
 
 		private void OnClientConnectionOpened()
 		{
-			DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) Client connection opened");
+			_logger.Log($"({InstanceId}) Client connection opened");
 
 			_restoreConnectionAttempt = 0;
 			_disconnecting = false;
@@ -158,7 +162,7 @@ namespace MiniIT.Snipe
 		
 		private void OnClientConnectionClosed()
 		{
-			DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) [{Client?.ConnectionId}] Client connection closed");
+			_logger.Log($"({InstanceId}) [{Client?.ConnectionId}] Client connection closed");
 			
 			_roomJoined = null;
 
@@ -187,7 +191,7 @@ namespace MiniIT.Snipe
 				RaiseEvent(ConnectionFailed, true);
 				
 				_restoreConnectionAttempt++;
-				DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) Attempt to restore connection {_restoreConnectionAttempt}");
+				_logger.Log($"({InstanceId}) Attempt to restore connection {_restoreConnectionAttempt}");
 
 				_analytics.ConnectionEventsEnabled = false;
 
@@ -206,7 +210,7 @@ namespace MiniIT.Snipe
 
 		private void OnMessageReceived(string message_type, string error_code, SnipeObject data, int request_id)
 		{
-			// DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) [{Client?.ConnectionId}] OnMessageReceived {request_id} {message_type} {error_code} " + (data != null ? data.ToJSONString() : "null"));
+			// _logger.Log($"({INSTANCE_ID}) [{Client?.ConnectionId}] OnMessageReceived {request_id} {message_type} {error_code} " + (data != null ? data.ToJSONString() : "null"));
 
 			//if (message_type == SnipeMessageTypes.USER_LOGIN) // handled in AuthSubsystem
 			//{
@@ -278,7 +282,7 @@ namespace MiniIT.Snipe
 						string message = (e is System.Reflection.TargetInvocationException tie) ?
 							$"{tie.InnerException?.Message}\n{tie.InnerException?.StackTrace}" :
 							$"{e.Message}\n{e.StackTrace}";
-						DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) RaiseEvent - Error in the handler {handler?.Method?.Name}: {message}");
+						_logger.Log($"({InstanceId}) RaiseEvent - Error in the handler {handler?.Method?.Name}: {message}");
 					}
 				}
 			}
@@ -288,7 +292,7 @@ namespace MiniIT.Snipe
 		
 		private async void DelayedInitClient(CancellationToken cancellation)
 		{
-			DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) WaitAndInitClient - start delay");
+			_logger.Log($"({InstanceId}) WaitAndInitClient - start delay");
 			Random random = new Random();
 			int delay = RETRY_INIT_CLIENT_DELAY * _restoreConnectionAttempt + random.Next(RETRY_INIT_CLIENT_RANDOM_DELAY);
 			if (delay < RETRY_INIT_CLIENT_MIN_DELAY)
@@ -309,13 +313,13 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) WaitAndInitClient - delay finished");
+			_logger.Log($"({InstanceId}) WaitAndInitClient - delay finished");
 			InitClient();
 		}
 
 		public void DisposeRoomRequests()
 		{
-			DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) DisposeRoomRequests");
+			_logger.Log($"({InstanceId}) DisposeRoomRequests");
 			
 			List<AbstractCommunicatorRequest> room_requests = null;
 			foreach (var request in Requests)
@@ -339,7 +343,7 @@ namespace MiniIT.Snipe
 
 		public void Dispose()
 		{
-			DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) Dispose");
+			_logger.Log($"({InstanceId}) Dispose");
 
 			if (Client != null)
 			{
@@ -363,7 +367,7 @@ namespace MiniIT.Snipe
 		
 		public void DisposeRequests()
 		{
-			DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) DisposeRequests");
+			_logger.Log($"({InstanceId}) DisposeRequests");
 			
 			if (_requests != null)
 			{

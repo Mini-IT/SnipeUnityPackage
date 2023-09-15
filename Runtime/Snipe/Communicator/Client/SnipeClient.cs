@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe
 {
@@ -56,7 +58,7 @@ namespace MiniIT.Snipe
 						_batchedRequests = null;
 					}
 
-					DebugLogger.Log($"[SnipeClient] BatchMode = {value}");
+					_logger.Log($"BatchMode = {value}");
 				}
 			}
 		}
@@ -69,11 +71,13 @@ namespace MiniIT.Snipe
 		private TaskScheduler _mainThreadScheduler;
 		private readonly SnipeConfig _config;
 		private readonly Analytics _analytics;
+		private readonly ILogger _logger;
 
 		internal SnipeClient(SnipeConfig config)
 		{
 			_config = config;
 			_analytics = Analytics.GetInstance(config.ContextId);
+			_logger = LogManager.GetLogger(nameof(SnipeClient));
 		}
 
 		public void Connect()
@@ -82,15 +86,15 @@ namespace MiniIT.Snipe
 				TaskScheduler.FromCurrentSynchronizationContext() :
 				TaskScheduler.Current;
 
-			//if (_config.CheckUdpAvailable())
-			//{
-			//	StartTransport(CreateKcpTransport);
-			//}
-			//else
-			//{
-			//	StartTransport(CreateWebSocketTransport);
-			//}
-			StartTransport(CreateHttpTransport);
+			if (_config.CheckUdpAvailable())
+			{
+				StartTransport(CreateKcpTransport);
+			}
+			else
+			{
+				StartTransport(CreateWebSocketTransport);
+			}
+			//StartTransport(CreateHttpTransport);
 		}
 
 		private void RunInMainThread(Action action)
@@ -180,7 +184,7 @@ namespace MiniIT.Snipe
 				}
 				catch (Exception e)
 				{
-					DebugLogger.LogFormat("[SnipeClient] ConnectionOpened invocation error: {0}", e);
+					_logger.Log("ConnectionOpened invocation error: {0}", e);
 					_analytics.TrackError("ConnectionOpened invocation error", e);
 				}
 			});
@@ -196,7 +200,7 @@ namespace MiniIT.Snipe
 				}
 				catch (Exception e)
 				{
-					DebugLogger.LogFormat("[SnipeClient] ConnectionClosed invocation error: {0}", e);
+					_logger.Log("ConnectionClosed invocation error: {0}", e);
 					_analytics.TrackError("ConnectionClosed invocation error", e);
 				}
 			});
@@ -296,9 +300,9 @@ namespace MiniIT.Snipe
 				return;
 			}
 			
-			if (DebugLogger.IsEnabled)
+			if (_logger.IsEnabled(LogLevel.Trace))
 			{
-				DebugLogger.LogFormat("[SnipeClient] SendRequest - {0}", message.ToJSONString());
+				_logger.Log("SendRequest - {0}", message.ToJSONString());
 			}
 			
 			_transport.SendMessage(message);
@@ -321,7 +325,7 @@ namespace MiniIT.Snipe
 			if (!Connected || messages == null || messages.Count == 0)
 				return;
 
-			DebugLogger.LogFormat("[SnipeClient] DoSendBatch - {0} items", messages.Count);
+			_logger.Log("DoSendBatch - {0} items", messages.Count);
 
 			_transport.SendBatch(messages);
 		}
@@ -346,9 +350,9 @@ namespace MiniIT.Snipe
 
 			RemoveResponseMonitoringItem(requestId, messageType);
 
-			if (DebugLogger.IsEnabled)
+			if (_logger.IsEnabled(LogLevel.Trace))
 			{
-				DebugLogger.LogFormat("[SnipeClient] [{0}] ProcessMessage - {1} - {2} {3} {4}", ConnectionId, requestId, messageType, errorCode, responseData?.ToFastJSONString());
+				_logger.Log("[{0}] ProcessMessage - {1} - {2} {3} {4}", ConnectionId, requestId, messageType, errorCode, responseData?.ToFastJSONString());
 			}
 
 			if (!_loggedIn && messageType == SnipeMessageTypes.USER_LOGIN)
@@ -363,7 +367,7 @@ namespace MiniIT.Snipe
 		{
 			if (errorCode == SnipeErrorCodes.OK || errorCode == SnipeErrorCodes.ALREADY_LOGGED_IN)
 			{
-				DebugLogger.LogFormat("[SnipeClient] [{0}] ProcessMessage - Login Succeeded", ConnectionId);
+				_logger.Log("[{0}] ProcessMessage - Login Succeeded", ConnectionId);
 
 				_loggedIn = true;
 
@@ -391,7 +395,7 @@ namespace MiniIT.Snipe
 						}
 						catch (Exception e)
 						{
-							DebugLogger.LogFormat("[SnipeClient] [{0}] ProcessMessage - LoginSucceeded invocation error: {1}", ConnectionId, e);
+							_logger.Log("[{0}] ProcessMessage - LoginSucceeded invocation error: {1}", ConnectionId, e);
 							_analytics.TrackError("LoginSucceeded invocation error", e);
 						}
 					});
@@ -399,7 +403,7 @@ namespace MiniIT.Snipe
 			}
 			else
 			{
-				DebugLogger.LogFormat("[SnipeClient] [{0}] ProcessMessage - Login Failed", ConnectionId);
+				_logger.Log("[{0}] ProcessMessage - Login Failed", ConnectionId);
 
 				if (LoginFailed != null)
 				{
@@ -411,7 +415,7 @@ namespace MiniIT.Snipe
 						}
 						catch (Exception e)
 						{
-							DebugLogger.LogFormat("[SnipeClient] [{0}] ProcessMessage - LoginFailed invocation error: {1}", ConnectionId, e);
+							_logger.Log("[{0}] ProcessMessage - LoginFailed invocation error: {1}", ConnectionId, e);
 							_analytics.TrackError("LoginFailed invocation error", e);
 						}
 					});
@@ -431,7 +435,7 @@ namespace MiniIT.Snipe
 					}
 					catch (Exception e)
 					{
-						DebugLogger.LogFormat("[SnipeClient] [{0}] ProcessMessage - {1} - MessageReceived invocation error: {2}", ConnectionId, messageType, e);
+						_logger.Log("[{0}] ProcessMessage - {1} - MessageReceived invocation error: {2}", ConnectionId, messageType, e);
 						_analytics.TrackError("MessageReceived invocation error", e, new Dictionary<string, object>()
 						{
 							["messageType"] = messageType,
@@ -442,7 +446,7 @@ namespace MiniIT.Snipe
 			}
 			else
 			{
-				DebugLogger.LogFormat("[SnipeClient] [{0}] ProcessMessage - no MessageReceived listeners", ConnectionId);
+				_logger.Log("[{0}] ProcessMessage - no MessageReceived listeners", ConnectionId);
 			}
 		}
 
@@ -469,7 +473,7 @@ namespace MiniIT.Snipe
 					{
 						messages.Add(message);
 
-						DebugLogger.LogFormat("[SnipeClient] Request batched - {0}", message.ToJSONString());
+						_logger.Log("Request batched - {0}", message.ToJSONString());
 					}
 					DoSendBatch(messages);
 				}
