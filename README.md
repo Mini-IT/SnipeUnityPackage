@@ -3,13 +3,18 @@
 
 ## Installation guide
 
-* Install [Facebook SDK for Unity](https://developers.facebook.com/docs/unity/) (direct [download link](https://origincache.facebook.com/developers/resources/?id=FacebookSDK-current.zip))
-* Install [External Dependency Manager for Unity](https://github.com/googlesamples/unity-jar-resolver). Actually it is already should be installed because it is included in the previous package.
+* Install [External Dependency Manager for Unity](https://github.com/googlesamples/unity-jar-resolver)
 * [Add](https://docs.unity3d.com/Manual/upm-ui-giturl.html) [BetterStreamingAssets](https://github.com/gwiazdorrr/BetterStreamingAssets) package
 * [Add](https://docs.unity3d.com/Manual/upm-ui-giturl.html) [fastJSON](https://github.com/Mini-IT/fastJSON-unity-package) package
 * [Add](https://docs.unity3d.com/Manual/upm-ui-giturl.html) <b>Snipe Client Tools</b> package to Unity Package Manager - https://github.com/Mini-IT/SnipeToolsUnityPackage.git <br />
 After package import is done in Unity editor "Snipe" menu should appear.
 * Click <b>"Snipe/Install Snipe Package"</b> menu item
+
+### Install managed DLLs from NuGet
+The dependency managed DLL are not included to avoid possible duplication. You need to add them to the project manually. You can extract the needed dlls from NuGet packages
+* [System.Buffers](https://www.nuget.org/packages/System.Buffers/4.5.1)
+* [System.Memory](https://www.nuget.org/packages/System.Memory/4.5.5)
+* [Microsoft.Extensions.Logging.Abstractions](https://www.nuget.org/packages/Microsoft.Extensions.Logging.Abstractions/7.0.1)
 
 ## Updating
 
