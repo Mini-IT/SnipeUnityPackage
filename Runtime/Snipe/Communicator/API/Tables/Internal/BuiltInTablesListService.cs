@@ -64,6 +64,7 @@ namespace MiniIT.Snipe.Tables
 								name = item.SafeGetString("name"),
 								version = item.SafeGetValue<long>("version"),
 							};
+
 							if (resultItem.version != 0 && !string.IsNullOrEmpty(resultItem.name))
 							{
 								result.Add(resultItem);
@@ -72,6 +73,8 @@ namespace MiniIT.Snipe.Tables
 					}
 				}
 			}
+
+			LogManager.GetLogger(nameof(BuiltInTablesListService)).LogError("ReadBuiltInTablesVersions failed");
 
 			return result;
 		}
