@@ -1,69 +1,75 @@
 using System;
 using System.Collections;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using MiniIT.Snipe.Logging;
+using MiniIT.Unity;
 
 namespace MiniIT.Snipe.Tables
 {
-	public static class SnipeTableStreamingAssetsLoader
+	public class SnipeTableStreamingAssetsLoader
 	{
-		public static async Task<bool> LoadAsync(Type wrapperType, IDictionary items, string table_name, long version)
+		private readonly BuiltInTablesListService _builtInTablesListService;
+		private readonly ILogger _logger;
+
+		public SnipeTableStreamingAssetsLoader(BuiltInTablesListService builtInTablesListService)
 		{
-			var logger = LogManager.GetLogger("SnipeTable");
-			logger.Log($"ReadFromStramingAssets - {table_name}");
+			_builtInTablesListService = builtInTablesListService;
+			_logger = LogManager.GetLogger("SnipeTable");
+		}
 
-			string file_path = GetFilePath(table_name, version);
+		public async Task<bool> LoadAsync(Type wrapperType, IDictionary items, string tableName, long version, CancellationToken cancellationToken = default)
+		{
+			_logger.Log($"ReadFromStramingAssets - {tableName}");
 
-			if (!BetterStreamingAssets.FileExists(file_path))
+			string filePath = GetFilePath(tableName, version);
+
+			byte[] data = await StreamingAssetsReader.ReadBytesAsync(filePath, cancellationToken);
+
+			if (data == null || data.Length == 0)
 			{
-				logger.Log($"[SnipeTable] ReadFromStramingAssets - file not found: {file_path}");
+				_logger.Log($"Failed to read file {filePath}");
 				return false;
 			}
 
 			bool loaded = false;
-			byte[] data = BetterStreamingAssets.ReadAllBytes(file_path);
 
-			if (data != null)
+			using (var readStream = new MemoryStream(data))
 			{
-				using (var read_stream = new MemoryStream(data))
+				try
 				{
-					try
-					{
-						await SnipeTableGZipReader.ReadAsync(wrapperType, items, read_stream);
-						loaded = true;
-					}
-					catch (Exception e)
-					{
-						logger.Log($"[SnipeTable] Failed to read file - {table_name} - {e}");
-					}
+					// TODO: use cancellationToken
+					await SnipeTableGZipReader.ReadAsync(wrapperType, items, readStream);
+					loaded = true;
 				}
+				catch (Exception e)
+				{
+					_logger.Log($"Failed to read file - {tableName} - {e}");
+				}
+			}
 
-				if (loaded)
-				{
-					logger.Log($"[SnipeTable] Table ready (built-in) - {table_name}");
-				}
+			if (loaded)
+			{
+				_logger.Log($"Table ready (built-in) - {tableName}");
 			}
 
 			return loaded;
 		}
 
-		private static string GetFilePath(string table_name, long version)
+		private string GetFilePath(string tableName, long version)
 		{
 			// NOTE: There is a bug - only lowercase works
 			// (https://issuetracker.unity3d.com/issues/android-loading-assets-from-assetbundles-takes-significantly-more-time-when-the-project-is-built-as-an-aab)
-			table_name = table_name.ToLower();
+			tableName = tableName.ToLower();
 
 			if (version <= 0)
 			{
-				var files = BetterStreamingAssets.GetFiles("/", $"*{table_name}.jsongz");
-				foreach (var file in files)
-				{
-					return file;
-				}
+				_builtInTablesListService.TryGetTableVersion(tableName, out version);
 			}
 
-			return $"{version}_{table_name}.jsongz";
+			return $"{version}_{tableName}.jsongz";
 		}
 	}
 }

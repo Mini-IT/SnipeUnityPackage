@@ -8,11 +8,12 @@
         "MiniIT.Snipe.MessagePack",
         "MiniIT.Debug.Logging",
         "MiniIT.AdvertisingIdFetcher",
-        "BetterStreamingAssets",
+        "MiniIT.Framework.StreamingAssetsReader",
         "fastJSON",
         "WebSocketSharp",
         "kcp2k",
-        "ZString"
+        "ZString",
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

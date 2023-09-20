@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -6,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.Snipe.Logging;
 using MiniIT.Snipe.Tables;
+using MiniIT.Unity;
 
 namespace MiniIT.Snipe
 {
@@ -21,13 +23,15 @@ namespace MiniIT.Snipe
 
 		private HashSet<TablesLoaderItem> _loadingItems; 
 		private readonly TablesVersionsLoader _versionsLoader;
-		private ILogger _logger;
+		private readonly ILogger _logger;
+		private readonly BuiltInTablesListService _builtInTablesListService;
 
 		public TablesLoader()
 		{
-			BetterStreamingAssets.Initialize();
+			StreamingAssetsReader.Initialize();
 			_versionsLoader = new TablesVersionsLoader();
 			_logger = LogManager.GetLogger(nameof(TablesLoader));
+			_builtInTablesListService = new BuiltInTablesListService();
 		}
 
 		internal static string GetCacheDirectoryPath()
@@ -59,16 +63,18 @@ namespace MiniIT.Snipe
 			_loadingItems.Add(new TablesLoaderItem(typeof(SnipeTableItemsListWrapper<TItem>), table, name));
 		}
 
-		public async Task<bool> Load()
+		public async Task<bool> Load(CancellationToken cancellationToken = default)
 		{
 			bool fallbackEnabled = (TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceExternal);
 			bool loadExternal = (TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceBuiltIn);
+
+			await _builtInTablesListService.InitializeAsync(cancellationToken);
 
 			if (fallbackEnabled)
 			{
 				RemoveOutdatedCache();
 			}
-			
+
 			bool loaded = await LoadAll(loadExternal);
 
 			if (loaded)
@@ -163,9 +169,9 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async Task<bool> LoadTableAsync(TablesLoaderItem loaderItem, long version, CancellationToken cancellation)
+		private async Task<bool> LoadTableAsync(TablesLoaderItem loaderItem, long version, CancellationToken cancellationToken)
 		{
-			if (cancellation.IsCancellationRequested)
+			if (cancellationToken.IsCancellationRequested)
 			{
 				_logger.Log($"Failed to load table - {loaderItem.Name}   (task canceled)");
 				return false;
@@ -176,7 +182,11 @@ namespace MiniIT.Snipe
 			// Try to load from cache
 			if (await LoadTableAsync(loaderItem.Table,
 				SnipeTable.LoadingLocation.Cache,
-				SnipeTableFileLoader.LoadAsync(loaderItem.WrapperType, loaderItem.Table.GetItems(), loaderItem.Name, version)))
+				SnipeTableFileLoader.LoadAsync(
+					loaderItem.WrapperType,
+					loaderItem.Table.GetItems(),
+					loaderItem.Name,
+					version)))
 			{
 				return true;
 			}
@@ -185,7 +195,12 @@ namespace MiniIT.Snipe
 			// try to load a built-in file
 			if (await LoadTableAsync(loaderItem.Table,
 				SnipeTable.LoadingLocation.BuiltIn,
-				SnipeTableStreamingAssetsLoader.LoadAsync(loaderItem.WrapperType, loaderItem.Table.GetItems(), loaderItem.Name, version)))
+				new SnipeTableStreamingAssetsLoader(_builtInTablesListService).LoadAsync(
+					loaderItem.WrapperType,
+					loaderItem.Table.GetItems(),
+					loaderItem.Name,
+					version,
+					cancellationToken)))
 			{
 				return true;
 			}
@@ -194,7 +209,12 @@ namespace MiniIT.Snipe
 			// try loading from web
 			return await LoadTableAsync(loaderItem.Table,
 				SnipeTable.LoadingLocation.Network,
-				new SnipeTableWebLoader().LoadAsync(loaderItem.WrapperType, loaderItem.Table.GetItems(), loaderItem.Name, version, cancellation));
+				new SnipeTableWebLoader().LoadAsync(
+					loaderItem.WrapperType,
+					loaderItem.Table.GetItems(),
+					loaderItem.Name,
+					version,
+					cancellationToken));
 		}
 
 		private async Task<bool> LoadTableAsync(SnipeTable table, SnipeTable.LoadingLocation loadingLocation, Task<bool> task)
@@ -214,7 +234,7 @@ namespace MiniIT.Snipe
 			if (_cancellation != null)
 			{
 				_cancellation.Cancel();
-				_cancellation?.Dispose();
+				_cancellation.Dispose();
 				_cancellation = null;
 			}
 		}
@@ -254,24 +274,12 @@ namespace MiniIT.Snipe
 			if (!Directory.Exists(directory))
 				return;
 
-			var versions = new Dictionary<string, long>();
-
-			string extention = ".jsongz";
-			var builtinfiles = BetterStreamingAssets.GetFiles("/", $"*{extention}");
-			foreach (var file in builtinfiles)
-			{
-				if (TryExtractNameAndVersion(file, out string tableName, out string version, extention))
-				{
-					versions[tableName.ToLower()] = Convert.ToInt64(version);
-				}
-			}
-
-			extention = ".json.gz";
+			string extention = ".json.gz";
 			var files = Directory.EnumerateFiles(directory, $"*{extention}");
 			foreach (string filePath in files)
 			{
 				if (TryExtractNameAndVersion(filePath, out string tableName, out string version, extention) &&
-					versions.TryGetValue(tableName.ToLower(), out long builtInVersion))
+					_builtInTablesListService.TryGetTableVersion(tableName.ToLower(), out long builtInVersion))
 				{
 					long cachedVersion = Convert.ToInt64(version);
 					if (cachedVersion < builtInVersion)
