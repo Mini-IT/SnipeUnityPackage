@@ -50,31 +50,32 @@ namespace MiniIT.Snipe.Tables
 			var result = new List<BuiltInTablesListItem>();
 
 			string json = await StreamingAssetsReader.ReadTextAsync("snipe_tables.json", cancellationToken);
-			if (json != null)
+			if (json == null)
 			{
-				var wrapper = SnipeObject.FromFastJSONString(json);
-				if (wrapper != null && wrapper["tables"] is IList list)
-				{
-					foreach (var loadedItem in list)
-					{
-						if (loadedItem is SnipeObject item)
-						{
-							var resultItem = new BuiltInTablesListItem()
-							{
-								name = item.SafeGetString("name"),
-								version = item.SafeGetValue<long>("version"),
-							};
+				LogManager.GetLogger(nameof(BuiltInTablesListService)).LogError("ReadBuiltInTablesVersions failed to load or parse snipe_tables.json");
+				return result;
+			}
 
-							if (resultItem.version != 0 && !string.IsNullOrEmpty(resultItem.name))
-							{
-								result.Add(resultItem);
-							}
+			var wrapper = SnipeObject.FromFastJSONString(json);
+			if (wrapper != null && wrapper["tables"] is IList list)
+			{
+				foreach (var loadedItem in list)
+				{
+					if (loadedItem is SnipeObject item)
+					{
+						var resultItem = new BuiltInTablesListItem()
+						{
+							name = item.SafeGetString("name"),
+							version = item.SafeGetValue<long>("version"),
+						};
+
+						if (resultItem.version != 0 && !string.IsNullOrEmpty(resultItem.name))
+						{
+							result.Add(resultItem);
 						}
 					}
 				}
 			}
-
-			LogManager.GetLogger(nameof(BuiltInTablesListService)).LogError("ReadBuiltInTablesVersions failed");
 
 			return result;
 		}
