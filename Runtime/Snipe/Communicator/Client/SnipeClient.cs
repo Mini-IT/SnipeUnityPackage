@@ -58,7 +58,7 @@ namespace MiniIT.Snipe
 						_batchedRequests = null;
 					}
 
-					_logger.Log($"BatchMode = {value}");
+					_logger.LogTrace($"BatchMode = {value}");
 				}
 			}
 		}
@@ -184,7 +184,7 @@ namespace MiniIT.Snipe
 				}
 				catch (Exception e)
 				{
-					_logger.Log("ConnectionOpened invocation error: {0}", e);
+					_logger.LogTrace("ConnectionOpened invocation error: {0}", e);
 					_analytics.TrackError("ConnectionOpened invocation error", e);
 				}
 			});
@@ -200,7 +200,7 @@ namespace MiniIT.Snipe
 				}
 				catch (Exception e)
 				{
-					_logger.Log("ConnectionClosed invocation error: {0}", e);
+					_logger.LogTrace("ConnectionClosed invocation error: {0}", e);
 					_analytics.TrackError("ConnectionClosed invocation error", e);
 				}
 			});
@@ -302,7 +302,7 @@ namespace MiniIT.Snipe
 			
 			if (_logger.IsEnabled(LogLevel.Trace))
 			{
-				_logger.Log("SendRequest - {0}", message.ToJSONString());
+				_logger.LogTrace("SendRequest - {0}", message.ToJSONString());
 			}
 			
 			_transport.SendMessage(message);
@@ -325,7 +325,7 @@ namespace MiniIT.Snipe
 			if (!Connected || messages == null || messages.Count == 0)
 				return;
 
-			_logger.Log("DoSendBatch - {0} items", messages.Count);
+			_logger.LogTrace("DoSendBatch - {0} items", messages.Count);
 
 			_transport.SendBatch(messages);
 		}
@@ -352,7 +352,7 @@ namespace MiniIT.Snipe
 
 			if (_logger.IsEnabled(LogLevel.Trace))
 			{
-				_logger.Log("[{0}] ProcessMessage - {1} - {2} {3} {4}", ConnectionId, requestId, messageType, errorCode, responseData?.ToFastJSONString());
+				_logger.LogTrace("[{0}] ProcessMessage - {1} - {2} {3} {4}", ConnectionId, requestId, messageType, errorCode, responseData?.ToFastJSONString());
 			}
 
 			if (!_loggedIn && messageType == SnipeMessageTypes.USER_LOGIN)
@@ -367,7 +367,7 @@ namespace MiniIT.Snipe
 		{
 			if (errorCode == SnipeErrorCodes.OK || errorCode == SnipeErrorCodes.ALREADY_LOGGED_IN)
 			{
-				_logger.Log("[{0}] ProcessMessage - Login Succeeded", ConnectionId);
+				_logger.LogTrace("[{0}] ProcessMessage - Login Succeeded", ConnectionId);
 
 				_loggedIn = true;
 
@@ -395,7 +395,7 @@ namespace MiniIT.Snipe
 						}
 						catch (Exception e)
 						{
-							_logger.Log("[{0}] ProcessMessage - LoginSucceeded invocation error: {1}", ConnectionId, e);
+							_logger.LogTrace("[{0}] ProcessMessage - LoginSucceeded invocation error: {1}", ConnectionId, e);
 							_analytics.TrackError("LoginSucceeded invocation error", e);
 						}
 					});
@@ -403,7 +403,7 @@ namespace MiniIT.Snipe
 			}
 			else
 			{
-				_logger.Log("[{0}] ProcessMessage - Login Failed", ConnectionId);
+				_logger.LogTrace("[{0}] ProcessMessage - Login Failed", ConnectionId);
 
 				if (LoginFailed != null)
 				{
@@ -415,7 +415,7 @@ namespace MiniIT.Snipe
 						}
 						catch (Exception e)
 						{
-							_logger.Log("[{0}] ProcessMessage - LoginFailed invocation error: {1}", ConnectionId, e);
+							_logger.LogTrace("[{0}] ProcessMessage - LoginFailed invocation error: {1}", ConnectionId, e);
 							_analytics.TrackError("LoginFailed invocation error", e);
 						}
 					});
@@ -435,7 +435,7 @@ namespace MiniIT.Snipe
 					}
 					catch (Exception e)
 					{
-						_logger.Log("[{0}] ProcessMessage - {1} - MessageReceived invocation error: {2}", ConnectionId, messageType, e);
+						_logger.LogTrace("[{0}] ProcessMessage - {1} - MessageReceived invocation error: {2}", ConnectionId, messageType, e);
 						_analytics.TrackError("MessageReceived invocation error", e, new Dictionary<string, object>()
 						{
 							["messageType"] = messageType,
@@ -446,7 +446,7 @@ namespace MiniIT.Snipe
 			}
 			else
 			{
-				_logger.Log("[{0}] ProcessMessage - no MessageReceived listeners", ConnectionId);
+				_logger.LogTrace("[{0}] ProcessMessage - no MessageReceived listeners", ConnectionId);
 			}
 		}
 
@@ -473,7 +473,7 @@ namespace MiniIT.Snipe
 					{
 						messages.Add(message);
 
-						_logger.Log("Request batched - {0}", message.ToJSONString());
+						_logger.LogTrace("Request batched - {0}", message.ToJSONString());
 					}
 					DoSendBatch(messages);
 				}

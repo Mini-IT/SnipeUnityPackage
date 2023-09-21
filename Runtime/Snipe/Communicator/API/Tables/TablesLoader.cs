@@ -46,7 +46,7 @@ namespace MiniIT.Snipe
 
 		public void Reset()
 		{
-			_logger.Log("Reset");
+			_logger.LogTrace("Reset");
 
 			Analytics.GetInstance().TrackEvent("TablesLoader - Reset");
 
@@ -148,7 +148,7 @@ namespace MiniIT.Snipe
 			catch (Exception e)
 			{
 				exception = e;
-				_logger.Log($"Load {loaderItem.Name} - Exception: {e}");
+				_logger.LogTrace($"Load {loaderItem.Name} - Exception: {e}");
 			}
 			finally
 			{
@@ -173,11 +173,11 @@ namespace MiniIT.Snipe
 		{
 			if (cancellationToken.IsCancellationRequested)
 			{
-				_logger.Log($"Failed to load table - {loaderItem.Name}   (task canceled)");
+				_logger.LogTrace($"Failed to load table - {loaderItem.Name}   (task canceled)");
 				return false;
 			}
 
-			_logger.Log($"LoadTask start - {loaderItem.Name}");
+			_logger.LogTrace($"LoadTask start - {loaderItem.Name}");
 
 			// Try to load from cache
 			if (await LoadTableAsync(loaderItem.Table,
@@ -259,7 +259,7 @@ namespace MiniIT.Snipe
 					!_versions.TryGetValue(tableName, out long tableVersion) ||
 					Convert.ToInt64(version) != tableVersion)
 				{
-					_logger.Log($"RemoveMisversionedCache - Delete {filePath}");
+					_logger.LogTrace($"RemoveMisversionedCache - Delete {filePath}");
 					File.Delete(filePath);
 				}
 			}
@@ -284,7 +284,7 @@ namespace MiniIT.Snipe
 					long cachedVersion = Convert.ToInt64(version);
 					if (cachedVersion < builtInVersion)
 					{
-						_logger.Log($"RemoveOutdatedCache - Delete {filePath}");
+						_logger.LogTrace($"RemoveOutdatedCache - Delete {filePath}");
 						File.Delete(filePath);
 					}
 				}

@@ -6,7 +6,7 @@
         "MiniIT.Snipe.Core",
         "MiniIT.Snipe.Social",
         "MiniIT.Snipe.MessagePack",
-        "MiniIT.Debug.Logging",
+        "MiniIT.Snipe.Logging",
         "MiniIT.AdvertisingIdFetcher",
         "MiniIT.Framework.StreamingAssetsReader",
         "fastJSON",

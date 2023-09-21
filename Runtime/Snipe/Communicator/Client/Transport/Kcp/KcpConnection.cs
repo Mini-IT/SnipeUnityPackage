@@ -163,7 +163,7 @@ namespace MiniIT.Snipe
 				_state = KcpState.Connected;
 			}
 
-			_logger.Log("KcpState.Connected");
+			_logger.LogTrace("KcpState.Connected");
 
 			_refTime.Start();
 
@@ -217,7 +217,7 @@ namespace MiniIT.Snipe
 			}
 
 			// set as Disconnected, call event
-			_logger.Log("KCP Connection: Disconnected.");
+			_logger.LogTrace("KCP Connection: Disconnected.");
 			_state = KcpState.Disconnected;
 			OnDisconnected?.Invoke();
 
@@ -382,7 +382,7 @@ namespace MiniIT.Snipe
 				{
 					if (header == KcpHeader.Disconnect)
 					{
-						_logger.Log("KCP: received disconnect message");
+						_logger.LogTrace("KCP: received disconnect message");
 						Disconnect();
 						break;
 					}
@@ -399,7 +399,7 @@ namespace MiniIT.Snipe
 						{
 							// we were waiting for a handshake.
 							// it proves that the other end speaks our protocol.
-							_logger.Log("KCP: received handshake");
+							_logger.LogTrace("KCP: received handshake");
 							_state = KcpState.Authenticated;
 							OnAuthenticated?.Invoke();
 							continue;
@@ -441,13 +441,13 @@ namespace MiniIT.Snipe
 			catch (SocketException exception)
 			{
 				// this is ok, the connection was closed
-				_logger.Log($"KCP Connection: Disconnecting because {exception}. This is fine.");
+				_logger.LogTrace($"KCP Connection: Disconnecting because {exception}. This is fine.");
 				Disconnect();
 			}
 			catch (ObjectDisposedException exception)
 			{
 				// fine, socket was closed
-				_logger.Log($"KCP Connection: Disconnecting because {exception}. This is fine.");
+				_logger.LogTrace($"KCP Connection: Disconnecting because {exception}. This is fine.");
 				Disconnect();
 			}
 			catch (Exception ex)
@@ -471,13 +471,13 @@ namespace MiniIT.Snipe
 			catch (SocketException exception)
 			{
 				// this is ok, the connection was closed
-				_logger.Log($"KCP Connection: Disconnecting because {exception}. This is fine.");
+				_logger.LogTrace($"KCP Connection: Disconnecting because {exception}. This is fine.");
 				Disconnect();
 			}
 			catch (ObjectDisposedException exception)
 			{
 				// fine, socket was closed
-				_logger.Log($"KCP Connection: Disconnecting because {exception}. This is fine.");
+				_logger.LogTrace($"KCP Connection: Disconnecting because {exception}. This is fine.");
 				Disconnect();
 			}
 			catch (Exception ex)
@@ -585,7 +585,7 @@ namespace MiniIT.Snipe
 					break;
 				}
 
-				// _logger.Log($"RAW RECV {msgLength} bytes = {BitConverter.ToString(_socketReceiveBuffer, 0, msgLength)}");
+				// _logger.LogTrace($"RAW RECV {msgLength} bytes = {BitConverter.ToString(_socketReceiveBuffer, 0, msgLength)}");
 
 				// IMPORTANT: detect if buffer was too small for the
 				//            received msgLength. otherwise the excess
@@ -609,7 +609,7 @@ namespace MiniIT.Snipe
 			if (msgLength < 1)
 				return;
 
-			// _logger.Log($"KCP RawReceive {msgLength} / {buffer.Length}\n{BitConverter.ToString(buffer, 0, msgLength)}");
+			// _logger.LogTrace($"KCP RawReceive {msgLength} / {buffer.Length}\n{BitConverter.ToString(buffer, 0, msgLength)}");
 
 			byte channel = buffer[0];
 			switch (channel)
@@ -680,7 +680,7 @@ namespace MiniIT.Snipe
 				default:
 					// not a valid channel. random data or attacks.
 					_logger.LogWarning($"Invalid KCP channel header: {channel}");
-					//_logger.Log($"Disconnecting connection because of invalid channel header: {channel}");
+					//_logger.LogTrace($"Disconnecting connection because of invalid channel header: {channel}");
 					//Disconnect();
 					break;
 			}
@@ -710,7 +710,7 @@ namespace MiniIT.Snipe
 						message = new ArraySegment<byte>(_kcpReceiveBuffer, 1, msgSize - 1);
 						UpdateLastReceiveTime();
 
-						// _logger.Log($"KCP: raw recv {received} header = {header} bytes ({message.Count}) = {BitConverter.ToString(message.Array, message.Offset, message.Count)}");
+						// _logger.LogTrace($"KCP: raw recv {received} header = {header} bytes ({message.Count}) = {BitConverter.ToString(message.Array, message.Offset, message.Count)}");
 
 						return true;
 					}
@@ -744,7 +744,7 @@ namespace MiniIT.Snipe
 
 		private void HandleReliableData(ArraySegment<byte> message)
 		{
-			_logger.Log("HandleReliableData");
+			_logger.LogTrace("HandleReliableData");
 
 			// call OnData IF the message contained actual data
 			if (message.Count > 0)
@@ -761,7 +761,7 @@ namespace MiniIT.Snipe
 
 		private void HandleReliableChunk(ArraySegment<byte> message, bool compressed)
 		{
-			_logger.Log("HandleReliableChunk");
+			_logger.LogTrace("HandleReliableChunk");
 
 			// call OnData IF the message contained actual data
 			if (message.Count > 3)
@@ -797,7 +797,7 @@ namespace MiniIT.Snipe
 
 				if (item.length > (1 + (chunks_count - 1) * MAX_CHUNK_SIZE)) // all chunks
 				{
-					// _logger.Log($"[KcpConnection] CHUNKED_MESSAGE received: {BitConverter.ToString(item.buffer, 0, item.buffer.Length)}");
+					// _logger.LogTrace($"[KcpConnection] CHUNKED_MESSAGE received: {BitConverter.ToString(item.buffer, 0, item.buffer.Length)}");
 
 					// opcode Snipe Response
 					item.buffer[0] = (byte)KcpOpCode.SnipeResponse;
@@ -828,7 +828,7 @@ namespace MiniIT.Snipe
 			{
 				if (_state == KcpState.Authenticated && _pingsCount < 3 && time < _lastPingTime + MAX_PINGLESS_INTERVAL)
 				{
-					_logger.Log($"KCP: HandleTimeout - Waiting for ping {_pingsCount}");
+					_logger.LogTrace($"KCP: HandleTimeout - Waiting for ping {_pingsCount}");
 					return;
 				}
 
@@ -853,7 +853,7 @@ namespace MiniIT.Snipe
 			// enough time elapsed since last ping?
 			if (time >= _lastPingTime + PING_INTERVAL)
 			{
-				// _logger.Log("kcp send ping");
+				// _logger.LogTrace("kcp send ping");
 				SendReliable(KcpHeader.Ping);
 				_lastPingTime = time;
 				_pingsCount++;

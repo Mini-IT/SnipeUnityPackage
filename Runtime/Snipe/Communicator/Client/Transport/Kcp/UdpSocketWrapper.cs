@@ -25,7 +25,7 @@ namespace MiniIT.Snipe
 
 		public async void Connect(string host, ushort port)
 		{
-			_logger.Log($"connect to {host}:{port}");
+			_logger.LogTrace($"connect to {host}:{port}");
 			
 			IPAddress[] addresses;
 
@@ -35,7 +35,7 @@ namespace MiniIT.Snipe
 			}
 			catch (SocketException)
 			{
-				_logger.Log($"Failed to resolve host: {host}");
+				_logger.LogTrace($"Failed to resolve host: {host}");
 				addresses = null;
 			}
 

@@ -54,7 +54,7 @@ namespace MiniIT.Snipe
 			
 			if (!cancellation.IsCancellationRequested && !Connected)
 			{
-				_logger.Log("WaitForConnection - Connection timed out");
+				_logger.LogTrace("WaitForConnection - Connection timed out");
 				OnWebSocketClosed(this, new CloseEventArgs(0, "WebSocketWrapper - Connection timed out", false));
 			}
 		}
@@ -89,7 +89,7 @@ namespace MiniIT.Snipe
 
 		protected void OnWebSocketClosed(object sender, CloseEventArgs e)
 		{
-			_logger.Log($"OnWebSocketClosed: {e?.Reason}");
+			_logger.LogTrace($"OnWebSocketClosed: {e?.Reason}");
 			
 			Disconnect();
 
@@ -103,7 +103,7 @@ namespace MiniIT.Snipe
 		
 		protected void OnWebSocketError(object sender, ErrorEventArgs e)
 		{
-			_logger.Log($"OnWebSocketError: {e}");
+			_logger.LogTrace($"OnWebSocketError: {e}");
 			//Analytics.TrackError($"WebSocketError: {e.Message}", e.Exception);
 		}
 		

@@ -3,6 +3,7 @@
 	"version": "5.1.4-dev",
 	"dependencies": {
 		"com.miniit.fastjson": "1.0.0",
+		"com.miniit.logger": "1.0.0",
 		"com.miniit.framework.streamingassetsreader": "1.0.0",
 		"com.cysharp.unitask": "2.3.0"
 	},

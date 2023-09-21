@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Extensions.Logging;
 using MiniIT.Snipe.Logging;
 using UnityEngine;
 
@@ -26,11 +27,11 @@ namespace MiniIT.Snipe
 					if (string.IsNullOrEmpty(Value))
 					{
 						Value = SystemInfo.deviceUniqueIdentifier;
-						_logger.Log($"[DeviceIdFetcher] Value = {Value}");
+						_logger.LogTrace($"[DeviceIdFetcher] Value = {Value}");
 						if (Value.Length > 64)
 						{
 							Value = GetHashString(Value);
-							_logger.Log($"[DeviceIdFetcher] Value Hash = {Value}");
+							_logger.LogTrace($"[DeviceIdFetcher] Value Hash = {Value}");
 						}
 					}
 				}

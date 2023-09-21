@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe.Tables
@@ -18,21 +19,21 @@ namespace MiniIT.Snipe.Tables
 			string url = GetTableUrl(tableName, version);
 
 			var logger = LogManager.GetLogger("SnipeTable");
-			logger.Log("[SnipeTable] Loading table " + url);
+			logger.LogTrace("[SnipeTable] Loading table " + url);
 
 			int retry = 0;
 			while (!loaded && retry <= 2)
 			{
 				if (cancellation.IsCancellationRequested)
 				{
-					logger.Log($"[SnipeTable] Failed to load table - {tableName}   (task canceled)");
+					logger.LogTrace($"[SnipeTable] Failed to load table - {tableName}   (task canceled)");
 					return false;
 				}
 
 				if (retry > 0)
 				{
 					await Task.Delay(100, cancellation);
-					logger.Log($"[SnipeTable] Retry #{retry} to load table - {tableName}");
+					logger.LogTrace($"[SnipeTable] Retry #{retry} to load table - {tableName}");
 				}
 
 				retry++;
@@ -46,19 +47,19 @@ namespace MiniIT.Snipe.Tables
 
 					if (cancellation.IsCancellationRequested)
 					{
-						logger.Log($"[SnipeTable] Failed to load table - {tableName}   (task canceled)");
+						logger.LogTrace($"[SnipeTable] Failed to load table - {tableName}   (task canceled)");
 						return false;
 					}
 
 					if (finished_task != loadTask)
 					{
-						logger.Log($"[SnipeTable] Failed to load table - {tableName}   (timeout)");
+						logger.LogTrace($"[SnipeTable] Failed to load table - {tableName}   (timeout)");
 						return false;
 					}
 
 					if (loadTask.IsFaulted || loadTask.IsCanceled)
 					{
-						logger.Log($"[SnipeTable] Failed to load table - {tableName}   (loader failed)");
+						logger.LogTrace($"[SnipeTable] Failed to load table - {tableName}   (loader failed)");
 						continue;
 					}
 
@@ -66,14 +67,14 @@ namespace MiniIT.Snipe.Tables
 
 					if (response == null || !new HttpResponseMessage(response.StatusCode).IsSuccessStatusCode)
 					{
-						logger.Log($"[SnipeTable] Failed to load table - {tableName}   (loader failed)");
+						logger.LogTrace($"[SnipeTable] Failed to load table - {tableName}   (loader failed)");
 						response.Dispose();
 						continue;
 					}
 				}
 				catch (Exception e)
 				{
-					logger.Log($"[SnipeTable] Failed to load table - {tableName} - {e}");
+					logger.LogTrace($"[SnipeTable] Failed to load table - {tableName} - {e}");
 				}
 
 				if (response != null)
@@ -94,7 +95,7 @@ namespace MiniIT.Snipe.Tables
 
 							if (version > 0)
 							{
-								logger.Log("[SnipeTable] Table ready - " + tableName);
+								logger.LogTrace("[SnipeTable] Table ready - " + tableName);
 							}
 
 							stream.Position = 0;
@@ -103,7 +104,7 @@ namespace MiniIT.Snipe.Tables
 					}
 					catch (Exception e)
 					{
-						logger.Log($"[SnipeTable] Failed to parse table - {tableName} - {e}");
+						logger.LogTrace($"[SnipeTable] Failed to parse table - {tableName} - {e}");
 					}
 
 					response.Dispose();

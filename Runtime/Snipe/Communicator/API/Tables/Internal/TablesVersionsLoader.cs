@@ -28,7 +28,7 @@ namespace MiniIT.Snipe.Tables
 			{
 				string url = GetVersionsUrl();
 
-				_logger.Log($"LoadVersion ({retries_count}) " + url);
+				_logger.LogTrace($"LoadVersion ({retries_count}) " + url);
 				
 				try
 				{
@@ -58,7 +58,7 @@ namespace MiniIT.Snipe.Tables
 								}
 								else
 								{
-									_logger.Log($"LoadVersion done - {versions.Count} items");
+									_logger.LogTrace($"LoadVersion done - {versions.Count} items");
 								}
 
 								break;
@@ -76,7 +76,7 @@ namespace MiniIT.Snipe.Tables
 								{
 									// HTTP Status: 404
 									// It is useless to retry loading
-									_logger.Log($"LoadVersion StatusCode = {response.StatusCode} - will not rety");
+									_logger.LogTrace($"LoadVersion StatusCode = {response.StatusCode} - will not rety");
 									break;
 								}
 							}
@@ -85,23 +85,23 @@ namespace MiniIT.Snipe.Tables
 				}
 				catch (Exception e) when (e is AggregateException ae && ae.InnerException is HttpRequestException)
 				{
-					_logger.Log($"LoadVersion HttpRequestException - network is unreachable - will not rety. {e}");
+					_logger.LogTrace($"LoadVersion HttpRequestException - network is unreachable - will not rety. {e}");
 					break;
 				}
 				catch (Exception e) when (e is OperationCanceledException ||
 						e is AggregateException ae && ae.InnerException is OperationCanceledException)
 				{
-					_logger.Log($"LoadVersion - TaskCanceled");
+					_logger.LogTrace($"LoadVersion - TaskCanceled");
 					break;
 				}
 				catch (Exception e)
 				{
-					_logger.Log($"LoadVersion - Exception: {e}");
+					_logger.LogTrace($"LoadVersion - Exception: {e}");
 				}
 				
 				if (cancellationToken.IsCancellationRequested)
 				{
-					_logger.Log($"LoadVersion task canceled");
+					_logger.LogTrace($"LoadVersion task canceled");
 					break;
 				}
 
@@ -111,14 +111,14 @@ namespace MiniIT.Snipe.Tables
 				}
 				catch (OperationCanceledException)
 				{
-					_logger.Log($"LoadVersion task canceled");
+					_logger.LogTrace($"LoadVersion task canceled");
 					break;
 				}
 			}
 
 			if (versions == null)
 			{
-				_logger.Log($"LoadVersion Failed");
+				_logger.LogTrace($"LoadVersion Failed");
 				Analytics.GetInstance().TrackEvent("Tables - LoadVersion Failed");
 				return null;
 			}
@@ -149,7 +149,7 @@ namespace MiniIT.Snipe.Tables
 				return versions;
 			}
 
-			_logger.Log($"Faield to prase versions json");
+			_logger.LogTrace($"Faield to prase versions json");
 			return null;
 		}
 	}

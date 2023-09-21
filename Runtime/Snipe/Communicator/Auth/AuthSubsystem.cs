@@ -154,7 +154,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			_logger.Log($"({_communicator.InstanceId}) Authorize");
+			_logger.LogTrace($"({_communicator.InstanceId}) Authorize");
 
 			if (UseDefaultBindings)
 			{
@@ -586,7 +586,7 @@ namespace MiniIT.Snipe
 						string message = (e is System.Reflection.TargetInvocationException tie) ?
 							$"{tie.InnerException?.Message}\n{tie.InnerException?.StackTrace}" :
 							$"{e.Message}\n{e.StackTrace}";
-						_logger.Log($"RaiseEvent - Error in the handler {handler?.Method?.Name}: {message}");
+						_logger.LogTrace($"RaiseEvent - Error in the handler {handler?.Method?.Name}: {message}");
 					}
 				}
 			}

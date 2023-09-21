@@ -1,7 +1,8 @@
 {
-    "name": "MiniIT.Debug.Logging",
+    "name": "MiniIT.Snipe.Logging",
     "references": [
-		"Microsoft.Extensions.Logging.Abstractions"
+		"Microsoft.Extensions.Logging.Abstractions",
+        "MiniIT.Logging"
 	],
     "optionalUnityReferences": [],
     "excludePlatforms": [],

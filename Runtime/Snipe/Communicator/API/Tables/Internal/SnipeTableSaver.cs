@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Microsoft.Extensions.Logging;
 using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe.Tables
@@ -19,7 +20,7 @@ namespace MiniIT.Snipe.Tables
 			{
 				if (!File.Exists(cache_path))
 				{
-					LogManager.GetLogger("SnipeTable").Log($"Save to cache {cache_path}");
+					LogManager.GetLogger("SnipeTable").LogTrace($"Save to cache {cache_path}");
 
 					string directory_path = TablesLoader.GetCacheDirectoryPath();
 					if (!Directory.Exists(directory_path))
@@ -35,7 +36,7 @@ namespace MiniIT.Snipe.Tables
 			}
 			catch (Exception e)
 			{
-				LogManager.GetLogger("SnipeTable").Log($"Failed to save to cache - {table_name} - {e}");
+				LogManager.GetLogger("SnipeTable").LogTrace($"Failed to save to cache - {table_name} - {e}");
 
 				if (File.Exists(cache_path))
 				{

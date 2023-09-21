@@ -86,14 +86,14 @@ namespace MiniIT.Snipe
 		{
 			ConnectionEstablished = true;
 
-			_logger.Log("OnUdpClientConnected");
+			_logger.LogTrace("OnUdpClientConnected");
 
 			ConnectionOpenedHandler?.Invoke();
 		}
 
 		private void OnClientDisconnected()
 		{
-			_logger.Log("OnUdpClientDisconnected");
+			_logger.LogTrace("OnUdpClientDisconnected");
 			
 			StopNetworkLoop();
 			_kcpConnection = null;
@@ -102,7 +102,7 @@ namespace MiniIT.Snipe
 			{
 				if (_config.NextUdpUrl())
 				{
-					_logger.Log("Next udp url");
+					_logger.LogTrace("Next udp url");
 					//Connect();
 					//return;
 				}
@@ -113,7 +113,7 @@ namespace MiniIT.Snipe
 		
 		private void OnClientDataReceived(ArraySegment<byte> buffer, KcpChannel channel, bool compressed)
 		{
-			_logger.Log("OnUdpClientDataReceived");
+			_logger.LogTrace("OnUdpClientDataReceived");
 			
 			var opcode = (KcpOpCode)buffer.Array[buffer.Offset];
 
@@ -239,8 +239,8 @@ namespace MiniIT.Snipe
 			{
 				await Task.Run(() =>
 				{
-					_logger.Log("compress message");
-					// _logger.Log("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
+					_logger.LogTrace("compress message");
+					// _logger.LogTrace("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
 
 					ArraySegment<byte> msg_content = new ArraySegment<byte>(_messageSerializationBuffer, offset, msg_data.Count - offset);
 					ArraySegment<byte> compressed = _messageCompressor.Compress(msg_content);
@@ -255,7 +255,7 @@ namespace MiniIT.Snipe
 
 					msg_data = new ArraySegment<byte>(_messageSerializationBuffer, 0, compressed.Count + offset);
 
-					// _logger.Log("Compressed:   " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
+					// _logger.LogTrace("Compressed:   " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
 				});
 			}
 			else // compression not needed
@@ -272,7 +272,7 @@ namespace MiniIT.Snipe
 
 		private void StartNetworkLoop()
 		{
-			_logger.Log("StartNetworkLoop");
+			_logger.LogTrace("StartNetworkLoop");
 			
 			_networkLoopCancellation?.Cancel();
 
@@ -283,7 +283,7 @@ namespace MiniIT.Snipe
 
 		public void StopNetworkLoop()
 		{
-			_logger.Log("StopNetworkLoop");
+			_logger.LogTrace("StopNetworkLoop");
 			
 			if (_networkLoopCancellation != null)
 			{
@@ -303,7 +303,7 @@ namespace MiniIT.Snipe
 				}
 				catch (Exception e)
 				{
-					_logger.Log($"NetworkLoop - Exception: {e}");
+					_logger.LogTrace($"NetworkLoop - Exception: {e}");
 					_analytics.TrackError("NetworkLoop error", e);
 					OnClientDisconnected();
 					return;
@@ -323,7 +323,7 @@ namespace MiniIT.Snipe
 		
 		//private async void UdpConnectionTimeout(CancellationToken cancellation)
 		//{
-		//	_logger.Log("UdpConnectionTimeoutTask - start");
+		//	_logger.LogTrace("UdpConnectionTimeoutTask - start");
 			
 		//	try
 		//	{
@@ -342,11 +342,11 @@ namespace MiniIT.Snipe
 			
 		//	if (!Connected)
 		//	{
-		//		_logger.Log("UdpConnectionTimeoutTask - Calling Disconnect");
+		//		_logger.LogTrace("UdpConnectionTimeoutTask - Calling Disconnect");
 		//		OnClientDisconnected();
 		//	}
 			
-		//	_logger.Log("UdpConnectionTimeoutTask - finish");
+		//	_logger.LogTrace("UdpConnectionTimeoutTask - finish");
 		//}
 	}
 }

@@ -71,22 +71,22 @@ namespace MiniIT.Snipe
 		{
 			if (_started)
 			{
-				_logger.Log("Start - Already started");
+				_logger.LogTrace("Start - Already started");
 				return;
 			}
 			_started = true;
 			
-			_logger.Log("Start");
+			_logger.LogTrace("Start");
 			if (Fetcher != null && !IsBindDone)
 			{
-				_logger.Log("Fetch");
+				_logger.LogTrace("Fetch");
 				Fetcher.Fetch(true, OnIdFetched);
 			}
 		}
 
 		protected void OnIdFetched(string uid)
 		{
-			_logger.Log("OnIdFetched: {uid}");
+			_logger.LogTrace("OnIdFetched: {uid}");
 
 			if (!string.IsNullOrEmpty(uid) && !IsBindDone)
 			{
@@ -123,7 +123,7 @@ namespace MiniIT.Snipe
 				if (!string.IsNullOrEmpty(pass))
 					data["auth"] = pass;
 
-				_logger.Log($"({ProviderId}) send user.bind " + data.ToJSONString());
+				_logger.LogTrace($"({ProviderId}) send user.bind " + data.ToJSONString());
 				new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_BIND, data)
 					.Request(OnBindResponse);
 
@@ -191,7 +191,7 @@ namespace MiniIT.Snipe
 		{
 			user_id = GetContextBoundUserId(user_id);
 
-			_logger.Log($"({ProviderId}) CheckAuthExists {user_id}");
+			_logger.LogTrace($"({ProviderId}) CheckAuthExists {user_id}");
 
 			SnipeObject data = new SnipeObject()
 			{
@@ -212,7 +212,7 @@ namespace MiniIT.Snipe
 
 		protected virtual void OnBindResponse(string error_code, SnipeObject data)
 		{
-			_logger.Log($"({ProviderId}) OnBindResponse - {error_code}");
+			_logger.LogTrace($"({ProviderId}) OnBindResponse - {error_code}");
 
 			if (error_code == SnipeErrorCodes.OK)
 			{
@@ -248,7 +248,7 @@ namespace MiniIT.Snipe
 				}
 				else if (!is_me)
 				{
-					_logger.Log($"({ProviderId}) OnCheckAuthExistsResponse - another account found - InvokeAccountBindingCollisionEvent");
+					_logger.LogTrace($"({ProviderId}) OnCheckAuthExistsResponse - another account found - InvokeAccountBindingCollisionEvent");
 					_authSubsystem.OnAccountBindingCollision(this, data.SafeGetString("name"));
 				}
 			}
@@ -256,7 +256,7 @@ namespace MiniIT.Snipe
 
 		protected virtual void InvokeBindResultCallback(string error_code)
 		{
-			_logger.Log($"({ProviderId}) InvokeBindResultCallback - {error_code}");
+			_logger.LogTrace($"({ProviderId}) InvokeBindResultCallback - {error_code}");
 
 			if (_bindResultCallback != null)
 			{
@@ -272,7 +272,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			_logger.Log($"({ProviderId}) Set bind done flag to {value}");
+			_logger.LogTrace($"({ProviderId}) Set bind done flag to {value}");
 
 			_isBindDone = value;
 			if (value)

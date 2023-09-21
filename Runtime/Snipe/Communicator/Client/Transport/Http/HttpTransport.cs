@@ -89,14 +89,14 @@ namespace MiniIT.Snipe
 
 		private void OnClientConnected() 
 		{
-			_logger.Log("OnClientConnected");
+			_logger.LogTrace("OnClientConnected");
 
 			ConnectionOpenedHandler?.Invoke();
 		}
 
 		//private void OnClientDisconnected()
 		//{
-		//	_logger.Log($"OnClientDisconnected");
+		//	_logger.LogTrace($"OnClientDisconnected");
 
 		//	//StopNetworkLoop();
 		//	Connected = false;
@@ -105,7 +105,7 @@ namespace MiniIT.Snipe
 		//	//{
 		//	//	if (_config.NextUdpUrl())
 		//	//	{
-		//	//		_logger.Log($"Next udp url");
+		//	//		_logger.LogTrace($"Next udp url");
 		//	//	}
 		//	//}
 
@@ -156,7 +156,7 @@ namespace MiniIT.Snipe
 				var uri = new Uri(_baseUrl, requestType);
 				var requestContent = new StringContent(json, Encoding.UTF8, "application/json");
 
-				_logger.Log($"+++ <<< request ({uri}) - {json}");
+				_logger.LogTrace($"+++ <<< request ({uri}) - {json}");
 
 				using (var response = await _httpClient.PostAsync(uri, requestContent))
 				{
@@ -168,7 +168,7 @@ namespace MiniIT.Snipe
 
 					string responseMessage = await response.Content.ReadAsStringAsync();
 
-					_logger.Log($"+++ >>> response {requestType} ({(int)response.StatusCode} {response.StatusCode}) {responseMessage}");
+					_logger.LogTrace($"+++ >>> response {requestType} ({(int)response.StatusCode} {response.StatusCode}) {responseMessage}");
 
 					if (response.IsSuccessStatusCode)
 					{
@@ -203,7 +203,7 @@ namespace MiniIT.Snipe
 
 		private void StartNetworkLoop()
 		{
-			_logger.Log($"StartNetworkLoop");
+			_logger.LogTrace($"StartNetworkLoop");
 			
 			_networkLoopCancellation?.Cancel();
 
@@ -214,7 +214,7 @@ namespace MiniIT.Snipe
 
 		public void StopNetworkLoop()
 		{
-			_logger.Log($"StopNetworkLoop");
+			_logger.LogTrace($"StopNetworkLoop");
 			
 			if (_networkLoopCancellation != null)
 			{
@@ -234,7 +234,7 @@ namespace MiniIT.Snipe
 				}
 				catch (Exception e)
 				{
-					_logger.Log($"NetworkLoop - Exception: {e}");
+					_logger.LogTrace($"NetworkLoop - Exception: {e}");
 					_analytics.TrackError("NetworkLoop error", e);
 					OnClientDisconnected();
 					return;
@@ -256,7 +256,7 @@ namespace MiniIT.Snipe
 		
 		//private async void UdpConnectionTimeout(CancellationToken cancellation)
 		//{
-		//	_logger.Log($"UdpConnectionTimeoutTask - start");
+		//	_logger.LogTrace($"UdpConnectionTimeoutTask - start");
 			
 		//	try
 		//	{
@@ -275,11 +275,11 @@ namespace MiniIT.Snipe
 			
 		//	if (!Connected)
 		//	{
-		//		_logger.Log($"UdpConnectionTimeoutTask - Calling Disconnect");
+		//		_logger.LogTrace($"UdpConnectionTimeoutTask - Calling Disconnect");
 		//		OnClientDisconnected();
 		//	}
 			
-		//	_logger.Log($"UdpConnectionTimeoutTask - finish");
+		//	_logger.LogTrace($"UdpConnectionTimeoutTask - finish");
 		//}
 	}
 }

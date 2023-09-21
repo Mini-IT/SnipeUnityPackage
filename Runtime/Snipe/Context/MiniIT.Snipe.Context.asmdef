@@ -1,8 +1,9 @@
 {
     "name": "MiniIT.Snipe.Context",
     "references": [
-		"MiniIT.Snipe.Core",
-		"MiniIT.Snipe.Communicator"
+      "MiniIT.Snipe.Core",
+      "MiniIT.Snipe.Communicator",
+      "MiniIT.Snipe.Logging"
     ],
     "optionalUnityReferences": [],
     "excludePlatforms": [],

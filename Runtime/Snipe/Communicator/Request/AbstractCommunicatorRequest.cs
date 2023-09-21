@@ -166,7 +166,7 @@ namespace MiniIT.Snipe
 			
 			if (_requestId != 0)
 			{
-				GetLogger().Log($"DoSendRequest - Same request found: {MessageType}, id = {_requestId}, mWaitingForResponse = {_waitingForResponse}");
+				GetLogger().LogTrace($"DoSendRequest - Same request found: {MessageType}, id = {_requestId}, mWaitingForResponse = {_waitingForResponse}");
 				
 				if (!_waitingForResponse)
 				{
@@ -203,7 +203,7 @@ namespace MiniIT.Snipe
 			{
 				if (_requestId != 0) // if the request is considered sent but not responsed yet
 				{
-					GetLogger().Log($"Disposing request {_requestId} {MessageType}");
+					GetLogger().LogTrace($"Disposing request {_requestId} {MessageType}");
 					InvokeCallback(SnipeErrorCodes.NOT_READY, EMPTY_DATA);
 				}
 				Dispose();
@@ -215,7 +215,7 @@ namespace MiniIT.Snipe
 			_communicator.ConnectionSucceeded -= OnCommunicatorReady;
 			_communicator.MessageReceived -= OnMessageReceived;
 
-			GetLogger().Log($"Waiting for connection - {MessageType}");
+			GetLogger().LogTrace($"Waiting for connection - {MessageType}");
 
 			_communicator.ConnectionSucceeded += OnCommunicatorReady;
 		}
@@ -252,7 +252,7 @@ namespace MiniIT.Snipe
 				}
 				catch (Exception e)
 				{
-					GetLogger().Log($"{MessageType} Callback invokation error: {e}");
+					GetLogger().LogTrace($"{MessageType} Callback invokation error: {e}");
 				}
 			}
 		}

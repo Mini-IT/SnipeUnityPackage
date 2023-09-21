@@ -58,8 +58,8 @@ namespace MiniIT.Snipe
 			}
 		}
 
-private bool _disconnecting = false;
-		
+		private bool _disconnecting = false;
+
 		private TaskScheduler _mainThreadScheduler;
 		private CancellationTokenSource _delayedInitCancellation;
 
@@ -73,7 +73,7 @@ private bool _disconnecting = false;
 			_analytics = Analytics.GetInstance(config.ContextId);
 			_logger = LogManager.GetLogger(nameof(SnipeCommunicator));
 
-			_logger.Log($"PACKAGE VERSION: {PackageInfo.VERSION}");
+			_logger.LogTrace($"PACKAGE VERSION: {PackageInfo.VERSION}");
 		}
 		
 		/// <summary>
@@ -128,7 +128,7 @@ private bool _disconnecting = false;
 
 		public void Disconnect()
 		{
-			_logger.Log($"({InstanceId}) Disconnect");
+			_logger.LogTrace($"({InstanceId}) Disconnect");
 
 			_roomJoined = null;
 			_disconnecting = true;
@@ -147,7 +147,7 @@ private bool _disconnecting = false;
 
 		private void OnClientConnectionOpened()
 		{
-			_logger.Log($"({InstanceId}) Client connection opened");
+			_logger.LogTrace($"({InstanceId}) Client connection opened");
 
 			_restoreConnectionAttempt = 0;
 			_disconnecting = false;
@@ -162,7 +162,7 @@ private bool _disconnecting = false;
 		
 		private void OnClientConnectionClosed()
 		{
-			_logger.Log($"({InstanceId}) [{Client?.ConnectionId}] Client connection closed");
+			_logger.LogTrace($"({InstanceId}) [{Client?.ConnectionId}] Client connection closed");
 			
 			_roomJoined = null;
 
@@ -191,7 +191,7 @@ private bool _disconnecting = false;
 				RaiseEvent(ConnectionFailed, true);
 				
 				_restoreConnectionAttempt++;
-				_logger.Log($"({InstanceId}) Attempt to restore connection {_restoreConnectionAttempt}");
+				_logger.LogTrace($"({InstanceId}) Attempt to restore connection {_restoreConnectionAttempt}");
 
 				_analytics.ConnectionEventsEnabled = false;
 
@@ -210,7 +210,7 @@ private bool _disconnecting = false;
 
 		private void OnMessageReceived(string message_type, string error_code, SnipeObject data, int request_id)
 		{
-			// _logger.Log($"({INSTANCE_ID}) [{Client?.ConnectionId}] OnMessageReceived {request_id} {message_type} {error_code} " + (data != null ? data.ToJSONString() : "null"));
+			// _logger.LogTrace($"({INSTANCE_ID}) [{Client?.ConnectionId}] OnMessageReceived {request_id} {message_type} {error_code} " + (data != null ? data.ToJSONString() : "null"));
 
 			//if (message_type == SnipeMessageTypes.USER_LOGIN) // handled in AuthSubsystem
 			//{
@@ -282,7 +282,7 @@ private bool _disconnecting = false;
 						string message = (e is System.Reflection.TargetInvocationException tie) ?
 							$"{tie.InnerException?.Message}\n{tie.InnerException?.StackTrace}" :
 							$"{e.Message}\n{e.StackTrace}";
-						_logger.Log($"({InstanceId}) RaiseEvent - Error in the handler {handler?.Method?.Name}: {message}");
+						_logger.LogTrace($"({InstanceId}) RaiseEvent - Error in the handler {handler?.Method?.Name}: {message}");
 					}
 				}
 			}
@@ -292,7 +292,7 @@ private bool _disconnecting = false;
 		
 		private async void DelayedInitClient(CancellationToken cancellation)
 		{
-			_logger.Log($"({InstanceId}) WaitAndInitClient - start delay");
+			_logger.LogTrace($"({InstanceId}) WaitAndInitClient - start delay");
 			Random random = new Random();
 			int delay = RETRY_INIT_CLIENT_DELAY * _restoreConnectionAttempt + random.Next(RETRY_INIT_CLIENT_RANDOM_DELAY);
 			if (delay < RETRY_INIT_CLIENT_MIN_DELAY)
@@ -313,13 +313,13 @@ private bool _disconnecting = false;
 				return;
 			}
 
-			_logger.Log($"({InstanceId}) WaitAndInitClient - delay finished");
+			_logger.LogTrace($"({InstanceId}) WaitAndInitClient - delay finished");
 			InitClient();
 		}
 
 		public void DisposeRoomRequests()
 		{
-			_logger.Log($"({InstanceId}) DisposeRoomRequests");
+			_logger.LogTrace($"({InstanceId}) DisposeRoomRequests");
 			
 			List<AbstractCommunicatorRequest> room_requests = null;
 			foreach (var request in Requests)
@@ -343,7 +343,7 @@ private bool _disconnecting = false;
 
 		public void Dispose()
 		{
-			_logger.Log($"({InstanceId}) Dispose");
+			_logger.LogTrace($"({InstanceId}) Dispose");
 
 			if (Client != null)
 			{
@@ -367,7 +367,7 @@ private bool _disconnecting = false;
 		
 		public void DisposeRequests()
 		{
-			_logger.Log($"({InstanceId}) DisposeRequests");
+			_logger.LogTrace($"({InstanceId}) DisposeRequests");
 			
 			if (_requests != null)
 			{

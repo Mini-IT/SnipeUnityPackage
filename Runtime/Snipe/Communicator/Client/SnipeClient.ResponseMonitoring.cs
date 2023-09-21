@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
-using MiniIT.Snipe.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace MiniIT.Snipe
 {
@@ -143,7 +143,7 @@ namespace MiniIT.Snipe
 				}				
 			}
 			
-			_logger.Log("ResponseMonitoring - finish");
+			_logger.LogTrace("ResponseMonitoring - finish");
 		}
 	}
 }

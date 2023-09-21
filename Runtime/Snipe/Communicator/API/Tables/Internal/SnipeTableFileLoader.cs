@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.IO;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe.Tables
@@ -20,11 +21,11 @@ namespace MiniIT.Snipe.Tables
 					if (await SnipeTableGZipReader.TryReadAsync(wrapperType, items, read_stream))
 					{
 						loaded = true;
-						LogManager.GetLogger("SnipeTable").Log($"Table ready (from cache) - {table_name}");
+						LogManager.GetLogger("SnipeTable").LogTrace($"Table ready (from cache) - {table_name}");
 					}
 					else
 					{
-						LogManager.GetLogger("SnipeTable").Log($"Failed to read file - {table_name}");
+						LogManager.GetLogger("SnipeTable").LogTrace($"Failed to read file - {table_name}");
 					}
 				}
 			}
