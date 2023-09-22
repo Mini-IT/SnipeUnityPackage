@@ -192,7 +192,10 @@ namespace MiniIT.Snipe
 			var batch = new SnipeObject()
 			{
 				["t"] = "server.batch",
-				["list"] = messages,
+				["data"] = new SnipeObject()
+				{
+					["list"] = messages,
+				}
 			};
 
 			DoSendRequest(batch);
