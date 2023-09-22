@@ -263,7 +263,7 @@ namespace MiniIT.Snipe
 
 			SnipeObject data = null;
 
-			if (!_loggedIn)
+			if (!_loggedIn && (_batchedRequests == null || _batchedRequests.IsEmpty))
 			{
 				data = message["data"] as SnipeObject ?? new SnipeObject();
 				data["ckey"] = _config.ClientKey;
