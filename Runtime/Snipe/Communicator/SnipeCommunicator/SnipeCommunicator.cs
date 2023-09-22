@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe
 {
@@ -71,7 +70,7 @@ namespace MiniIT.Snipe
 		{
 			_config = config;
 			_analytics = Analytics.GetInstance(config.ContextId);
-			_logger = LogManager.GetLogger(nameof(SnipeCommunicator));
+			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(SnipeCommunicator));
 
 			_logger.LogTrace($"PACKAGE VERSION: {PackageInfo.VERSION}");
 		}

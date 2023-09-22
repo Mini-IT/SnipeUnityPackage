@@ -5,7 +5,6 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe
 {
@@ -77,7 +76,7 @@ namespace MiniIT.Snipe
 		{
 			_config = config;
 			_analytics = Analytics.GetInstance(config.ContextId);
-			_logger = LogManager.GetLogger(nameof(SnipeClient));
+			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(SnipeClient));
 		}
 
 		public void Connect()
@@ -86,15 +85,15 @@ namespace MiniIT.Snipe
 				TaskScheduler.FromCurrentSynchronizationContext() :
 				TaskScheduler.Current;
 
-			if (_config.CheckUdpAvailable())
-			{
-				StartTransport(CreateKcpTransport);
-			}
-			else
-			{
-				StartTransport(CreateWebSocketTransport);
-			}
-			//StartTransport(CreateHttpTransport);
+			// if (_config.CheckUdpAvailable())
+			// {
+			// 	StartTransport(CreateKcpTransport);
+			// }
+			// else
+			// {
+			// 	StartTransport(CreateWebSocketTransport);
+			// }
+			StartTransport(CreateHttpTransport);
 		}
 
 		private void RunInMainThread(Action action)

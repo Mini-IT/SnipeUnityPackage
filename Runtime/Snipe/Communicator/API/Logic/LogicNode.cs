@@ -43,7 +43,7 @@ namespace MiniIT.Snipe
 
 			if (node == null)
 			{
-				LogManager.GetLogger(nameof(LogicNode)).LogError($"Table node not found. id = {id}");
+				SnipeServices.Instance.LogService.GetLogger(nameof(LogicNode)).LogError($"Table node not found. id = {id}");
 				return;
 			}
 			

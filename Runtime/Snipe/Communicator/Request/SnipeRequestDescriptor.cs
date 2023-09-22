@@ -1,5 +1,3 @@
-using MiniIT;
-
 namespace MiniIT.Snipe
 {
 	public class SnipeRequestDescriptor

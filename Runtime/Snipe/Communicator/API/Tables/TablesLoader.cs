@@ -30,7 +30,7 @@ namespace MiniIT.Snipe
 		{
 			StreamingAssetsReader.Initialize();
 			_versionsLoader = new TablesVersionsLoader();
-			_logger = LogManager.GetLogger(nameof(TablesLoader));
+			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(TablesLoader));
 			_builtInTablesListService = new BuiltInTablesListService();
 		}
 

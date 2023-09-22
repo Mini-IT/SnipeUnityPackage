@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Net;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe
 {
@@ -307,7 +305,7 @@ namespace MiniIT.Snipe
 
 		private ILogger GetLogger()
 		{
-			_logger ??= LogManager.GetLogger(nameof(AbstractCommunicatorRequest));
+			_logger ??= SnipeServices.Instance.LogService.GetLogger(nameof(AbstractCommunicatorRequest));
 			return _logger;
 		}
 	}

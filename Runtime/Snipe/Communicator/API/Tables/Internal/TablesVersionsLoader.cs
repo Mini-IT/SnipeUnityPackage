@@ -17,7 +17,7 @@ namespace MiniIT.Snipe.Tables
 
 		public TablesVersionsLoader()
 		{
-			_logger = LogManager.GetLogger(nameof(TablesVersionsLoader));
+			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(TablesVersionsLoader));
 		}
 
 		public async Task<Dictionary<string, long>> Load(CancellationToken cancellationToken)

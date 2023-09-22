@@ -18,7 +18,7 @@ namespace MiniIT.Snipe.Tables
 			
 			string url = GetTableUrl(tableName, version);
 
-			var logger = LogManager.GetLogger("SnipeTable");
+			var logger = SnipeServices.Instance.LogService.GetLogger("SnipeTable");
 			logger.LogTrace("[SnipeTable] Loading table " + url);
 
 			int retry = 0;

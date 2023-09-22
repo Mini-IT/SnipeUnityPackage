@@ -1,0 +1,15 @@
+{
+    "name": "MiniIT.Snipe.Logging.Unity",
+    "references": [
+		"Microsoft.Extensions.Logging.Abstractions",
+        "MiniIT.Snipe.Logging",
+        "MiniIT.Logging"
+	],
+    "optionalUnityReferences": [],
+    "excludePlatforms": [],
+	"allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": []
+}

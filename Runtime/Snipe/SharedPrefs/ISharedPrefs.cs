@@ -1,5 +1,5 @@
 
-namespace MiniIT.Snipe
+namespace MiniIT.Snipe.SharedPrefs
 {
 	public interface ISharedPrefs
 	{

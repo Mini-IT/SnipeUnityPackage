@@ -1,11 +1,10 @@
 using System;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Net.WebSockets;
 using System.Buffers;
 using System.Collections.Concurrent;
+using System.Net.WebSockets;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe
 {
@@ -40,7 +39,7 @@ namespace MiniIT.Snipe
 				TaskScheduler.FromCurrentSynchronizationContext() :
 				TaskScheduler.Current;
 
-			_logger = LogManager.GetLogger(nameof(WebSocketClientWrapper));
+			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(WebSocketClientWrapper));
 		}
 
 		public override void Connect(string url)

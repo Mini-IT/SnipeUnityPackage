@@ -1,9 +1,8 @@
-using Microsoft.Extensions.Logging;
-using MiniIT.MessagePack;
-using MiniIT.Snipe.Logging;
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using Microsoft.Extensions.Logging;
+using MiniIT.MessagePack;
 
 namespace MiniIT.Snipe
 {
@@ -24,7 +23,7 @@ namespace MiniIT.Snipe
 		{
 			_config = config;
 			_analytics = analytics;
-			_logger = LogManager.GetLogger(GetType().Name);
+			_logger = SnipeServices.Instance.LogService.GetLogger(GetType().Name);
 		}
 
 		public abstract void Connect();

@@ -167,8 +167,8 @@ namespace MiniIT.Snipe
 				MinMessageBytesToCompress = SnipeObject.SafeGetValue<int>(compression, "min_size");
 			}
 
-			_serverWebSocketUrlIndex = SharedPrefs.GetInt(SnipePrefs.GetWebSocketUrlIndex(ContextId), 0);
-			_serverUdpUrlIndex = SharedPrefs.GetInt(SnipePrefs.GetUdpUrlIndex(ContextId), 0);
+			_serverWebSocketUrlIndex = SnipeServices.Instance.SharedPrefs.GetInt(SnipePrefs.GetWebSocketUrlIndex(ContextId), 0);
+			_serverUdpUrlIndex = SnipeServices.Instance.SharedPrefs.GetInt(SnipePrefs.GetUdpUrlIndex(ContextId), 0);
 
 			TablesConfig.Init(data);
 			TablesConfig.PersistentDataPath = Application.persistentDataPath;
@@ -226,7 +226,7 @@ namespace MiniIT.Snipe
 		{
 			_serverWebSocketUrlIndex = GetValidIndex(ServerWebSocketUrls, _serverWebSocketUrlIndex, true);
 
-			RunInMainThread(() => SharedPrefs.SetInt(SnipePrefs.GetWebSocketUrlIndex(ContextId), _serverWebSocketUrlIndex));
+			RunInMainThread(() => SnipeServices.Instance.SharedPrefs.SetInt(SnipePrefs.GetWebSocketUrlIndex(ContextId), _serverWebSocketUrlIndex));
 		}
 
 		public bool NextUdpUrl()
@@ -234,7 +234,7 @@ namespace MiniIT.Snipe
 			int prev = _serverUdpUrlIndex;
 			_serverUdpUrlIndex = GetValidIndex(ServerUdpUrls, _serverUdpUrlIndex, true);
 
-			RunInMainThread(() => SharedPrefs.SetInt(SnipePrefs.GetUdpUrlIndex(ContextId), _serverUdpUrlIndex));
+			RunInMainThread(() => SnipeServices.Instance.SharedPrefs.SetInt(SnipePrefs.GetUdpUrlIndex(ContextId), _serverUdpUrlIndex));
 
 			return _serverUdpUrlIndex > prev;
 		}

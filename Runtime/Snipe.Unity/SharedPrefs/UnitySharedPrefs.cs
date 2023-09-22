@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace MiniIT.Snipe
+namespace MiniIT.Snipe.SharedPrefs.Unity
 {
 	public class UnitySharedPrefs : ISharedPrefs
 	{

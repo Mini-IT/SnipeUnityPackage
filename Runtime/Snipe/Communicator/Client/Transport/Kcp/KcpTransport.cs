@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.MessagePack;
-using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe
 {

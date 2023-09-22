@@ -27,7 +27,7 @@ namespace MiniIT.Snipe.Tables
 		{
 			if (Items == null)
 			{
-				LogManager.GetLogger(nameof(BuiltInTablesListService)).LogError($"Not initialized. Call {nameof(InitializeAsync)} first");
+				SnipeServices.Instance.LogService.GetLogger(nameof(BuiltInTablesListService)).LogError($"Not initialized. Call {nameof(InitializeAsync)} first");
 				version = 0;
 				return false;
 			}
@@ -52,7 +52,7 @@ namespace MiniIT.Snipe.Tables
 			string json = await StreamingAssetsReader.ReadTextAsync("snipe_tables.json", cancellationToken);
 			if (json == null)
 			{
-				LogManager.GetLogger(nameof(BuiltInTablesListService)).LogError("ReadBuiltInTablesVersions failed to load or parse snipe_tables.json");
+				SnipeServices.Instance.LogService.GetLogger(nameof(BuiltInTablesListService)).LogError("ReadBuiltInTablesVersions failed to load or parse snipe_tables.json");
 				return result;
 			}
 

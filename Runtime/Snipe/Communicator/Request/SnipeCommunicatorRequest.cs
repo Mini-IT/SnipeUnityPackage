@@ -1,6 +1,5 @@
 ﻿
 using Microsoft.Extensions.Logging;
-using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe
 {
@@ -110,7 +109,7 @@ namespace MiniIT.Snipe
 
 		private ILogger GetLogger()
 		{
-			_logger ??= LogManager.GetLogger(nameof(SnipeCommunicatorRequest));
+			_logger ??= SnipeServices.Instance.LogService.GetLogger(nameof(SnipeCommunicatorRequest));
 			return _logger;
 		}
 	}

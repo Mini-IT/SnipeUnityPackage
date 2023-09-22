@@ -1,9 +1,8 @@
 {
-    "name": "MiniIT.Snipe.Logging",
+    "name": "MiniIT.Snipe.SharedPrefs.Unity",
     "rootNamespace": "",
     "references": [
-        "Microsoft.Extensions.Logging.Abstractions",
-        "MiniIT.Logging"
+        "MiniIT.Snipe.SharedPrefs"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -13,5 +12,5 @@
     "autoReferenced": true,
     "defineConstraints": [],
     "versionDefines": [],
-    "noEngineReferences": true
+    "noEngineReferences": false
 }

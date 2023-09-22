@@ -1,13 +1,16 @@
 {
     "name": "MiniIT.Snipe.MessagePack",
+    "rootNamespace": "",
     "references": [
-		"MiniIT.Snipe.Core"
+        "MiniIT.Snipe.Core"
     ],
-    "optionalUnityReferences": [],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": true,
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,
-    "defineConstraints": []
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
 }
