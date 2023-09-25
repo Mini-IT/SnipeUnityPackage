@@ -4,7 +4,8 @@
       "MiniIT.Snipe.Core",
       "MiniIT.Snipe.Communicator",
       "MiniIT.Snipe.Logging",
-      "MiniIT.Snipe.Services"
+      "MiniIT.Snipe.Services",
+      "MiniIT.Snipe.Services.Unity"
     ],
     "optionalUnityReferences": [],
     "excludePlatforms": [],

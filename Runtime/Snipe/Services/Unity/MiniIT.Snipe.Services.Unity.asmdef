@@ -1,9 +1,12 @@
 {
-    "name": "MiniIT.Snipe.Services",
+    "name": "MiniIT.Snipe.Services.Unity",
     "rootNamespace": "",
     "references": [
+        "MiniIT.Snipe.Services",
         "MiniIT.Snipe.SharedPrefs",
-        "MiniIT.Snipe.Logging"
+        "MiniIT.Snipe.SharedPrefs.Unity",
+        "MiniIT.Snipe.Logging",
+        "MiniIT.Snipe.Logging.Unity"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
