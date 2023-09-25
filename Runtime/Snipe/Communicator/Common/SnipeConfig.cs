@@ -199,8 +199,8 @@ namespace MiniIT.Snipe
 				string id = SystemInfo.deviceUniqueIdentifier + Application.identifier;
 				byte[] hashBytes = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(id));
 				string hash = Convert.ToBase64String(hashBytes);
-				hash = new Regex(@"\W+").Replace(hash, "");
-				return hash.Substring(0, 16);
+				hash = new Regex(@"\W").Replace(hash, "0");
+				return hash.Substring(0, Math.Min(16, hash.Length));
 			}
 		}
 
