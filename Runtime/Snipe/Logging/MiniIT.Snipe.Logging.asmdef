@@ -1,9 +1,7 @@
 {
     "name": "MiniIT.Snipe.Logging",
-    "rootNamespace": "",
     "references": [
-        "Microsoft.Extensions.Logging.Abstractions",
-        "MiniIT.Logging"
+        "Microsoft.Extensions.Logging.Abstractions"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

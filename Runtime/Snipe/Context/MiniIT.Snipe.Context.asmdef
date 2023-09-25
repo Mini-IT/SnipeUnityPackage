@@ -5,7 +5,7 @@
       "MiniIT.Snipe.Communicator",
       "MiniIT.Snipe.Logging",
       "MiniIT.Snipe.Services",
-      "MiniIT.Snipe.Services.Unity"
+      "MiniIT.Snipe.Unity"
     ],
     "optionalUnityReferences": [],
     "excludePlatforms": [],
