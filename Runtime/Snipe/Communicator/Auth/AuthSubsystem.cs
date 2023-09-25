@@ -2,11 +2,10 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Threading.Tasks;
-using System.Threading;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using MiniIT.Snipe.Logging;
+using MiniIT.Snipe.SharedPrefs;
 
 namespace MiniIT.Snipe
 {
@@ -55,15 +54,15 @@ namespace MiniIT.Snipe
 				if (_userID == 0)
 				{
 					string key = SnipePrefs.GetLoginUserID(_config.ContextId);
-					_userID = SnipeServices.Instance.SharedPrefs.GetInt(key, 0);
+					_userID = _sharedPrefs.GetInt(key, 0);
 					if (_userID == 0)
 					{
 						// Try read a string value for backward compatibility
-						string stringValue = SnipeServices.Instance.SharedPrefs.GetString(key);
+						string stringValue = _sharedPrefs.GetString(key);
 						if (!string.IsNullOrEmpty(stringValue) && int.TryParse(stringValue, out _userID))
 						{
 							// resave the value as int
-							SnipeServices.Instance.SharedPrefs.SetInt(key, _userID);
+							_sharedPrefs.SetInt(key, _userID);
 						}
 					}
 
@@ -77,7 +76,7 @@ namespace MiniIT.Snipe
 			private set
 			{
 				_userID = value;
-				SnipeServices.Instance.SharedPrefs.SetInt(SnipePrefs.GetLoginUserID(_config.ContextId), _userID);
+				_sharedPrefs.SetInt(SnipePrefs.GetLoginUserID(_config.ContextId), _userID);
 				
 				_analytics.SetUserId(_userID.ToString());
 			}
@@ -95,8 +94,9 @@ namespace MiniIT.Snipe
 
 		private readonly SnipeConfig _config;
 		private readonly Analytics _analytics;
+		private readonly ISharedPrefs _sharedPrefs;
+		private readonly IMainThreadRunner _mainThreadRunner;
 		private readonly ILogger _logger;
-		private readonly TaskScheduler _mainThreadScheduler;
 
 		public AuthSubsystem(SnipeCommunicator communicator, SnipeConfig config)
 		{
@@ -105,19 +105,11 @@ namespace MiniIT.Snipe
 
 			_config = config;
 			_analytics = Analytics.GetInstance(_config.ContextId);
-
+			_sharedPrefs = SnipeServices.Instance.SharedPrefs;
+			_mainThreadRunner = SnipeServices.Instance.MainThreadRunner;
 			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(AuthSubsystem));
 
-			_mainThreadScheduler = (SynchronizationContext.Current != null) ?
-				TaskScheduler.FromCurrentSynchronizationContext() :
-				TaskScheduler.Current;
-
 			_bindings = new List<AuthBinding>();
-		}
-
-		private void RunInMainThread(Action action)
-		{
-			new Task(action).RunSynchronously(_mainThreadScheduler);
 		}
 
 		private void InitDefaultBindings()
@@ -193,8 +185,8 @@ namespace MiniIT.Snipe
 		{
 			string authUidKey = SnipePrefs.GetAuthUID(_config.ContextId);
 			string authKeyKey = SnipePrefs.GetAuthKey(_config.ContextId);
-			string login = SnipeServices.Instance.SharedPrefs.GetString(authUidKey);
-			string password = SnipeServices.Instance.SharedPrefs.GetString(authKeyKey);
+			string login = _sharedPrefs.GetString(authUidKey);
+			string password = _sharedPrefs.GetString(authKeyKey);
 
 			if (string.IsNullOrEmpty(login) || string.IsNullOrEmpty(password))
 			{
@@ -239,7 +231,7 @@ namespace MiniIT.Snipe
 
 							if (LoginSucceeded != null)
 							{
-								RunInMainThread(() =>
+								_mainThreadRunner.RunInMainThread(() =>
 								{
 									RaiseEvent(LoginSucceeded);
 								});
@@ -248,8 +240,8 @@ namespace MiniIT.Snipe
 
 						case SnipeErrorCodes.NO_SUCH_USER:
 						case SnipeErrorCodes.LOGIN_DATA_WRONG:
-							SnipeServices.Instance.SharedPrefs.DeleteKey(authUidKey);
-							SnipeServices.Instance.SharedPrefs.DeleteKey(authKeyKey);
+							_sharedPrefs.DeleteKey(authUidKey);
+							_sharedPrefs.DeleteKey(authKeyKey);
 							RegisterAndLogin();
 							break;
 
@@ -369,7 +361,7 @@ namespace MiniIT.Snipe
 										}
 										else
 										{
-											SnipeServices.Instance.SharedPrefs.SetInt(SnipePrefs.GetAuthBindDone(_config.ContextId) + provider, 1);
+											_sharedPrefs.SetInt(SnipePrefs.GetAuthBindDone(_config.ContextId) + provider, 1);
 										}
 									}
 								}
@@ -380,7 +372,7 @@ namespace MiniIT.Snipe
 
 						if (LoginSucceeded != null)
 						{
-							RunInMainThread(() =>
+							_mainThreadRunner.RunInMainThread(() =>
 							{
 								RaiseEvent(LoginSucceeded);
 							});
@@ -403,9 +395,9 @@ namespace MiniIT.Snipe
 		
 		private void SetAuthData(string uid, string password)
 		{
-			SnipeServices.Instance.SharedPrefs.SetString(SnipePrefs.GetAuthUID(_config.ContextId), uid);
-			SnipeServices.Instance.SharedPrefs.SetString(SnipePrefs.GetAuthKey(_config.ContextId), password);
-			SnipeServices.Instance.SharedPrefs.Save();
+			_sharedPrefs.SetString(SnipePrefs.GetAuthUID(_config.ContextId), uid);
+			_sharedPrefs.SetString(SnipePrefs.GetAuthKey(_config.ContextId), password);
+			_sharedPrefs.Save();
 		}
 
 		private void StartBindings()

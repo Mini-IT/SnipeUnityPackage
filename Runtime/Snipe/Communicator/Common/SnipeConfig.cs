@@ -45,13 +45,11 @@ namespace MiniIT.Snipe
 		private int _serverWebSocketUrlIndex = 0;
 		private int _serverUdpUrlIndex = 0;
 
-		private readonly TaskScheduler _mainThreadScheduler;
+		private readonly IMainThreadRunner _mainThreadRunner;
 
 		public SnipeConfig(string contextId)
 		{
-			_mainThreadScheduler = SynchronizationContext.Current != null ?
-				TaskScheduler.FromCurrentSynchronizationContext() :
-				TaskScheduler.Current;
+			_mainThreadRunner = SnipeServices.Instance.MainThreadRunner;
 
 			ContextId = contextId ?? "";
 		}
@@ -235,7 +233,7 @@ namespace MiniIT.Snipe
 		{
 			_serverWebSocketUrlIndex = GetValidIndex(ServerWebSocketUrls, _serverWebSocketUrlIndex, true);
 
-			RunInMainThread(() => SnipeServices.Instance.SharedPrefs.SetInt(SnipePrefs.GetWebSocketUrlIndex(ContextId), _serverWebSocketUrlIndex));
+			_mainThreadRunner.RunInMainThread(() => SnipeServices.Instance.SharedPrefs.SetInt(SnipePrefs.GetWebSocketUrlIndex(ContextId), _serverWebSocketUrlIndex));
 		}
 
 		public bool NextUdpUrl()
@@ -243,7 +241,7 @@ namespace MiniIT.Snipe
 			int prev = _serverUdpUrlIndex;
 			_serverUdpUrlIndex = GetValidIndex(ServerUdpUrls, _serverUdpUrlIndex, true);
 
-			RunInMainThread(() => SnipeServices.Instance.SharedPrefs.SetInt(SnipePrefs.GetUdpUrlIndex(ContextId), _serverUdpUrlIndex));
+			_mainThreadRunner.RunInMainThread(() => SnipeServices.Instance.SharedPrefs.SetInt(SnipePrefs.GetUdpUrlIndex(ContextId), _serverUdpUrlIndex));
 
 			return _serverUdpUrlIndex > prev;
 		}
@@ -277,11 +275,6 @@ namespace MiniIT.Snipe
 			}
 
 			return index;
-		}
-
-		private void RunInMainThread(Action action)
-		{
-			new Task(action).RunSynchronously(_mainThreadScheduler);
 		}
 	}
 }

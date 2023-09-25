@@ -13,7 +13,7 @@ namespace MiniIT.Snipe
 		private ClientWebSocket _webSocket = null;
 		private CancellationTokenSource _cancellation;
 
-		private readonly TaskScheduler _taskScheduler;
+		private readonly IMainThreadRunner _mainThreadRunner;
 
 		private readonly SemaphoreSlim _sendSemaphore = new SemaphoreSlim(1);
 		private readonly SemaphoreSlim _readSemaphore = new SemaphoreSlim(1);
@@ -35,10 +35,8 @@ namespace MiniIT.Snipe
 		{
 			_receiveBuffer = new ArraySegment<byte>(new byte[receiveBufferSize]);
 			_receiveMessageBuffer = new byte[messageBufferSize];
-			_taskScheduler = (SynchronizationContext.Current != null) ?
-				TaskScheduler.FromCurrentSynchronizationContext() :
-				TaskScheduler.Current;
 
+			_mainThreadRunner = SnipeServices.Instance.MainThreadRunner;
 			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(WebSocketClientWrapper));
 		}
 
@@ -201,7 +199,10 @@ namespace MiniIT.Snipe
 
 		protected void OnWebSocketConnected()
 		{
-			new Task(() => OnConnectionOpened?.Invoke()).RunSynchronously(_taskScheduler);
+			if (OnConnectionOpened != null)
+			{
+				_mainThreadRunner.RunInMainThread(() => OnConnectionOpened?.Invoke());
+			}
 		}
 
 		protected void OnWebSocketClosed(string reason)
@@ -210,7 +211,10 @@ namespace MiniIT.Snipe
 			
 			Disconnect(reason);
 
-			new Task(() => OnConnectionClosed?.Invoke()).RunSynchronously(_taskScheduler);
+			if (OnConnectionClosed != null)
+			{
+				_mainThreadRunner.RunInMainThread(() => OnConnectionClosed?.Invoke());
+			}
 		}
 
 		private void OnWebSocketMessage(ArraySegment<byte> data)
@@ -218,7 +222,10 @@ namespace MiniIT.Snipe
 			byte[] bytes = new byte[data.Count];
 			Array.ConstrainedCopy(data.Array, data.Offset, bytes, 0, data.Count);
 
-			new Task(() => ProcessMessage?.Invoke(bytes)).RunSynchronously(_taskScheduler);
+			if (ProcessMessage !=  null)
+			{
+				_mainThreadRunner.RunInMainThread(() => ProcessMessage?.Invoke(bytes));
+			}
 		}
 		
 		public override void SendRequest(byte[] bytes)

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using MiniIT.Snipe.Unity;
 
 namespace MiniIT.Snipe
 {
@@ -142,7 +143,14 @@ namespace MiniIT.Snipe
 			IsDisposed = false;
 
 			if (Communicator != null)
+			{
 				return;
+			}
+
+			if (!SnipeServices.IsInitialized)
+			{
+				SnipeServices.Initialize(new UnitySnipeServicesFactory());
+			}
 
 			Config = new SnipeConfig(Id);
 			Communicator = new SnipeCommunicator(Config);

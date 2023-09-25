@@ -67,24 +67,21 @@ namespace MiniIT.Snipe
 
 		private int _requestId = 0;
 
-		private TaskScheduler _mainThreadScheduler;
 		private readonly SnipeConfig _config;
 		private readonly Analytics _analytics;
+		private readonly IMainThreadRunner _mainThreadRunner;
 		private readonly ILogger _logger;
 
 		internal SnipeClient(SnipeConfig config)
 		{
 			_config = config;
 			_analytics = Analytics.GetInstance(config.ContextId);
+			_mainThreadRunner = SnipeServices.Instance.MainThreadRunner;
 			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(SnipeClient));
 		}
 
 		public void Connect()
 		{
-			_mainThreadScheduler = SynchronizationContext.Current != null ?
-				TaskScheduler.FromCurrentSynchronizationContext() :
-				TaskScheduler.Current;
-
 			// if (_config.CheckUdpAvailable())
 			// {
 			// 	StartTransport(CreateKcpTransport);
@@ -94,11 +91,6 @@ namespace MiniIT.Snipe
 			// 	StartTransport(CreateWebSocketTransport);
 			// }
 			StartTransport(CreateHttpTransport);
-		}
-
-		private void RunInMainThread(Action action)
-		{
-			new Task(action).RunSynchronously(_mainThreadScheduler);
 		}
 
 		private void StartTransport(Func<Transport> transportFabric)
@@ -128,7 +120,7 @@ namespace MiniIT.Snipe
 
 			transport.ConnectionClosedHandler = () =>
 			{
-				RunInMainThread(() =>
+				_mainThreadRunner.RunInMainThread(() =>
 				{
 					UdpConnectionFailed?.Invoke();
 				});
@@ -175,7 +167,7 @@ namespace MiniIT.Snipe
 			_connectionStopwatch?.Stop();
 			_analytics.ConnectionEstablishmentTime = _connectionStopwatch?.Elapsed ?? TimeSpan.Zero;
 
-			RunInMainThread(() =>
+			_mainThreadRunner.RunInMainThread(() =>
 			{
 				try
 				{
@@ -191,7 +183,7 @@ namespace MiniIT.Snipe
 
 		private void RaiseConnectionClosedEvent()
 		{
-			RunInMainThread(() =>
+			_mainThreadRunner.RunInMainThread(() =>
 			{
 				try
 				{
@@ -386,7 +378,7 @@ namespace MiniIT.Snipe
 
 				if (LoginSucceeded != null)
 				{
-					RunInMainThread(() =>
+					_mainThreadRunner.RunInMainThread(() =>
 					{
 						try
 						{
@@ -406,7 +398,7 @@ namespace MiniIT.Snipe
 
 				if (LoginFailed != null)
 				{
-					RunInMainThread(() =>
+					_mainThreadRunner.RunInMainThread(() =>
 					{
 						try
 						{
@@ -426,7 +418,7 @@ namespace MiniIT.Snipe
 		{
 			if (MessageReceived != null)
 			{
-				RunInMainThread(() =>
+				_mainThreadRunner.RunInMainThread(() =>
 				{
 					try
 					{

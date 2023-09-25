@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace MiniIT.Snipe
 {
@@ -11,11 +9,9 @@ namespace MiniIT.Snipe
 
 		public static bool IsEnabled = true;
 
-		private static TaskScheduler s_mainThreadScheduler;
-
 		private static void RunInMainThread(Action action)
 		{
-			new Task(action).RunSynchronously(s_mainThreadScheduler);
+			SnipeServices.Instance.MainThreadRunner.RunInMainThread(action);
 		}
 
 		private static Dictionary<string, Analytics> s_instances;
@@ -70,10 +66,6 @@ namespace MiniIT.Snipe
 		public static void SetTracker(ISnipeCommunicatorAnalyticsTracker tracker)
 		{
 			s_tracker = tracker;
-			
-			s_mainThreadScheduler = (SynchronizationContext.Current != null) ?
-				TaskScheduler.FromCurrentSynchronizationContext() :
-				TaskScheduler.Current;
 
 			if (s_instances != null)
 			{

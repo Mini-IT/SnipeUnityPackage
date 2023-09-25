@@ -59,18 +59,22 @@ namespace MiniIT.Snipe
 
 		private bool _disconnecting = false;
 
-		private TaskScheduler _mainThreadScheduler;
 		private CancellationTokenSource _delayedInitCancellation;
 
 		private readonly SnipeConfig _config;
 		private readonly Analytics _analytics;
+		private readonly IMainThreadRunner _mainThreadRunner;
 		private readonly ILogger _logger;
 		
 		public SnipeCommunicator(SnipeConfig config)
 		{
 			_config = config;
 			_analytics = Analytics.GetInstance(config.ContextId);
-			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(SnipeCommunicator));
+
+			var serviceLocator = SnipeServices.Instance;
+
+			_mainThreadRunner = serviceLocator.MainThreadRunner;
+			_logger = serviceLocator.LogService.GetLogger(nameof(SnipeCommunicator));
 
 			_logger.LogTrace($"PACKAGE VERSION: {PackageInfo.VERSION}");
 		}
@@ -80,9 +84,7 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public void Start()
 		{
-			_mainThreadScheduler = (SynchronizationContext.Current != null) ?
-				TaskScheduler.FromCurrentSynchronizationContext() :
-				TaskScheduler.Current;
+			//_mainThreadRunner.SetMainThread();
 			
 			InitClient();
 		}
@@ -117,7 +119,7 @@ namespace MiniIT.Snipe
 					_disconnecting = false;
 					Client.Connect();
 					
-					RunInMainThread(() =>
+					_mainThreadRunner.RunInMainThread(() =>
 					{
 						AnalyticsTrackStartConnection();
 					});
@@ -152,7 +154,7 @@ namespace MiniIT.Snipe
 			_disconnecting = false;
 			_analytics.ConnectionEventsEnabled = true;
 
-			RunInMainThread(() =>
+			_mainThreadRunner.RunInMainThread(() =>
 			{
 				AnalyticsTrackConnectionSucceeded();
 				RaiseEvent(ConnectionSucceeded);
@@ -165,7 +167,7 @@ namespace MiniIT.Snipe
 			
 			_roomJoined = null;
 
-			RunInMainThread(() =>
+			_mainThreadRunner.RunInMainThread(() =>
 			{
 				AnalyticsTrackConnectionFailed();
 				OnConnectionFailed();
@@ -174,7 +176,7 @@ namespace MiniIT.Snipe
 		
 		private void OnClientUdpConnectionFailed()
 		{
-			RunInMainThread(() =>
+			_mainThreadRunner.RunInMainThread(() =>
 			{
 				AnalyticsTrackUdpConnectionFailed();
 			});
@@ -235,7 +237,7 @@ namespace MiniIT.Snipe
 			
 			if (MessageReceived != null)
 			{
-				RunInMainThread(() =>
+				_mainThreadRunner.RunInMainThread(() =>
 				{
 					RaiseEvent(MessageReceived, message_type, error_code, data, request_id);
 				});
@@ -243,22 +245,13 @@ namespace MiniIT.Snipe
 			
 			if (error_code != SnipeErrorCodes.OK)
 			{
-				RunInMainThread(() =>
+				_mainThreadRunner.RunInMainThread(() =>
 				{
 					_analytics.TrackErrorCodeNotOk(message_type, error_code, data);
 				});
 			}
 		}
 
-		#region Main Thread
-
-		private void RunInMainThread(Action action)
-		{
-			new Task(action).RunSynchronously(_mainThreadScheduler);
-		}
-
-		#endregion // Main Thread
-		
 		#region Safe events raising
 		
 		// https://www.codeproject.com/Articles/36760/C-events-fundamentals-and-exception-handling-in-mu#exceptions

@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 
 namespace MiniIT.Snipe.Logging
 {
-	public abstract class AbstractLogService
+	public abstract class AbstractLogService : ILogService
 	{
 		/// <inheritdoc cref="LoggerFactoryExtensions.CreateLogger{T}(ILoggerFactory)" />
 		public ILogger<T> GetLogger<T>() where T : class => Factory.CreateLogger<T>();

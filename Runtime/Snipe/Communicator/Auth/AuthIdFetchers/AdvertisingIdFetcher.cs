@@ -1,7 +1,5 @@
 ﻿﻿using System;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 #if !MINI_IT_ADVERTISING_ID
 using UnityEngine;
 #endif
@@ -10,8 +8,6 @@ namespace MiniIT.Snipe
 {
 	public class AdvertisingIdFetcher : AuthIdFetcher
 	{
-		private TaskScheduler _mainThreadScheduler;
-		
 		public override void Fetch(bool wait_initialization, Action<string> callback = null)
 		{
 			if (!string.IsNullOrEmpty(Value))
@@ -19,10 +15,6 @@ namespace MiniIT.Snipe
 				callback?.Invoke(Value);
 				return;
 			}
-			
-			_mainThreadScheduler = (SynchronizationContext.Current != null) ?
-				TaskScheduler.FromCurrentSynchronizationContext() :
-				TaskScheduler.Current;
 			
 #if MINI_IT_ADVERTISING_ID
 			MiniIT.Utils.AdvertisingIdFetcher.RequestAdvertisingId((advertisingId, trackingEnabled, errorMessage) =>
@@ -86,7 +78,7 @@ namespace MiniIT.Snipe
 		
 		private void RunInMainThread(Action action)
 		{
-			new Task(action).RunSynchronously(_mainThreadScheduler);
+			SnipeServices.Instance.MainThreadRunner.RunInMainThread(action);
 		}
 	}
 }

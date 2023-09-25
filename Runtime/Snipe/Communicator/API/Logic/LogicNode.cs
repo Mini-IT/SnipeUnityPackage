@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
-using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe
 {

@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.Extensions.Logging;
 using MiniIT.Snipe.Logging;
+using MiniIT.Snipe.SharedPrefs;
 
 namespace MiniIT.Snipe
 {
@@ -29,7 +30,7 @@ namespace MiniIT.Snipe
 		{
 			get
 			{
-				_isBindDone ??= (SnipeServices.Instance.SharedPrefs.GetInt(BindDonePrefsKey, 0) == 1);
+				_isBindDone ??= (_sharedPrefs.GetInt(BindDonePrefsKey, 0) == 1);
 				return _isBindDone.Value;
 			}
 			internal set
@@ -44,6 +45,7 @@ namespace MiniIT.Snipe
 		protected readonly SnipeCommunicator _communicator;
 		private readonly AuthSubsystem _authSubsystem;
 		private readonly SnipeConfig _config;
+		private readonly ISharedPrefs _sharedPrefs;
 		private readonly ILogger _logger;
 
 		public AuthBinding(string provider_id,
@@ -56,6 +58,7 @@ namespace MiniIT.Snipe
 			_authSubsystem = authSubsystem;
 			_config = config;
 
+			_sharedPrefs = SnipeServices.Instance.SharedPrefs;
 			_logger = SnipeServices.Instance.LogService.GetLogger(GetType().Name);
 
 			ProviderId = provider_id;
@@ -104,8 +107,8 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			string auth_login = SnipeServices.Instance.SharedPrefs.GetString(SnipePrefs.GetAuthUID(_config.ContextId));
-			string auth_token = SnipeServices.Instance.SharedPrefs.GetString(SnipePrefs.GetAuthKey(_config.ContextId));
+			string auth_login = _sharedPrefs.GetString(SnipePrefs.GetAuthUID(_config.ContextId));
+			string auth_token = _sharedPrefs.GetString(SnipePrefs.GetAuthKey(_config.ContextId));
 			string uid = GetUserId();
 
 			if (!string.IsNullOrEmpty(auth_login) && !string.IsNullOrEmpty(auth_token) && !string.IsNullOrEmpty(uid))
@@ -170,8 +173,8 @@ namespace MiniIT.Snipe
 						
 						if (!string.IsNullOrEmpty(auth_login) && !string.IsNullOrEmpty(auth_token))
 						{
-							SnipeServices.Instance.SharedPrefs.SetString(SnipePrefs.GetAuthUID(_config.ContextId), auth_login);
-							SnipeServices.Instance.SharedPrefs.SetString(SnipePrefs.GetAuthKey(_config.ContextId), auth_token);
+							_sharedPrefs.SetString(SnipePrefs.GetAuthUID(_config.ContextId), auth_login);
+							_sharedPrefs.SetString(SnipePrefs.GetAuthKey(_config.ContextId), auth_token);
 						}
 					}
 					
@@ -276,9 +279,9 @@ namespace MiniIT.Snipe
 
 			_isBindDone = value;
 			if (value)
-				SnipeServices.Instance.SharedPrefs.SetInt(BindDonePrefsKey, 1);
+				_sharedPrefs.SetInt(BindDonePrefsKey, 1);
 			else
-				SnipeServices.Instance.SharedPrefs.DeleteKey(BindDonePrefsKey);
+				_sharedPrefs.DeleteKey(BindDonePrefsKey);
 
 			if (value && invoke_callback)
 			{
