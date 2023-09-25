@@ -2,22 +2,27 @@ using UnityEngine;
 
 namespace MiniIT.Snipe
 {
-	internal class UnityTerminator : MonoBehaviour
+	internal static class UnityTerminator
 	{
-		private static UnityTerminator _instance;
+		private static bool s_initialized = false;
+		private static readonly object s_lock = new object();
 
 		internal static void Run()
 		{
-			if (_instance != null)
-				return;
-
-			var go = new GameObject();
-			go.hideFlags = HideFlags.HideAndDontSave;
-			_instance = go.AddComponent<UnityTerminator>();
+			lock (s_lock)
+			{
+				if (!s_initialized)
+				{
+					s_initialized = true;
+					Application.quitting += OnApplicationQuit;
+				}
+			}
 		}
 
-		private void OnApplicationQuit()
+		private static void OnApplicationQuit()
 		{
+			Application.quitting -= OnApplicationQuit;
+
 			foreach (var context in SnipeContext.All)
 			{
 				context?.Dispose();
