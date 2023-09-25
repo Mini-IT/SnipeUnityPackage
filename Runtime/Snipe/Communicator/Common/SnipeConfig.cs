@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -186,12 +187,20 @@ namespace MiniIT.Snipe
 				["packageVersion"] = PackageInfo.VERSION,
 			}.ToJSONString();
 
+			DebugId = GenerateDebugId();
+			Analytics.GetInstance(ContextId).SetDebugId(DebugId);
+			
+		}
+
+		private string GenerateDebugId()
+		{
 			using (var md5 = System.Security.Cryptography.MD5.Create())
 			{
 				string id = SystemInfo.deviceUniqueIdentifier + Application.identifier;
 				byte[] hashBytes = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(id));
-				DebugId = System.Convert.ToBase64String(hashBytes).Substring(0, 16);
-				Analytics.GetInstance(ContextId).SetDebugId(DebugId);
+				string hash = Convert.ToBase64String(hashBytes);
+				hash = new Regex(@"\W+").Replace(hash, "");
+				return hash.Substring(0, 16);
 			}
 		}
 
