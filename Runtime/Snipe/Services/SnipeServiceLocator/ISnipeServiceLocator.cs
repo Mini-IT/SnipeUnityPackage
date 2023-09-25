@@ -1,9 +1,10 @@
+using System;
 using MiniIT.Snipe.Logging;
 using MiniIT.Snipe.SharedPrefs;
 
 namespace MiniIT.Snipe
 {
-	public interface ISnipeServiceLocator
+	public interface ISnipeServiceLocator : IDisposable
 	{
 		ISharedPrefs SharedPrefs { get; }
 		ILogService LogService { get; }

@@ -11,5 +11,14 @@ namespace MiniIT.Snipe
 		{
 			s_instance = new SnipeServiceLocator(factory);
 		}
+
+		public static void Dispose()
+		{
+			if (s_instance != null)
+			{
+				s_instance.Dispose();
+				s_instance = null;
+			}
+		}
 	}
 }
