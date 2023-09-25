@@ -7,7 +7,7 @@ namespace MiniIT.Snipe
 	{
 		#region static
 
-		public static bool IsEnabled = true;
+		public static bool IsEnabled { get; set; } = true;
 
 		private static void RunInMainThread(Action action)
 		{
