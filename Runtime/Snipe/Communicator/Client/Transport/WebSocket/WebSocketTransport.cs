@@ -48,7 +48,7 @@ namespace MiniIT.Snipe
 		private bool _connected;
 		private bool _loggedIn;
 
-		internal WebSocketTransport(SnipeConfig config, Analytics analytics)
+		internal WebSocketTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
 			: base(config, analytics)
 		{
 		}

@@ -62,18 +62,18 @@ namespace MiniIT.Snipe
 		private CancellationTokenSource _delayedInitCancellation;
 
 		private readonly SnipeConfig _config;
-		private readonly Analytics _analytics;
+		private readonly SnipeAnalyticsTracker _analytics;
 		private readonly IMainThreadRunner _mainThreadRunner;
 		private readonly ILogger _logger;
 		
 		public SnipeCommunicator(SnipeConfig config)
 		{
 			_config = config;
-			_analytics = Analytics.GetInstance(config.ContextId);
 
 			var serviceLocator = SnipeServices.Instance;
 
 			_mainThreadRunner = serviceLocator.MainThreadRunner;
+			_analytics = serviceLocator.Analytics.GetTracker(config.ContextId);
 			_logger = serviceLocator.LogService.GetLogger(nameof(SnipeCommunicator));
 
 			_logger.LogTrace($"PACKAGE VERSION: {PackageInfo.VERSION}");
@@ -379,7 +379,7 @@ namespace MiniIT.Snipe
 			if (!_analytics.ConnectionEventsEnabled)
 				return;
 
-			_analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_START_CONNECTION);
+			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_START_CONNECTION);
 		}
 		
 		private void AnalyticsTrackConnectionSucceeded()
@@ -406,7 +406,7 @@ namespace MiniIT.Snipe
 					_analytics.WebSocketHandshakeTime.TotalMilliseconds,
 			};
 			
-			_analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_CONNECTED, data);
+			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_CONNECTED, data);
 		}
 		
 		private void AnalyticsTrackConnectionFailed()
@@ -414,7 +414,7 @@ namespace MiniIT.Snipe
 			if (!_analytics.ConnectionEventsEnabled)
 				return;
 
-			_analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_DISCONNECTED, new SnipeObject()
+			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_DISCONNECTED, new SnipeObject()
 			{
 				//["communicator"] = this.name,
 				["connection_id"] = Client?.ConnectionId,
@@ -434,7 +434,7 @@ namespace MiniIT.Snipe
 			if (!_analytics.ConnectionEventsEnabled)
 				return;
 
-			_analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_DISCONNECTED + " UDP", new SnipeObject()
+			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_DISCONNECTED + " UDP", new SnipeObject()
 			{
 				["connection_type"] = "udp",
 				["connection_time"] = _analytics.UdpConnectionTime.TotalMilliseconds,

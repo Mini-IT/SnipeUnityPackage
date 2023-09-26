@@ -1,6 +1,5 @@
 ﻿using System;
 using Microsoft.Extensions.Logging;
-using MiniIT.Snipe.Logging;
 using MiniIT.Snipe.SharedPrefs;
 
 namespace MiniIT.Snipe
@@ -279,9 +278,13 @@ namespace MiniIT.Snipe
 
 			_isBindDone = value;
 			if (value)
+			{
 				_sharedPrefs.SetInt(BindDonePrefsKey, 1);
+			}
 			else
+			{
 				_sharedPrefs.DeleteKey(BindDonePrefsKey);
+			}
 
 			if (value && invoke_callback)
 			{

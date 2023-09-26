@@ -4,7 +4,7 @@ using System;
 using System.Threading.Tasks;
 using Facebook.Unity;
 
-namespace MiniIT.Snipe
+namespace MiniIT.Snipe.Unity
 {
 	public class FacebookIdFetcher : AuthIdFetcher
 	{

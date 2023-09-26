@@ -20,7 +20,7 @@ namespace MiniIT.Snipe
 
 		private readonly object _lock = new object();
 
-		internal KcpTransport(SnipeConfig config, Analytics analytics)
+		internal KcpTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
 			: base(config, analytics)
 		{
 		}

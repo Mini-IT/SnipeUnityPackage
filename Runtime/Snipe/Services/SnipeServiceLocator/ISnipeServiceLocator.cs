@@ -8,6 +8,7 @@ namespace MiniIT.Snipe
 	{
 		ISharedPrefs SharedPrefs { get; }
 		ILogService LogService { get; }
+		SnipeAnalyticsService Analytics { get; }
 		IMainThreadRunner MainThreadRunner { get; }
 	}
 
@@ -15,6 +16,7 @@ namespace MiniIT.Snipe
 	{
 		ISharedPrefs CreateSharedPrefs();
 		ILogService CreateLogService();
+		SnipeAnalyticsService CreateAnalyticsService();
 		IMainThreadRunner CreateMainThreadRunner();
 	}
 }

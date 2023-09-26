@@ -186,7 +186,7 @@ namespace MiniIT.Snipe
 			}.ToJSONString();
 
 			DebugId = GenerateDebugId();
-			Analytics.GetInstance(ContextId).SetDebugId(DebugId);
+			SnipeServices.Instance.Analytics.GetTracker(ContextId).SetDebugId(DebugId);
 			
 		}
 

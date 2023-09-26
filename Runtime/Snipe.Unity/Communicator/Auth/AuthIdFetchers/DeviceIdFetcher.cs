@@ -2,10 +2,9 @@
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Logging;
-using MiniIT.Snipe.Logging;
 using UnityEngine;
 
-namespace MiniIT.Snipe
+namespace MiniIT.Snipe.Unity
 {
 	public class DeviceIdFetcher : AuthIdFetcher
 	{

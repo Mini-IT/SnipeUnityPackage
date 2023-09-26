@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 
-namespace MiniIT.Snipe
+namespace MiniIT.Snipe.Unity
 {
 	public class AmazonIdFetcher : AuthIdFetcher
 	{

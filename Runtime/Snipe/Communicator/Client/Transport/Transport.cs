@@ -16,10 +16,10 @@ namespace MiniIT.Snipe
 		public virtual bool Connected { get; } = false;
 
 		protected readonly SnipeConfig _config;
-		protected readonly Analytics _analytics;
+		protected readonly SnipeAnalyticsTracker _analytics;
 		protected readonly ILogger _logger;
 
-		internal Transport(SnipeConfig config, Analytics analytics)
+		internal Transport(SnipeConfig config, SnipeAnalyticsTracker analytics)
 		{
 			_config = config;
 			_analytics = analytics;

@@ -5,7 +5,6 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Threading;
 using Microsoft.Extensions.Logging;
 
 namespace MiniIT.Snipe
@@ -18,13 +17,13 @@ namespace MiniIT.Snipe
 		public override bool Connected => _connected;
 
 		private HttpClient _httpClient;
-		private CancellationTokenSource _networkLoopCancellation;
+		//private CancellationTokenSource _networkLoopCancellation;
 
 		private Uri _baseUrl;
 		private bool _connected;
 		private readonly object _lock = new object();
 
-		internal HttpTransport(SnipeConfig config, Analytics analytics)
+		internal HttpTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
 			: base(config, analytics)
 		{
 		}

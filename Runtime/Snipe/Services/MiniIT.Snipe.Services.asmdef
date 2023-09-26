@@ -3,7 +3,9 @@
     "rootNamespace": "",
     "references": [
         "MiniIT.Snipe.SharedPrefs",
-        "MiniIT.Snipe.Logging"
+        "MiniIT.Snipe.Logging",
+        "MiniIT.Snipe.PackageInfo",
+        "fastJSON"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

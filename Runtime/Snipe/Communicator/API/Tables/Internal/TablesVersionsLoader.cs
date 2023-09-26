@@ -7,16 +7,17 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe.Tables
 {
 	public class TablesVersionsLoader
 	{
-		private ILogger _logger;
+		private readonly SnipeAnalyticsTracker _analyticsTracker;
+		private readonly ILogger _logger;
 
 		public TablesVersionsLoader()
 		{
+			_analyticsTracker = SnipeServices.Instance.Analytics.GetTracker();
 			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(TablesVersionsLoader));
 		}
 
@@ -50,7 +51,7 @@ namespace MiniIT.Snipe.Tables
 
 								if (versions == null)
 								{
-									Analytics.GetInstance().TrackEvent("Tables - LoadVersion Failed to prase versions json", new SnipeObject()
+									_analyticsTracker.TrackEvent("Tables - LoadVersion Failed to prase versions json", new SnipeObject()
 									{
 										["url"] = url,
 										["json"] = json,
@@ -65,7 +66,7 @@ namespace MiniIT.Snipe.Tables
 							}
 							else
 							{
-								Analytics.GetInstance().TrackEvent("Tables - LoadVersion Failed to load url", new SnipeObject()
+								_analyticsTracker.TrackEvent("Tables - LoadVersion Failed to load url", new SnipeObject()
 								{
 									["HttpStatus"] = response.StatusCode,
 									["HttpStatusCode"] = (int)response.StatusCode,
@@ -119,7 +120,7 @@ namespace MiniIT.Snipe.Tables
 			if (versions == null)
 			{
 				_logger.LogTrace($"LoadVersion Failed");
-				Analytics.GetInstance().TrackEvent("Tables - LoadVersion Failed");
+				_analyticsTracker.TrackEvent("Tables - LoadVersion Failed");
 				return null;
 			}
 

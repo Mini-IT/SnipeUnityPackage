@@ -23,6 +23,7 @@ namespace MiniIT.Snipe
 
 		private HashSet<TablesLoaderItem> _loadingItems; 
 		private readonly TablesVersionsLoader _versionsLoader;
+		private readonly SnipeAnalyticsTracker _analyticsTracker;
 		private readonly ILogger _logger;
 		private readonly BuiltInTablesListService _builtInTablesListService;
 
@@ -30,6 +31,7 @@ namespace MiniIT.Snipe
 		{
 			StreamingAssetsReader.Initialize();
 			_versionsLoader = new TablesVersionsLoader();
+			_analyticsTracker = SnipeServices.Instance.Analytics.GetTracker();
 			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(TablesLoader));
 			_builtInTablesListService = new BuiltInTablesListService();
 		}
@@ -48,7 +50,7 @@ namespace MiniIT.Snipe
 		{
 			_logger.LogTrace("Reset");
 
-			Analytics.GetInstance().TrackEvent("TablesLoader - Reset");
+			SnipeServices.Instance.Analytics.GetTracker().TrackEvent("TablesLoader - Reset");
 
 			StopLoading();
 			
@@ -87,7 +89,7 @@ namespace MiniIT.Snipe
 				loaded = await LoadAll(false);
 			}
 			
-			Analytics.GetInstance().TrackEvent($"TablesLoader - " + (loaded ? "Loaded" : "Failed"));
+			_analyticsTracker.TrackEvent($"TablesLoader - " + (loaded ? "Loaded" : "Failed"));
 
 			return loaded;
 		}
@@ -162,7 +164,7 @@ namespace MiniIT.Snipe
 
 				if (!cancelled)
 				{
-					Analytics.GetInstance().TrackError($"Tables - Failed to load table '{loaderItem.Name}'", exception);
+					_analyticsTracker.TrackError($"Tables - Failed to load table '{loaderItem.Name}'", exception);
 				}
 
 				StopLoading();

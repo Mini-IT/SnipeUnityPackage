@@ -3,85 +3,48 @@ using System.Collections.Generic;
 
 namespace MiniIT.Snipe
 {
-	public class Analytics : IDisposable
+	public class SnipeAnalyticsTracker : IDisposable
 	{
-		#region static
+		public bool IsEnabled => _analyticsService.IsEnabled;
+		
+		#region Analytics Properties
 
-		public static bool IsEnabled { get; set; } = true;
+		public TimeSpan PingTime { get; set; }
+		public TimeSpan ServerReaction { get; set; }
+		public TimeSpan ConnectionEstablishmentTime { get; set; }
+		public TimeSpan WebSocketTcpClientConnectionTime { get; set; }
+		public TimeSpan WebSocketSslAuthenticateTime { get; set; }
+		public TimeSpan WebSocketHandshakeTime { get; set; }
+		public TimeSpan WebSocketMiscTime { get; set; }
+		public string WebSocketDisconnectReason { get; set; }
+		public string ConnectionUrl { get; set; }
+		public TimeSpan UdpConnectionTime { get; set; }
 
-		private static void RunInMainThread(Action action)
-		{
-			SnipeServices.Instance.MainThreadRunner.RunInMainThread(action);
-		}
-
-		private static Dictionary<string, Analytics> s_instances;
-		private static readonly object s_lock = new object();
-
-		public static Analytics GetInstance(string contextId = null)
-		{
-			contextId ??= string.Empty;
-			Analytics instance;
-			lock (s_lock)
-			{
-				s_instances ??= new Dictionary<string, Analytics>();
-				if (!s_instances.TryGetValue(contextId, out instance))
-				{
-					instance = new Analytics(contextId);
-					s_instances[contextId] = instance;
-				}
-			}
-			return instance;
-		}
-
-		private static ISnipeCommunicatorAnalyticsTracker s_tracker;
+		public bool ConnectionEventsEnabled { get; set; } = true;
 
 		#endregion
 
-		#region AnalyticsTracker
-
-		public TimeSpan PingTime { get; internal set; }
-		public TimeSpan ServerReaction { get; internal set; }
-		public TimeSpan ConnectionEstablishmentTime { get; internal set; }
-		public TimeSpan WebSocketTcpClientConnectionTime { get; internal set; }
-		public TimeSpan WebSocketSslAuthenticateTime { get; internal set; }
-		public TimeSpan WebSocketHandshakeTime { get; internal set; }
-		public TimeSpan WebSocketMiscTime { get; internal set; }
-		public string WebSocketDisconnectReason { get; internal set; }
-		public string ConnectionUrl { get; internal set; }
-		public TimeSpan UdpConnectionTime { get; internal set; }
-
-		public bool ConnectionEventsEnabled { get; internal set; } = true;
+		private ISnipeCommunicatorAnalyticsTracker _externalTracker;
 
 		private string _userId = null;
 		private string _debugId = null;
 		private readonly object _userIdLock = new object();
 		private readonly string _contextId;
+		private readonly SnipeAnalyticsService _analyticsService;
+		private readonly IMainThreadRunner _mainThreadRunner;
 
-		public Analytics(string contextId) => _contextId = contextId;
-		~Analytics() => Dispose();
-
-		/// <summary>
-		/// Should be called from the main Unity thread
-		/// </summary>
-		public static void SetTracker(ISnipeCommunicatorAnalyticsTracker tracker)
+		public SnipeAnalyticsTracker(SnipeAnalyticsService analyticsService, string contextId)
 		{
-			s_tracker = tracker;
-
-			if (s_instances != null)
-			{
-				foreach (var instance in s_instances.Values)
-				{
-					if (!string.IsNullOrEmpty(instance?._userId))
-					{
-						instance.CheckReady();
-					}
-				}
-			}
+			_analyticsService = analyticsService;
+			_contextId = contextId;
+			_mainThreadRunner = SnipeServices.Instance.MainThreadRunner;
 		}
-		
+			
+		~SnipeAnalyticsTracker() => Dispose();
+
 		private bool CheckReady()
 		{
-			bool ready = s_tracker != null && s_tracker.IsInitialized && IsEnabled;
+			bool ready = _externalTracker != null && _externalTracker.IsInitialized && IsEnabled;
 			
 			if (ready)
 			{
@@ -91,7 +54,7 @@ namespace MiniIT.Snipe
 					{
 						if (string.IsNullOrEmpty(_contextId)) // Default context only
 						{
-							s_tracker.SetUserId(_userId);
+							_externalTracker.SetUserId(_userId);
 						}
 						_userId = null;
 					}
@@ -99,7 +62,7 @@ namespace MiniIT.Snipe
 					if (!string.IsNullOrEmpty(_debugId))
 					{
 						string prefix = string.IsNullOrEmpty(_contextId) ? "" : $"{_contextId} ";
-						s_tracker.SetUserProperty(prefix + "debugID", _debugId);
+						_externalTracker.SetUserProperty(prefix + "debugID", _debugId);
 						_debugId = null;
 					}
 				}
@@ -107,6 +70,8 @@ namespace MiniIT.Snipe
 			
 			return ready;
 		}
+
+		#region Analytics methods
 
 		public void SetDebugId(string id)
 		{
@@ -124,49 +89,49 @@ namespace MiniIT.Snipe
 		{
 			if (CheckReady())
 			{
-				s_tracker.SetUserProperty(name, value);
+				_externalTracker.SetUserProperty(name, value);
 			}
 		}
 		public void SetUserProperty(string name, int value)
 		{
 			if (CheckReady())
 			{
-				s_tracker.SetUserProperty(name, value);
+				_externalTracker.SetUserProperty(name, value);
 			}
 		}
 		public void SetUserProperty(string name, float value)
 		{
 			if (CheckReady())
 			{
-				s_tracker.SetUserProperty(name, value);
+				_externalTracker.SetUserProperty(name, value);
 			}
 		}
 		public void SetUserProperty(string name, double value)
 		{
 			if (CheckReady())
 			{
-				s_tracker.SetUserProperty(name, value);
+				_externalTracker.SetUserProperty(name, value);
 			}
 		}
 		public void SetUserProperty(string name, bool value)
 		{
 			if (CheckReady())
 			{
-				s_tracker.SetUserProperty(name, value);
+				_externalTracker.SetUserProperty(name, value);
 			}
 		}
 		public void SetUserProperty<T>(string name, IList<T> value)
 		{
 			if (CheckReady())
 			{
-				s_tracker.SetUserProperty(name, value);
+				_externalTracker.SetUserProperty(name, value);
 			}
 		}
 		public void SetUserProperty(string name, IDictionary<string, object> value)
 		{
 			if (CheckReady())
 			{
-				s_tracker.SetUserProperty(name, value);
+				_externalTracker.SetUserProperty(name, value);
 			}
 		}
 
@@ -187,9 +152,9 @@ namespace MiniIT.Snipe
 					properties["server_reaction"] = ServerReaction.TotalMilliseconds;
 
 				// Some trackers (for example Amplitude) may crash if used not in the main Unity thread.
-				RunInMainThread(() =>
+				_mainThreadRunner.RunInMainThread(() =>
 				{
-					s_tracker.TrackEvent(EVENT_NAME, properties);
+					_externalTracker.TrackEvent(EVENT_NAME, properties);
 				});
 			}
 		}
@@ -197,8 +162,10 @@ namespace MiniIT.Snipe
 		{
 			if (CheckReady())
 			{
-				Dictionary<string, object> properties = new Dictionary<string, object>(3);
-				properties[property_name] = property_value;
+				var properties = new Dictionary<string, object>(3)
+				{
+					[property_name] = property_value
+				};
 				TrackEvent(name, properties);
 			}
 		}
@@ -206,20 +173,24 @@ namespace MiniIT.Snipe
 		{
 			if (CheckReady())
 			{
-				Dictionary<string, object> properties = new Dictionary<string, object>(3);
-				properties["value"] = property_value;
+				var properties = new Dictionary<string, object>(3)
+				{
+					["value"] = property_value
+				};
 				TrackEvent(name, properties);
 			}
 		}
 		
-		public void TrackErrorCodeNotOk(string message_type, string error_code, SnipeObject data)
+		public void TrackErrorCodeNotOk(string message_type, string error_code, IDictionary<string, object> data)
 		{
-			if (CheckReady() && s_tracker.CheckErrorCodeTracking(message_type, error_code))
+			if (CheckReady() && _externalTracker.CheckErrorCodeTracking(message_type, error_code))
 			{
-				Dictionary<string, object> properties = new Dictionary<string, object>(5);
-				properties["message_type"] = message_type;
-				properties["error_code"] = error_code;
-				properties["data"] = data?.ToJSONString();
+				var properties = new Dictionary<string, object>(5)
+				{
+					["message_type"] = message_type,
+					["error_code"] = error_code,
+					["data"] = data != null ? fastJSON.JSON.ToJSON(data) : null
+				};
 				TrackEvent(EVENT_ERROR_CODE_NOT_OK, properties);
 			}
 		}
@@ -234,30 +205,27 @@ namespace MiniIT.Snipe
 					properties["sinpe_context"] = _contextId;
 				}
 
-				RunInMainThread(() =>
+				_mainThreadRunner.RunInMainThread(() =>
 				{
-					s_tracker.TrackError(name, exception, properties);
+					_externalTracker.TrackError(name, exception, properties);
 				});
 			}
 		}
 		
-		#endregion AnalyticsTracker
+		#endregion
 		
 		public void Dispose()
 		{
-			if (s_instances == null)
-				return;
+			_analyticsService.RemoveTracker(this);
+			GC.SuppressFinalize(this);
+		}
 
-			lock (s_lock)
+		internal void SetExternalTracker(ISnipeCommunicatorAnalyticsTracker externalTracker)
+		{
+			_externalTracker = externalTracker;
+			if (_externalTracker != null)
 			{
-				foreach (var pair in s_instances)
-				{
-					if (pair.Value == this)
-					{
-						s_instances.Remove(pair.Key);
-						break;
-					}
-				}
+				CheckReady();
 			}
 		}
 

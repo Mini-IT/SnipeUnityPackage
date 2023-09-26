@@ -2,7 +2,7 @@
 
 using Facebook.Unity;
 
-namespace MiniIT.Snipe
+namespace MiniIT.Snipe.Unity
 {
 	public class FacebookBinding : AuthBinding<FacebookIdFetcher>
 	{

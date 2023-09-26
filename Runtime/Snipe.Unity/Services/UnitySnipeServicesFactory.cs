@@ -9,6 +9,7 @@ namespace MiniIT.Snipe.Unity
 	{
 		public ISharedPrefs CreateSharedPrefs() => new UnitySharedPrefs();
 		public ILogService CreateLogService() => new UnityLogService();
+		public SnipeAnalyticsService CreateAnalyticsService() => new SnipeAnalyticsService();
 		public IMainThreadRunner CreateMainThreadRunner() => new MainThreadRunner();
 	}
 }

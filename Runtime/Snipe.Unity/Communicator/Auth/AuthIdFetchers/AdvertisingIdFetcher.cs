@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 #endif
 
-namespace MiniIT.Snipe
+namespace MiniIT.Snipe.Unity
 {
 	public class AdvertisingIdFetcher : AuthIdFetcher
 	{

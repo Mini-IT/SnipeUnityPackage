@@ -1,17 +1,21 @@
 {
     "name": "MiniIT.Snipe.Context",
+    "rootNamespace": "",
     "references": [
-      "MiniIT.Snipe.Core",
-      "MiniIT.Snipe.Communicator",
-      "MiniIT.Snipe.Logging",
-      "MiniIT.Snipe.Services",
-      "MiniIT.Snipe.Unity"
+        "MiniIT.Snipe.Core",
+        "MiniIT.Snipe.Communicator",
+        "MiniIT.SnipeCommunicator.Unity",
+        "MiniIT.Snipe.Logging",
+        "MiniIT.Snipe.Services",
+        "MiniIT.Snipe.Unity"
     ],
-    "optionalUnityReferences": [],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": true,
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,
-    "defineConstraints": []
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
 }

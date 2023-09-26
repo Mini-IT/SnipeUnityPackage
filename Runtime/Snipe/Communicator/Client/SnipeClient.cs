@@ -68,14 +68,14 @@ namespace MiniIT.Snipe
 		private int _requestId = 0;
 
 		private readonly SnipeConfig _config;
-		private readonly Analytics _analytics;
+		private readonly SnipeAnalyticsTracker _analytics;
 		private readonly IMainThreadRunner _mainThreadRunner;
 		private readonly ILogger _logger;
 
 		internal SnipeClient(SnipeConfig config)
 		{
 			_config = config;
-			_analytics = Analytics.GetInstance(config.ContextId);
+			_analytics = SnipeServices.Instance.Analytics.GetTracker(config.ContextId);
 			_mainThreadRunner = SnipeServices.Instance.MainThreadRunner;
 			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(SnipeClient));
 		}
