@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.Snipe.SharedPrefs;
+using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
@@ -208,13 +209,7 @@ namespace MiniIT.Snipe
 							AutoLogin = true;
 							_loginAttempt = 0;
 
-							if (LoginSucceeded != null)
-							{
-								_mainThreadRunner.RunInMainThread(() =>
-								{
-									RaiseEvent(LoginSucceeded);
-								});
-							}
+							RaiseLoginSucceededEvent();
 							break;
 
 						case SnipeErrorCodes.NO_SUCH_USER:
@@ -324,13 +319,7 @@ namespace MiniIT.Snipe
 
 						StartBindings();
 
-						if (LoginSucceeded != null)
-						{
-							_mainThreadRunner.RunInMainThread(() =>
-							{
-								RaiseEvent(LoginSucceeded);
-							});
-						}
+						RaiseLoginSucceededEvent();
 					}
 				})
 			);
@@ -510,32 +499,29 @@ namespace MiniIT.Snipe
 			return constructor.Invoke(new object[] { _communicator, this, _config }) as BindingType;
 		}
 
+		private void RaiseLoginSucceededEvent()
+		{
+			if (LoginSucceeded != null)
+			{
+				_mainThreadRunner.RunInMainThread(() =>
+				{
+					RaiseEvent(LoginSucceeded);
+				});
+			}
+		}
+
 		#region Safe events raising
 
-		// https://www.codeproject.com/Articles/36760/C-events-fundamentals-and-exception-handling-in-mu#exceptions
+		private SafeEventRaiser _safeEventRaiser;
 
-		protected void RaiseEvent(Delegate event_delegate, params object[] args)
+		private void RaiseEvent(Delegate eventDelegate, params object[] args)
 		{
-			if (event_delegate != null)
+			_safeEventRaiser ??= new SafeEventRaiser((handler, e) =>
 			{
-				foreach (Delegate handler in event_delegate.GetInvocationList())
-				{
-					if (handler == null)
-						continue;
+				_logger.LogTrace($"RaiseEvent - Error in the handler {handler?.Method?.Name}: {e}");
+			});
 
-					try
-					{
-						handler.DynamicInvoke(args);
-					}
-					catch (Exception e)
-					{
-						string message = (e is System.Reflection.TargetInvocationException tie) ?
-							$"{tie.InnerException?.Message}\n{tie.InnerException?.StackTrace}" :
-							$"{e.Message}\n{e.StackTrace}";
-						_logger.LogTrace($"RaiseEvent - Error in the handler {handler?.Method?.Name}: {message}");
-					}
-				}
-			}
+			_safeEventRaiser.RaiseEvent(eventDelegate, args);
 		}
 
 		#endregion

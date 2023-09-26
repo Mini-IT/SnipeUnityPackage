@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
@@ -253,31 +254,17 @@ namespace MiniIT.Snipe
 		}
 
 		#region Safe events raising
-		
-		// https://www.codeproject.com/Articles/36760/C-events-fundamentals-and-exception-handling-in-mu#exceptions
-		
-		private void RaiseEvent(Delegate event_delegate, params object[] args)
+
+		private SafeEventRaiser _safeEventRaiser;
+
+		private void RaiseEvent(Delegate eventDelegate, params object[] args)
 		{
-			if (event_delegate != null)
+			_safeEventRaiser ??= new SafeEventRaiser((handler, e) =>
 			{
-				foreach (Delegate handler in event_delegate.GetInvocationList())
-				{
-					if (handler == null)
-						continue;
-					
-					try
-					{
-						handler.DynamicInvoke(args);
-					}
-					catch (Exception e)
-					{
-						string message = (e is System.Reflection.TargetInvocationException tie) ?
-							$"{tie.InnerException?.Message}\n{tie.InnerException?.StackTrace}" :
-							$"{e.Message}\n{e.StackTrace}";
-						_logger.LogTrace($"({InstanceId}) RaiseEvent - Error in the handler {handler?.Method?.Name}: {message}");
-					}
-				}
-			}
+				_logger.LogTrace($"({InstanceId}) RaiseEvent - Error in the handler {handler?.Method?.Name}: {e}");
+			});
+
+			_safeEventRaiser.RaiseEvent(eventDelegate, args);
 		}
 		
 		#endregion
