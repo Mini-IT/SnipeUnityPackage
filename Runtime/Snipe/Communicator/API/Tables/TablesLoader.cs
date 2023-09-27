@@ -31,14 +31,14 @@ namespace MiniIT.Snipe
 		{
 			StreamingAssetsReader.Initialize();
 			_versionsLoader = new TablesVersionsLoader();
-			_analyticsTracker = SnipeServices.Instance.Analytics.GetTracker();
-			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(TablesLoader));
+			_analyticsTracker = SnipeServices.Analytics.GetTracker();
+			_logger = SnipeServices.LogService.GetLogger(nameof(TablesLoader));
 			_builtInTablesListService = new BuiltInTablesListService();
 		}
 
 		internal static string GetCacheDirectoryPath()
 		{
-			return Path.Combine(SnipeServices.Instance.ApplicationInfo.PersistentDataPath ?? "", "SnipeTables");
+			return Path.Combine(SnipeServices.ApplicationInfo.PersistentDataPath ?? "", "SnipeTables");
 		}
 
 		internal static string GetCachePath(string table_name, long version)
@@ -50,7 +50,7 @@ namespace MiniIT.Snipe
 		{
 			_logger.LogTrace("Reset");
 
-			SnipeServices.Instance.Analytics.GetTracker().TrackEvent("TablesLoader - Reset");
+			SnipeServices.Analytics.GetTracker().TrackEvent("TablesLoader - Reset");
 
 			StopLoading();
 			

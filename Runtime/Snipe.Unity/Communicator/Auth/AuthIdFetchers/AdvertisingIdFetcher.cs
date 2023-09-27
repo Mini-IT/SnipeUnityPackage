@@ -78,7 +78,7 @@ namespace MiniIT.Snipe.Unity
 		
 		private void RunInMainThread(Action action)
 		{
-			SnipeServices.Instance.MainThreadRunner.RunInMainThread(action);
+			SnipeServices.MainThreadRunner.RunInMainThread(action);
 		}
 	}
 }

@@ -37,12 +37,15 @@ namespace MiniIT.Snipe
 				}
 
 				if (node != null)
+				{
 					break;
+				}
 			}
 
 			if (node == null)
 			{
-				SnipeServices.Instance.LogService.GetLogger(nameof(LogicNode)).LogError($"Table node not found. id = {id}");
+				var logger = SnipeServices.LogService.GetLogger(nameof(LogicNode));
+				logger.LogError($"Table node not found. id = {id}");
 				return;
 			}
 			
@@ -77,7 +80,9 @@ namespace MiniIT.Snipe
 					}
 
 					if (found)
+					{
 						continue;
+					}
 
 					string var_type = data_var.SafeGetString("type");
 					if (!string.IsNullOrEmpty(var_type))
@@ -109,12 +114,16 @@ namespace MiniIT.Snipe
 		public bool HasCheckType(string check_type)
 		{
 			if (node == null)
+			{
 				return false;
+			}
 			
 			foreach (var node_check in node.checks)
 			{
 				if (node_check.type == check_type)
+				{
 					return true;
+				}
 			}
 			return false;
 		}
@@ -122,12 +131,16 @@ namespace MiniIT.Snipe
 		public bool HasCheckName(string check_name)
 		{
 			if (node == null)
+			{
 				return false;
+			}
 			
 			foreach (var node_check in node.checks)
 			{
 				if (node_check.name == check_name)
+				{
 					return true;
+				}
 			}
 			return false;
 		}
@@ -135,7 +148,9 @@ namespace MiniIT.Snipe
 		public string GetPurchaseProductSku()
 		{
 			if (node == null)
+			{
 				return null;
+			}
 			
 			foreach (var node_check in node.checks)
 			{
@@ -150,7 +165,9 @@ namespace MiniIT.Snipe
 		public void CopyVars(LogicNode src_node)
 		{
 			if (src_node?.vars == null)
+			{
 				return;
+			}
 
 			vars = src_node.vars;
 

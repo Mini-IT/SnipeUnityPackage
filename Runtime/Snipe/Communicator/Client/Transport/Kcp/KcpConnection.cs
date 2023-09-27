@@ -100,7 +100,7 @@ namespace MiniIT.Snipe
 
 		public KcpConnection()
 		{
-			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(KcpConnection));
+			_logger = SnipeServices.LogService.GetLogger(nameof(KcpConnection));
 		}
 
 		public void Connect(string host, ushort port, int timeout = 10000, int authenticationTimeout = 0)

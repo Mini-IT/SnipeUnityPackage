@@ -105,10 +105,10 @@ namespace MiniIT.Snipe
 			_communicator.ConnectionSucceeded += OnConnectionSucceeded;
 
 			_config = config;
-			_analytics = SnipeServices.Instance.Analytics.GetTracker(_config.ContextId);
-			_sharedPrefs = SnipeServices.Instance.SharedPrefs;
-			_mainThreadRunner = SnipeServices.Instance.MainThreadRunner;
-			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(AuthSubsystem));
+			_analytics = SnipeServices.Analytics.GetTracker(_config.ContextId);
+			_sharedPrefs = SnipeServices.SharedPrefs;
+			_mainThreadRunner = SnipeServices.MainThreadRunner;
+			_logger = SnipeServices.LogService.GetLogger(nameof(AuthSubsystem));
 
 			_bindings = new List<AuthBinding>();
 		}

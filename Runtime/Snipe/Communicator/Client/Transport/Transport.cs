@@ -23,7 +23,7 @@ namespace MiniIT.Snipe
 		{
 			_config = config;
 			_analytics = analytics;
-			_logger = SnipeServices.Instance.LogService.GetLogger(GetType().Name);
+			_logger = SnipeServices.LogService.GetLogger(GetType().Name);
 		}
 
 		public abstract void Connect();

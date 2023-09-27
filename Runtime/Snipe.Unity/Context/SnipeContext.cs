@@ -151,7 +151,7 @@ namespace MiniIT.Snipe
 
 			if (!SnipeServices.IsInitialized)
 			{
-				SnipeServices.SetFactory(new UnitySnipeServicesFactory());
+				SnipeServices.Initialize(new UnitySnipeServicesFactory());
 			}
 
 			Config = new SnipeConfig(Id);

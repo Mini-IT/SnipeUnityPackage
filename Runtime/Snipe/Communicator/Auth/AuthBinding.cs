@@ -57,8 +57,8 @@ namespace MiniIT.Snipe
 			_authSubsystem = authSubsystem;
 			_config = config;
 
-			_sharedPrefs = SnipeServices.Instance.SharedPrefs;
-			_logger = SnipeServices.Instance.LogService.GetLogger(GetType().Name);
+			_sharedPrefs = SnipeServices.SharedPrefs;
+			_logger = SnipeServices.LogService.GetLogger(GetType().Name);
 
 			ProviderId = provider_id;
 			Fetcher = fetcher;

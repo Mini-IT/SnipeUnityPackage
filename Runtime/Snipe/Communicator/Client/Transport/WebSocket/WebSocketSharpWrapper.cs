@@ -16,7 +16,7 @@ namespace MiniIT.Snipe
 
 		public WebSocketSharpWrapper()
 		{
-			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(WebSocketSharpWrapper));
+			_logger = SnipeServices.LogService.GetLogger(nameof(WebSocketSharpWrapper));
 		}
 
 		public override async void Connect(string url)

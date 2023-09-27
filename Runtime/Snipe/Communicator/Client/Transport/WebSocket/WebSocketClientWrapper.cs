@@ -36,8 +36,8 @@ namespace MiniIT.Snipe
 			_receiveBuffer = new ArraySegment<byte>(new byte[receiveBufferSize]);
 			_receiveMessageBuffer = new byte[messageBufferSize];
 
-			_mainThreadRunner = SnipeServices.Instance.MainThreadRunner;
-			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(WebSocketClientWrapper));
+			_mainThreadRunner = SnipeServices.MainThreadRunner;
+			_logger = SnipeServices.LogService.GetLogger(nameof(WebSocketClientWrapper));
 		}
 
 		public override void Connect(string url)

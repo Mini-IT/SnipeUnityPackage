@@ -21,11 +21,11 @@ namespace MiniIT.Snipe.Tables
 					if (await SnipeTableGZipReader.TryReadAsync(wrapperType, items, read_stream))
 					{
 						loaded = true;
-						SnipeServices.Instance.LogService.GetLogger("SnipeTable").LogTrace($"Table ready (from cache) - {table_name}");
+						SnipeServices.LogService.GetLogger("SnipeTable").LogTrace($"Table ready (from cache) - {table_name}");
 					}
 					else
 					{
-						SnipeServices.Instance.LogService.GetLogger("SnipeTable").LogTrace($"Failed to read file - {table_name}");
+						SnipeServices.LogService.GetLogger("SnipeTable").LogTrace($"Failed to read file - {table_name}");
 					}
 				}
 			}

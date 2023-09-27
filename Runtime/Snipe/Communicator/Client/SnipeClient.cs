@@ -75,9 +75,9 @@ namespace MiniIT.Snipe
 		internal SnipeClient(SnipeConfig config)
 		{
 			_config = config;
-			_analytics = SnipeServices.Instance.Analytics.GetTracker(config.ContextId);
-			_mainThreadRunner = SnipeServices.Instance.MainThreadRunner;
-			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(SnipeClient));
+			_analytics = SnipeServices.Analytics.GetTracker(config.ContextId);
+			_mainThreadRunner = SnipeServices.MainThreadRunner;
+			_logger = SnipeServices.LogService.GetLogger(nameof(SnipeClient));
 		}
 
 		public void Connect()

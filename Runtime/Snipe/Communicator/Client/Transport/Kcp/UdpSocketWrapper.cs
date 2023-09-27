@@ -20,7 +20,7 @@ namespace MiniIT.Snipe
 
 		public UdpSocketWrapper()
 		{
-			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(UdpSocketWrapper));
+			_logger = SnipeServices.LogService.GetLogger(nameof(UdpSocketWrapper));
 		}
 
 		public async void Connect(string host, ushort port)

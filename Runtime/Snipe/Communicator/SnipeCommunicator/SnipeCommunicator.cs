@@ -71,11 +71,9 @@ namespace MiniIT.Snipe
 		{
 			_config = config;
 
-			var serviceLocator = SnipeServices.Instance;
-
-			_mainThreadRunner = serviceLocator.MainThreadRunner;
-			_analytics = serviceLocator.Analytics.GetTracker(config.ContextId);
-			_logger = serviceLocator.LogService.GetLogger(nameof(SnipeCommunicator));
+			_mainThreadRunner = SnipeServices.MainThreadRunner;
+			_analytics = SnipeServices.Analytics.GetTracker(config.ContextId);
+			_logger = SnipeServices.LogService.GetLogger(nameof(SnipeCommunicator));
 
 			_logger.LogTrace($"PACKAGE VERSION: {PackageInfo.VERSION}");
 		}

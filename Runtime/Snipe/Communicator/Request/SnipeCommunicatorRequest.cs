@@ -109,7 +109,7 @@ namespace MiniIT.Snipe
 
 		private ILogger GetLogger()
 		{
-			_logger ??= SnipeServices.Instance.LogService.GetLogger(nameof(SnipeCommunicatorRequest));
+			_logger ??= SnipeServices.LogService.GetLogger(nameof(SnipeCommunicatorRequest));
 			return _logger;
 		}
 	}

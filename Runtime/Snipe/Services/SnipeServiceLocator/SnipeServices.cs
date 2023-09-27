@@ -1,16 +1,27 @@
 using System;
 using Microsoft.Extensions.Logging;
+using MiniIT.Snipe.Logging;
+using MiniIT.Snipe.SharedPrefs;
 
 namespace MiniIT.Snipe
 {
 	public static class SnipeServices
 	{
-		public static ISnipeServiceLocator Instance => s_locator;
+		#region static ISnipeServiceLocator
+
+		public static ISharedPrefs SharedPrefs => s_locator.SharedPrefs;
+		public static ILogService LogService => s_locator.LogService;
+		public static ISnipeAnalyticsService Analytics => s_locator.Analytics;
+		public static IMainThreadRunner MainThreadRunner => s_locator.MainThreadRunner;
+		public static IApplicationInfo ApplicationInfo => s_locator.ApplicationInfo;
+
+		#endregion
+
 		public static bool IsInitialized => s_locator != null;
 
 		private static ISnipeServiceLocator s_locator;
 
-		public static void SetFactory(ISnipeServiceLocatorFactory factory)
+		public static void Initialize(ISnipeServiceLocatorFactory factory)
 		{
 			if (s_locator != null)
 			{
