@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeAnalyticsTracker : IDisposable
+	public class SnipeAnalyticsTracker
 	{
 		public bool IsEnabled => _analyticsService.IsEnabled;
 		
@@ -33,14 +33,21 @@ namespace MiniIT.Snipe
 		private readonly SnipeAnalyticsService _analyticsService;
 		private readonly IMainThreadRunner _mainThreadRunner;
 
-		public SnipeAnalyticsTracker(SnipeAnalyticsService analyticsService, string contextId)
+		internal SnipeAnalyticsTracker(SnipeAnalyticsService analyticsService, string contextId)
 		{
 			_analyticsService = analyticsService;
 			_contextId = contextId;
 			_mainThreadRunner = SnipeServices.Instance.MainThreadRunner;
 		}
-			
-		~SnipeAnalyticsTracker() => Dispose();
+
+		internal void SetExternalTracker(ISnipeCommunicatorAnalyticsTracker externalTracker)
+		{
+			_externalTracker = externalTracker;
+			if (_externalTracker != null)
+			{
+				CheckReady();
+			}
+		}
 
 		private bool CheckReady()
 		{
@@ -213,21 +220,6 @@ namespace MiniIT.Snipe
 		}
 		
 		#endregion
-		
-		public void Dispose()
-		{
-			_analyticsService.RemoveTracker(this);
-			GC.SuppressFinalize(this);
-		}
-
-		internal void SetExternalTracker(ISnipeCommunicatorAnalyticsTracker externalTracker)
-		{
-			_externalTracker = externalTracker;
-			if (_externalTracker != null)
-			{
-				CheckReady();
-			}
-		}
 
 		#region Constants
 

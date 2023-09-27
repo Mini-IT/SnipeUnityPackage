@@ -1,9 +1,8 @@
-using System;
 using System.Collections.Generic;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeAnalyticsService : IDisposable
+	public class SnipeAnalyticsService : ISnipeAnalyticsService
 	{
 		public bool IsEnabled { get; set; } = true;
 
@@ -34,41 +33,14 @@ namespace MiniIT.Snipe
 			_externalTracker = externalTracker;
 			lock (_trackersLock)
 			{
+				if (_trackers == null)
+				{
+					return;
+				}
+
 				foreach (var tracker in _trackers.Values)
 				{
 					tracker?.SetExternalTracker(externalTracker);
-				}
-			}
-		}
-
-		~SnipeAnalyticsService() => Dispose();
-
-		public void Dispose()
-		{
-			if (_trackers != null)
-			{
-				// Local copy for thread safety
-				var trackers = _trackers;
-				foreach (var pair in trackers)
-				{
-					pair.Value.Dispose();
-				}
-			}
-
-			GC.SuppressFinalize(this);
-		}
-
-		internal void RemoveTracker(SnipeAnalyticsTracker tracker)
-		{
-			lock (_trackersLock)
-			{
-				foreach (var pair in _trackers)
-				{
-					if (pair.Value == tracker)
-					{
-						_trackers.Remove(pair.Key);
-						break;
-					}
 				}
 			}
 		}
