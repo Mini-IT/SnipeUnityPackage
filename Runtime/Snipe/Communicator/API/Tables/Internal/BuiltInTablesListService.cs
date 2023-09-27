@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using MiniIT.Snipe.Logging;
 using MiniIT.Unity;
 
 namespace MiniIT.Snipe.Tables
@@ -27,8 +26,11 @@ namespace MiniIT.Snipe.Tables
 		{
 			if (Items == null)
 			{
-				SnipeServices.Instance.LogService.GetLogger(nameof(BuiltInTablesListService)).LogError($"Not initialized. Call {nameof(InitializeAsync)} first");
 				version = 0;
+
+				var logger = SnipeServices.Instance.LogService.GetLogger(nameof(BuiltInTablesListService));
+				logger.LogError($"Not initialized. Call {nameof(InitializeAsync)} first");
+
 				return false;
 			}
 
