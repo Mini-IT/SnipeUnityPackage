@@ -126,7 +126,9 @@ namespace MiniIT.Snipe
 		public virtual void Dispose()
 		{
 			if (IsDisposed)
+			{
 				return;
+			}
 
 			IsDisposed = true;
 
