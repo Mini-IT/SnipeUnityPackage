@@ -2,8 +2,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace MiniIT.Snipe
@@ -65,6 +63,8 @@ namespace MiniIT.Snipe
 		private ConcurrentQueue<SnipeObject> _batchedRequests;
 		private readonly object _batchLock = new object();
 
+		private Queue<Func<Transport>> _transportFactoriesQueue = new Queue<Func<Transport>>(3);
+
 		private int _requestId = 0;
 
 		private readonly SnipeConfig _config;
@@ -82,25 +82,45 @@ namespace MiniIT.Snipe
 
 		public void Connect()
 		{
-			// if (_config.CheckUdpAvailable())
-			// {
-			// 	StartTransport(CreateKcpTransport);
-			// }
-			// else
-			// {
-			// 	StartTransport(CreateWebSocketTransport);
-			// }
-			StartTransport(CreateHttpTransport);
+			_transportFactoriesQueue.Clear();
+
+			if (_config.CheckUdpAvailable())
+			{
+				_transportFactoriesQueue.Enqueue(CreateKcpTransport);
+			}
+
+			if (_config.CheckWebSocketAvailable())
+			{
+				_transportFactoriesQueue.Enqueue(CreateWebSocketTransport);
+			}
+
+			if (_config.CheckHttpAvailable())
+			{
+				_transportFactoriesQueue.Enqueue(CreateHttpTransport);
+			}
+
+			StartNextTransport();
 		}
 
-		private void StartTransport(Func<Transport> transportFabric)
+		private bool StartNextTransport()
+		{
+			if (_transportFactoriesQueue.TryDequeue(out var transportFactory))
+			{
+				StartTransport(transportFactory);
+				return true;
+			}
+
+			return false;
+		}
+
+		private void StartTransport(Func<Transport> transportFactory)
 		{
 			if (_transport != null && _transport.Started)  // already connected or trying to connect
 				return;
 
 			Disconnect(false); // clean up
 
-			_transport ??= transportFabric.Invoke();
+			_transport ??= transportFactory.Invoke();
 
 			_connectionStopwatch = Stopwatch.StartNew();
 			_transport.Connect();
@@ -115,7 +135,7 @@ namespace MiniIT.Snipe
 			transport.ConnectionOpenedHandler = () =>
 			{
 				_analytics.UdpConnectionTime = _connectionStopwatch.Elapsed;
-				OnConnected();
+				OnTransportConnectionOpened();
 			};
 
 			transport.ConnectionClosedHandler = () =>
@@ -125,14 +145,7 @@ namespace MiniIT.Snipe
 					UdpConnectionFailed?.Invoke();
 				});
 
-				if (transport.ConnectionEstablished)
-				{
-					Disconnect(true);
-				}
-				else // not connected yet, try websocket
-				{
-					StartTransport(CreateWebSocketTransport);
-				}
+				OnTransportConnectionClosed();
 			};
 
 			transport.MessageReceivedHandler = ProcessMessage;
@@ -144,8 +157,8 @@ namespace MiniIT.Snipe
 		{
 			return new WebSocketTransport(_config, _analytics)
 			{
-				ConnectionOpenedHandler = OnConnected,
-				ConnectionClosedHandler = () => Disconnect(true),
+				ConnectionOpenedHandler = OnTransportConnectionOpened,
+				ConnectionClosedHandler = OnTransportConnectionClosed,
 				MessageReceivedHandler = ProcessMessage
 			};
 		}
@@ -154,15 +167,15 @@ namespace MiniIT.Snipe
 		{
 			return new HttpTransport(_config, _analytics)
 			{
-				ConnectionOpenedHandler = OnConnected,
-				ConnectionClosedHandler = () => Disconnect(true),
+				ConnectionOpenedHandler = OnTransportConnectionOpened,
+				ConnectionClosedHandler = OnTransportConnectionClosed,
 				MessageReceivedHandler = ProcessMessage,
 			};
 		}
 
 		#endregion
 
-		private void OnConnected()
+		private void OnTransportConnectionOpened()
 		{
 			_connectionStopwatch?.Stop();
 			_analytics.ConnectionEstablishmentTime = _connectionStopwatch?.Elapsed ?? TimeSpan.Zero;
@@ -179,6 +192,21 @@ namespace MiniIT.Snipe
 					_analytics.TrackError("ConnectionOpened invocation error", e);
 				}
 			});
+		}
+
+		private void OnTransportConnectionClosed()
+		{
+			if (_transport.ConnectionEstablished)
+			{
+				Disconnect(true);
+			}
+			else // not connected yet, try another transport
+			{
+				if (!StartNextTransport())
+				{
+					Disconnect(true);
+				}
+			}
 		}
 
 		private void RaiseConnectionClosedEvent()

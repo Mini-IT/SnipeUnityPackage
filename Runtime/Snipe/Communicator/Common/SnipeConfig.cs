@@ -249,6 +249,16 @@ namespace MiniIT.Snipe
 			return !string.IsNullOrEmpty(address?.Host) && address.Port > 0;
 		}
 
+		public bool CheckWebSocketAvailable()
+		{
+			return ServerWebSocketUrls != null && ServerWebSocketUrls.Count > 0;
+		}
+
+		public bool CheckHttpAvailable()
+		{
+			return !string.IsNullOrEmpty(GetHttpAddress());
+		}
+
 		// [Testable]
 		internal static int GetValidIndex(IList list, int index, bool next = false)
 		{

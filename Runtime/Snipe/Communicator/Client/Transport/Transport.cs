@@ -14,6 +14,7 @@ namespace MiniIT.Snipe
 
 		public virtual bool Started { get; } = false;
 		public virtual bool Connected { get; } = false;
+		public virtual bool ConnectionEstablished { get; } = false;
 
 		protected readonly SnipeConfig _config;
 		protected readonly SnipeAnalyticsTracker _analytics;

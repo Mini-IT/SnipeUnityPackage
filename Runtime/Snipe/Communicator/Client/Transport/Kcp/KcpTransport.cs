@@ -10,14 +10,14 @@ namespace MiniIT.Snipe
 {
 	public class KcpTransport : Transport
 	{
-		public bool ConnectionEstablished { get; private set; } = false;
-		
 		public override bool Started => _kcpConnection != null;
 		public override bool Connected => _kcpConnection != null && _kcpConnection.Connected;
-		
+		public override bool ConnectionEstablished => _connectionEstablished;
+
 		private KcpConnection _kcpConnection;
 		private CancellationTokenSource _networkLoopCancellation;
 
+		private bool _connectionEstablished = false;
 		private readonly object _lock = new object();
 
 		internal KcpTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
@@ -32,7 +32,7 @@ namespace MiniIT.Snipe
 				if (_kcpConnection != null) // already connected or trying to connect
 					return;
 
-				ConnectionEstablished = false;
+				_connectionEstablished = false;
 
 				_kcpConnection = new KcpConnection
 				{
@@ -62,7 +62,8 @@ namespace MiniIT.Snipe
 				_kcpConnection.Disconnect();
 				_kcpConnection = null;
 			}
-			ConnectionEstablished = false;
+
+			_connectionEstablished = false;
 		}
 
 		public override void SendMessage(SnipeObject message)
@@ -83,7 +84,7 @@ namespace MiniIT.Snipe
 
 		private void OnClientConnected() 
 		{
-			ConnectionEstablished = true;
+			_connectionEstablished = true;
 
 			_logger.LogTrace("OnUdpClientConnected");
 
@@ -97,7 +98,7 @@ namespace MiniIT.Snipe
 			StopNetworkLoop();
 			_kcpConnection = null;
 
-			if (!ConnectionEstablished) // failed to establish connection
+			if (!_connectionEstablished) // failed to establish connection
 			{
 				if (_config.NextUdpUrl())
 				{

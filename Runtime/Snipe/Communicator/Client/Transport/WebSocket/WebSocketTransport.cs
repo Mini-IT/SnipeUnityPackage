@@ -36,6 +36,7 @@ namespace MiniIT.Snipe
 		
 		public override bool Started => _webSocket != null;
 		public override bool Connected => _webSocket != null && _webSocket.Connected;
+		public override bool ConnectionEstablished => _connected;
 
 		private Stopwatch _pingStopwatch;
 
