@@ -26,8 +26,9 @@ namespace MiniIT.Snipe
 		public string AppInfo { get; set; }
 		public string DebugId { get; private set; }
 
-		public List<string> ServerWebSocketUrls = new List<string>();
-		public List<UdpAddress> ServerUdpUrls = new List<UdpAddress>();
+		public List<string> ServerWebSocketUrls { get; set; } = new List<string>();
+		public List<UdpAddress> ServerUdpUrls { get; set; } = new List<UdpAddress>();
+		public string ServerHttpUrl { get; set; } = "https://dev.snipe.dev/";
 
 		/// <summary>
 		/// Http transport heartbeat interval.
@@ -155,6 +156,19 @@ namespace MiniIT.Snipe
 				}
 			}
 
+			if (SnipeObject.TryGetValue(data, "server_http_address", out string httpUrl))
+			{
+				if (!string.IsNullOrEmpty(httpUrl) && httpUrl.StartsWith("http"))
+				{
+					ServerHttpUrl = httpUrl;
+				}
+
+				if (SnipeObject.TryGetValue(data, "server_http_heartbeat_seconds", out int heartbeatInterval))
+				{
+					HttpHeartbeatInterval = TimeSpan.FromSeconds(heartbeatInterval);
+				}
+			}
+
 			if (data.TryGetValue("log_reporter", out var log_reporter_field) &&
 				log_reporter_field is IDictionary<string, object> log_reporter)
 			{
@@ -227,7 +241,7 @@ namespace MiniIT.Snipe
 
 		public string GetHttpAddress()
 		{
-			return "https://dev.snipe.dev/";
+			return ServerHttpUrl;
 		}
 
 		public void NextWebSocketUrl()
