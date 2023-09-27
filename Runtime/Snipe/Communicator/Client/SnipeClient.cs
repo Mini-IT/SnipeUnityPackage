@@ -202,7 +202,8 @@ namespace MiniIT.Snipe
 			}
 			else // not connected yet, try another transport
 			{
-				if (!StartNextTransport())
+				bool started = StartNextTransport();
+				if (!started)
 				{
 					Disconnect(true);
 				}

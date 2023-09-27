@@ -22,19 +22,25 @@ namespace MiniIT.Snipe
 
 		public string ContextId { get; }
 
-		public string ClientKey;
-		public string AppInfo;
+		public string ClientKey { get; set; }
+		public string AppInfo { get; set; }
 		public string DebugId { get; private set; }
 
 		public List<string> ServerWebSocketUrls = new List<string>();
 		public List<UdpAddress> ServerUdpUrls = new List<UdpAddress>();
+
+		/// <summary>
+		/// Http transport heartbeat interval.
+		/// If the value is less than 1 then heartbeat is turned off.
+		/// </summary>
+		public TimeSpan HttpHeartbeatInterval { get; set; } = TimeSpan.Zero;
 		
-		public bool CompressionEnabled = true;
-		public int MinMessageBytesToCompress = 13 * 1024;
+		public bool CompressionEnabled { get; set; } = true;
+		public int MinMessageBytesToCompress { get; set; } = 13 * 1024;
 
-		public SnipeObject LoginParameters;
+		public SnipeObject LoginParameters { get; set; }
 
-		public string LogReporterUrl;
+		public string LogReporterUrl { get; set; }
 
 		private int _serverWebSocketUrlIndex = 0;
 		private int _serverUdpUrlIndex = 0;

@@ -5,6 +5,8 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace MiniIT.Snipe
@@ -15,13 +17,15 @@ namespace MiniIT.Snipe
 
 		public override bool Started => _connected;
 		public override bool Connected => _connected;
-		public override bool ConnectionEstablished => _connected;
+		public override bool ConnectionEstablished => _connectionEstablished;
 
 		private HttpClient _httpClient;
-		//private CancellationTokenSource _networkLoopCancellation;
+
+		private TimeSpan _heartbeatInterval;
 
 		private Uri _baseUrl;
 		private bool _connected;
+		private bool _connectionEstablished = false;
 		private readonly object _lock = new object();
 
 		internal HttpTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
@@ -42,19 +46,31 @@ namespace MiniIT.Snipe
 			}
 
 			_connected = true;
+			_connectionEstablished = true;
 			OnClientConnected();
 
-			//StartNetworkLoop();
+			StartHeartbeat();
 		}
 
 		public override void Disconnect()
 		{
+			if (!_connected)
+			{
+				return;
+			}
+
 			_connected = false;
 
 			if (_httpClient != null)
 			{
-				_httpClient.DefaultRequestHeaders.Authorization = null;
+				_httpClient.DefaultRequestHeaders.Clear();
 			}
+
+			StopHeartbeat();
+			ConnectionClosedHandler?.Invoke();
+
+			// It's important to keep the value during ConnectionClosedHandler invocation
+			_connectionEstablished = false;
 		}
 
 		public override void SendMessage(SnipeObject message)
@@ -155,7 +171,7 @@ namespace MiniIT.Snipe
 				var uri = new Uri(_baseUrl, requestType);
 				var requestContent = new StringContent(json, Encoding.UTF8, "application/json");
 
-				_logger.LogTrace($"+++ <<< request ({uri}) - {json}");
+				_logger.LogTrace($"<<< request ({uri}) - {json}");
 
 				using (var response = await _httpClient.PostAsync(uri, requestContent))
 				{
@@ -167,13 +183,18 @@ namespace MiniIT.Snipe
 
 					string responseMessage = await response.Content.ReadAsStringAsync();
 
-					_logger.LogTrace($"+++ >>> response {requestType} ({(int)response.StatusCode} {response.StatusCode}) {responseMessage}");
-
+					_logger.LogTrace($">>> response {requestType} ({(int)response.StatusCode} {response.StatusCode}) {responseMessage}");
+					
 					if (response.IsSuccessStatusCode)
 					{
 						ProcessMessage(responseMessage);
 					}
-					else if (response.StatusCode == HttpStatusCode.Unauthorized) // 401 - wrong auth token
+					else
+#if NET_STANDARD_2_1
+					if (response.StatusCode != HttpStatusCode.TooManyRequests)
+#else
+					if ((int)response.StatusCode != 429)
+#endif
 					{
 						Disconnect();
 					}
@@ -190,6 +211,7 @@ namespace MiniIT.Snipe
 			var batch = new SnipeObject()
 			{
 				["t"] = "server.batch",
+				["id"] = -100,
 				["data"] = new SnipeObject()
 				{
 					["list"] = messages,
@@ -199,89 +221,61 @@ namespace MiniIT.Snipe
 			DoSendRequest(batch);
 		}
 
-		
+		#region Heartbeat
 
-		/*
+		private CancellationTokenSource _heartbeatCancellation;
 
-		private void StartNetworkLoop()
+		private void StartHeartbeat()
 		{
-			_logger.LogTrace($"StartNetworkLoop");
-			
-			_networkLoopCancellation?.Cancel();
+			_heartbeatCancellation?.Cancel();
 
-			_networkLoopCancellation = new CancellationTokenSource();
-			Task.Run(() => NetworkLoop(_networkLoopCancellation.Token));
-			//Task.Run(() => UdpConnectionTimeout(_networkLoopCancellation.Token));
+			if (_config.HttpHeartbeatInterval.TotalSeconds < 1)
+			{
+				return;
+			}
+
+			_heartbeatInterval = _config.HttpHeartbeatInterval;
+
+			_heartbeatCancellation = new CancellationTokenSource();
+			Task.Run(() => HeartbeatTask(_heartbeatCancellation.Token));
 		}
 
-		public void StopNetworkLoop()
+		private void StopHeartbeat()
 		{
-			_logger.LogTrace($"StopNetworkLoop");
-			
-			if (_networkLoopCancellation != null)
+			if (_heartbeatCancellation != null)
 			{
-				_networkLoopCancellation.Cancel();
-				_networkLoopCancellation = null;
+				_heartbeatCancellation.Cancel();
+				_heartbeatCancellation = null;
 			}
 		}
 
-		private async void NetworkLoop(CancellationToken cancellation)
+		private async void HeartbeatTask(CancellationToken cancellation)
 		{
-			while (cancellation != null && !cancellation.IsCancellationRequested)
+			int milliseconds = (int)_heartbeatInterval.TotalMilliseconds;
+			var message = new SnipeObject()
+			{
+				["t"] = "server.ping",
+				["id"] = -1,
+			};
+
+			while (cancellation != null && !cancellation.IsCancellationRequested && Connected)
 			{
 				try
 				{
-					_kcpConnection?.Tick();
-					//_analytics.PingTime = _kcpConnection?.connection?.PingTime ?? 0;
+					await Task.Delay(milliseconds, cancellation);
 				}
-				catch (Exception e)
+				catch (OperationCanceledException)
 				{
-					_logger.LogTrace($"NetworkLoop - Exception: {e}");
-					_analytics.TrackError("NetworkLoop error", e);
-					OnClientDisconnected();
-					return;
+					break;
 				}
-				
-				try
+
+				if (!cancellation.IsCancellationRequested && Connected)
 				{
-					await Task.Delay(100, cancellation);
-				}
-				catch (TaskCanceledException)
-				{
-					// This is OK. Just terminating the task
-					return;
+					SendMessage(message);
 				}
 			}
 		}
 
-		*/
-		
-		//private async void UdpConnectionTimeout(CancellationToken cancellation)
-		//{
-		//	_logger.LogTrace($"UdpConnectionTimeoutTask - start");
-			
-		//	try
-		//	{
-		//		await Task.Delay(2000, cancellation);
-		//	}
-		//	catch (TaskCanceledException)
-		//	{
-		//		// This is OK. Just terminating the task
-		//		return;
-		//	}
-			
-		//	if (cancellation == null || cancellation.IsCancellationRequested)
-		//		return;
-		//	if (cancellation != _networkLoopCancellation?.Token)
-		//		return;
-			
-		//	if (!Connected)
-		//	{
-		//		_logger.LogTrace($"UdpConnectionTimeoutTask - Calling Disconnect");
-		//		OnClientDisconnected();
-		//	}
-			
-		//	_logger.LogTrace($"UdpConnectionTimeoutTask - finish");
-		//}
+		#endregion
 	}
 }
