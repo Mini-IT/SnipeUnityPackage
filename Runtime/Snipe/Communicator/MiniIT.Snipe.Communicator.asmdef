@@ -29,5 +29,5 @@
             "define": "ZSTRING"
         }
     ],
-    "noEngineReferences": false
+    "noEngineReferences": true
 }

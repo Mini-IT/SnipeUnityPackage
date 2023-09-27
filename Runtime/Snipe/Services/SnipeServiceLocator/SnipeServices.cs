@@ -1,23 +1,40 @@
+using System;
+using Microsoft.Extensions.Logging;
+
 namespace MiniIT.Snipe
 {
 	public static class SnipeServices
 	{
-		public static ISnipeServiceLocator Instance => s_instance;
-		public static bool IsInitialized => s_instance != null;
+		public static ISnipeServiceLocator Instance => s_locator;
+		public static bool IsInitialized => s_locator != null;
 
-		private static ISnipeServiceLocator s_instance;
+		private static ISnipeServiceLocator s_locator;
 
-		public static void Initialize(ISnipeServiceLocatorFactory factory)
+		public static void SetFactory(ISnipeServiceLocatorFactory factory)
 		{
-			s_instance = new SnipeServiceLocator(factory);
+			if (s_locator != null)
+			{
+				try
+				{
+					var logger = s_locator.LogService.GetLogger(nameof(SnipeServices));
+					logger.LogError($"Locator is already initialized. Call `{nameof(Dispose)}` first if you need to reinitialize it with another factory.");
+				}
+				catch (Exception)
+				{
+					// ignore
+				}
+				return;
+			}
+
+			s_locator = new SnipeServiceLocator(factory);
 		}
 
 		public static void Dispose()
 		{
-			if (s_instance != null)
+			if (s_locator != null)
 			{
-				s_instance.Dispose();
-				s_instance = null;
+				s_locator.Dispose();
+				s_locator = null;
 			}
 		}
 	}

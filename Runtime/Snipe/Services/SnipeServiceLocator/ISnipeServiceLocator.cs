@@ -10,6 +10,7 @@ namespace MiniIT.Snipe
 		ILogService LogService { get; }
 		ISnipeAnalyticsService Analytics { get; }
 		IMainThreadRunner MainThreadRunner { get; }
+		IApplicationInfo ApplicationInfo { get; }
 	}
 
 	public interface ISnipeServiceLocatorFactory
@@ -18,5 +19,6 @@ namespace MiniIT.Snipe
 		ILogService CreateLogService();
 		ISnipeAnalyticsService CreateAnalyticsService();
 		IMainThreadRunner CreateMainThreadRunner();
+		IApplicationInfo CreateApplicationInfo();
 	}
 }

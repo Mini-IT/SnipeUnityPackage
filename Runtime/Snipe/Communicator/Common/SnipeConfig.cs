@@ -39,17 +39,16 @@ namespace MiniIT.Snipe
 
 		public string LogReporterUrl;
 
-		public string PersistentDataPath { get; private set; }
-		public string StreamingAssetsPath { get; private set; }
-
 		private int _serverWebSocketUrlIndex = 0;
 		private int _serverUdpUrlIndex = 0;
 
 		private readonly IMainThreadRunner _mainThreadRunner;
+		private readonly IApplicationInfo _applicationInfo;
 
 		public SnipeConfig(string contextId)
 		{
 			_mainThreadRunner = SnipeServices.Instance.MainThreadRunner;
+			_applicationInfo = SnipeServices.Instance.ApplicationInfo;
 
 			ContextId = contextId ?? "";
 		}
@@ -170,7 +169,6 @@ namespace MiniIT.Snipe
 			_serverUdpUrlIndex = SnipeServices.Instance.SharedPrefs.GetInt(SnipePrefs.GetUdpUrlIndex(ContextId), 0);
 
 			TablesConfig.Init(data);
-			TablesConfig.PersistentDataPath = Application.persistentDataPath;
 
 			InitAppInfo();
 		}
@@ -179,9 +177,9 @@ namespace MiniIT.Snipe
 		{
 			AppInfo = new SnipeObject()
 			{
-				["identifier"] = Application.identifier,
-				["version"] = Application.version,
-				["platform"] = Application.platform.ToString(),
+				["identifier"] = _applicationInfo.ApplicationIdentifier,
+				["version"] = _applicationInfo.ApplicationVersion,
+				["platform"] = _applicationInfo.ApplicationPlatform,
 				["packageVersion"] = PackageInfo.VERSION,
 			}.ToJSONString();
 
@@ -194,7 +192,7 @@ namespace MiniIT.Snipe
 		{
 			using (var md5 = System.Security.Cryptography.MD5.Create())
 			{
-				string id = SystemInfo.deviceUniqueIdentifier + Application.identifier;
+				string id = _applicationInfo.DeviceIdentifier + _applicationInfo.ApplicationIdentifier;
 				byte[] hashBytes = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(id));
 				string hash = Convert.ToBase64String(hashBytes);
 				hash = new Regex(@"\W").Replace(hash, "0");

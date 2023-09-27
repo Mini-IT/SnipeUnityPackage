@@ -10,11 +10,13 @@ namespace MiniIT.Snipe
 		public ILogService LogService => _logService ??= _factory.CreateLogService();
 		public ISnipeAnalyticsService Analytics => _analyticsService ?? _factory.CreateAnalyticsService();
 		public IMainThreadRunner MainThreadRunner => _mainThreadRunner;
+		public IApplicationInfo ApplicationInfo => _applicationInfo;
 
 		private ISharedPrefs _sharedPrefs;
 		private ILogService _logService;
 		private ISnipeAnalyticsService _analyticsService;
 		private readonly IMainThreadRunner _mainThreadRunner;
+		private readonly IApplicationInfo _applicationInfo;
 
 		private readonly ISnipeServiceLocatorFactory _factory;
 
@@ -22,6 +24,7 @@ namespace MiniIT.Snipe
 		{
 			_factory = factory;
 			_mainThreadRunner = _factory.CreateMainThreadRunner();
+			_applicationInfo = _factory.CreateApplicationInfo();
 		}
 
 		public void Dispose()
@@ -30,6 +33,7 @@ namespace MiniIT.Snipe
 			(_logService as IDisposable)?.Dispose();
 			(_analyticsService as IDisposable)?.Dispose();
 			(_mainThreadRunner as IDisposable)?.Dispose();
+			(_applicationInfo as IDisposable)?.Dispose();
 		}
 	}
 }
