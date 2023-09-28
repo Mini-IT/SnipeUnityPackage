@@ -28,7 +28,7 @@ namespace MiniIT.Snipe
 
 		public List<string> ServerWebSocketUrls { get; set; } = new List<string>();
 		public List<UdpAddress> ServerUdpUrls { get; set; } = new List<UdpAddress>();
-		public string ServerHttpUrl { get; set; } = "https://dev.snipe.dev/";
+		public string ServerHttpUrl { get; set; }
 
 		/// <summary>
 		/// Http transport heartbeat interval.
