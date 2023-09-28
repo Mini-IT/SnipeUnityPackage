@@ -7,7 +7,10 @@
         "MiniIT.Snipe.Services",
         "MiniIT.Snipe.Social",
         "MiniIT.Snipe.Logging",
-        "MiniIT.AdvertisingIdFetcher"
+        "MiniIT.AdvertisingIdFetcher",
+        "MiniIT.Framework.StreamingAssetsReader",
+        "fastJSON",
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

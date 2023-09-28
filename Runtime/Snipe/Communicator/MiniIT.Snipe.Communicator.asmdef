@@ -8,12 +8,9 @@
         "MiniIT.Snipe.Logging",
         "MiniIT.Snipe.SharedPrefs",
         "MiniIT.Snipe.Services",
-        "MiniIT.Framework.StreamingAssetsReader",
-        "fastJSON",
         "WebSocketSharp",
         "kcp2k",
-        "ZString",
-        "UniTask"
+        "ZString"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
