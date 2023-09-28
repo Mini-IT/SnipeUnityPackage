@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace MiniIT.Snipe
+namespace MiniIT.Snipe.Api
 {
 	public class CalendarItem
 	{

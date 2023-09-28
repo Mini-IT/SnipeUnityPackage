@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using fastJSON;
+using MiniIT.Snipe.Api;
 
 namespace MiniIT.Snipe.Tables
 {
