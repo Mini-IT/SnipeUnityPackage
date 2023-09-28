@@ -17,6 +17,7 @@ namespace MiniIT.Snipe
 		public TApi Api { get; private set; }
 		public TTables Tables { get; private set; }
 		public LogicManager LogicManager { get; private set; }
+		public BadgesManager BadgesManager { get; private set; }
 		public CalendarManager CalendarManager { get; private set; }
 
 		protected TimeZoneInfo _serverTimeZone;
@@ -61,6 +62,12 @@ namespace MiniIT.Snipe
 			if (logicTable != null)
 			{
 				LogicManager = new LogicManager(Communicator, CreateRequest, logicTable);
+			}
+
+			var badgesTable = Tables.GetTable<SnipeTableBadgesItem>();
+			if (badgesTable != null)
+			{
+				BadgesManager = new BadgesManager(Communicator, CreateRequest, badgesTable);
 			}
 
 			var calendarTable = Tables.GetTable<SnipeTableCalendarItem>();
