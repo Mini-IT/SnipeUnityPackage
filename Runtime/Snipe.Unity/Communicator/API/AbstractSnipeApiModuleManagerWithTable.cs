@@ -78,7 +78,12 @@ namespace MiniIT.Snipe.Api
 
 		protected void ProcessMessage(string messageType, string errorCode, SnipeObject data, Action<string, SnipeObject> handler)
 		{
-			if (!_table.Loaded)
+			if (_table == null)
+			{
+				return;
+			}
+
+			if (_table.Loaded)
 			{
 				handler.Invoke(errorCode, data);
 				return;

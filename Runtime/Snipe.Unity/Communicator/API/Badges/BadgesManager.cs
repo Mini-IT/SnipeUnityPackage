@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace MiniIT.Snipe.Api
 {
@@ -19,6 +18,7 @@ namespace MiniIT.Snipe.Api
 		public List<UserBadge> _badges = new List<UserBadge>();
 
 		private SnipeTable<SnipeTableBadgesItem> _badgesTable;
+		private GetCallback _getCallback;
 
 		public BadgesManager(SnipeCommunicator communicator,
 			AbstractSnipeApiService.RequestFactoryMethod requestFactory,
@@ -47,22 +47,16 @@ namespace MiniIT.Snipe.Api
 			var request = _requestFactory.Invoke("badgeV2.get", null);
 
 			if (request == null)
-				return false;
-
-			SnipeCommunicatorRequest.ResponseHandler responseHandler = null;
-			if (callback == null)
 			{
-				responseHandler = async (error_code, response_data) =>
-				{
-					// The _badges list is updated in OnBadgesGet method.
-					// So just let it do its work
-					await Task.Yield();
-
-					callback?.Invoke(error_code, _badges);
-				};
+				return false;
 			}
 
-			request.Request(responseHandler);
+			if (callback != null)
+			{
+				_getCallback += callback;
+			}
+
+			request.Request();
 			return true;
 		}
 
@@ -114,6 +108,12 @@ namespace MiniIT.Snipe.Api
 					_badges.Add(new UserBadge(o));
 				}
 				BadgesUpdated?.Invoke(_badges);
+			}
+
+			if (_getCallback != null)
+			{
+				_getCallback.Invoke(errorCode, _badges);
+				_getCallback = null;
 			}
 		}
 
