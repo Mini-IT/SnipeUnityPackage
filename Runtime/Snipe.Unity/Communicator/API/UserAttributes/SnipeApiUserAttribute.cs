@@ -132,7 +132,7 @@ namespace MiniIT.Snipe.Api
 		}
 	}
 
-	public class SnipeApiUserAttribute<AttrValueType> : SnipeApiReadOnlyUserAttribute<AttrValueType>
+	public class SnipeApiUserAttribute<TAttrValue> : SnipeApiReadOnlyUserAttribute<TAttrValue>
 	{
 		private const int SET_REQUEST_DELAY_MILLISECONDS = 300;
 
@@ -150,7 +150,7 @@ namespace MiniIT.Snipe.Api
 		{
 		}
 
-		protected override void DoSetValue(AttrValueType val, SetCallback callback = null)
+		protected override void DoSetValue(TAttrValue val, SetCallback callback = null)
 		{
 			if (AreEqual(val, _value))
 			{
@@ -268,7 +268,7 @@ namespace MiniIT.Snipe.Api
 			});
 		}
 
-		public static implicit operator AttrValueType(SnipeApiUserAttribute<AttrValueType> attr)
+		public static implicit operator TAttrValue(SnipeApiUserAttribute<TAttrValue> attr)
 		{
 			return attr._value;
 		}
