@@ -449,8 +449,8 @@ namespace MiniIT.Snipe
 		/// </summary>
 		/// <param name="binding">Instance of <see cref="AuthBinding"/> that references the target account</param>
 		/// <param name="destroyContext">Action that should gracefully destroy current <see cref="SnipeContext"/></param>
-		/// <param name="initContext">Action that initializes new <see cref="SnipeContext"/></param>
-		public void ReloginTo(AuthBinding binding, Action destroyContext, Action initContext)
+		/// <param name="startContext">Action that starts a new <see cref="SnipeContext"/></param>
+		public void ReloginTo(AuthBinding binding, Action destroyContext, Action startContext)
 		{
 			binding.ResetAuth(async (errorCode) =>
 			{
@@ -465,7 +465,7 @@ namespace MiniIT.Snipe
 				_userID = 0;
 
 				await Task.Delay(1000);
-				initContext.Invoke();
+				startContext.Invoke();
 			});
 		}
 
