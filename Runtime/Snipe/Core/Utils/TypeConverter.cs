@@ -6,40 +6,46 @@ namespace MiniIT
 {
 	public static class TypeConverter
 	{
-		public static T Convert<T>(object val)
+		public static T Convert<T>(object value)
 		{
-			if (val == null)
+			if (value is T t)
 			{
-				if (typeof(T).IsValueType)
-				{
-					return (T)System.Convert.ChangeType(0, typeof(T), CultureInfo.InvariantCulture);
-				}
-				else
-				{
-					return default;
-				}
+				return t;
+			}
+
+			if (value == null)
+			{
+				return default;
+			}
+
+			Type resultType = typeof(T);
+			if (resultType == typeof(object))
+			{
+				return (T)value;
+			}
+			else if (value is ICollection collection && typeof(IList).IsAssignableFrom(resultType))
+			{
+				return ConvertToList<T>(collection);
 			}
 			else
 			{
-				Type resultType = typeof(T);
-				if (resultType == typeof(object))
-				{
-					return (T)val;
-				}
-				else if (val is ICollection collection)
-				{
-					return ConvertToList<T>(collection);
-				}
-				else
-				{
-					return (T)System.Convert.ChangeType(val, resultType, CultureInfo.InvariantCulture);
-				}
+				return (T)System.Convert.ChangeType(value, resultType, CultureInfo.InvariantCulture);
 			}
 		}
 
 		public static TList ConvertToList<TList>(ICollection collection)
 		{
-			var list = (IList)Activator.CreateInstance<TList>();
+			if (collection is TList t)
+			{
+				return t;
+			}
+
+			if (collection == null)
+			{
+				return default;
+			}
+
+			IList list = (IList)Activator.CreateInstance<TList>();
 			if (list == null)
 			{
 				return default;
