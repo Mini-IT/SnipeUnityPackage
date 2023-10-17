@@ -70,7 +70,7 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public void Initialize(IDictionary<string, object> data)
 		{
-			ClientKey = SnipeObject.SafeGetString(data, "client_key");
+			ClientKey = SnipeObject.SafeGetString(data, "client_key").Trim();
 
 			if (ServerWebSocketUrls == null)
 				ServerWebSocketUrls = new List<string>();
@@ -82,9 +82,9 @@ namespace MiniIT.Snipe
 			{
 				foreach (string url in server_ulrs_list)
 				{
-					if (!string.IsNullOrEmpty(url))
+					if (!string.IsNullOrWhiteSpace(url))
 					{
-						ServerWebSocketUrls.Add(url);
+						ServerWebSocketUrls.Add(url.Trim());
 					}
 				}
 			}
@@ -93,9 +93,9 @@ namespace MiniIT.Snipe
 			{
 				// "service_websocket" field for backward compatibility
 				var service_url = SnipeObject.SafeGetString(data, "service_websocket");
-				if (!string.IsNullOrEmpty(service_url))
+				if (!string.IsNullOrWhiteSpace(service_url))
 				{
-					ServerWebSocketUrls.Add(service_url);
+					ServerWebSocketUrls.Add(service_url.Trim());
 				}
 			}
 
@@ -109,10 +109,10 @@ namespace MiniIT.Snipe
 			{
 				foreach (string item in server_udp_list)
 				{
-					string url = item;
-
-					if (!string.IsNullOrEmpty(url))
+					if (!string.IsNullOrWhiteSpace(item))
 					{
+						string url = item.Trim();
+
 						int index = url.IndexOf("://");
 						if (index >= 0)
 						{
@@ -146,11 +146,11 @@ namespace MiniIT.Snipe
 
 				var address = new UdpAddress()
 				{
-					Host = SnipeObject.SafeGetString(data, "server_udp_address"),
+					Host = SnipeObject.SafeGetString(data, "server_udp_address").Trim(),
 					Port = SnipeObject.SafeGetValue<ushort>(data, "server_udp_port"),
 				};
 
-				if (address.Port > 0 && !string.IsNullOrEmpty(address.Host))
+				if (address.Port > 0 && !string.IsNullOrWhiteSpace(address.Host))
 				{
 					ServerUdpUrls.Add(address);
 				}
@@ -158,7 +158,7 @@ namespace MiniIT.Snipe
 
 			if (SnipeObject.TryGetValue(data, "server_http_address", out string httpUrl))
 			{
-				if (!string.IsNullOrEmpty(httpUrl) && httpUrl.StartsWith("http"))
+				if (!string.IsNullOrWhiteSpace(httpUrl) && httpUrl.StartsWith("http"))
 				{
 					ServerHttpUrl = httpUrl;
 				}
@@ -172,7 +172,7 @@ namespace MiniIT.Snipe
 			if (data.TryGetValue("log_reporter", out var log_reporter_field) &&
 				log_reporter_field is IDictionary<string, object> log_reporter)
 			{
-				LogReporterUrl = SnipeObject.SafeGetString(log_reporter, "url");
+				LogReporterUrl = SnipeObject.SafeGetString(log_reporter, "url").Trim();
 			}
 
 			if (data.TryGetValue("compression", out var compression_field) &&
