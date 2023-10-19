@@ -21,17 +21,17 @@ namespace MiniIT.Snipe
 
 		private HashSet<TablesLoaderItem> _loadingItems; 
 		private readonly TablesVersionsLoader _versionsLoader;
+		private readonly BuiltInTablesListService _builtInTablesListService;
 		private readonly SnipeAnalyticsTracker _analyticsTracker;
 		private readonly ILogger _logger;
-		private readonly BuiltInTablesListService _builtInTablesListService;
 
 		public TablesLoader()
 		{
 			StreamingAssetsReader.Initialize();
-			_versionsLoader = new TablesVersionsLoader();
 			_analyticsTracker = SnipeServices.Analytics.GetTracker();
-			_logger = SnipeServices.LogService.GetLogger(nameof(TablesLoader));
 			_builtInTablesListService = new BuiltInTablesListService();
+			_versionsLoader = new TablesVersionsLoader(_builtInTablesListService, _analyticsTracker);
+			_logger = SnipeServices.LogService.GetLogger(nameof(TablesLoader));
 		}
 
 		internal static string GetCacheDirectoryPath()

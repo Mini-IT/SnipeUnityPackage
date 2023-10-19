@@ -12,12 +12,14 @@ namespace MiniIT.Snipe.Tables
 {
 	public class TablesVersionsLoader
 	{
+		private readonly BuiltInTablesListService _builtInTablesListService;
 		private readonly SnipeAnalyticsTracker _analyticsTracker;
 		private readonly ILogger _logger;
 
-		public TablesVersionsLoader()
+		public TablesVersionsLoader(BuiltInTablesListService builtInTablesListService, SnipeAnalyticsTracker analyticsTracker)
 		{
-			_analyticsTracker = SnipeServices.Analytics.GetTracker();
+			_builtInTablesListService = builtInTablesListService;
+			_analyticsTracker = analyticsTracker;
 			_logger = SnipeServices.LogService.GetLogger(nameof(TablesVersionsLoader));
 		}
 
@@ -25,8 +27,22 @@ namespace MiniIT.Snipe.Tables
 		{
 			Dictionary<string, long> versions = null;
 
-			for (int retries_count = 0; retries_count < 3; retries_count++)
+			const int MAX_RETIES = 3;
+			for (int retries_count = 0; retries_count < MAX_RETIES; retries_count++)
 			{
+				if (retries_count > 0)
+				{
+					try
+					{
+						await Task.Delay(500, cancellationToken);
+					}
+					catch (OperationCanceledException)
+					{
+						_logger.LogTrace($"LoadVersion task canceled");
+						break;
+					}
+				}
+
 				string url = GetVersionsUrl();
 
 				_logger.LogTrace($"LoadVersion ({retries_count}) " + url);
@@ -105,23 +121,18 @@ namespace MiniIT.Snipe.Tables
 					_logger.LogTrace($"LoadVersion task canceled");
 					break;
 				}
-
-				try
-				{
-					await Task.Delay(500, cancellationToken);
-				}
-				catch (OperationCanceledException)
-				{
-					_logger.LogTrace($"LoadVersion task canceled");
-					break;
-				}
 			}
 
 			if (versions == null)
 			{
-				_logger.LogTrace($"LoadVersion Failed");
+				_logger.LogTrace($"LoadVersion Failed. Trying to use the built-in ones");
 				_analyticsTracker.TrackEvent("Tables - LoadVersion Failed");
-				return null;
+
+				versions = new Dictionary<string, long>(_builtInTablesListService.Items.Count);
+				foreach(var item in _builtInTablesListService.Items)
+				{
+					versions[item.name] = item.version;
+				}
 			}
 
 			return versions;

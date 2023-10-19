@@ -15,16 +15,17 @@ namespace MiniIT.Snipe.Tables
 
 	public class BuiltInTablesListService
 	{
-		public List<BuiltInTablesListItem> Items { get; private set; }
+		public IReadOnlyList<BuiltInTablesListItem> Items => _items;
+		private List<BuiltInTablesListItem> _items;
 
 		public async Task InitializeAsync(CancellationToken cancellationToken = default)
 		{
-			Items = await ReadBuiltInTablesVersions(cancellationToken);
+			_items = await ReadBuiltInTablesVersions(cancellationToken);
 		}
 
 		public bool TryGetTableVersion(string name, out long version)
 		{
-			if (Items == null)
+			if (_items == null)
 			{
 				version = 0;
 
@@ -34,7 +35,7 @@ namespace MiniIT.Snipe.Tables
 				return false;
 			}
 
-			foreach (var item in Items)
+			foreach (var item in _items)
 			{
 				if (item.name == name)
 				{
@@ -63,12 +64,12 @@ namespace MiniIT.Snipe.Tables
 			{
 				foreach (var loadedItem in list)
 				{
-					if (loadedItem is SnipeObject item)
+					if (loadedItem is IDictionary<string, object> item)
 					{
 						var resultItem = new BuiltInTablesListItem()
 						{
-							name = item.SafeGetString("name"),
-							version = item.SafeGetValue<long>("version"),
+							name = SnipeObject.SafeGetString(item, "name"),
+							version = SnipeObject.SafeGetValue<long>(item, "version"),
 						};
 
 						if (resultItem.version != 0 && !string.IsNullOrEmpty(resultItem.name))
