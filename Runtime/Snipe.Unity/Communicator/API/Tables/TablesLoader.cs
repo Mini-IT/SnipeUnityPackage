@@ -47,8 +47,7 @@ namespace MiniIT.Snipe
 		public void Reset()
 		{
 			_logger.LogTrace("Reset");
-
-			SnipeServices.Analytics.GetTracker().TrackEvent("TablesLoader - Reset");
+			_analyticsTracker.TrackEvent("TablesLoader - Reset");
 
 			StopLoading();
 			
