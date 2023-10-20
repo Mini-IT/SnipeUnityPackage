@@ -23,6 +23,12 @@ namespace MiniIT.Snipe.Api
 			return _requestFactory.Invoke(message_type, data);
 		}
 
+		public void SubscribeOnMessageReceived(SnipeCommunicator.MessageReceivedHandler handler)
+		{
+			_communicator.MessageReceived -= handler;
+			_communicator.MessageReceived += handler;
+		}
+
 		public virtual void Dispose()
 		{
 		}
@@ -34,12 +40,6 @@ namespace MiniIT.Snipe.Api
 		protected void AddMergeableRequestType(SnipeRequestDescriptor descriptor)
 		{
 			_communicator.MergeableRequestTypes.Add(descriptor);
-		}
-
-		internal void SubscribeOnMessageReceived(SnipeCommunicator.MessageReceivedHandler handler)
-		{
-			_communicator.MessageReceived -= handler;
-			_communicator.MessageReceived += handler;
 		}
 	}
 }

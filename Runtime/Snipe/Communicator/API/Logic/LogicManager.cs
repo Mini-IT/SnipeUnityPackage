@@ -20,7 +20,7 @@ namespace MiniIT.Snipe.Api
 
 		public Dictionary<int, LogicNode> Nodes { get; private set; } = new Dictionary<int, LogicNode>();
 		private Dictionary<string, LogicNode> _taggedNodes;
-		private SnipeTable<SnipeTableLogicItem> _logicTable = null;
+		private ISnipeTable<SnipeTableLogicItem> _logicTable = null;
 
 		private TimeSpan _updateRequestedTime = TimeSpan.Zero;
 		private SnipeObject _logicGetRequestParameters;
@@ -30,7 +30,7 @@ namespace MiniIT.Snipe.Api
 
 		public LogicManager(SnipeCommunicator communicator,
 			AbstractSnipeApiService.RequestFactoryMethod requestFactory,
-			SnipeTable<SnipeTableLogicItem> logicTable)
+			ISnipeTable<SnipeTableLogicItem> logicTable)
 			: base(communicator, requestFactory, logicTable)
 		{
 			_logicTable = logicTable;

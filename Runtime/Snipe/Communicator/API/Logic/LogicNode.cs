@@ -20,11 +20,11 @@ namespace MiniIT.Snipe.Api
 		public int timeleft = -1; // seconds left. (-1) means that the node does not have a timer
 		public bool isTimeout { get; private set; }
 
-		public LogicNode(SnipeObject data, SnipeTable<SnipeTableLogicItem> logic_table)
+		public LogicNode(SnipeObject data, ISnipeTable<SnipeTableLogicItem> logic_table)
 		{
 			id = data.SafeGetValue<int>("id");
 			
-			foreach (var table_tree in logic_table.Items.Values)
+			foreach (var table_tree in logic_table.Values)
 			{
 				foreach (var table_node in table_tree.nodes)
 				{

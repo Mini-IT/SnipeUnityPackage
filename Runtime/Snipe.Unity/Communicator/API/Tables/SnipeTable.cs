@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace MiniIT.Snipe
 {
-	public abstract class SnipeTable
+	public abstract class SnipeTable : ISnipeTable
 	{
 		public enum LoadingLocation
 		{
@@ -19,7 +19,7 @@ namespace MiniIT.Snipe
 		abstract internal IDictionary GetItems();
 	}
 
-	public class SnipeTable<TItem> : SnipeTable, IReadOnlyDictionary<int, TItem>
+	public class SnipeTable<TItem> : SnipeTable, ISnipeTable<TItem>
 		where TItem : SnipeTableItem, new()
 	{
 		internal readonly Dictionary<int, TItem> _items = new Dictionary<int, TItem>();

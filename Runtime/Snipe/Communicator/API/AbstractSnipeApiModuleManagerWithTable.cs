@@ -14,7 +14,7 @@ namespace MiniIT.Snipe.Api
 			internal SnipeObject _data;
 		}
 		
-		private SnipeTable _table = null;
+		private ISnipeTable _table = null;
 
 		protected CancellationTokenSource _waitingTableCancellation;
 		private Queue<QueuedMessage> _waitingTableMessages;
@@ -24,7 +24,7 @@ namespace MiniIT.Snipe.Api
 
 		public AbstractSnipeApiModuleManagerWithTable(SnipeCommunicator communicator,
 			AbstractSnipeApiService.RequestFactoryMethod requestFactory,
-			SnipeTable table)
+			ISnipeTable table)
 		{
 			_requestFactory = requestFactory;
 			_table = table;

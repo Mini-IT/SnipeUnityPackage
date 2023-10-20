@@ -15,7 +15,7 @@ namespace MiniIT.Snipe.Api
 		public int timeleft = -1; // seconds left. (-1) means that the node does not have a timer
 		public bool isTimeout { get; private set; }
 
-		public CalendarItem(SnipeObject data, SnipeTable<SnipeTableCalendarItem> table)
+		public CalendarItem(SnipeObject data, ISnipeTable<SnipeTableCalendarItem> table)
 		{
 			id = data.SafeGetValue<int>("id");
 		}

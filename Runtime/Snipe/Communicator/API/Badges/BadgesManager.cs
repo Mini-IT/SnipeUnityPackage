@@ -17,12 +17,12 @@ namespace MiniIT.Snipe.Api
 
 		public List<UserBadge> _badges = new List<UserBadge>();
 
-		private SnipeTable<SnipeTableBadgesItem> _badgesTable;
+		private ISnipeTable<SnipeTableBadgesItem> _badgesTable;
 		private GetCallback _getCallback;
 
 		public BadgesManager(SnipeCommunicator communicator,
 			AbstractSnipeApiService.RequestFactoryMethod requestFactory,
-			SnipeTable<SnipeTableBadgesItem> badgesTable)
+			ISnipeTable<SnipeTableBadgesItem> badgesTable)
 			: base(communicator, requestFactory, badgesTable)
 		{
 			_badgesTable = badgesTable;
