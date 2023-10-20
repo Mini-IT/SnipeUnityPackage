@@ -1,6 +1,7 @@
 ﻿﻿using System;
 using System.Text.RegularExpressions;
 #if !MINI_IT_ADVERTISING_ID
+using System.Threading.Tasks;
 using UnityEngine;
 #endif
 
