@@ -16,7 +16,7 @@ using Cysharp.Text;
 
 namespace MiniIT
 {
-	public class LogReporter
+	public class LogReporter : IDisposable
 	{
 		internal class LogRecord
 		{
@@ -30,6 +30,8 @@ namespace MiniIT
 
 		private SnipeContext _snipeContext;
 		private bool _running = false;
+
+		private HttpClient _httpClient;
 
 		private static readonly List<LogRecord> _log = new List<LogRecord>();
 		private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
@@ -84,40 +86,38 @@ namespace MiniIT
 			bool succeeded = true;
 			HttpStatusCode statusCode = default;
 
-			using (var httpClient = new HttpClient())
+			_httpClient ??= new HttpClient();
+			_httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+
+			for (int startIndex = 0; startIndex < _log.Count;)
 			{
-				httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-
-				for (int startIndex = 0; startIndex < _log.Count;)
+				string content;
+				try
 				{
-					string content;
-					try
-					{
-						await _semaphore.WaitAsync();
-						content = await Task.Run(() => GetPortionContent(ref startIndex, connectionId, userId, appVersion, appPlatform));
-					}
-					catch (Exception ex)
-					{
-						succeeded = false;
-						statusCode = HttpStatusCode.BadRequest;
-						Debug.LogError($"[{nameof(LogReporter)}] - Error getting log portion: {ex}");
-						break;
-					}
-					finally
-					{
-						_semaphore.Release();
-					}
+					await _semaphore.WaitAsync();
+					content = await Task.Run(() => GetPortionContent(ref startIndex, connectionId, userId, appVersion, appPlatform));
+				}
+				catch (Exception ex)
+				{
+					succeeded = false;
+					statusCode = HttpStatusCode.BadRequest;
+					Debug.LogError($"[{nameof(LogReporter)}] - Error getting log portion: {ex}");
+					break;
+				}
+				finally
+				{
+					_semaphore.Release();
+				}
 					
-					var requestContent = new StringContent(content, Encoding.UTF8, "application/json");
-					var result = await httpClient.PostAsync(url, requestContent);
+				var requestContent = new StringContent(content, Encoding.UTF8, "application/json");
+				var result = await _httpClient.PostAsync(url, requestContent);
 
-					statusCode = result.StatusCode;
+				statusCode = result.StatusCode;
 					
-					if (!result.IsSuccessStatusCode)
-					{
-						succeeded = false;
-						break;
-					}
+				if (!result.IsSuccessStatusCode)
+				{
+					succeeded = false;
+					break;
 				}
 			}
 
@@ -235,6 +235,20 @@ namespace MiniIT
 				}
 			}
 			return literal.ToString();
+		}
+
+		public void Dispose()
+		{
+			if (_httpClient != null)
+			{
+				try
+				{
+					_httpClient.Dispose();
+				}
+				catch (Exception) { }
+
+				_httpClient = null;
+			}
 		}
 	}
 }

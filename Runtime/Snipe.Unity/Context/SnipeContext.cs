@@ -137,6 +137,12 @@ namespace MiniIT.Snipe
 				Communicator.Dispose();
 				Communicator = null;
 			}
+
+			if (LogReporter != null)
+			{
+				LogReporter.Dispose();
+				LogReporter = null;
+			}
 		}
 
 		protected virtual void Initialize(string id)
