@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using UnityEngine;
+using System.Text.RegularExpressions;
 
 namespace MiniIT.Snipe
 {
@@ -24,33 +22,37 @@ namespace MiniIT.Snipe
 
 		public string ContextId { get; }
 
-		public string ClientKey;
-		public string AppInfo;
+		public string ClientKey { get; set; }
+		public string AppInfo { get; set; }
 		public string DebugId { get; private set; }
 
-		public List<string> ServerWebSocketUrls = new List<string>();
-		public List<UdpAddress> ServerUdpUrls = new List<UdpAddress>();
+		public List<string> ServerWebSocketUrls { get; set; } = new List<string>();
+		public List<UdpAddress> ServerUdpUrls { get; set; } = new List<UdpAddress>();
+		public string ServerHttpUrl { get; set; }
+
+		/// <summary>
+		/// Http transport heartbeat interval.
+		/// If the value is less than 1 then heartbeat is turned off.
+		/// </summary>
+		public TimeSpan HttpHeartbeatInterval { get; set; } = TimeSpan.Zero;
 		
-		public bool CompressionEnabled = true;
-		public int MinMessageBytesToCompress = 13 * 1024;
+		public bool CompressionEnabled { get; set; } = true;
+		public int MinMessageBytesToCompress { get; set; } = 13 * 1024;
 
-		public SnipeObject LoginParameters;
+		public SnipeObject LoginParameters { get; set; }
 
-		public string LogReporterUrl;
-
-		public string PersistentDataPath { get; private set; }
-		public string StreamingAssetsPath { get; private set; }
+		public string LogReporterUrl { get; set; }
 
 		private int _serverWebSocketUrlIndex = 0;
 		private int _serverUdpUrlIndex = 0;
 
-		private readonly TaskScheduler _mainThreadScheduler;
+		private readonly IMainThreadRunner _mainThreadRunner;
+		private readonly IApplicationInfo _applicationInfo;
 
 		public SnipeConfig(string contextId)
 		{
-			_mainThreadScheduler = SynchronizationContext.Current != null ?
-				TaskScheduler.FromCurrentSynchronizationContext() :
-				TaskScheduler.Current;
+			_mainThreadRunner = SnipeServices.MainThreadRunner;
+			_applicationInfo = SnipeServices.ApplicationInfo;
 
 			ContextId = contextId ?? "";
 		}
@@ -68,7 +70,7 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public void Initialize(IDictionary<string, object> data)
 		{
-			ClientKey = SnipeObject.SafeGetString(data, "client_key");
+			ClientKey = SnipeObject.SafeGetString(data, "client_key").Trim();
 
 			if (ServerWebSocketUrls == null)
 				ServerWebSocketUrls = new List<string>();
@@ -80,9 +82,9 @@ namespace MiniIT.Snipe
 			{
 				foreach (string url in server_ulrs_list)
 				{
-					if (!string.IsNullOrEmpty(url))
+					if (!string.IsNullOrWhiteSpace(url))
 					{
-						ServerWebSocketUrls.Add(url);
+						ServerWebSocketUrls.Add(url.Trim());
 					}
 				}
 			}
@@ -91,9 +93,9 @@ namespace MiniIT.Snipe
 			{
 				// "service_websocket" field for backward compatibility
 				var service_url = SnipeObject.SafeGetString(data, "service_websocket");
-				if (!string.IsNullOrEmpty(service_url))
+				if (!string.IsNullOrWhiteSpace(service_url))
 				{
-					ServerWebSocketUrls.Add(service_url);
+					ServerWebSocketUrls.Add(service_url.Trim());
 				}
 			}
 
@@ -107,10 +109,10 @@ namespace MiniIT.Snipe
 			{
 				foreach (string item in server_udp_list)
 				{
-					string url = item;
-
-					if (!string.IsNullOrEmpty(url))
+					if (!string.IsNullOrWhiteSpace(item))
 					{
+						string url = item.Trim();
+
 						int index = url.IndexOf("://");
 						if (index >= 0)
 						{
@@ -144,20 +146,33 @@ namespace MiniIT.Snipe
 
 				var address = new UdpAddress()
 				{
-					Host = SnipeObject.SafeGetString(data, "server_udp_address"),
+					Host = SnipeObject.SafeGetString(data, "server_udp_address").Trim(),
 					Port = SnipeObject.SafeGetValue<ushort>(data, "server_udp_port"),
 				};
 
-				if (address.Port > 0 && !string.IsNullOrEmpty(address.Host))
+				if (address.Port > 0 && !string.IsNullOrWhiteSpace(address.Host))
 				{
 					ServerUdpUrls.Add(address);
+				}
+			}
+
+			if (SnipeObject.TryGetValue(data, "server_http_address", out string httpUrl))
+			{
+				if (!string.IsNullOrWhiteSpace(httpUrl) && httpUrl.StartsWith("http"))
+				{
+					ServerHttpUrl = httpUrl;
+				}
+
+				if (SnipeObject.TryGetValue(data, "server_http_heartbeat_seconds", out int heartbeatInterval))
+				{
+					HttpHeartbeatInterval = TimeSpan.FromSeconds(heartbeatInterval);
 				}
 			}
 
 			if (data.TryGetValue("log_reporter", out var log_reporter_field) &&
 				log_reporter_field is IDictionary<string, object> log_reporter)
 			{
-				LogReporterUrl = SnipeObject.SafeGetString(log_reporter, "url");
+				LogReporterUrl = SnipeObject.SafeGetString(log_reporter, "url").Trim();
 			}
 
 			if (data.TryGetValue("compression", out var compression_field) &&
@@ -167,11 +182,10 @@ namespace MiniIT.Snipe
 				MinMessageBytesToCompress = SnipeObject.SafeGetValue<int>(compression, "min_size");
 			}
 
-			_serverWebSocketUrlIndex = SharedPrefs.GetInt(SnipePrefs.GetWebSocketUrlIndex(ContextId), 0);
-			_serverUdpUrlIndex = SharedPrefs.GetInt(SnipePrefs.GetUdpUrlIndex(ContextId), 0);
+			_serverWebSocketUrlIndex = SnipeServices.SharedPrefs.GetInt(SnipePrefs.GetWebSocketUrlIndex(ContextId), 0);
+			_serverUdpUrlIndex = SnipeServices.SharedPrefs.GetInt(SnipePrefs.GetUdpUrlIndex(ContextId), 0);
 
 			TablesConfig.Init(data);
-			TablesConfig.PersistentDataPath = Application.persistentDataPath;
 
 			InitAppInfo();
 		}
@@ -180,18 +194,26 @@ namespace MiniIT.Snipe
 		{
 			AppInfo = new SnipeObject()
 			{
-				["identifier"] = Application.identifier,
-				["version"] = Application.version,
-				["platform"] = Application.platform.ToString(),
+				["identifier"] = _applicationInfo.ApplicationIdentifier,
+				["version"] = _applicationInfo.ApplicationVersion,
+				["platform"] = _applicationInfo.ApplicationPlatform,
 				["packageVersion"] = PackageInfo.VERSION,
 			}.ToJSONString();
 
+			DebugId = GenerateDebugId();
+			SnipeServices.Analytics.GetTracker(ContextId).SetDebugId(DebugId);
+			
+		}
+
+		private string GenerateDebugId()
+		{
 			using (var md5 = System.Security.Cryptography.MD5.Create())
 			{
-				string id = SystemInfo.deviceUniqueIdentifier + Application.identifier;
+				string id = _applicationInfo.DeviceIdentifier + _applicationInfo.ApplicationIdentifier;
 				byte[] hashBytes = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(id));
-				DebugId = System.Convert.ToBase64String(hashBytes).Substring(0, 16);
-				Analytics.GetInstance(ContextId).SetDebugId(DebugId);
+				string hash = Convert.ToBase64String(hashBytes);
+				hash = new Regex(@"\W").Replace(hash, "0");
+				return hash.Substring(0, Math.Min(16, hash.Length));
 			}
 		}
 
@@ -217,11 +239,16 @@ namespace MiniIT.Snipe
 			return null;
 		}
 
+		public string GetHttpAddress()
+		{
+			return ServerHttpUrl;
+		}
+
 		public void NextWebSocketUrl()
 		{
 			_serverWebSocketUrlIndex = GetValidIndex(ServerWebSocketUrls, _serverWebSocketUrlIndex, true);
 
-			RunInMainThread(() => SharedPrefs.SetInt(SnipePrefs.GetWebSocketUrlIndex(ContextId), _serverWebSocketUrlIndex));
+			_mainThreadRunner.RunInMainThread(() => SnipeServices.SharedPrefs.SetInt(SnipePrefs.GetWebSocketUrlIndex(ContextId), _serverWebSocketUrlIndex));
 		}
 
 		public bool NextUdpUrl()
@@ -229,7 +256,7 @@ namespace MiniIT.Snipe
 			int prev = _serverUdpUrlIndex;
 			_serverUdpUrlIndex = GetValidIndex(ServerUdpUrls, _serverUdpUrlIndex, true);
 
-			RunInMainThread(() => SharedPrefs.SetInt(SnipePrefs.GetUdpUrlIndex(ContextId), _serverUdpUrlIndex));
+			_mainThreadRunner.RunInMainThread(() => SnipeServices.SharedPrefs.SetInt(SnipePrefs.GetUdpUrlIndex(ContextId), _serverUdpUrlIndex));
 
 			return _serverUdpUrlIndex > prev;
 		}
@@ -240,6 +267,16 @@ namespace MiniIT.Snipe
 				return false;
 			var address = ServerUdpUrls[0];
 			return !string.IsNullOrEmpty(address?.Host) && address.Port > 0;
+		}
+
+		public bool CheckWebSocketAvailable()
+		{
+			return ServerWebSocketUrls != null && ServerWebSocketUrls.Count > 0;
+		}
+
+		public bool CheckHttpAvailable()
+		{
+			return !string.IsNullOrEmpty(GetHttpAddress());
 		}
 
 		// [Testable]
@@ -263,11 +300,6 @@ namespace MiniIT.Snipe
 			}
 
 			return index;
-		}
-
-		private void RunInMainThread(Action action)
-		{
-			new Task(action).RunSynchronously(_mainThreadScheduler);
 		}
 	}
 }

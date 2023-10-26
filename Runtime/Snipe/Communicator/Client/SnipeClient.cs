@@ -2,11 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
-#if ZSTRING
-using Cysharp.Text;
-#endif
+using Microsoft.Extensions.Logging;
 
 namespace MiniIT.Snipe
 {
@@ -23,15 +19,15 @@ namespace MiniIT.Snipe
 		public event Action<string> LoginFailed;
 		public event Action UdpConnectionFailed;
 
-		private WebSocketTransport _webSocket;
-		private KcpTransport _kcp;
+		private Transport _transport;
 
 		protected bool _loggedIn = false;
 
-		public bool Connected => UdpClientConnected || WebSocketConnected;
+		public bool Connected => _transport != null && _transport.Connected;
 		public bool LoggedIn { get { return _loggedIn && Connected; } }
-		public bool WebSocketConnected => _webSocket != null && _webSocket.Connected;
-		public bool UdpClientConnected => _kcp != null && _kcp.Connected;
+		public bool WebSocketConnected => Connected && _transport is WebSocketTransport;
+		public bool UdpClientConnected => Connected && _transport is KcpTransport;
+		public bool HttpClientConnected => Connected && _transport is HttpTransport;
 
 		public string ConnectionId { get; private set; }
 
@@ -59,7 +55,7 @@ namespace MiniIT.Snipe
 						_batchedRequests = null;
 					}
 
-					DebugLogger.Log($"[SnipeClient] BatchMode = {value}");
+					_logger.LogTrace($"BatchMode = {value}");
 				}
 			}
 		}
@@ -67,102 +63,130 @@ namespace MiniIT.Snipe
 		private ConcurrentQueue<SnipeObject> _batchedRequests;
 		private readonly object _batchLock = new object();
 
+		private Queue<Func<Transport>> _transportFactoriesQueue = new Queue<Func<Transport>>(3);
+
 		private int _requestId = 0;
 
-		private TaskScheduler _mainThreadScheduler;
 		private readonly SnipeConfig _config;
-		private readonly Analytics _analytics;
+		private readonly SnipeAnalyticsTracker _analytics;
+		private readonly IMainThreadRunner _mainThreadRunner;
+		private readonly ILogger _logger;
 
 		internal SnipeClient(SnipeConfig config)
 		{
 			_config = config;
-			_analytics = Analytics.GetInstance(config.ContextId);
+			_analytics = SnipeServices.Analytics.GetTracker(config.ContextId);
+			_mainThreadRunner = SnipeServices.MainThreadRunner;
+			_logger = SnipeServices.LogService.GetLogger(nameof(SnipeClient));
 		}
 
 		public void Connect()
 		{
-			_mainThreadScheduler = SynchronizationContext.Current != null ?
-				TaskScheduler.FromCurrentSynchronizationContext() :
-				TaskScheduler.Current;
+			_transportFactoriesQueue.Clear();
 
 			if (_config.CheckUdpAvailable())
 			{
-				ConnectUdpClient();
+				_transportFactoriesQueue.Enqueue(CreateKcpTransport);
 			}
-			else
+
+			if (_config.CheckWebSocketAvailable())
 			{
-				ConnectWebSocket();
+				_transportFactoriesQueue.Enqueue(CreateWebSocketTransport);
 			}
-		}
 
-		private void RunInMainThread(Action action)
-		{
-			new Task(action).RunSynchronously(_mainThreadScheduler);
-		}
-
-		private void ConnectUdpClient()
-		{
-			if (_kcp != null && _kcp.Started)  // already connected or trying to connect
-				return;
-
-			if (_kcp == null)
+			if (_config.CheckHttpAvailable())
 			{
-				_kcp = new KcpTransport(_config);
-				_kcp.ConnectionOpenedHandler = () =>
-				{
-					_analytics.UdpConnectionTime = _connectionStopwatch.Elapsed;
-					OnConnected();
-				};
-				_kcp.ConnectionClosedHandler = () =>
-				{
-					RunInMainThread(() =>
-					{
-						UdpConnectionFailed?.Invoke();
-					});
-
-					if (_kcp.ConnectionEstablished)
-					{
-						Disconnect(true);
-					}
-					else // not connected yet, try websocket
-					{
-						ConnectWebSocket();
-					}
-				};
-				_kcp.MessageReceivedHandler = ProcessMessage;
+				_transportFactoriesQueue.Enqueue(CreateHttpTransport);
 			}
 
-			_connectionStopwatch = Stopwatch.StartNew();
-
-			_kcp.Connect();
+			StartNextTransport();
 		}
 
-		private void ConnectWebSocket()
+		private bool StartNextTransport()
 		{
-			if (_webSocket != null && _webSocket.Started)  // already connected or trying to connect
+#if NET_STANDARD_2_1
+			if (_transportFactoriesQueue.TryDequeue(out var transportFactory))
+			{
+#else
+			if (_transportFactoriesQueue.Count > 0)
+			{
+				var transportFactory = _transportFactoriesQueue.Dequeue();
+#endif
+				StartTransport(transportFactory);
+				return true;
+			}
+
+			return false;
+		}
+
+		private void StartTransport(Func<Transport> transportFactory)
+		{
+			if (_transport != null && _transport.Started)  // already connected or trying to connect
 				return;
 
 			Disconnect(false); // clean up
 
-			if (_webSocket == null)
-			{
-				_webSocket = new WebSocketTransport(_config);
-				_webSocket.ConnectionOpenedHandler = OnConnected;
-				_webSocket.ConnectionClosedHandler = () => Disconnect(true);
-				_webSocket.MessageReceivedHandler = ProcessMessage;
-			}
+			_transport ??= transportFactory.Invoke();
 
 			_connectionStopwatch = Stopwatch.StartNew();
-
-			_webSocket.Connect();
+			_transport.Connect();
 		}
 
-		private void OnConnected()
+		#region Transport fabrics
+
+		private KcpTransport CreateKcpTransport()
+		{
+			var transport = new KcpTransport(_config, _analytics);
+
+			transport.ConnectionOpenedHandler = () =>
+			{
+				_analytics.UdpConnectionTime = _connectionStopwatch.Elapsed;
+				OnTransportConnectionOpened();
+			};
+
+			transport.ConnectionClosedHandler = () =>
+			{
+				_mainThreadRunner.RunInMainThread(() =>
+				{
+					UdpConnectionFailed?.Invoke();
+				});
+
+				OnTransportConnectionClosed();
+			};
+
+			transport.MessageReceivedHandler = ProcessMessage;
+
+			return transport;
+		}
+
+		private WebSocketTransport CreateWebSocketTransport()
+		{
+			return new WebSocketTransport(_config, _analytics)
+			{
+				ConnectionOpenedHandler = OnTransportConnectionOpened,
+				ConnectionClosedHandler = OnTransportConnectionClosed,
+				MessageReceivedHandler = ProcessMessage
+			};
+		}
+
+		private HttpTransport CreateHttpTransport()
+		{
+			return new HttpTransport(_config, _analytics)
+			{
+				ConnectionOpenedHandler = OnTransportConnectionOpened,
+				ConnectionClosedHandler = OnTransportConnectionClosed,
+				MessageReceivedHandler = ProcessMessage,
+			};
+		}
+
+		#endregion
+
+		private void OnTransportConnectionOpened()
 		{
 			_connectionStopwatch?.Stop();
 			_analytics.ConnectionEstablishmentTime = _connectionStopwatch?.Elapsed ?? TimeSpan.Zero;
 
-			RunInMainThread(() =>
+			_mainThreadRunner.RunInMainThread(() =>
 			{
 				try
 				{
@@ -170,15 +194,31 @@ namespace MiniIT.Snipe
 				}
 				catch (Exception e)
 				{
-					DebugLogger.Log($"[SnipeClient] ConnectionOpened invocation error: {e}");
+					_logger.LogTrace("ConnectionOpened invocation error: {0}", e);
 					_analytics.TrackError("ConnectionOpened invocation error", e);
 				}
 			});
 		}
 
+		private void OnTransportConnectionClosed()
+		{
+			if (_transport.ConnectionEstablished)
+			{
+				Disconnect(true);
+			}
+			else // not connected yet, try another transport
+			{
+				bool started = StartNextTransport();
+				if (!started)
+				{
+					Disconnect(true);
+				}
+			}
+		}
+
 		private void RaiseConnectionClosedEvent()
 		{
-			RunInMainThread(() =>
+			_mainThreadRunner.RunInMainThread(() =>
 			{
 				try
 				{
@@ -186,7 +226,7 @@ namespace MiniIT.Snipe
 				}
 				catch (Exception e)
 				{
-					DebugLogger.Log($"[SnipeClient] ConnectionClosed invocation error: {e}");
+					_logger.LogTrace("ConnectionClosed invocation error: {0}", e);
 					_analytics.TrackError("ConnectionClosed invocation error", e);
 				}
 			});
@@ -197,7 +237,7 @@ namespace MiniIT.Snipe
 			Disconnect(true);
 		}
 
-		private void Disconnect(bool raise_event)
+		private void Disconnect(bool raiseEvent)
 		{
 			_loggedIn = false;
 			ConnectionId = "";
@@ -208,26 +248,26 @@ namespace MiniIT.Snipe
 
 			StopResponseMonitoring();
 
-			_kcp?.Disconnect();
-
-			if (_webSocket != null)
+			if (_transport != null)
 			{
-				_webSocket.Disconnect();
-				_webSocket = null;
+				_transport.Disconnect();
+				_transport = null;
 			}
 
-			if (raise_event)
+			if (raiseEvent)
 			{
 				RaiseConnectionClosedEvent();
 			}
 		}
 
-		public int SendRequest(string message_type, SnipeObject data)
+		public int SendRequest(string messageType, SnipeObject data)
 		{
 			if (!Connected)
+			{
 				return 0;
+			}
 
-			var message = new SnipeObject() { ["t"] = message_type };
+			var message = new SnipeObject() { ["t"] = messageType };
 
 			if (data != null)
 			{
@@ -240,14 +280,16 @@ namespace MiniIT.Snipe
 		public int SendRequest(SnipeObject message)
 		{
 			if (!Connected || message == null)
+			{
 				return 0;
+			}
 
-			int request_id = ++_requestId;
-			message["id"] = request_id;
+			int requestId = ++_requestId;
+			message["id"] = requestId;
 
 			SnipeObject data = null;
 
-			if (!_loggedIn)
+			if (!_loggedIn && (_batchedRequests == null || _batchedRequests.IsEmpty))
 			{
 				data = message["data"] as SnipeObject ?? new SnipeObject();
 				data["ckey"] = _config.ClientKey;
@@ -274,31 +316,22 @@ namespace MiniIT.Snipe
 				DoSendRequest(message);
 			}
 
-			return request_id;
+			return requestId;
 		}
 
 		private void DoSendRequest(SnipeObject message)
 		{
 			if (!Connected || message == null)
+			{
 				return;
-			
-			if (DebugLogger.IsEnabled)
-			{
-				#if ZSTRING
-				DebugLogger.Log(ZString.Concat("[SnipeClient] SendRequest - ", message.ToJSONString()));
-				#else
-				DebugLogger.Log($"[SnipeClient] SendRequest - {message.ToJSONString()}");
-				#endif
 			}
 			
-			if (UdpClientConnected)
+			if (_logger.IsEnabled(LogLevel.Trace))
 			{
-				_kcp.SendMessage(message);
+				_logger.LogTrace("SendRequest - {0}", message.ToJSONString());
 			}
-			else if (WebSocketConnected)
-			{
-				_webSocket.SendMessage(message);
-			}
+			
+			_transport.SendMessage(message);
 
 			if (_serverReactionStopwatch != null)
 			{
@@ -318,22 +351,17 @@ namespace MiniIT.Snipe
 			if (!Connected || messages == null || messages.Count == 0)
 				return;
 
-			DebugLogger.Log($"[SnipeClient] DoSendBatch - {messages.Count} items");
+			_logger.LogTrace("DoSendBatch - {0} items", messages.Count);
 
-			if (UdpClientConnected)
-			{
-				_kcp.SendBatch(messages);
-			}
-			else if (WebSocketConnected)
-			{
-				_webSocket.SendBatch(messages);
-			}
+			_transport.SendBatch(messages);
 		}
 
 		private void ProcessMessage(SnipeObject message)
 		{
 			if (message == null)
+			{
 				return;
+			}
 
 			if (_serverReactionStopwatch != null)
 			{
@@ -341,111 +369,119 @@ namespace MiniIT.Snipe
 				_analytics.ServerReaction = _serverReactionStopwatch.Elapsed;
 			}
 
-			string message_type = message.SafeGetString("t");
-			string error_code =  message.SafeGetString("errorCode");
-			int request_id = message.SafeGetValue<int>("id");
-			SnipeObject response_data = message.SafeGetValue<SnipeObject>("data");
-			
-			RemoveResponseMonitoringItem(request_id, message_type);
-			
-			if (DebugLogger.IsEnabled)
+			string messageType = message.SafeGetString("t");
+			string errorCode = message.SafeGetString("errorCode");
+			int requestId = message.SafeGetValue<int>("id");
+			SnipeObject responseData = message.SafeGetValue<SnipeObject>("data");
+
+			RemoveResponseMonitoringItem(requestId, messageType);
+
+			if (_logger.IsEnabled(LogLevel.Trace))
 			{
-				#if ZSTRING
-				DebugLogger.Log(ZString.Format("[SnipeClient] [{0}] ProcessMessage - {1} - {2} {3} {4}", ConnectionId, request_id, message_type, error_code, response_data?.ToFastJSONString()));
-				#else
-				DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - {request_id} - {message_type} {error_code} {response_data?.ToFastJSONString()}");
-				#endif
+				_logger.LogTrace("[{0}] ProcessMessage - {1} - {2} {3} {4}", ConnectionId, requestId, messageType, errorCode, responseData?.ToFastJSONString());
 			}
 
-			if (!_loggedIn)
+			if (!_loggedIn && messageType == SnipeMessageTypes.USER_LOGIN)
 			{
-				if (message_type == SnipeMessageTypes.USER_LOGIN)
-				{	
-					if (error_code == SnipeErrorCodes.OK || error_code == SnipeErrorCodes.ALREADY_LOGGED_IN)
-					{
-						DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - Login Succeeded");
-						
-						_loggedIn = true;
+				ProcessLoginResponse(errorCode, responseData);
+			}
 
-						_webSocket?.SetLoggedIn(true);
+			InvokeMessageReceived(messageType, errorCode, requestId, responseData);
+		}
 
-						if (response_data != null)
-						{
-							this.ConnectionId = response_data.SafeGetString("connectionID");
-						}
-						else
-						{
-							this.ConnectionId = "";
-						}
-						
-						if (LoginSucceeded != null)
-						{
-							RunInMainThread(() =>
-							{
-								try
-								{
-									LoginSucceeded?.Invoke();
-								}
-								catch (Exception e)
-								{
-									DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginSucceeded invocation error: {e}");
-									_analytics.TrackError("LoginSucceeded invocation error", e);
-								}
-							});
-						}
-					}
-					else
+		private void ProcessLoginResponse(string errorCode, SnipeObject responseData)
+		{
+			if (errorCode == SnipeErrorCodes.OK || errorCode == SnipeErrorCodes.ALREADY_LOGGED_IN)
+			{
+				_logger.LogTrace("[{0}] ProcessMessage - Login Succeeded", ConnectionId);
+
+				_loggedIn = true;
+
+				if (_transport is WebSocketTransport webSocketTransport)
+				{
+					webSocketTransport.SetLoggedIn(true);
+				}
+
+				if (responseData != null)
+				{
+					ConnectionId = responseData.SafeGetString("connectionID");
+				}
+				else
+				{
+					ConnectionId = "";
+				}
+
+				if (LoginSucceeded != null)
+				{
+					_mainThreadRunner.RunInMainThread(() =>
 					{
-						DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - Login Failed");
-						
-						if (LoginFailed != null)
+						try
 						{
-							RunInMainThread(() =>
-							{
-								try
-								{
-									LoginFailed?.Invoke(error_code);
-								}
-								catch (Exception e)
-								{
-									DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - LoginFailed invocation error: {e}");
-									_analytics.TrackError("LoginFailed invocation error", e);
-								}
-							});
+							LoginSucceeded?.Invoke();
 						}
-					}
+						catch (Exception e)
+						{
+							_logger.LogTrace("[{0}] ProcessMessage - LoginSucceeded invocation error: {1}", ConnectionId, e);
+							_analytics.TrackError("LoginSucceeded invocation error", e);
+						}
+					});
 				}
 			}
+			else
+			{
+				_logger.LogTrace("[{0}] ProcessMessage - Login Failed", ConnectionId);
 
+				if (LoginFailed != null)
+				{
+					_mainThreadRunner.RunInMainThread(() =>
+					{
+						try
+						{
+							LoginFailed?.Invoke(errorCode);
+						}
+						catch (Exception e)
+						{
+							_logger.LogTrace("[{0}] ProcessMessage - LoginFailed invocation error: {1}", ConnectionId, e);
+							_analytics.TrackError("LoginFailed invocation error", e);
+						}
+					});
+				}
+			}
+		}
+
+		private void InvokeMessageReceived(string messageType, string errorCode, int requestId, SnipeObject responseData)
+		{
 			if (MessageReceived != null)
 			{
-				RunInMainThread(() =>
+				_mainThreadRunner.RunInMainThread(() =>
 				{
 					try
 					{
-						MessageReceived?.Invoke(message_type, error_code, response_data, request_id);
+						MessageReceived?.Invoke(messageType, errorCode, responseData, requestId);
 					}
 					catch (Exception e)
 					{
-						DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - {message_type} - MessageReceived invocation error: {e}");
+						_logger.LogTrace("[{0}] ProcessMessage - {1} - MessageReceived invocation error: {2}", ConnectionId, messageType, e);
 						_analytics.TrackError("MessageReceived invocation error", e, new Dictionary<string, object>()
 						{
-							["messageType"] = message_type,
-							["errorCode"] = error_code,
+							["messageType"] = messageType,
+							["errorCode"] = errorCode,
 						});
 					}
 				});
 			}
 			else
 			{
-				DebugLogger.Log($"[SnipeClient] [{ConnectionId}] ProcessMessage - no MessageReceived listeners");
+				_logger.LogTrace("[{0}] ProcessMessage - no MessageReceived listeners", ConnectionId);
 			}
 		}
 
 		private void FlushBatchedRequests()
 		{
 			if (_batchedRequests == null || _batchedRequests.IsEmpty)
+			{
 				return;
+			}
 
 			lock (_batchLock)
 			{
@@ -463,11 +499,7 @@ namespace MiniIT.Snipe
 					{
 						messages.Add(message);
 
-						#if ZSTRING
-						DebugLogger.Log(ZString.Concat("[SnipeClient] Request batched - ", message.ToJSONString()));
-						#else
-						DebugLogger.Log($"[SnipeClient] Request batched - {message.ToJSONString()}");
-						#endif
+						_logger.LogTrace("Request batched - {0}", message.ToJSONString());
 					}
 					DoSendBatch(messages);
 				}

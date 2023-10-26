@@ -2,13 +2,15 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Threading.Tasks;
-using System.Threading;
 using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using MiniIT.Snipe.SharedPrefs;
+using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
-	public class AuthSubsystem
+	public abstract class AuthSubsystem
 	{
 		public delegate void AccountBindingCollisionHandler(AuthBinding binding, string userName = null);
 
@@ -41,7 +43,7 @@ namespace MiniIT.Snipe
 		/// <summary>
 		/// Indicates that a new registration is done during current session
 		/// </summary>
-		public bool JustRegistered { get; private set; } = false;
+		public bool JustRegistered { get; protected set; } = false;
 
 		public bool UseDefaultBindings { get; set; } = true;
 
@@ -53,15 +55,15 @@ namespace MiniIT.Snipe
 				if (_userID == 0)
 				{
 					string key = SnipePrefs.GetLoginUserID(_config.ContextId);
-					_userID = SharedPrefs.GetInt(key, 0);
+					_userID = _sharedPrefs.GetInt(key, 0);
 					if (_userID == 0)
 					{
 						// Try read a string value for backward compatibility
-						string stringValue = SharedPrefs.GetString(key);
+						string stringValue = _sharedPrefs.GetString(key);
 						if (!string.IsNullOrEmpty(stringValue) && int.TryParse(stringValue, out _userID))
 						{
 							// resave the value as int
-							SharedPrefs.SetInt(key, _userID);
+							_sharedPrefs.SetInt(key, _userID);
 						}
 					}
 
@@ -72,11 +74,11 @@ namespace MiniIT.Snipe
 				}
 				return _userID;
 			}
-			private set
+			protected set
 			{
 				_userID = value;
-				SharedPrefs.SetInt(SnipePrefs.GetLoginUserID(_config.ContextId), _userID);
-				
+				_sharedPrefs.SetInt(SnipePrefs.GetLoginUserID(_config.ContextId), _userID);
+
 				_analytics.SetUserId(_userID.ToString());
 			}
 		}
@@ -84,16 +86,18 @@ namespace MiniIT.Snipe
 		/// <summary>
 		/// User name that is displayed in the UI and leaderboards
 		/// </summary>
-		public string UserName { get; private set; }
+		public string UserName { get; protected set; }
 
-		private readonly SnipeCommunicator _communicator;
-		private readonly List<AuthBinding> _bindings;
+		protected readonly SnipeCommunicator _communicator;
+		protected readonly List<AuthBinding> _bindings;
 
-		private int _loginAttempt;
+		protected int _loginAttempt;
 
-		private readonly SnipeConfig _config;
-		private readonly Analytics _analytics;
-		private readonly TaskScheduler _mainThreadScheduler;
+		protected readonly SnipeConfig _config;
+		protected readonly SnipeAnalyticsTracker _analytics;
+		protected readonly ISharedPrefs _sharedPrefs;
+		protected readonly IMainThreadRunner _mainThreadRunner;
+		protected readonly ILogger _logger;
 
 		public AuthSubsystem(SnipeCommunicator communicator, SnipeConfig config)
 		{
@@ -101,43 +105,16 @@ namespace MiniIT.Snipe
 			_communicator.ConnectionSucceeded += OnConnectionSucceeded;
 
 			_config = config;
-			_analytics = Analytics.GetInstance(_config.ContextId);
-
-			_mainThreadScheduler = (SynchronizationContext.Current != null) ?
-				TaskScheduler.FromCurrentSynchronizationContext() :
-				TaskScheduler.Current;
+			_analytics = SnipeServices.Analytics.GetTracker(_config.ContextId);
+			_sharedPrefs = SnipeServices.SharedPrefs;
+			_mainThreadRunner = SnipeServices.MainThreadRunner;
+			_logger = SnipeServices.LogService.GetLogger(nameof(AuthSubsystem));
 
 			_bindings = new List<AuthBinding>();
 		}
 
-		private void RunInMainThread(Action action)
+		protected virtual void InitDefaultBindings()
 		{
-			new Task(action).RunSynchronously(_mainThreadScheduler);
-		}
-
-		private void InitDefaultBindings()
-		{
-			if (FindBinding<DeviceIdBinding>(false) == null)
-			{
-				_bindings.Add(new DeviceIdBinding(_communicator, this, _config));
-			}
-
-			if (FindBinding<AdvertisingIdBinding>(false) == null)
-			{
-				_bindings.Add(new AdvertisingIdBinding(_communicator, this, _config));
-			}
-
-#if SNIPE_FACEBOOK
-			if (FindBinding<FacebookBinding>(false) == null)
-			{
-				_bindings.Add(new FacebookBinding(_communicator, this, _config));
-			}
-#endif
-
-			if (FindBinding<AmazonBinding>(false) == null)
-			{
-				_bindings.Add(new AmazonBinding(_communicator, this, _config));
-			}
 		}
 
 		public void Authorize()
@@ -149,7 +126,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			DebugLogger.Log($"[{nameof(AuthSubsystem)}] ({_communicator.InstanceId}) Authorize");
+			_logger.LogTrace($"({_communicator.InstanceId}) Authorize");
 
 			if (UseDefaultBindings)
 			{
@@ -162,7 +139,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async void DelayedAuthorize()
+		protected async void DelayedAuthorize()
 		{
 			_loginAttempt++;
 			await Task.Delay(1000 * _loginAttempt);
@@ -173,7 +150,7 @@ namespace MiniIT.Snipe
 			Authorize();
 		}
 
-		private void OnConnectionSucceeded()
+		protected void OnConnectionSucceeded()
 		{
 			JustRegistered = false;
 			_loginAttempt = 0;
@@ -183,31 +160,31 @@ namespace MiniIT.Snipe
 				Authorize();
 			}
 		}
-		
-		private bool LoginWithInternalAuthData()
+
+		protected bool LoginWithInternalAuthData()
 		{
 			string authUidKey = SnipePrefs.GetAuthUID(_config.ContextId);
 			string authKeyKey = SnipePrefs.GetAuthKey(_config.ContextId);
-			string login = SharedPrefs.GetString(authUidKey);
-			string password = SharedPrefs.GetString(authKeyKey);
+			string login = _sharedPrefs.GetString(authUidKey);
+			string password = _sharedPrefs.GetString(authKeyKey);
 
 			if (string.IsNullOrEmpty(login) || string.IsNullOrEmpty(password))
 			{
 				return false;
 			}
-			
+
 			SnipeObject data = _config.LoginParameters != null ? new SnipeObject(_config.LoginParameters) : new SnipeObject();
 			data["login"] = login;
 			data["auth"] = password;
 			data["version"] = SnipeClient.SNIPE_VERSION;
 			data["appInfo"] = _config.AppInfo;
 			data["flagAutoJoinRoom"] = true;
-			
+
 			if (_config.CompressionEnabled)
 			{
 				data["flagCanPack"] = true;
 			}
-			
+
 			var stopwatch = Stopwatch.StartNew();
 
 			RunAuthRequest(() => new UnauthorizedRequest(_communicator, SnipeMessageTypes.USER_LOGIN, data)
@@ -232,19 +209,13 @@ namespace MiniIT.Snipe
 							AutoLogin = true;
 							_loginAttempt = 0;
 
-							if (LoginSucceeded != null)
-							{
-								RunInMainThread(() =>
-								{
-									RaiseEvent(LoginSucceeded);
-								});
-							}
+							RaiseLoginSucceededEvent();
 							break;
 
 						case SnipeErrorCodes.NO_SUCH_USER:
 						case SnipeErrorCodes.LOGIN_DATA_WRONG:
-							SharedPrefs.DeleteKey(authUidKey);
-							SharedPrefs.DeleteKey(authKeyKey);
+							_sharedPrefs.DeleteKey(authUidKey);
+							_sharedPrefs.DeleteKey(authKeyKey);
 							RegisterAndLogin();
 							break;
 
@@ -262,7 +233,7 @@ namespace MiniIT.Snipe
 
 						case SnipeErrorCodes.GAME_SERVERS_OFFLINE:
 						default: // unexpected error code
-							DebugLogger.LogError($"[{nameof(AuthSubsystem)}] ({_communicator.InstanceId}) {SnipeMessageTypes.USER_LOGIN} - Unexpected error code: {error_code}");
+							_logger.LogError($"({_communicator.InstanceId}) {SnipeMessageTypes.USER_LOGIN} - Unexpected error code: {error_code}");
 							_communicator.Disconnect();
 							break;
 					}
@@ -271,35 +242,10 @@ namespace MiniIT.Snipe
 
 			return true;
 		}
-		
-		private async void RegisterAndLogin()
-		{
-			if (_communicator == null)
-			{
-				return;
-			}
 
-			var providers = new List<SnipeObject>();
+		protected abstract void RegisterAndLogin();
 
-			if (_bindings.Count > 0)
-			{
-				var tasks = new List<Task>(2);
-
-				foreach (AuthBinding binding in _bindings)
-				{
-					if (binding?.Fetcher != null && (binding is DeviceIdBinding || binding is AdvertisingIdBinding))
-					{
-						tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers));
-					}
-				}
-
-				await Task.WhenAll(tasks.ToArray());
-			}
-
-			RequestRegisterAndLogin(providers);
-		}
-
-		private async Task FetchLoginId(string provider, AuthIdFetcher fetcher, List<SnipeObject> providers)
+		protected async Task FetchLoginId(string provider, AuthIdFetcher fetcher, List<SnipeObject> providers)
 		{
 			bool done = false;
 
@@ -321,8 +267,8 @@ namespace MiniIT.Snipe
 				await Task.Delay(20);
 			}
 		}
-		
-		private void RequestRegisterAndLogin(List<SnipeObject> providers)
+
+		protected void RequestRegisterAndLogin(List<SnipeObject> providers)
 		{
 			SnipeObject data = _config.LoginParameters != null ? new SnipeObject(_config.LoginParameters) : new SnipeObject();
 			data["version"] = SnipeClient.SNIPE_VERSION;
@@ -330,7 +276,7 @@ namespace MiniIT.Snipe
 			data["ckey"] = _config.ClientKey;
 			data["auths"] = providers;
 			data["flagAutoJoinRoom"] = true;
-			
+
 			if (_config.CompressionEnabled)
 			{
 				data["flagCanPack"] = true;
@@ -364,7 +310,7 @@ namespace MiniIT.Snipe
 										}
 										else
 										{
-											SharedPrefs.SetInt(SnipePrefs.GetAuthBindDone(_config.ContextId) + provider, 1);
+											_sharedPrefs.SetInt(SnipePrefs.GetAuthBindDone(_config.ContextId) + provider, 1);
 										}
 									}
 								}
@@ -373,13 +319,7 @@ namespace MiniIT.Snipe
 
 						StartBindings();
 
-						if (LoginSucceeded != null)
-						{
-							RunInMainThread(() =>
-							{
-								RaiseEvent(LoginSucceeded);
-							});
-						}
+						RaiseLoginSucceededEvent();
 					}
 				})
 			);
@@ -395,12 +335,12 @@ namespace MiniIT.Snipe
 
 			_communicator.BatchMode = batchMode;
 		}
-		
+
 		private void SetAuthData(string uid, string password)
 		{
-			SharedPrefs.SetString(SnipePrefs.GetAuthUID(_config.ContextId), uid);
-			SharedPrefs.SetString(SnipePrefs.GetAuthKey(_config.ContextId), password);
-			SharedPrefs.Save();
+			_sharedPrefs.SetString(SnipePrefs.GetAuthUID(_config.ContextId), uid);
+			_sharedPrefs.SetString(SnipePrefs.GetAuthKey(_config.ContextId), password);
+			_sharedPrefs.Save();
 		}
 
 		private void StartBindings()
@@ -442,7 +382,7 @@ namespace MiniIT.Snipe
 						UserID = 0;
 						SetAuthData(response.SafeGetString("uid"), response.SafeGetString("password"));
 					}
-					
+
 					callback?.Invoke(success);
 				});
 		}
@@ -463,7 +403,7 @@ namespace MiniIT.Snipe
 			return resultBinding;
 		}
 
-		private BindingType FindBinding<BindingType>(bool tryBaseClasses = true) where BindingType : AuthBinding
+		protected BindingType FindBinding<BindingType>(bool tryBaseClasses = true) where BindingType : AuthBinding
 		{
 			Type targetBindingType = typeof(BindingType);
 			BindingType resultBinding = null;
@@ -509,8 +449,8 @@ namespace MiniIT.Snipe
 		/// </summary>
 		/// <param name="binding">Instance of <see cref="AuthBinding"/> that references the target account</param>
 		/// <param name="destroyContext">Action that should gracefully destroy current <see cref="SnipeContext"/></param>
-		/// <param name="initContext">Action that initializes new <see cref="SnipeContext"/></param>
-		public void ReloginTo(AuthBinding binding, Action destroyContext, Action initContext)
+		/// <param name="startContext">Action that starts a new <see cref="SnipeContext"/></param>
+		public void ReloginTo(AuthBinding binding, Action destroyContext, Action startContext)
 		{
 			binding.ResetAuth(async (errorCode) =>
 			{
@@ -525,7 +465,7 @@ namespace MiniIT.Snipe
 				_userID = 0;
 
 				await Task.Delay(1000);
-				initContext.Invoke();
+				startContext.Invoke();
 			});
 		}
 
@@ -547,7 +487,7 @@ namespace MiniIT.Snipe
 		/// </summary>
 		/// <returns>A new instance of <c>BindingType</c></returns>
 		/// <exception cref="ArgumentException">No constructor found matching required parameters types</exception>
-		private BindingType CreateBinding<BindingType>() where BindingType : AuthBinding
+		protected BindingType CreateBinding<BindingType>() where BindingType : AuthBinding
 		{
 			var constructor = typeof(BindingType).GetConstructor(new Type[] { typeof(SnipeCommunicator), typeof(AuthSubsystem), typeof(SnipeConfig) });
 
@@ -559,32 +499,29 @@ namespace MiniIT.Snipe
 			return constructor.Invoke(new object[] { _communicator, this, _config }) as BindingType;
 		}
 
+		private void RaiseLoginSucceededEvent()
+		{
+			if (LoginSucceeded != null)
+			{
+				_mainThreadRunner.RunInMainThread(() =>
+				{
+					RaiseEvent(LoginSucceeded);
+				});
+			}
+		}
+
 		#region Safe events raising
 
-		// https://www.codeproject.com/Articles/36760/C-events-fundamentals-and-exception-handling-in-mu#exceptions
+		private SafeEventRaiser _safeEventRaiser;
 
-		private void RaiseEvent(Delegate event_delegate, params object[] args)
+		private void RaiseEvent(Delegate eventDelegate, params object[] args)
 		{
-			if (event_delegate != null)
+			_safeEventRaiser ??= new SafeEventRaiser((handler, e) =>
 			{
-				foreach (Delegate handler in event_delegate.GetInvocationList())
-				{
-					if (handler == null)
-						continue;
+				_logger.LogTrace($"RaiseEvent - Error in the handler {handler?.Method?.Name}: {e}");
+			});
 
-					try
-					{
-						handler.DynamicInvoke(args);
-					}
-					catch (Exception e)
-					{
-						string message = (e is System.Reflection.TargetInvocationException tie) ?
-							$"{tie.InnerException?.Message}\n{tie.InnerException?.StackTrace}" :
-							$"{e.Message}\n{e.StackTrace}";
-						DebugLogger.Log($"[{nameof(AuthSubsystem)}] RaiseEvent - Error in the handler {handler?.Method?.Name}: {message}");
-					}
-				}
-			}
+			_safeEventRaiser.RaiseEvent(eventDelegate, args);
 		}
 
 		#endregion

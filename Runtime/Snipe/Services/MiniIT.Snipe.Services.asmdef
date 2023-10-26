@@ -1,0 +1,19 @@
+{
+    "name": "MiniIT.Snipe.Services",
+    "rootNamespace": "",
+    "references": [
+        "MiniIT.Snipe.SharedPrefs",
+        "MiniIT.Snipe.Logging",
+        "MiniIT.Snipe.PackageInfo",
+        "fastJSON"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

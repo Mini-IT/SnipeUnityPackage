@@ -1,8 +1,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
-namespace MiniIT.Snipe
+namespace MiniIT.Snipe.Api
 {
 	public class LogicNode
 	{
@@ -19,11 +20,11 @@ namespace MiniIT.Snipe
 		public int timeleft = -1; // seconds left. (-1) means that the node does not have a timer
 		public bool isTimeout { get; private set; }
 
-		public LogicNode(SnipeObject data, SnipeTable<SnipeTableLogicItem> logic_table)
+		public LogicNode(SnipeObject data, ISnipeTable<SnipeTableLogicItem> logic_table)
 		{
 			id = data.SafeGetValue<int>("id");
 			
-			foreach (var table_tree in logic_table.Items.Values)
+			foreach (var table_tree in logic_table.Values)
 			{
 				foreach (var table_node in table_tree.nodes)
 				{
@@ -36,12 +37,15 @@ namespace MiniIT.Snipe
 				}
 
 				if (node != null)
+				{
 					break;
+				}
 			}
 
 			if (node == null)
 			{
-				DebugLogger.LogError($"[LogicNode] Table node not found. id = {id}");
+				var logger = SnipeServices.LogService.GetLogger(nameof(LogicNode));
+				logger.LogError($"Table node not found. id = {id}");
 				return;
 			}
 			
@@ -76,7 +80,9 @@ namespace MiniIT.Snipe
 					}
 
 					if (found)
+					{
 						continue;
+					}
 
 					string var_type = data_var.SafeGetString("type");
 					if (!string.IsNullOrEmpty(var_type))
@@ -108,12 +114,16 @@ namespace MiniIT.Snipe
 		public bool HasCheckType(string check_type)
 		{
 			if (node == null)
+			{
 				return false;
+			}
 			
 			foreach (var node_check in node.checks)
 			{
 				if (node_check.type == check_type)
+				{
 					return true;
+				}
 			}
 			return false;
 		}
@@ -121,12 +131,16 @@ namespace MiniIT.Snipe
 		public bool HasCheckName(string check_name)
 		{
 			if (node == null)
+			{
 				return false;
+			}
 			
 			foreach (var node_check in node.checks)
 			{
 				if (node_check.name == check_name)
+				{
 					return true;
+				}
 			}
 			return false;
 		}
@@ -134,7 +148,9 @@ namespace MiniIT.Snipe
 		public string GetPurchaseProductSku()
 		{
 			if (node == null)
+			{
 				return null;
+			}
 			
 			foreach (var node_check in node.checks)
 			{
@@ -149,7 +165,9 @@ namespace MiniIT.Snipe
 		public void CopyVars(LogicNode src_node)
 		{
 			if (src_node?.vars == null)
+			{
 				return;
+			}
 
 			vars = src_node.vars;
 

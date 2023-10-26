@@ -1,15 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace MiniIT.Snipe
+namespace MiniIT.Snipe.Api
 {
 	public class CalendarManager : IDisposable
 	{
 		public TimeZoneInfo ServerTimeZone;
 
-		private SnipeTable<SnipeTableCalendarItem> _calendarTable = null;
+		private ISnipeTable<SnipeTableCalendarItem> _calendarTable = null;
 
-		public CalendarManager(SnipeTable<SnipeTableCalendarItem> calendar_table, TimeZoneInfo serverTimeZone)
+		public CalendarManager(ISnipeTable<SnipeTableCalendarItem> calendar_table, TimeZoneInfo serverTimeZone)
 		{
 			_calendarTable = calendar_table;
 			ServerTimeZone = serverTimeZone;
@@ -66,9 +66,9 @@ namespace MiniIT.Snipe
 		{
 			var result = new List<SnipeTableCalendarItem>();
 
-			if (_calendarTable?.Items != null)
+			if (_calendarTable != null)
 			{
-				foreach (var item in _calendarTable.Items.Values)
+				foreach (var item in _calendarTable.Values)
 				{
 					if (IsEventActive(item.stringID))
 					{
@@ -241,10 +241,10 @@ namespace MiniIT.Snipe
 
 		private SnipeTableCalendarItem GetItem(string eventID)
 		{
-			if (_calendarTable?.Items == null)
+			if (_calendarTable == null)
 				return null;
 
-			foreach (var item in _calendarTable.Items.Values)
+			foreach (var item in _calendarTable.Values)
 			{
 				if (item.stringID == eventID)
 				{

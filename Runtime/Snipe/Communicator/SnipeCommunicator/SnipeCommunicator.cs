@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
@@ -56,20 +58,24 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private readonly SnipeConfig _config;
-		private readonly Analytics _analytics;
-
 		private bool _disconnecting = false;
-		
-		private TaskScheduler _mainThreadScheduler;
+
 		private CancellationTokenSource _delayedInitCancellation;
+
+		private readonly SnipeConfig _config;
+		private readonly SnipeAnalyticsTracker _analytics;
+		private readonly IMainThreadRunner _mainThreadRunner;
+		private readonly ILogger _logger;
 		
 		public SnipeCommunicator(SnipeConfig config)
 		{
-			DebugLogger.Log($"[SnipeCommunicator] PACKAGE VERSION: {PackageInfo.VERSION}");
-
 			_config = config;
-			_analytics = Analytics.GetInstance(config.ContextId);
+
+			_mainThreadRunner = SnipeServices.MainThreadRunner;
+			_analytics = SnipeServices.Analytics.GetTracker(config.ContextId);
+			_logger = SnipeServices.LogService.GetLogger(nameof(SnipeCommunicator));
+
+			_logger.LogTrace($"PACKAGE VERSION: {PackageInfo.VERSION}");
 		}
 		
 		/// <summary>
@@ -77,9 +83,7 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public void Start()
 		{
-			_mainThreadScheduler = (SynchronizationContext.Current != null) ?
-				TaskScheduler.FromCurrentSynchronizationContext() :
-				TaskScheduler.Current;
+			//_mainThreadRunner.SetMainThread();
 			
 			InitClient();
 		}
@@ -94,7 +98,7 @@ namespace MiniIT.Snipe
 
 			if (LoggedIn)
 			{
-				DebugLogger.LogWarning($"[SnipeCommunicator] ({InstanceId}) InitClient - already logged in");
+				_logger.LogWarning($"({InstanceId}) InitClient - already logged in");
 				return;
 			}
 
@@ -114,7 +118,7 @@ namespace MiniIT.Snipe
 					_disconnecting = false;
 					Client.Connect();
 					
-					RunInMainThread(() =>
+					_mainThreadRunner.RunInMainThread(() =>
 					{
 						AnalyticsTrackStartConnection();
 					});
@@ -124,7 +128,7 @@ namespace MiniIT.Snipe
 
 		public void Disconnect()
 		{
-			DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) Disconnect");
+			_logger.LogTrace($"({InstanceId}) Disconnect");
 
 			_roomJoined = null;
 			_disconnecting = true;
@@ -143,13 +147,13 @@ namespace MiniIT.Snipe
 
 		private void OnClientConnectionOpened()
 		{
-			DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) Client connection opened");
+			_logger.LogTrace($"({InstanceId}) Client connection opened");
 
 			_restoreConnectionAttempt = 0;
 			_disconnecting = false;
 			_analytics.ConnectionEventsEnabled = true;
 
-			RunInMainThread(() =>
+			_mainThreadRunner.RunInMainThread(() =>
 			{
 				AnalyticsTrackConnectionSucceeded();
 				RaiseEvent(ConnectionSucceeded);
@@ -158,11 +162,11 @@ namespace MiniIT.Snipe
 		
 		private void OnClientConnectionClosed()
 		{
-			DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) [{Client?.ConnectionId}] Client connection closed");
+			_logger.LogTrace($"({InstanceId}) [{Client?.ConnectionId}] Client connection closed");
 			
 			_roomJoined = null;
 
-			RunInMainThread(() =>
+			_mainThreadRunner.RunInMainThread(() =>
 			{
 				AnalyticsTrackConnectionFailed();
 				OnConnectionFailed();
@@ -171,7 +175,7 @@ namespace MiniIT.Snipe
 		
 		private void OnClientUdpConnectionFailed()
 		{
-			RunInMainThread(() =>
+			_mainThreadRunner.RunInMainThread(() =>
 			{
 				AnalyticsTrackUdpConnectionFailed();
 			});
@@ -187,7 +191,7 @@ namespace MiniIT.Snipe
 				RaiseEvent(ConnectionFailed, true);
 				
 				_restoreConnectionAttempt++;
-				DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) Attempt to restore connection {_restoreConnectionAttempt}");
+				_logger.LogTrace($"({InstanceId}) Attempt to restore connection {_restoreConnectionAttempt}");
 
 				_analytics.ConnectionEventsEnabled = false;
 
@@ -206,7 +210,7 @@ namespace MiniIT.Snipe
 
 		private void OnMessageReceived(string message_type, string error_code, SnipeObject data, int request_id)
 		{
-			// DebugLogger.Log($"[SnipeCommunicator] ({INSTANCE_ID}) [{Client?.ConnectionId}] OnMessageReceived {request_id} {message_type} {error_code} " + (data != null ? data.ToJSONString() : "null"));
+			// _logger.LogTrace($"({INSTANCE_ID}) [{Client?.ConnectionId}] OnMessageReceived {request_id} {message_type} {error_code} " + (data != null ? data.ToJSONString() : "null"));
 
 			//if (message_type == SnipeMessageTypes.USER_LOGIN) // handled in AuthSubsystem
 			//{
@@ -232,7 +236,7 @@ namespace MiniIT.Snipe
 			
 			if (MessageReceived != null)
 			{
-				RunInMainThread(() =>
+				_mainThreadRunner.RunInMainThread(() =>
 				{
 					RaiseEvent(MessageReceived, message_type, error_code, data, request_id);
 				});
@@ -240,55 +244,32 @@ namespace MiniIT.Snipe
 			
 			if (error_code != SnipeErrorCodes.OK)
 			{
-				RunInMainThread(() =>
+				_mainThreadRunner.RunInMainThread(() =>
 				{
 					_analytics.TrackErrorCodeNotOk(message_type, error_code, data);
 				});
 			}
 		}
 
-		#region Main Thread
-
-		private void RunInMainThread(Action action)
-		{
-			new Task(action).RunSynchronously(_mainThreadScheduler);
-		}
-
-		#endregion // Main Thread
-		
 		#region Safe events raising
-		
-		// https://www.codeproject.com/Articles/36760/C-events-fundamentals-and-exception-handling-in-mu#exceptions
-		
-		private void RaiseEvent(Delegate event_delegate, params object[] args)
+
+		private SafeEventRaiser _safeEventRaiser;
+
+		private void RaiseEvent(Delegate eventDelegate, params object[] args)
 		{
-			if (event_delegate != null)
+			_safeEventRaiser ??= new SafeEventRaiser((handler, e) =>
 			{
-				foreach (Delegate handler in event_delegate.GetInvocationList())
-				{
-					if (handler == null)
-						continue;
-					
-					try
-					{
-						handler.DynamicInvoke(args);
-					}
-					catch (Exception e)
-					{
-						string message = (e is System.Reflection.TargetInvocationException tie) ?
-							$"{tie.InnerException?.Message}\n{tie.InnerException?.StackTrace}" :
-							$"{e.Message}\n{e.StackTrace}";
-						DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) RaiseEvent - Error in the handler {handler?.Method?.Name}: {message}");
-					}
-				}
-			}
+				_logger.LogTrace($"({InstanceId}) RaiseEvent - Error in the handler {handler?.Method?.Name}: {e}");
+			});
+
+			_safeEventRaiser.RaiseEvent(eventDelegate, args);
 		}
 		
 		#endregion
 		
 		private async void DelayedInitClient(CancellationToken cancellation)
 		{
-			DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) WaitAndInitClient - start delay");
+			_logger.LogTrace($"({InstanceId}) WaitAndInitClient - start delay");
 			Random random = new Random();
 			int delay = RETRY_INIT_CLIENT_DELAY * _restoreConnectionAttempt + random.Next(RETRY_INIT_CLIENT_RANDOM_DELAY);
 			if (delay < RETRY_INIT_CLIENT_MIN_DELAY)
@@ -309,13 +290,13 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) WaitAndInitClient - delay finished");
+			_logger.LogTrace($"({InstanceId}) WaitAndInitClient - delay finished");
 			InitClient();
 		}
 
 		public void DisposeRoomRequests()
 		{
-			DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) DisposeRoomRequests");
+			_logger.LogTrace($"({InstanceId}) DisposeRoomRequests");
 			
 			List<AbstractCommunicatorRequest> room_requests = null;
 			foreach (var request in Requests)
@@ -339,7 +320,7 @@ namespace MiniIT.Snipe
 
 		public void Dispose()
 		{
-			DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) Dispose");
+			_logger.LogTrace($"({InstanceId}) Dispose");
 
 			if (Client != null)
 			{
@@ -363,7 +344,7 @@ namespace MiniIT.Snipe
 		
 		public void DisposeRequests()
 		{
-			DebugLogger.Log($"[SnipeCommunicator] ({InstanceId}) DisposeRequests");
+			_logger.LogTrace($"({InstanceId}) DisposeRequests");
 			
 			if (_requests != null)
 			{
@@ -383,7 +364,7 @@ namespace MiniIT.Snipe
 			if (!_analytics.ConnectionEventsEnabled)
 				return;
 
-			_analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_START_CONNECTION);
+			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_START_CONNECTION);
 		}
 		
 		private void AnalyticsTrackConnectionSucceeded()
@@ -410,7 +391,7 @@ namespace MiniIT.Snipe
 					_analytics.WebSocketHandshakeTime.TotalMilliseconds,
 			};
 			
-			_analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_CONNECTED, data);
+			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_CONNECTED, data);
 		}
 		
 		private void AnalyticsTrackConnectionFailed()
@@ -418,7 +399,7 @@ namespace MiniIT.Snipe
 			if (!_analytics.ConnectionEventsEnabled)
 				return;
 
-			_analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_DISCONNECTED, new SnipeObject()
+			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_DISCONNECTED, new SnipeObject()
 			{
 				//["communicator"] = this.name,
 				["connection_id"] = Client?.ConnectionId,
@@ -438,7 +419,7 @@ namespace MiniIT.Snipe
 			if (!_analytics.ConnectionEventsEnabled)
 				return;
 
-			_analytics.TrackEvent(Analytics.EVENT_COMMUNICATOR_DISCONNECTED + " UDP", new SnipeObject()
+			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_DISCONNECTED + " UDP", new SnipeObject()
 			{
 				["connection_type"] = "udp",
 				["connection_time"] = _analytics.UdpConnectionTime.TotalMilliseconds,

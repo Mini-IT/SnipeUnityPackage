@@ -4,11 +4,10 @@
     "references": [
         "MiniIT.Snipe.PackageInfo",
         "MiniIT.Snipe.Core",
-        "MiniIT.Snipe.Social",
         "MiniIT.Snipe.MessagePack",
-        "MiniIT.AdvertisingIdFetcher",
-        "BetterStreamingAssets",
-        "fastJSON",
+        "MiniIT.Snipe.Logging",
+        "MiniIT.Snipe.SharedPrefs",
+        "MiniIT.Snipe.Services",
         "WebSocketSharp",
         "kcp2k",
         "ZString"
@@ -22,15 +21,10 @@
     "defineConstraints": [],
     "versionDefines": [
         {
-            "name": "com.miniit.advertising-id",
-            "expression": "1.0.0",
-            "define": "MINI_IT_ADVERTISING_ID"
-        },
-        {
             "name": "com.cysharp.zstring",
             "expression": "2.0.0",
             "define": "ZSTRING"
         }
     ],
-    "noEngineReferences": false
+    "noEngineReferences": true
 }

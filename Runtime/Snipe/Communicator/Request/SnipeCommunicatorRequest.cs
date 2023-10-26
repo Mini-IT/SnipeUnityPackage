@@ -1,9 +1,13 @@
 ﻿
+using Microsoft.Extensions.Logging;
+
 namespace MiniIT.Snipe
 {
 	public class SnipeCommunicatorRequest : AbstractCommunicatorRequest
 	{
 		public bool WaitingForRoomJoined { get; private set; } = false;
+
+		private ILogger _logger;
 
 		private readonly AuthSubsystem _authSubsystem;
 		
@@ -60,7 +64,7 @@ namespace MiniIT.Snipe
 
 			if (_communicator.AllowRequestsToWaitForLogin)
 			{
-				DebugLogger.Log($"[{nameof(SnipeCommunicatorRequest)}] Waiting for login - {MessageType} - {Data?.ToJSONString()}");
+				GetLogger().LogTrace($"Waiting for login - {MessageType} - {Data?.ToJSONString()}");
 
 				_authSubsystem.LoginSucceeded += OnCommunicatorReady;
 			}
@@ -77,7 +81,7 @@ namespace MiniIT.Snipe
 			
 			if (WaitingForRoomJoined && _communicator.RoomJoined == true)
 			{
-				DebugLogger.Log($"[{nameof(SnipeCommunicatorRequest)}] OnMessageReceived - Room joined. Send {MessageType}, id = {_requestId}");
+				GetLogger().LogTrace($"OnMessageReceived - Room joined. Send {MessageType}, id = {_requestId}");
 				
 				WaitingForRoomJoined = false;
 				DoSendRequest();
@@ -101,6 +105,12 @@ namespace MiniIT.Snipe
 			int hashCode = -1395135913;
 			hashCode = hashCode * -1521134295 + base.GetHashCode();
 			return hashCode;
+		}
+
+		private ILogger GetLogger()
+		{
+			_logger ??= SnipeServices.LogService.GetLogger(nameof(SnipeCommunicatorRequest));
+			return _logger;
 		}
 	}
 }

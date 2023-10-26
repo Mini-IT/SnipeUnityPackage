@@ -5,8 +5,10 @@
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "MiniIT.Snipe.Communicator",
+        "MiniIT.SnipeCommunicator.Unity",
 		"MiniIT.Snipe.Core",
-		"MiniIT.Snipe.MessagePack"
+		"MiniIT.Snipe.MessagePack",
+		"MiniIT.Snipe.Services"
     ],
     "includePlatforms": [
         "Editor"

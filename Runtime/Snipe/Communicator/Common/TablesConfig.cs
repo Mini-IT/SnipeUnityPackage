@@ -14,7 +14,7 @@ namespace MiniIT.Snipe
 		}
 
 		public static VersionsResolution Versioning = VersionsResolution.Default;
-		public static string PersistentDataPath;
+		
 		public static List<string> TablesUrls = new List<string>();
 		private static int _tablesUrlIndex = 0;
 

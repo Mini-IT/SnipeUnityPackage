@@ -3,11 +3,10 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace MiniIT.Snipe.Api
 {
-	public class LogicManager : IDisposable
+	public class LogicManager : AbstractSnipeApiModuleManagerWithTable
 	{
 		public static TimeSpan UpdateMinTimeout = TimeSpan.FromSeconds(30);
 
@@ -19,48 +18,22 @@ namespace MiniIT.Snipe.Api
 		public event ExitNodeHandler ExitNode;
 		public event NodeProgressHandler NodeProgress;
 
-		class QueuedMessage
-		{
-			internal string messageType;
-			internal string errorCode;
-			internal SnipeObject data;
-		}
-
 		public Dictionary<int, LogicNode> Nodes { get; private set; } = new Dictionary<int, LogicNode>();
 		private Dictionary<string, LogicNode> _taggedNodes;
-		private SnipeTable<SnipeTableLogicItem> _logicTable = null;
+		private ISnipeTable<SnipeTableLogicItem> _logicTable = null;
 
-		private SnipeCommunicator _snipeCommunicator;
-		private readonly AbstractSnipeApiService.RequestFactoryMethod _requestFactory;
 		private TimeSpan _updateRequestedTime = TimeSpan.Zero;
 		private SnipeObject _logicGetRequestParameters;
-		
-		private Stopwatch _refTime = Stopwatch.StartNew();
+
+		private readonly Stopwatch _refTime = Stopwatch.StartNew();
 		private Timer _secondsTimer;
 
-		private CancellationTokenSource _waitingTableCancellation;
-		private Queue<QueuedMessage> _waitingTableMessages;
-
-		public LogicManager(SnipeCommunicator communicator, AbstractSnipeApiService.RequestFactoryMethod requestFactory, SnipeTable<SnipeTableLogicItem> logicTable)
+		public LogicManager(SnipeCommunicator communicator,
+			AbstractSnipeApiService.RequestFactoryMethod requestFactory,
+			ISnipeTable<SnipeTableLogicItem> logicTable)
+			: base(communicator, requestFactory, logicTable)
 		{
-			_requestFactory = requestFactory;
 			_logicTable = logicTable;
-
-			ClearCommunicatorReference();
-
-			_snipeCommunicator = communicator;
-
-			if (_logicTable != null)
-			{
-				_snipeCommunicator.MessageReceived += OnSnipeMessageReceived;
-				_snipeCommunicator.PreDestroy += OnSnipeCommunicatorPreDestroy;
-
-				if (!_logicTable.Loaded)
-				{
-					_waitingTableCancellation = new CancellationTokenSource();
-					WaitForTableLoaded(_waitingTableCancellation.Token);
-				}
-			}
 		}
 
 		~LogicManager()
@@ -68,12 +41,7 @@ namespace MiniIT.Snipe.Api
 			Dispose();
 		}
 
-		private void OnSnipeCommunicatorPreDestroy()
-		{
-			Dispose();
-		}
-
-		public void Dispose()
+		public override void Dispose()
 		{
 			if (_waitingTableCancellation != null)
 			{
@@ -83,21 +51,13 @@ namespace MiniIT.Snipe.Api
 
 			StopSecondsTimer();
 
-			ClearCommunicatorReference();
+			base.Dispose();
 
 			_logicTable = null;
 			Nodes.Clear();
 			_taggedNodes = null;
-		}
 
-		private void ClearCommunicatorReference()
-		{
-			if (_snipeCommunicator != null)
-			{
-				_snipeCommunicator.MessageReceived -= OnSnipeMessageReceived;
-				_snipeCommunicator.PreDestroy -= OnSnipeCommunicatorPreDestroy;
-				_snipeCommunicator = null;
-			}
+			GC.SuppressFinalize(this);
 		}
 
 		public LogicNode GetNodeById(int id)
@@ -165,13 +125,17 @@ namespace MiniIT.Snipe.Api
 			{
 				var current_time = _refTime.Elapsed;
 				if (!force && current_time - _updateRequestedTime < UpdateMinTimeout)
+				{
 					return;
+				}
 
 				_updateRequestedTime = current_time;
 			}
-			
+
 			if (_logicGetRequestParameters == null)
+			{
 				_logicGetRequestParameters = new SnipeObject() { ["noDump"] = false };
+			}
 
 			var request = _requestFactory.Invoke("logic.get", _logicGetRequestParameters);
 			request?.Request();
@@ -189,7 +153,9 @@ namespace MiniIT.Snipe.Api
 				["name"] = name,
 			};
 			if (tree_id != 0)
+			{
 				requestData["treeID"] = tree_id;
+			}
 			//if (amount != 0)
 			//	request_data["amount"] = amount;
 			var request = _requestFactory.Invoke("logic.incVar", requestData);
@@ -201,7 +167,7 @@ namespace MiniIT.Snipe.Api
 			_updateRequestedTime = TimeSpan.Zero; // reset timer
 		}
 
-		private void OnSnipeMessageReceived(string messageType, string errorCode, SnipeObject data, int requestId)
+		protected override void OnSnipeMessageReceived(string messageType, string errorCode, SnipeObject data, int requestId)
 		{
 			switch (messageType)
 			{
@@ -221,18 +187,6 @@ namespace MiniIT.Snipe.Api
 					ProcessMessage(messageType, errorCode, data, (errorCode, responseData) => RequestLogicGet(true));
 					break;
 			}
-		}
-
-		private void ProcessMessage(string messageType, string errorCode, SnipeObject data, Action<string, SnipeObject> handler)
-		{
-			if (_logicTable.Loaded)
-			{
-				handler.Invoke(errorCode, data);
-				return;
-			}
-
-			_waitingTableMessages ??= new Queue<QueuedMessage>();
-			_waitingTableMessages.Enqueue(new QueuedMessage() { messageType = messageType, errorCode = errorCode, data = data });
 		}
 
 		private void OnLogicGet(string errorCode, SnipeObject responseData)
@@ -264,7 +218,9 @@ namespace MiniIT.Snipe.Api
 				foreach (LogicNode node in logicNodes)
 				{
 					if (node == null)
+					{
 						continue;
+					}
 						
 					Nodes.Add(node.id, node);
 					AddTaggedNode(node);
@@ -341,7 +297,9 @@ namespace MiniIT.Snipe.Api
 		private void AddTaggedNode(LogicNode node)
 		{
 			if (node?.tree?.tags == null)
+			{
 				return;
+			}
 
 			foreach (string tag in node.tree.tags)
 			{
@@ -370,11 +328,15 @@ namespace MiniIT.Snipe.Api
 
 			LogicNode node = GetNodeById(data.SafeGetValue("id", 0));
 			if (node == null)
+			{
 				return;
+			}
 
 			string varName = data.SafeGetString("name");
 			if (string.IsNullOrEmpty(varName))
+			{
 				return;
+			}
 
 			SnipeLogicNodeVar nodeVar = null;
 			foreach (SnipeLogicNodeVar v in node.vars)
@@ -392,35 +354,6 @@ namespace MiniIT.Snipe.Api
 
 				int oldValue = data.SafeGetValue<int>("oldValue");
 				NodeProgress?.Invoke(node, nodeVar, oldValue);
-			}
-		}
-
-		private async void WaitForTableLoaded(CancellationToken cancellation)
-		{
-			while (_logicTable != null && !_logicTable.Loaded)
-			{
-				try
-				{
-					await Task.Delay(100, cancellation);
-				}
-				catch (OperationCanceledException)
-				{
-					return;
-				}
-
-				if (cancellation.IsCancellationRequested)
-				{
-					return;
-				}
-			}
-
-			if (_waitingTableMessages != null)
-			{
-				while (_waitingTableMessages.Count > 0)
-				{
-					QueuedMessage message = _waitingTableMessages.Dequeue();
-					OnSnipeMessageReceived(message.messageType, message.errorCode, message.data, 0);
-				}
 			}
 		}
 

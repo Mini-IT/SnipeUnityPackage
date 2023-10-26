@@ -1,8 +1,6 @@
-using System;
-using System.Collections;
 using System.Collections.Generic;
 
-namespace MiniIT.Snipe
+namespace MiniIT.Snipe.Api
 {
 	[System.Serializable]
 	public class SnipeTableLogicNode
