@@ -88,7 +88,7 @@ namespace MiniIT.Snipe
 
 			_logger.LogTrace("OnUdpClientConnected");
 
-			ConnectionOpenedHandler?.Invoke();
+			ConnectionOpenedHandler?.Invoke(this);
 		}
 
 		private void OnClientDisconnected()
@@ -108,7 +108,7 @@ namespace MiniIT.Snipe
 				}
 			}
 
-			ConnectionClosedHandler?.Invoke();
+			ConnectionClosedHandler?.Invoke(this);
 		}
 		
 		private void OnClientDataReceived(ArraySegment<byte> buffer, KcpChannel channel, bool compressed)

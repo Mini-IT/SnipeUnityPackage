@@ -115,7 +115,7 @@ namespace MiniIT.Snipe
 		{
 			_logger.LogTrace("OnWebSocketConnected");
 
-			ConnectionOpenedHandler?.Invoke();
+			ConnectionOpenedHandler?.Invoke(this);
 		}
 		
 		protected void OnWebSocketClosed()
@@ -129,7 +129,7 @@ namespace MiniIT.Snipe
 				_config.NextWebSocketUrl();
 			}
 
-			ConnectionClosedHandler?.Invoke();
+			ConnectionClosedHandler?.Invoke(this);
 		}
 		
 		public override void SendMessage(SnipeObject message)

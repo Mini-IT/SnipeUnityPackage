@@ -67,7 +67,7 @@ namespace MiniIT.Snipe
 			}
 
 			StopHeartbeat();
-			ConnectionClosedHandler?.Invoke();
+			ConnectionClosedHandler?.Invoke(this);
 
 			// It's important to keep the value during ConnectionClosedHandler invocation
 			_connectionEstablished = false;
@@ -106,7 +106,7 @@ namespace MiniIT.Snipe
 		{
 			_logger.LogTrace("OnClientConnected");
 
-			ConnectionOpenedHandler?.Invoke();
+			ConnectionOpenedHandler?.Invoke(this);
 		}
 
 		//private void OnClientDisconnected()

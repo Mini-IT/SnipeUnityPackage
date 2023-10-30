@@ -132,26 +132,26 @@ namespace MiniIT.Snipe
 			_transport.Connect();
 		}
 
-		#region Transport fabrics
+		#region Transport factories
 
 		private KcpTransport CreateKcpTransport()
 		{
 			var transport = new KcpTransport(_config, _analytics);
 
-			transport.ConnectionOpenedHandler = () =>
+			transport.ConnectionOpenedHandler = (Transport t) =>
 			{
 				_analytics.UdpConnectionTime = _connectionStopwatch.Elapsed;
-				OnTransportConnectionOpened();
+				OnTransportConnectionOpened(t);
 			};
 
-			transport.ConnectionClosedHandler = () =>
+			transport.ConnectionClosedHandler = (Transport t) =>
 			{
 				_mainThreadRunner.RunInMainThread(() =>
 				{
 					UdpConnectionFailed?.Invoke();
 				});
 
-				OnTransportConnectionClosed();
+				OnTransportConnectionClosed(t);
 			};
 
 			transport.MessageReceivedHandler = ProcessMessage;
@@ -181,7 +181,7 @@ namespace MiniIT.Snipe
 
 		#endregion
 
-		private void OnTransportConnectionOpened()
+		private void OnTransportConnectionOpened(Transport transport)
 		{
 			_connectionStopwatch?.Stop();
 			_analytics.ConnectionEstablishmentTime = _connectionStopwatch?.Elapsed ?? TimeSpan.Zero;
@@ -200,9 +200,14 @@ namespace MiniIT.Snipe
 			});
 		}
 
-		private void OnTransportConnectionClosed()
+		private void OnTransportConnectionClosed(Transport transport)
 		{
-			if (_transport.ConnectionEstablished)
+			if (transport != _transport)
+			{
+				return;
+			}
+
+			if (transport.ConnectionEstablished)
 			{
 				Disconnect(true);
 			}
@@ -250,7 +255,7 @@ namespace MiniIT.Snipe
 
 			if (_transport != null)
 			{
-				_transport.Disconnect();
+				_transport.Dispose();
 				_transport = null;
 			}
 

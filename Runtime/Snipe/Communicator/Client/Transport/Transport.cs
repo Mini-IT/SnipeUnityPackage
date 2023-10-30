@@ -6,10 +6,10 @@ using MiniIT.MessagePack;
 
 namespace MiniIT.Snipe
 {
-	public abstract class Transport
+	public abstract class Transport : IDisposable
 	{
-		public Action ConnectionOpenedHandler;
-		public Action ConnectionClosedHandler;
+		public Action<Transport> ConnectionOpenedHandler;
+		public Action<Transport> ConnectionClosedHandler;
 		public Action<SnipeObject> MessageReceivedHandler;
 
 		public virtual bool Started { get; } = false;
@@ -38,5 +38,13 @@ namespace MiniIT.Snipe
 
 		protected readonly SemaphoreSlim _messageSerializationSemaphore = new SemaphoreSlim(1, 1);
 		protected readonly SemaphoreSlim _messageProcessingSemaphore = new SemaphoreSlim(1, 1);
+
+		public void Dispose()
+		{
+			Disconnect();
+			ConnectionOpenedHandler = null;
+			ConnectionClosedHandler = null;
+			MessageReceivedHandler = null;
+		}
 	}
 }
