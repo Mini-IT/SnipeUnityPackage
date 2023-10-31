@@ -110,13 +110,24 @@ namespace MiniIT
 				}
 					
 				var requestContent = new StringContent(content, Encoding.UTF8, "application/json");
-				var result = await _httpClient.PostAsync(url, requestContent);
 
-				statusCode = result.StatusCode;
-					
-				if (!result.IsSuccessStatusCode)
+				try
+				{
+					var result = await _httpClient.PostAsync(url, requestContent);
+
+					statusCode = result.StatusCode;
+
+					if (!result.IsSuccessStatusCode)
+					{
+						succeeded = false;
+						break;
+					}
+				}
+				catch (Exception ex)
 				{
 					succeeded = false;
+					statusCode = HttpStatusCode.BadRequest;
+					Debug.LogError($"[{nameof(LogReporter)}] - Error posting log portion: {ex}");
 					break;
 				}
 			}
