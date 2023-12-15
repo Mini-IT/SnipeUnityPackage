@@ -164,7 +164,7 @@ namespace MiniIT.Snipe
 			
 			if (len > buffer.Count - 5)
 			{
-				_logger.LogError($"ProcessMessage - Message lenght (${len} bytes) is greater than the buffer size (${buffer.Count} bytes)");
+				_logger.LogError($"ProcessMessage - Message length (${len} bytes) is greater than the buffer size (${buffer.Count} bytes)");
 				return null;
 			}
 			
