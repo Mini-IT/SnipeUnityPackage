@@ -64,10 +64,15 @@ namespace MiniIT.Snipe.Tables
 
 					response = (HttpWebResponse)loadTask.Result;
 
-					if (response == null || !new HttpResponseMessage(response.StatusCode).IsSuccessStatusCode)
+					if (response == null)
 					{
 						logger.LogTrace($"[SnipeTable] Failed to load table - {tableName}   (loader failed)");
-						response?.Dispose();
+						continue;
+					}
+					if (!new HttpResponseMessage(response.StatusCode).IsSuccessStatusCode)
+					{
+						logger.LogTrace($"[SnipeTable] Failed to load table - {tableName}   (loader failed) - {(int)response.StatusCode} {response.StatusCode}");
+						response.Dispose();
 						continue;
 					}
 				}
