@@ -11,113 +11,126 @@ namespace MiniIT.Snipe.Tables
 {
 	public class SnipeTableWebLoader
 	{
+		private ILogger _logger;
+
 		public async Task<bool> LoadAsync(Type wrapperType, IDictionary items, string tableName, long version, CancellationToken cancellation)
 		{
 			bool loaded = false;
 			
 			string url = GetTableUrl(tableName, version);
 
-			var logger = SnipeServices.LogService.GetLogger("SnipeTable");
-			logger.LogTrace("[SnipeTable] Loading table " + url);
+			_logger ??= SnipeServices.LogService.GetLogger("SnipeTable");
+			_logger.LogTrace("Loading table " + url);
 
 			int retry = 0;
 			while (!loaded && retry <= 2)
 			{
 				if (cancellation.IsCancellationRequested)
 				{
-					logger.LogTrace($"[SnipeTable] Failed to load table - {tableName}   (task canceled)");
+					_logger.LogTrace($"Failed to load table - {tableName}   (task canceled)");
 					return false;
 				}
 
 				if (retry > 0)
 				{
 					await Task.Delay(100, cancellation);
-					logger.LogTrace($"[SnipeTable] Retry #{retry} to load table - {tableName}");
+					_logger.LogTrace($"Retry #{retry} to load table - {tableName}");
 				}
 
 				retry++;
-				HttpWebResponse response = null;
+
+				var stream = await InternalLoad(tableName, url, cancellation);
+				if (stream == null)
+				{
+					continue;
+				}
 
 				try
 				{
-					var webRequest = WebRequest.Create(new Uri(url));
-					var loadTask = webRequest.GetResponseAsync();
-					Task finished_task = await Task.WhenAny(loadTask, Task.Delay(3000, cancellation));
+					await SnipeTableGZipReader.ReadAsync(wrapperType, items, stream);
 
-					if (cancellation.IsCancellationRequested)
+					loaded = true;
+
+					if (version > 0)
 					{
-						logger.LogTrace($"[SnipeTable] Failed to load table - {tableName}   (task canceled)");
-						return false;
+						_logger.LogTrace("Table ready - " + tableName);
 					}
 
-					if (finished_task != loadTask)
-					{
-						logger.LogTrace($"[SnipeTable] Failed to load table - {tableName}   (timeout)");
-						return false;
-					}
-
-					if (loadTask.IsFaulted || loadTask.IsCanceled)
-					{
-						logger.LogTrace($"[SnipeTable] Failed to load table - {tableName}   (loader failed)");
-						continue;
-					}
-
-					response = (HttpWebResponse)loadTask.Result;
-
-					if (response == null)
-					{
-						logger.LogTrace($"[SnipeTable] Failed to load table - {tableName}   (loader failed)");
-						continue;
-					}
-					if (!new HttpResponseMessage(response.StatusCode).IsSuccessStatusCode)
-					{
-						logger.LogTrace($"[SnipeTable] Failed to load table - {tableName}   (loader failed) - {(int)response.StatusCode} {response.StatusCode}");
-						response.Dispose();
-						continue;
-					}
+					stream.Position = 0;
+					SnipeTableSaver.SaveToCache(stream, tableName, version);
 				}
 				catch (Exception e)
 				{
-					logger.LogTrace($"[SnipeTable] Failed to load table - {tableName} - {e}");
+					_logger.LogTrace($"Failed to parse table - {tableName} - {e}");
 				}
-
-				if (response != null)
+				finally
 				{
-					try
-					{
-						using (var stream = new MemoryStream())
-						{
-							using (var contentStream = response.GetResponseStream())
-							{
-								contentStream.CopyTo(stream);
-							}
-
-							stream.Position = 0;
-							await SnipeTableGZipReader.ReadAsync(wrapperType, items, stream);
-
-							loaded = true;
-
-							if (version > 0)
-							{
-								logger.LogTrace("[SnipeTable] Table ready - " + tableName);
-							}
-
-							stream.Position = 0;
-							SnipeTableSaver.SaveToCache(stream, tableName, version);
-						}
-					}
-					catch (Exception e)
-					{
-						logger.LogTrace($"[SnipeTable] Failed to parse table - {tableName} - {e}");
-					}
-
-					response.Dispose();
+					stream.Dispose();
 				}
 			}
 
 			return loaded;
 		}
-		
+
+		private async Task<MemoryStream> InternalLoad(string tableName, string url, CancellationToken cancellation)
+		{
+			HttpWebResponse response = null;
+
+			try
+			{
+				var webRequest = WebRequest.Create(new Uri(url));
+				var loadTask = webRequest.GetResponseAsync();
+				Task finishedTask = await Task.WhenAny(loadTask, Task.Delay(3000, cancellation));
+
+				if (cancellation.IsCancellationRequested)
+				{
+					_logger.LogTrace($"Failed to load table - {tableName}   (task canceled)");
+					return null;
+				}
+
+				if (finishedTask != loadTask)
+				{
+					_logger.LogTrace($"Failed to load table - {tableName}   (timeout)");
+					return null;
+				}
+
+				if (loadTask.IsFaulted || loadTask.IsCanceled)
+				{
+					_logger.LogTrace($"Failed to load table - {tableName}   (loader failed)");
+					return null;
+				}
+
+				response = (HttpWebResponse)loadTask.Result;
+
+				if (response == null)
+				{
+					_logger.LogTrace($"Failed to load table - {tableName}   (loader failed)");
+					return null;
+				}
+
+				if (!new HttpResponseMessage(response.StatusCode).IsSuccessStatusCode)
+				{
+					_logger.LogTrace($"Failed to load table - {tableName}   (loader failed) - {(int)response.StatusCode} {response.StatusCode}");
+					return null;
+				}
+
+				var stream = new MemoryStream();
+				response.GetResponseStream().CopyTo(stream);
+				stream.Position = 0;
+				return stream;
+			}
+			catch (Exception e)
+			{
+				_logger.LogTrace($"Failed to load table - {tableName} - {e}");
+			}
+			finally
+			{
+				response?.Dispose();
+			}
+
+			return null;
+		}
+
 		private static string GetTableUrl(string table_name, long version)
 		{
 			return $"{TablesConfig.GetTablesPath()}{version}_{table_name}.json.gz";
