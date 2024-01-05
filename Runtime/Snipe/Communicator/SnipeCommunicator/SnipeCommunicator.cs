@@ -75,7 +75,7 @@ namespace MiniIT.Snipe
 			_analytics = SnipeServices.Analytics.GetTracker(config.ContextId);
 			_logger = SnipeServices.LogService.GetLogger(nameof(SnipeCommunicator));
 
-			_logger.LogTrace($"PACKAGE VERSION: {PackageInfo.VERSION}");
+			_logger.LogTrace($"PACKAGE VERSION: {PackageInfo.VERSION_NAME}");
 		}
 		
 		/// <summary>

@@ -148,7 +148,7 @@ namespace MiniIT.Snipe
 			{
 				properties ??= new Dictionary<string, object>();
 				properties["event_type"] = name;
-				properties["snipe_package_version"] = PackageInfo.VERSION;
+				properties["snipe_package_version"] = PackageInfo.VERSION_NAME;
 
 				if (!string.IsNullOrEmpty(_contextId))
 					properties["sinpe_context"] = _contextId;

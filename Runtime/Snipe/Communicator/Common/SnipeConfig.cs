@@ -197,7 +197,8 @@ namespace MiniIT.Snipe
 				["identifier"] = _applicationInfo.ApplicationIdentifier,
 				["version"] = _applicationInfo.ApplicationVersion,
 				["platform"] = _applicationInfo.ApplicationPlatform,
-				["packageVersion"] = PackageInfo.VERSION,
+				["packageVersion"] = PackageInfo.VERSION_CODE,
+				["packageVersionName"] = PackageInfo.VERSION_NAME,
 			}.ToJSONString();
 
 			DebugId = GenerateDebugId();
