@@ -1,19 +1,22 @@
 
 using System;
+using System.Collections.Generic;
 
 namespace MiniIT.Snipe.Api
 {
-	public class AbstractSnipeApiService : IDisposable
+	public abstract class AbstractSnipeApiService : IDisposable
 	{
 		public delegate AbstractCommunicatorRequest RequestFactoryMethod(string messageType, SnipeObject data);
 
 		protected readonly SnipeCommunicator _communicator;
 		private readonly RequestFactoryMethod _requestFactory;
+		private readonly List<SnipeApiModule> _modules;
 
 		protected internal AbstractSnipeApiService(SnipeCommunicator communicator, RequestFactoryMethod requestFactory)
 		{
 			_communicator = communicator;
 			_requestFactory = requestFactory;
+			_modules = new List<SnipeApiModule>();
 
 			InitMergeableRequestTypes();
 		}
@@ -31,6 +34,26 @@ namespace MiniIT.Snipe.Api
 
 		public virtual void Dispose()
 		{
+		}
+
+		public bool TryGetModule<TModule>(out TModule module) where TModule : SnipeApiModule
+		{
+			for (int i = 0; i < _modules.Count; i++)
+			{
+				if (_modules[i] is TModule castedModule)
+				{
+					module = castedModule;
+					return true;
+				}
+			}
+
+			module = null;
+			return false;
+		}
+
+		internal void AddModule(SnipeApiModule module)
+		{
+			_modules.Add(module);
 		}
 
 		protected virtual void InitMergeableRequestTypes()
