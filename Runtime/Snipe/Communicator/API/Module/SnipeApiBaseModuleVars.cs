@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -10,6 +11,9 @@ namespace MiniIT.Snipe.Api
 
 	public class SnipeApiBaseModuleVars : SnipeApiModule, IEnumerable<GameVarsKeyValuePair>
 	{
+		public event Action ValuesInitializationFinished;
+		public bool ValuesInitialized { get; private set; } = false;
+
 		protected GameVarsDictionary _items;
 
 		public SnipeApiBaseModuleVars(AbstractSnipeApiService snipeApiService) : base(snipeApiService)
@@ -21,6 +25,15 @@ namespace MiniIT.Snipe.Api
 		{
 			_items[item.Name] = item;
 			return item;
+		}
+
+		protected void SetValuesInitialized()
+		{
+			if (!ValuesInitialized)
+			{
+				ValuesInitialized = true;
+				ValuesInitializationFinished?.Invoke();
+			}
 		}
 
 		public TValue GetValue<TValue>(string name, TValue defaultValue = default)
