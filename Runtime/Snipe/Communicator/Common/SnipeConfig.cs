@@ -70,6 +70,52 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public void Initialize(IDictionary<string, object> data)
 		{
+			ParseOld(data);
+			ParseNew(data);
+		}
+
+		private void ParseNew(IDictionary<string, object> data)
+		{
+			if (SnipeObject.TryGetValue(data, "snipeUdpHost", out string udpHost) && !string.IsNullOrEmpty(udpHost) &&
+				SnipeObject.TryGetValue(data, "snipeUdpPort", out string udpPort) && ushort.TryParse(udpPort, out ushort port))
+			{
+				ServerUdpUrls ??= new List<UdpAddress>();
+				ServerUdpUrls.Clear();
+
+				ServerUdpUrls.Add(new UdpAddress() { Host = udpHost, Port = port });
+			}
+
+			if (SnipeObject.TryGetValue(data, "snipeHttpUrl", out string httpUrl) && !string.IsNullOrEmpty(httpUrl))
+			{
+				ServerHttpUrl = httpUrl;
+			}
+
+			if (SnipeObject.TryGetValue(data, "snipeHttpUrl", out object wssUrl))
+			{
+				if (wssUrl is IList wssUrlList && wssUrlList.Count > 0)
+				{
+					ServerWebSocketUrls ??= new List<string>();
+					ServerWebSocketUrls.Clear();
+
+					foreach (var listItem in wssUrlList)
+					{
+						if (listItem is string url && !string.IsNullOrEmpty(url))
+						{
+							ServerWebSocketUrls.Add(url);
+						}
+					}
+				}
+				else if (wssUrl is string url && !string.IsNullOrEmpty(url))
+				{
+					ServerWebSocketUrls ??= new List<string>();
+					ServerWebSocketUrls.Clear();
+					ServerWebSocketUrls.Add(url);
+				}
+			}
+		}
+
+		private void ParseOld(IDictionary<string, object> data)
+		{ 
 			ClientKey = SnipeObject.SafeGetString(data, "client_key").Trim();
 
 			if (ServerWebSocketUrls == null)
@@ -109,33 +155,9 @@ namespace MiniIT.Snipe
 			{
 				foreach (string item in server_udp_list)
 				{
-					if (!string.IsNullOrWhiteSpace(item))
+					if (TryParseUdpUrl(item, out UdpAddress address))
 					{
-						string url = item.Trim();
-
-						int index = url.IndexOf("://");
-						if (index >= 0)
-						{
-							url = url.Substring(index + 3);
-						}
-
-						index = url.IndexOf("?");
-						if (index >= 0)
-						{
-							url = url.Substring(0, index);
-						}
-
-						string[] address = url.Split(':');
-						if (address.Length >= 2)
-						{
-							string port_string = address[address.Length - 1];
-
-							if (ushort.TryParse(port_string, out ushort port) && port > 0)
-							{
-								string host = url.Substring(0, url.Length - port_string.Length - 1);
-								ServerUdpUrls.Add(new UdpAddress() { Host = host, Port = port });
-							}
-						}
+						ServerUdpUrls.Add(address);
 					}
 				}
 			}
@@ -188,6 +210,45 @@ namespace MiniIT.Snipe
 			TablesConfig.Init(data);
 
 			InitAppInfo();
+		}
+
+		private bool TryParseUdpUrl(string url, out UdpAddress udpAddress)
+		{
+			if (string.IsNullOrWhiteSpace(url))
+			{
+				udpAddress = null;
+				return false;
+			}
+
+			url = url.Trim();
+
+			int index = url.IndexOf("://");
+			if (index >= 0)
+			{
+				url = url.Substring(index + 3);
+			}
+
+			index = url.IndexOf("?");
+			if (index >= 0)
+			{
+				url = url.Substring(0, index);
+			}
+
+			string[] address = url.Split(':');
+			if (address.Length >= 2)
+			{
+				string port_string = address[address.Length - 1];
+
+				if (ushort.TryParse(port_string, out ushort port) && port > 0)
+				{
+					string host = url.Substring(0, url.Length - port_string.Length - 1);
+					udpAddress = new UdpAddress() { Host = host, Port = port };
+					return true;
+				}
+			}
+
+			udpAddress = null;
+			return false;
 		}
 
 		private void InitAppInfo()
