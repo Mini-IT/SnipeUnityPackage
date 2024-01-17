@@ -223,7 +223,7 @@ namespace MiniIT.Snipe
 				DebugLogger.LogWarning("KcpConnection: tried sending while disconnected");
 				return;
 			}
-			
+
 			if (data.Count == 0)
 			{
 				DebugLogger.LogWarning("KcpConnection: tried sending empty message");
@@ -235,24 +235,34 @@ namespace MiniIT.Snipe
 			{
 				if (channel == KcpChannel.Reliable)
 				{
-					byte num_chunks = (byte)(data.Count / CHUNK_DATA_SIZE + 1);
+					byte num_chunks = (byte)(data.Count / CHUNK_DATA_SIZE);
+					if (data.Count % CHUNK_DATA_SIZE != 0)
+					{
+						num_chunks++;
+					}
 
 					byte[] buffer = ArrayPool<byte>.Shared.Rent(Kcp.MTU_DEF - 1); // without kcp header
 					buffer[0] = (++_chunkedMessageId);
 					buffer[2] = num_chunks;
 
-					for (int chunk_id = 0; chunk_id < num_chunks; chunk_id++)
+					try
 					{
-						int start_index = chunk_id * CHUNK_DATA_SIZE;
-						int length = (start_index + CHUNK_DATA_SIZE > data.Count) ? data.Count % CHUNK_DATA_SIZE : CHUNK_DATA_SIZE;
+						for (int chunk_id = 0; chunk_id < num_chunks; chunk_id++)
+						{
+							int start_index = chunk_id * CHUNK_DATA_SIZE;
+							int length = (start_index + CHUNK_DATA_SIZE > data.Count) ? data.Count % CHUNK_DATA_SIZE : CHUNK_DATA_SIZE;
 
-						buffer[1] = (byte)chunk_id;
-						Buffer.BlockCopy(data.Array, data.Offset + start_index, buffer, 3, length);
+							buffer[1] = (byte)chunk_id;
+							Buffer.BlockCopy(data.Array, data.Offset + start_index, buffer, 3, length);
 
-						var chunk_data = new ArraySegment<byte>(buffer, 0, length + 3);
-						SendReliable(KcpHeader.Chunk, chunk_data);
+							var chunk_data = new ArraySegment<byte>(buffer, 0, length + 3);
+							SendReliable(KcpHeader.Chunk, chunk_data);
+						}
 					}
-					ArrayPool<byte>.Shared.Return(buffer);
+					finally
+					{
+						ArrayPool<byte>.Shared.Return(buffer);
+					}
 				}
 				else
 				{
