@@ -60,7 +60,7 @@ namespace MiniIT.Snipe.Tables
 			}
 
 			var wrapper = SnipeObject.FromFastJSONString(json);
-			if (wrapper != null && wrapper["tables"] is IList list)
+			if (wrapper?["tables"] is IList list)
 			{
 				foreach (var loadedItem in list)
 				{
