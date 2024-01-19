@@ -43,7 +43,7 @@ namespace MiniIT.Snipe.Tables
 					_logger.LogTrace($"LoadVersion Failed. Trying to use the built-in ones");
 					_analyticsTracker.TrackEvent("Tables - LoadVersion Failed");
 
-					LoadBuiltIn();
+					versions = await LoadBuiltIn();
 				}
 			}
 
@@ -153,8 +153,13 @@ namespace MiniIT.Snipe.Tables
 			return versions;
 		}
 
-		private Dictionary<string, long> LoadBuiltIn()
+		private async Task<Dictionary<string, long>> LoadBuiltIn()
 		{
+			while (_builtInTablesListService.Items == null)
+			{
+				await Task.Delay(50);
+			}
+
 			var versions = new Dictionary<string, long>(_builtInTablesListService.Items.Count);
 			foreach (var item in _builtInTablesListService.Items)
 			{
