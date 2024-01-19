@@ -27,7 +27,9 @@ namespace MiniIT.Snipe.Api
 		public static bool AreEqual<T>(T objA, T objB)
 		{
 			if (ReferenceEquals(objA, objB))
+			{
 				return true;
+			}
 
 			if (objA == null)
 			{
@@ -47,7 +49,9 @@ namespace MiniIT.Snipe.Api
 			}
 
 			if (objA.GetType() != objB.GetType())
+			{
 				return false;
+			}
 
 			if (objA is ICollection collectionA && objB is ICollection collectionB)
 			{
