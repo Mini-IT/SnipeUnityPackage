@@ -23,7 +23,34 @@ namespace MiniIT.Snipe.Tables
 			_logger = SnipeServices.LogService.GetLogger(nameof(TablesVersionsLoader));
 		}
 
-		public async Task<Dictionary<string, long>> Load(CancellationToken cancellationToken)
+		public async Task<Dictionary<string, long>> Load(CancellationToken cancellationToken, bool loadExternal)
+		{
+			Dictionary<string, long> versions = null;
+
+			if (loadExternal)
+			{
+				versions = await LoadFromWeb(cancellationToken);
+			}
+
+			if (versions == null)
+			{
+				if (cancellationToken.IsCancellationRequested)
+				{
+					_logger.LogTrace($"LoadVersion task canceled");
+				}
+				else
+				{
+					_logger.LogTrace($"LoadVersion Failed. Trying to use the built-in ones");
+					_analyticsTracker.TrackEvent("Tables - LoadVersion Failed");
+
+					LoadBuiltIn();
+				}
+			}
+
+			return versions;
+		}
+
+		private async Task<Dictionary<string, long>> LoadFromWeb(CancellationToken cancellationToken)
 		{
 			Dictionary<string, long> versions = null;
 
@@ -123,16 +150,15 @@ namespace MiniIT.Snipe.Tables
 				}
 			}
 
-			if (versions == null)
-			{
-				_logger.LogTrace($"LoadVersion Failed. Trying to use the built-in ones");
-				_analyticsTracker.TrackEvent("Tables - LoadVersion Failed");
+			return versions;
+		}
 
-				versions = new Dictionary<string, long>(_builtInTablesListService.Items.Count);
-				foreach(var item in _builtInTablesListService.Items)
-				{
-					versions[item.name] = item.version;
-				}
+		private Dictionary<string, long> LoadBuiltIn()
+		{
+			var versions = new Dictionary<string, long>(_builtInTablesListService.Items.Count);
+			foreach (var item in _builtInTablesListService.Items)
+			{
+				versions[item.name] = item.version;
 			}
 
 			return versions;

@@ -91,22 +91,23 @@ namespace MiniIT.Snipe
 			return loaded;
 		}
 
-		private async Task<bool> LoadAll(bool loadVersion)
+		private async Task<bool> LoadAll(bool loadExternal)
 		{
 			StopLoading();
 
 			if (_loadingItems == null || _loadingItems.Count == 0)
+			{
 				return true;
+			}
 
 			_cancellation = new CancellationTokenSource();
 			CancellationToken cancellationToken = _cancellation.Token;
 
-			if (loadVersion)
-			{
-				_versions = await _versionsLoader.Load(cancellationToken);
+			_versions = await _versionsLoader.Load(cancellationToken, loadExternal);
 
-				if (cancellationToken.IsCancellationRequested || _loadingItems == null)
-					return false;
+			if (cancellationToken.IsCancellationRequested || _loadingItems == null)
+			{
+				return false;
 			}
 
 			_failed = false;
