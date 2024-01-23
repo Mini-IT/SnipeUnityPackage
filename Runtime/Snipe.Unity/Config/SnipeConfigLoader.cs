@@ -29,9 +29,9 @@ namespace MiniIT.Snipe
 			_appIdentifier = appInfo.ApplicationIdentifier; // Application.identifier;
 			_appVersion = appInfo.ApplicationVersion; // Application.version;
 			_appPlatform = appInfo.ApplicationPlatform; // Application.platform.ToString();
-#if AMAZON_STORE && !UNITY_EDITOR
-			_appPlatform += "Amazon";
-#endif
+//#if AMAZON_STORE && !UNITY_EDITOR
+//			_appPlatform += "Amazon";
+//#endif
 		}
 
 		public async UniTask<Dictionary<string, object>> Load()
