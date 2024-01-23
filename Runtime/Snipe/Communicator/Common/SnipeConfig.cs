@@ -5,6 +5,19 @@ using System.Text.RegularExpressions;
 
 namespace MiniIT.Snipe
 {
+	public enum SnipeProjectMode
+	{
+		Live = 0,
+		Dev = 1,
+	}
+
+	public struct SnipeProjectInfo
+	{
+		public string ProjectID;
+		public string ClientKey;
+		public SnipeProjectMode Mode;
+	}
+
 	public class SnipeConfig
 	{
 		public class UdpAddress
@@ -22,7 +35,9 @@ namespace MiniIT.Snipe
 
 		public string ContextId { get; }
 
-		public string ClientKey { get; set; }
+		public SnipeProjectInfo Project => _project;
+		public string ClientKey => _project.ClientKey;
+
 		public string AppInfo { get; set; }
 		public string DebugId { get; private set; }
 
@@ -43,9 +58,10 @@ namespace MiniIT.Snipe
 
 		public string LogReporterUrl { get; set; }
 
+		private SnipeProjectInfo _project;
+
 		private int _serverWebSocketUrlIndex = 0;
 		private int _serverUdpUrlIndex = 0;
-
 		private readonly IMainThreadRunner _mainThreadRunner;
 		private readonly IApplicationInfo _applicationInfo;
 
@@ -60,19 +76,129 @@ namespace MiniIT.Snipe
 		/// <summary>
 		/// Should be called from the main Unity thread
 		/// </summary>
-		public void InitializeFromJSON(string json_string)
-		{
-			Initialize(SnipeObject.FromJSONString(json_string));
-		}
+		//public void InitializeFromJSON(string json_string)
+		//{
+		//	Initialize(SnipeObject.FromJSONString(json_string));
+		//}
 
 		/// <summary>
 		/// Should be called from the main Unity thread
 		/// </summary>
-		public void Initialize(IDictionary<string, object> data)
+		//public void Initialize(IDictionary<string, object> data)
+		//{
+		//	ParseOld(data);
+		//	ParseNew(data);
+		//}
+
+		public void Initialize(SnipeProjectInfo project, IDictionary<string, object> data)
 		{
-			ParseOld(data);
+			_project = project;
+
 			ParseNew(data);
+			ParseLogReporterSection(data);
+			ParseCompressionSection(data);
+
+			if (project.Mode == SnipeProjectMode.Dev)
+			{
+				InitializeDefaultTablesConfigDev(project.ProjectID);
+			}
+			else
+			{
+				InitializeDefaultTablesConfigLive(project.ProjectID);
+			}
+
+			InitializeUrlIndices();
+
+			InitAppInfo();
 		}
+
+		/// <summary>
+		/// Initialize with default values
+		/// </summary>
+		public void InitializeDefault(SnipeProjectInfo project)
+		{
+			_project = project;
+
+			if (project.Mode == SnipeProjectMode.Dev)
+			{
+				InitializeDefaultConnectionDev();
+				InitializeDefaultTablesConfigDev(project.ProjectID);
+			}
+			else
+			{
+				InitializeDefaultConnectionLive();
+				InitializeDefaultTablesConfigLive(project.ProjectID);
+			}
+
+			InitializeUrlIndices();
+
+			InitAppInfo();
+		}
+
+		#region Default config
+
+		private void InitializeDefaultConnectionDev()
+		{
+			ServerUdpUrls ??= new List<UdpAddress>();
+			ServerUdpUrls.Clear();
+			ServerUdpUrls.Add(new UdpAddress() { Host = "dev.snipe.dev", Port = 10666 });
+
+			ServerHttpUrl = "https://dev.snipe.dev/";
+			HttpHeartbeatInterval = TimeSpan.Zero;
+
+			ServerWebSocketUrls ??= new List<string>();
+			ServerWebSocketUrls.Clear();
+			ServerWebSocketUrls.Add("wss://dev.snipe.dev/wss_11000/");
+			ServerWebSocketUrls.Add("wss://dev-proxy.snipe.dev/wss_11000/");
+			ServerWebSocketUrls.Add("wss://dev2.snipe.dev/wss_11000/");
+			ServerWebSocketUrls.Add("wss://dev-proxy2.snipe.dev/wss_11000/");
+
+			LogReporterUrl = "https://logs-dev.snipe.dev/api/v1/log/batch";
+		}
+
+		private void InitializeDefaultConnectionLive()
+		{
+			ServerUdpUrls ??= new List<UdpAddress>();
+			ServerUdpUrls.Clear();
+			ServerUdpUrls.Add(new UdpAddress() { Host = "live.snipe.dev", Port = 16666 });
+
+			ServerHttpUrl = "https://live.snipe.dev/";
+			HttpHeartbeatInterval = TimeSpan.Zero;
+
+			ServerWebSocketUrls ??= new List<string>();
+			ServerWebSocketUrls.Clear();
+			ServerWebSocketUrls.Add("wss://live.snipe.dev/wss_16000/");
+			ServerWebSocketUrls.Add("wss://live-proxy.snipe.dev/wss_16000/");
+			ServerWebSocketUrls.Add("wss://live2.snipe.dev/wss_16000/");
+			ServerWebSocketUrls.Add("wss://live-proxy2.snipe.dev/wss_16000/");
+
+			LogReporterUrl = "https://logs.snipe.dev/api/v1/log/batch";
+		}
+
+		private void InitializeUrlIndices()
+		{
+			_serverWebSocketUrlIndex = SnipeServices.SharedPrefs.GetInt(SnipePrefs.GetWebSocketUrlIndex(ContextId), 0);
+			_serverUdpUrlIndex = SnipeServices.SharedPrefs.GetInt(SnipePrefs.GetUdpUrlIndex(ContextId), 0);
+		}
+
+		private void InitializeDefaultTablesConfigDev(string projectID)
+		{
+			string projectName = $"{projectID}_dev";
+			TablesConfig.ResetTablesUrls();
+			TablesConfig.AddTableUrl($"https://static-dev.snipe.dev/{projectName}/");
+			TablesConfig.AddTableUrl($"https://static-dev-noproxy.snipe.dev/{projectName}/");
+		}
+
+		private void InitializeDefaultTablesConfigLive(string projectID)
+		{
+			string projectName = $"{projectID}_live";
+			TablesConfig.ResetTablesUrls();
+			TablesConfig.AddTableUrl($"https://static.snipe.dev/{projectName}/");
+			TablesConfig.AddTableUrl($"https://static-noproxy.snipe.dev/{projectName}/");
+			TablesConfig.AddTableUrl($"https://snipe.tuner-life.com/{projectName}/");
+		}
+
+		#endregion Default config
 
 		private void ParseNew(IDictionary<string, object> data)
 		{
@@ -90,7 +216,7 @@ namespace MiniIT.Snipe
 				ServerHttpUrl = httpUrl;
 			}
 
-			if (SnipeObject.TryGetValue(data, "snipeHttpUrl", out object wssUrl))
+			if (SnipeObject.TryGetValue(data, "snipeWssUrl", out object wssUrl))
 			{
 				if (wssUrl is IList wssUrlList && wssUrlList.Count > 0)
 				{
@@ -114,9 +240,10 @@ namespace MiniIT.Snipe
 			}
 		}
 
+		/*
 		private void ParseOld(IDictionary<string, object> data)
-		{ 
-			ClientKey = SnipeObject.SafeGetString(data, "client_key").Trim();
+		{
+			_project.ClientKey = SnipeObject.SafeGetString(data, "client_key").Trim();
 
 			if (ServerWebSocketUrls == null)
 				ServerWebSocketUrls = new List<string>();
@@ -191,25 +318,42 @@ namespace MiniIT.Snipe
 				}
 			}
 
+			ParseLogReporterSection(data);
+			ParseCompressionParameters(data);
+
+			InitializeUrlIndices();
+
+			TablesConfig.Init(data);
+
+			InitAppInfo();
+		}
+		*/
+
+		private void ParseLogReporterSection(IDictionary<string, object> data)
+		{
 			if (data.TryGetValue("log_reporter", out var log_reporter_field) &&
 				log_reporter_field is IDictionary<string, object> log_reporter)
 			{
 				LogReporterUrl = SnipeObject.SafeGetString(log_reporter, "url").Trim();
 			}
+		}
 
+		private void ParseCompressionSection(IDictionary<string, object> data)
+		{
 			if (data.TryGetValue("compression", out var compression_field) &&
 				compression_field is IDictionary<string, object> compression)
 			{
 				CompressionEnabled = SnipeObject.SafeGetValue<bool>(compression, "enabled");
-				MinMessageBytesToCompress = SnipeObject.SafeGetValue<int>(compression, "min_size");
+
+				if (CompressionEnabled)
+				{
+					if (SnipeObject.TryGetValue(compression, "min_size", out int minSize) ||
+						SnipeObject.TryGetValue(compression, "minSize", out minSize))
+					{
+						MinMessageBytesToCompress = minSize;
+					}
+				}
 			}
-
-			_serverWebSocketUrlIndex = SnipeServices.SharedPrefs.GetInt(SnipePrefs.GetWebSocketUrlIndex(ContextId), 0);
-			_serverUdpUrlIndex = SnipeServices.SharedPrefs.GetInt(SnipePrefs.GetUdpUrlIndex(ContextId), 0);
-
-			TablesConfig.Init(data);
-
-			InitAppInfo();
 		}
 
 		private bool TryParseUdpUrl(string url, out UdpAddress udpAddress)
@@ -310,7 +454,11 @@ namespace MiniIT.Snipe
 		{
 			_serverWebSocketUrlIndex = GetValidIndex(ServerWebSocketUrls, _serverWebSocketUrlIndex, true);
 
-			_mainThreadRunner.RunInMainThread(() => SnipeServices.SharedPrefs.SetInt(SnipePrefs.GetWebSocketUrlIndex(ContextId), _serverWebSocketUrlIndex));
+			_mainThreadRunner.RunInMainThread(() =>
+			{
+				string key = SnipePrefs.GetWebSocketUrlIndex(ContextId);
+				SnipeServices.SharedPrefs.SetInt(key, _serverWebSocketUrlIndex);
+			});
 		}
 
 		public bool NextUdpUrl()
@@ -318,7 +466,11 @@ namespace MiniIT.Snipe
 			int prev = _serverUdpUrlIndex;
 			_serverUdpUrlIndex = GetValidIndex(ServerUdpUrls, _serverUdpUrlIndex, true);
 
-			_mainThreadRunner.RunInMainThread(() => SnipeServices.SharedPrefs.SetInt(SnipePrefs.GetUdpUrlIndex(ContextId), _serverUdpUrlIndex));
+			_mainThreadRunner.RunInMainThread(() =>
+			{
+				string key = SnipePrefs.GetUdpUrlIndex(ContextId);
+				SnipeServices.SharedPrefs.SetInt(key, _serverUdpUrlIndex);
+			});
 
 			return _serverUdpUrlIndex > prev;
 		}
@@ -326,8 +478,11 @@ namespace MiniIT.Snipe
 		public bool CheckUdpAvailable()
 		{
 			if (ServerUdpUrls == null || ServerUdpUrls.Count < 1)
+			{
 				return false;
-			var address = ServerUdpUrls[0];
+			}
+
+			UdpAddress address = ServerUdpUrls[0];
 			return !string.IsNullOrEmpty(address?.Host) && address.Port > 0;
 		}
 
