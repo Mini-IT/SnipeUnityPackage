@@ -65,7 +65,14 @@ namespace MiniIT.Snipe
 
 			if (IsBindDone)
 			{
-				OnBindDone();
+				try
+				{
+					OnBindDone();
+				}
+				catch (Exception e)
+				{
+					_logger.LogError(e, "OnBindDone invocation error");
+				}
 			}
 		}
 
