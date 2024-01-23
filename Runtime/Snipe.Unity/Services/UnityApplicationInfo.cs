@@ -1,4 +1,3 @@
-using MiniIT.Snipe;
 using UnityEngine;
 
 namespace MiniIT.Snipe.Unity
@@ -16,7 +15,13 @@ namespace MiniIT.Snipe.Unity
 		{
 			ApplicationIdentifier = Application.identifier;
 			ApplicationVersion = Application.version;
+
+#if AMAZON_STORE && !UNITY_EDITOR
+			ApplicationPlatform = Application.platform.ToString() + "Amazon";
+#else
 			ApplicationPlatform = Application.platform.ToString();
+#endif
+
 			DeviceIdentifier = SystemInfo.deviceUniqueIdentifier;
 			PersistentDataPath = Application.persistentDataPath;
 			StreamingAssetsPath = Application.streamingAssetsPath;
