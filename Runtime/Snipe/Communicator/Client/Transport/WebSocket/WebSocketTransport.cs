@@ -145,8 +145,7 @@ namespace MiniIT.Snipe
 		{
 			lock (_lock)
 			{
-				if (_batchMessages == null)
-					_batchMessages = new ConcurrentQueue<List<SnipeObject>>();
+				_batchMessages ??= new ConcurrentQueue<List<SnipeObject>>();
 				_batchMessages.Enqueue(messages);
 
 				if (_sendMessages == null)
