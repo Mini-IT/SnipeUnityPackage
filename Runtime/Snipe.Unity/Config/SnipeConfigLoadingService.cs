@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using MiniIT.Utils;
 
@@ -7,7 +8,7 @@ namespace MiniIT.Snipe
 	public interface ISnipeConfigLoadingService
 	{
 		Dictionary<string, object> Config { get; }
-		UniTask<Dictionary<string, object>> Load();
+		UniTask<Dictionary<string, object>> Load(CancellationToken cancellationToken = default);
 	}
 
 	public class SnipeConfigLoadingService : ISnipeConfigLoadingService
@@ -32,7 +33,7 @@ namespace MiniIT.Snipe
 			_loader = new SnipeConfigLoader(projectID, SnipeServices.ApplicationInfo);
 		}
 
-		public async UniTask<Dictionary<string, object>> Load()
+		public async UniTask<Dictionary<string, object>> Load(CancellationToken cancellationToken = default)
 		{
 			if (_config != null)
 			{
@@ -41,7 +42,7 @@ namespace MiniIT.Snipe
 
 			if (_loading)
 			{
-				await UniTask.WaitWhile(() => _config == null);
+				await UniTask.WaitWhile(() => _config == null, PlayerLoopTiming.Update, cancellationToken);
 				return _config;
 			}
 
@@ -50,12 +51,16 @@ namespace MiniIT.Snipe
 			var localConfig = new Dictionary<string, object>();
 			await _configFile.LoadAndMerge(localConfig);
 
-			await UniTask.WaitWhile(() => _loader == null);
+			await UniTask.WaitWhile(() => _loader == null, PlayerLoopTiming.Update, cancellationToken);
+			if (cancellationToken.IsCancellationRequested)
+			{
+				return _config;
+			}
 
 			var remoteConfig = await _loader.Load();
 
 			DictionaryUtility.Merge(localConfig, remoteConfig);
-			_configFile.SaveConfig(localConfig);
+			_configFile.SaveConfig(localConfig); // TODO: run as a separate task
 
 			_config = localConfig;
 			return _config;
