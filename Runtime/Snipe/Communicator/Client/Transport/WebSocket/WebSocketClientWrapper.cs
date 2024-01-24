@@ -257,6 +257,12 @@ namespace MiniIT.Snipe
 		{
 			return _webSocket != null && _webSocket.State == WebSocketState.Open;
 		}
+
+		public override void Dispose()
+		{
+			base.Dispose();
+			_webSocket?.Dispose();
+		}
 	}
 
 }

@@ -27,15 +27,8 @@ namespace MiniIT.Snipe
 		private bool? _isBindDone = null;
 		public bool IsBindDone
 		{
-			get
-			{
-				_isBindDone ??= (_sharedPrefs.GetInt(BindDonePrefsKey, 0) == 1);
-				return _isBindDone.Value;
-			}
-			internal set
-			{
-				SetBindDoneFlag(value, true);
-			}
+			get => _isBindDone ??= (_sharedPrefs.GetInt(BindDonePrefsKey, 0) == 1);
+			internal set => SetBindDoneFlag(value);
 		}
 
 		protected BindResultCallback _bindResultCallback;
@@ -62,18 +55,6 @@ namespace MiniIT.Snipe
 
 			ProviderId = provider_id;
 			Fetcher = fetcher;
-
-			if (IsBindDone)
-			{
-				try
-				{
-					OnBindDone();
-				}
-				catch (Exception e)
-				{
-					_logger.LogError(e, "OnBindDone invocation error");
-				}
-			}
 		}
 
 		public void Start()
@@ -274,7 +255,7 @@ namespace MiniIT.Snipe
 			}
 		}
 		
-		private void SetBindDoneFlag(bool value, bool invoke_callback)
+		private void SetBindDoneFlag(bool value)
 		{
 			if (value == IsBindDone)
 			{
@@ -292,15 +273,6 @@ namespace MiniIT.Snipe
 			{
 				_sharedPrefs.DeleteKey(BindDonePrefsKey);
 			}
-
-			if (value && invoke_callback)
-			{
-				OnBindDone();
-			}
-		}
-
-		protected virtual void OnBindDone()
-		{
 		}
 
 		public void DisposeCallback()
