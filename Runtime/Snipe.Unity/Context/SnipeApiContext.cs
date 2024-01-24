@@ -18,16 +18,13 @@ namespace MiniIT.Snipe
 		/// <inheritdoc cref="SnipeContext.GetInstance(string, bool)"/>
 		public static new SnipeApiContext<TApi, TTables> GetInstance(string id = null, bool initialize = true)
 			=> GetInstance<SnipeApiContext<TApi, TTables>>(id, initialize);
-
+		
 		public new TApi Api
 		{
 			get => _api;
-			private set
-			{
-				_api = value;
-				base.Api = value;
-			}
+			private set => base.Api = _api = value;
 		}
+
 		public TTables Tables { get; private set; }
 		public LogicManager LogicManager { get; private set; }
 		public BadgesManager BadgesManager { get; private set; }
@@ -103,12 +100,17 @@ namespace MiniIT.Snipe
 		public override void Dispose()
 		{
 			if (IsDisposed)
+			{
 				return;
+			}
 
 			LogicManager?.Dispose();
 			CalendarManager?.Dispose();
 
-			Api?.Dispose();
+			if (Api is IDisposable disposableApi)
+			{
+				disposableApi.Dispose();
+			}
 			Api = null;
 			Tables = null;
 
