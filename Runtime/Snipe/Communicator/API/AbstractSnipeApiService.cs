@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace MiniIT.Snipe.Api
 {
-	public abstract class AbstractSnipeApiService : IDisposable
+	public abstract class AbstractSnipeApiService
 	{
 		public delegate AbstractCommunicatorRequest RequestFactoryMethod(string messageType, SnipeObject data);
 
@@ -30,10 +30,6 @@ namespace MiniIT.Snipe.Api
 		{
 			_communicator.MessageReceived -= handler;
 			_communicator.MessageReceived += handler;
-		}
-
-		public virtual void Dispose()
-		{
 		}
 
 		public bool TryGetModule<TModule>(out TModule module) where TModule : SnipeApiModule
