@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -178,13 +179,26 @@ namespace MiniIT.Snipe
 
 		private void InitAppInfo()
 		{
-			AppInfo = new SnipeObject()
+			var appinfo = new SnipeObject()
 			{
 				["identifier"] = Application.identifier,
 				["version"] = Application.version,
 				["platform"] = Application.platform.ToString(),
 				["packageVersion"] = PackageInfo.VERSION,
-			}.ToJSONString();
+			};
+
+			var sysinfo = SystemInformationExtractor.GetSystemInfo();
+			if (!string.IsNullOrEmpty(sysinfo.DeviceManufacturer))
+			{
+				appinfo["deviceName"] = sysinfo.DeviceManufacturer;
+			}
+			if (!string.IsNullOrEmpty(sysinfo.OperatingSystemFamily))
+			{
+				appinfo["osName"] = sysinfo.OperatingSystemFamily;
+				appinfo["osVersion"] = $"{sysinfo.OperatingSystemVersion.Major}.{sysinfo.OperatingSystemVersion.Minor}";
+			}
+
+			AppInfo = appinfo.ToJSONString();
 
 			using (var md5 = System.Security.Cryptography.MD5.Create())
 			{
