@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace MiniIT.Snipe
@@ -192,18 +193,30 @@ namespace MiniIT.Snipe
 
 		private void InitAppInfo()
 		{
-			AppInfo = new SnipeObject()
+			var appinfo = new StringBuilder("{")
+				.Append($"\"identifier\":\"{_applicationInfo.ApplicationIdentifier}\",")
+				.Append($"\"version\":\"{_applicationInfo.ApplicationVersion}\",")
+				.Append($"\"platform\":\"{_applicationInfo.ApplicationPlatform}\",")
+				.Append($"\"packageVersion\":\"{PackageInfo.VERSION_CODE}\",")
+				.Append($"\"packageVersionName\":\"{PackageInfo.VERSION_NAME}\"");
+
+			var sysinfo = SystemInformationExtractor.GetSystemInfo();
+			if (!string.IsNullOrEmpty(sysinfo.DeviceManufacturer))
 			{
-				["identifier"] = _applicationInfo.ApplicationIdentifier,
-				["version"] = _applicationInfo.ApplicationVersion,
-				["platform"] = _applicationInfo.ApplicationPlatform,
-				["packageVersion"] = PackageInfo.VERSION_CODE,
-				["packageVersionName"] = PackageInfo.VERSION_NAME,
-			}.ToJSONString();
+				appinfo.Append($",\"deviceName\":\"{sysinfo.DeviceManufacturer}\"");
+			}
+			if (!string.IsNullOrEmpty(sysinfo.OperatingSystemFamily))
+			{
+				appinfo.Append($",\"osName\":\"{sysinfo.OperatingSystemFamily}\"");
+				appinfo.Append($",\"osVersion\":\"{sysinfo.OperatingSystemVersion.Major}.{sysinfo.OperatingSystemVersion.Minor}\"");
+			}
+
+			appinfo.Append("}");
+
+			AppInfo = appinfo.ToString();
 
 			DebugId = GenerateDebugId();
 			SnipeServices.Analytics.GetTracker(ContextId).SetDebugId(DebugId);
-			
 		}
 
 		private string GenerateDebugId()
