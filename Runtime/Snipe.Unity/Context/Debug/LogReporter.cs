@@ -53,7 +53,7 @@ namespace MiniIT
 
 			if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(url))
 			{
-				Debug.LogWarning($"[{nameof(LogReporter)}] Invalid apiKey or url");
+				DebugLogWarning($"[{nameof(LogReporter)}] Invalid apiKey or url");
 				return false;
 			}
 			
@@ -63,7 +63,7 @@ namespace MiniIT
 				
 				if (_running)
 				{
-					Debug.LogWarning($"[{nameof(LogReporter)}] Already running");
+					DebugLogWarning($"[{nameof(LogReporter)}] Already running");
 					return false;
 				}
 				_running = true;
@@ -101,7 +101,7 @@ namespace MiniIT
 				{
 					succeeded = false;
 					statusCode = HttpStatusCode.BadRequest;
-					Debug.LogError($"[{nameof(LogReporter)}] - Error getting log portion: {ex}");
+					DebugLogError($"[{nameof(LogReporter)}] - Error getting log portion: {ex}");
 					break;
 				}
 				finally
@@ -127,16 +127,16 @@ namespace MiniIT
 				{
 					succeeded = false;
 					statusCode = HttpStatusCode.BadRequest;
-					Debug.LogError($"[{nameof(LogReporter)}] - Error posting log portion: {ex}");
+					DebugLogError($"[{nameof(LogReporter)}] - Error posting log portion: {ex}");
 					break;
 				}
 			}
 
-			Debug.Log($"[{nameof(LogReporter)}] - Send result code = {(int)statusCode} {statusCode}");
+			DebugLog($"[{nameof(LogReporter)}] - Send result code = {(int)statusCode} {statusCode}");
 
 			if (succeeded)
 			{
-				Debug.Log($"[{nameof(LogReporter)}] - Sent successfully. UserId = {userId}, ConnectionId = {connectionId}");
+				DebugLog($"[{nameof(LogReporter)}] - Sent successfully. UserId = {userId}, ConnectionId = {connectionId}");
 
 				try
 				{
@@ -261,5 +261,33 @@ namespace MiniIT
 				_httpClient = null;
 			}
 		}
+
+		#region DebugLog
+
+		private void DebugLog(string text)
+		{
+			var stackType = Application.GetStackTraceLogType(LogType.Log);
+			Application.SetStackTraceLogType(LogType.Log, StackTraceLogType.ScriptOnly);
+			Debug.Log(text);
+			Application.SetStackTraceLogType(LogType.Log, stackType);
+		}
+
+		private void DebugLogWarning(string text)
+		{
+			var stackType = Application.GetStackTraceLogType(LogType.Warning);
+			Application.SetStackTraceLogType(LogType.Warning, StackTraceLogType.ScriptOnly);
+			Debug.LogWarning(text);
+			Application.SetStackTraceLogType(LogType.Warning, stackType);
+		}
+
+		private void DebugLogError(string text)
+		{
+			var stackType = Application.GetStackTraceLogType(LogType.Error);
+			Application.SetStackTraceLogType(LogType.Error, StackTraceLogType.ScriptOnly);
+			Debug.LogError(text);
+			Application.SetStackTraceLogType(LogType.Error, stackType);
+		}
+
+		#endregion
 	}
 }
