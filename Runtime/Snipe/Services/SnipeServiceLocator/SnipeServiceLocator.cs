@@ -8,7 +8,7 @@ namespace MiniIT.Snipe
 	{
 		public ISharedPrefs SharedPrefs => _sharedPrefs ??= _factory.CreateSharedPrefs();
 		public ILogService LogService => _logService ??= _factory.CreateLogService();
-		public ISnipeAnalyticsService Analytics => _analyticsService ?? _factory.CreateAnalyticsService();
+		public ISnipeAnalyticsService Analytics => _analyticsService ??= _factory.CreateAnalyticsService();
 		public IMainThreadRunner MainThreadRunner => _mainThreadRunner;
 		public IApplicationInfo ApplicationInfo => _applicationInfo;
 
