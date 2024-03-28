@@ -61,8 +61,11 @@ namespace MiniIT.Snipe
 
 			var remoteConfig = await _loader.Load();
 
-			DictionaryUtility.Merge(localConfig, remoteConfig);
-			_configFile.SaveConfig(localConfig);
+			if (remoteConfig != null)
+			{
+				DictionaryUtility.Merge(localConfig, remoteConfig);
+				_configFile.SaveConfig(localConfig);
+			}
 
 			_config = localConfig;
 			return _config;
