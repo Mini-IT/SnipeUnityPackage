@@ -36,16 +36,14 @@ namespace MiniIT.Snipe
 
 		public async UniTask<Dictionary<string, object>> Load()
 		{
-			var requestParams = new Dictionary<string, string>()
-			{
-				["project"] = _projectID,
-				["deviceID"] = _deviceID,
-				["identifier"] = _appIdentifier,
-				["version"] = _appVersion,
-				["platform"] = _appPlatform,
-				["packageVersion"] = PackageInfo.VERSION_CODE,
-			};
-			string requestParamsJson = JSON.ToJSON(requestParams);
+			string requestParamsJson = "{" +
+				$"\"project\":\"{_projectID}\"," +
+				$"\"deviceID\":\"{_deviceID}\"," +
+				$"\"identifier\":\"{_appIdentifier}\"," +
+				$"\"version\":\"{_appVersion}\"," +
+				$"\"platform\":\"{_appPlatform}\"," +
+				$"\"packageVersion\":\"{PackageInfo.VERSION_CODE}\"" +
+				"}";
 
 			HttpWebResponse response = null;
 			Dictionary<string, object> config = null;
