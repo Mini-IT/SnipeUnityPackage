@@ -22,7 +22,7 @@ namespace MiniIT.Snipe
 		public SnipeConfigLoader(string projectID, IApplicationInfo appInfo)
 		{
 			_projectID = projectID;
-			_url = "https://config.snipe.dev/api/v1/config";
+			_url = "https://config.snipe.dev/api/v1/configStrings";
 
 			//var appInfo = SnipeServices.ApplicationInfo;
 			_deviceID = appInfo.DeviceIdentifier; // SystemInfo.deviceUniqueIdentifier;
