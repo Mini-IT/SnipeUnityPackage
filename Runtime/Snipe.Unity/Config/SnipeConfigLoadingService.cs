@@ -51,7 +51,9 @@ namespace MiniIT.Snipe
 			var localConfig = new Dictionary<string, object>();
 			await _configFile.LoadAndMerge(localConfig);
 
-			await UniTask.WaitWhile(() => _loader == null, PlayerLoopTiming.Update, cancellationToken);
+			await UniTask.WaitWhile(() => _loader == null, PlayerLoopTiming.Update, cancellationToken)
+				.SuppressCancellationThrow();
+
 			if (cancellationToken.IsCancellationRequested)
 			{
 				return _config;
@@ -60,7 +62,7 @@ namespace MiniIT.Snipe
 			var remoteConfig = await _loader.Load();
 
 			DictionaryUtility.Merge(localConfig, remoteConfig);
-			_configFile.SaveConfig(localConfig); // TODO: run as a separate task
+			_configFile.SaveConfig(localConfig);
 
 			_config = localConfig;
 			return _config;
