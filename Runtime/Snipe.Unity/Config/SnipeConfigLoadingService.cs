@@ -20,11 +20,9 @@ namespace MiniIT.Snipe
 
 		private SnipeConfigLoader _loader;
 		private readonly string _projectID;
-		private readonly SnipeConfigFile _configFile;
 
 		public SnipeConfigLoadingService(string projectID)
 		{
-			_configFile = new SnipeConfigFile();
 			_projectID = projectID;
 		}
 
@@ -43,9 +41,6 @@ namespace MiniIT.Snipe
 
 			_loading = true;
 
-			var localConfig = new Dictionary<string, object>();
-			await _configFile.LoadAndMerge(localConfig);
-
 			if (_loader == null)
 			{
 				await UniTask.WaitUntil(() => SnipeServices.IsInitialized, PlayerLoopTiming.Update, cancellationToken)
@@ -59,15 +54,9 @@ namespace MiniIT.Snipe
 				_loader ??= new SnipeConfigLoader(_projectID, SnipeServices.ApplicationInfo);
 			}
 
-			var remoteConfig = await _loader.Load();
+			_config = await _loader.Load();
+			_loading = false;
 
-			if (remoteConfig != null)
-			{
-				DictionaryUtility.Merge(localConfig, remoteConfig);
-				_configFile.SaveConfig(localConfig);
-			}
-
-			_config = localConfig;
 			return _config;
 		}
 	}
