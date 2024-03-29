@@ -19,18 +19,13 @@ namespace MiniIT.Snipe
 		private bool _loading = false;
 
 		private SnipeConfigLoader _loader;
+		private readonly string _projectID;
 		private readonly SnipeConfigFile _configFile;
 
 		public SnipeConfigLoadingService(string projectID)
 		{
 			_configFile = new SnipeConfigFile();
-			InitLoader(projectID).Forget();
-		}
-
-		private async UniTaskVoid InitLoader(string projectID)
-		{
-			await UniTask.WaitUntil(() => SnipeServices.IsInitialized);
-			_loader = new SnipeConfigLoader(projectID, SnipeServices.ApplicationInfo);
+			_projectID = projectID;
 		}
 
 		public async UniTask<Dictionary<string, object>> Load(CancellationToken cancellationToken = default)
@@ -51,12 +46,17 @@ namespace MiniIT.Snipe
 			var localConfig = new Dictionary<string, object>();
 			await _configFile.LoadAndMerge(localConfig);
 
-			await UniTask.WaitWhile(() => _loader == null, PlayerLoopTiming.Update, cancellationToken)
-				.SuppressCancellationThrow();
-
-			if (cancellationToken.IsCancellationRequested)
+			if (_loader == null)
 			{
-				return _config;
+				await UniTask.WaitUntil(() => SnipeServices.IsInitialized, PlayerLoopTiming.Update, cancellationToken)
+					.SuppressCancellationThrow();
+
+				if (cancellationToken.IsCancellationRequested)
+				{
+					return _config;
+				}
+
+				_loader ??= new SnipeConfigLoader(_projectID, SnipeServices.ApplicationInfo);
 			}
 
 			var remoteConfig = await _loader.Load();
