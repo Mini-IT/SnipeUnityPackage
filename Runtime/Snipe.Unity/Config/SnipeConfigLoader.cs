@@ -14,36 +14,29 @@ namespace MiniIT.Snipe
 	{
 		private readonly string _projectID;
 		private readonly string _url;
-		private readonly string _deviceID;
-		private readonly string _appIdentifier;
-		private readonly string _appVersion;
-		private readonly string _appPlatform;
+		private readonly IApplicationInfo _appInfo;
 
 		public SnipeConfigLoader(string projectID, IApplicationInfo appInfo)
 		{
 			_projectID = projectID;
+			_appInfo = appInfo;
 			_url = "https://config.snipe.dev/api/v1/configStrings";
-
-			//var appInfo = SnipeServices.ApplicationInfo;
-			_deviceID = appInfo.DeviceIdentifier; // SystemInfo.deviceUniqueIdentifier;
-			_appIdentifier = appInfo.ApplicationIdentifier; // Application.identifier;
-			_appVersion = appInfo.ApplicationVersion; // Application.version;
-			_appPlatform = appInfo.ApplicationPlatform; // Application.platform.ToString();
-//#if AMAZON_STORE && !UNITY_EDITOR
-//			_appPlatform += "Amazon";
-//#endif
 		}
 
 		public async UniTask<Dictionary<string, object>> Load()
 		{
 			string requestParamsJson = "{" +
 				$"\"project\":\"{_projectID}\"," +
-				$"\"deviceID\":\"{_deviceID}\"," +
-				$"\"identifier\":\"{_appIdentifier}\"," +
-				$"\"version\":\"{_appVersion}\"," +
-				$"\"platform\":\"{_appPlatform}\"," +
+				$"\"deviceID\":\"{_appInfo.DeviceIdentifier}\"," +
+				$"\"identifier\":\"{_appInfo.ApplicationIdentifier}\"," +
+				$"\"version\":\"{_appInfo.ApplicationVersion}\"," +
+				$"\"platform\":\"{_appInfo.ApplicationPlatform}\"," +
 				$"\"packageVersion\":\"{PackageInfo.VERSION_CODE}\"" +
 				"}";
+
+#if UNITY_EDITOR
+			Debug.Log($"Load config with params: {requestParamsJson}");
+#endif
 
 			HttpWebResponse response = null;
 			Dictionary<string, object> config = null;
@@ -78,6 +71,8 @@ namespace MiniIT.Snipe
 				using (var reader = new StreamReader(response.GetResponseStream()))
 				{
 					string responseMessage = await reader.ReadToEndAsync();
+					Debug.Log($"[{nameof(SnipeConfigLoader)}] loader response: {responseMessage}");
+
 					var fullResponse = (Dictionary<string, object>)JSON.Parse(responseMessage);
 					if (fullResponse != null && fullResponse.TryGetValue("data", out var responseData))
 					{
