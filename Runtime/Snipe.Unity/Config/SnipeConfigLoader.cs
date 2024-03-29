@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -74,9 +75,27 @@ namespace MiniIT.Snipe
 					Debug.Log($"[{nameof(SnipeConfigLoader)}] loader response: {responseMessage}");
 
 					var fullResponse = (Dictionary<string, object>)JSON.Parse(responseMessage);
-					if (fullResponse != null && fullResponse.TryGetValue("data", out var responseData))
+					if (fullResponse != null)
 					{
-						config = (Dictionary<string, object>)responseData;
+						if (fullResponse.TryGetValue("data", out var responseData))
+						{
+							config = (Dictionary<string, object>)responseData;
+						}
+
+						// Inject AB-tests
+						// "abTests":[{"id":1,"stringID":"testString","variantID":1}]
+						if (fullResponse.TryGetValue("abTests", out var testsList) && testsList is IEnumerable tests)
+						{
+							foreach (var testData in tests)
+							{
+								if (testData is IDictionary<string, object> test &&
+									test.TryGetValue("stringID", out var testStringID) &&
+									test.TryGetValue("variantID", out var testVariantID))
+								{
+									config[$"test_{testStringID}"] = $"test_{testStringID}_Variant{testVariantID}";
+								}
+							}
+						}
 					}
 				}
 
