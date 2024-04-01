@@ -15,7 +15,7 @@ namespace MiniIT.Snipe
 	public struct SnipeProjectInfo
 	{
 		public string ProjectID;
-		public string ClientKey;
+		//public string ClientKey;
 		public SnipeProjectMode Mode;
 	}
 
@@ -37,7 +37,7 @@ namespace MiniIT.Snipe
 		public string ContextId { get; }
 
 		public SnipeProjectInfo Project => _project;
-		public string ClientKey => _project.ClientKey;
+		public string ClientKey { get; set; }// => _project.ClientKey;
 
 		public string ProjectName { get; private set; }
 		public string AppInfo { get; private set; }
@@ -236,10 +236,14 @@ namespace MiniIT.Snipe
 				List<string> outputList = ServerWebSocketUrls;
 				ParseWebSocketUrls(outputList, wssUrl);
 			}
+
+			if (SnipeObject.TryGetValue(data, "snipeDev", out bool dev))
+			{
+				_project.Mode = dev ? SnipeProjectMode.Dev : SnipeProjectMode.Live;
+			}
 		}
 
-		// [Testable
-
+		// [Testable]
 		internal static void ParseWebSocketUrls(List<string> outputList, object wssUrl)
 		{
 			if (wssUrl is IList wssUrlList && wssUrlList.Count > 0)
