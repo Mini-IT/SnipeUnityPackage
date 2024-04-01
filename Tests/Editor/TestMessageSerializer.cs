@@ -8,6 +8,7 @@ using UnityEngine.TestTools;
 using MiniIT;
 using MiniIT.Snipe;
 using MiniIT.MessagePack;
+using MiniIT.Snipe.Unity;
 
 public class TestMessageSerializer
 {
@@ -17,6 +18,11 @@ public class TestMessageSerializer
 		const int THREADS_COUNT = 40;
 		List<SnipeObject> data = new List<SnipeObject>(THREADS_COUNT);
 		List<byte[]> serialized = new List<byte[]>(THREADS_COUNT);
+
+		if (!SnipeServices.IsInitialized)
+		{
+			SnipeServices.Initialize(new UnitySnipeServicesFactory());
+		}
 
 		for (int i = 0; i < THREADS_COUNT; i++)
 		{
