@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using fastJSON;
 
 namespace MiniIT.Snipe
 {
@@ -232,25 +233,61 @@ namespace MiniIT.Snipe
 
 			if (SnipeObject.TryGetValue(data, "snipeWssUrl", out object wssUrl))
 			{
-				if (wssUrl is IList wssUrlList && wssUrlList.Count > 0)
-				{
-					ServerWebSocketUrls.Clear();
+				List<string> outputList = ServerWebSocketUrls;
+				ParseWebSocketUrls(outputList, wssUrl);
+			}
+		}
 
-					foreach (var listItem in wssUrlList)
+		// [Testable
+
+		internal static void ParseWebSocketUrls(List<string> outputList, object wssUrl)
+		{
+			if (wssUrl is IList wssUrlList && wssUrlList.Count > 0)
+			{
+				SetWebSocketUrls(outputList, wssUrlList);
+			}
+			else if (wssUrl is string wssUrlString && !string.IsNullOrEmpty(wssUrlString))
+			{
+				string lowerUrl = wssUrlString.ToLower();
+
+				if (lowerUrl.StartsWith('['))
+				{
+					IList list;
+					try
 					{
-						if (listItem is string url && !string.IsNullOrEmpty(url))
-						{
-							ServerWebSocketUrls.Add(url);
-						}
+						list = (IList)JSON.Parse(wssUrlString);
+					}
+					catch (Exception)
+					{
+						list = null;
+					}
+
+					if (list != null && list.Count > 0)
+					{
+						SetWebSocketUrls(outputList, list);
 					}
 				}
-				else if (wssUrl is string url && !string.IsNullOrEmpty(url))
+				else if (lowerUrl.StartsWith("wss://"))
 				{
-					ServerWebSocketUrls.Clear();
-					ServerWebSocketUrls.Add(url);
+					outputList.Clear();
+					outputList.Add(wssUrlString);
 				}
 			}
 		}
+
+		private static void SetWebSocketUrls(List<string> outputList, IList wssUrlList)
+		{
+			outputList.Clear();
+
+			foreach (var listItem in wssUrlList)
+			{
+				if (listItem is string url && !string.IsNullOrEmpty(url) && url.ToLower().StartsWith("wss://"))
+				{
+					outputList.Add(url);
+				}
+			}
+		}
+		
 
 		/*
 		private void ParseOld(IDictionary<string, object> data)
