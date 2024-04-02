@@ -241,6 +241,9 @@ namespace MiniIT.Snipe
 			{
 				_project.Mode = dev ? SnipeProjectMode.Dev : SnipeProjectMode.Live;
 			}
+
+			ParseLogReporterSection(data);
+			ParseCompressionSection(data);
 		}
 
 		// [Testable]
@@ -291,7 +294,7 @@ namespace MiniIT.Snipe
 				}
 			}
 		}
-		
+
 
 		/*
 		private void ParseOld(IDictionary<string, object> data)
@@ -372,7 +375,7 @@ namespace MiniIT.Snipe
 			}
 
 			ParseLogReporterSection(data);
-			ParseCompressionParameters(data);
+			ParseCompressionSection(data);
 
 			InitializeUrlIndices();
 
@@ -423,10 +426,29 @@ namespace MiniIT.Snipe
 
 		private void ParseLogReporterSection(IDictionary<string, object> data)
 		{
-			if (data.TryGetValue("log_reporter", out var log_reporter_field) &&
-				log_reporter_field is IDictionary<string, object> log_reporter)
+			if (data.TryGetValue("log_reporter", out var logReporterField))
 			{
-				LogReporterUrl = SnipeObject.SafeGetString(log_reporter, "url").Trim();
+				if (logReporterField is IDictionary<string, object> logReporterSection)
+				{
+					LogReporterUrl = SnipeObject.SafeGetString(logReporterSection, "url").Trim();
+				}
+				else if (logReporterField is string logReporterString)
+				{
+					var regex = new Regex(@"^http.?://.*", RegexOptions.IgnoreCase); // == StartsWith("http(s)://")
+
+					if (regex.IsMatch(logReporterString))
+					{
+						LogReporterUrl = logReporterString;
+					}
+					else
+					{
+						var dict = (Dictionary<string, object>)JSON.Parse(logReporterString);
+						if (dict != null)
+						{
+							LogReporterUrl = SnipeObject.SafeGetString(dict, "url").Trim();
+						}
+					}
+				}
 			}
 		}
 
