@@ -53,7 +53,7 @@ namespace MiniIT.Snipe
 
 				if (loadTask.IsFaulted || loadTask.IsCanceled)
 				{
-					Debug.LogError($"[{nameof(SnipeConfigLoader)}] loader failed");
+					Debug.Log($"[{nameof(SnipeConfigLoader)}] loader failed");
 					return config;
 				}
 
@@ -102,7 +102,7 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception e)
 			{
-				Debug.LogError($"[{nameof(SnipeConfigLoader)}] loader failed: {e}");
+				Debug.Log($"[{nameof(SnipeConfigLoader)}] loader failed: {e}");
 			}
 			finally
 			{
