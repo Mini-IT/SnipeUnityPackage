@@ -194,6 +194,14 @@ namespace MiniIT.Snipe.Api
 			try
 			{
 				await Task.Delay(RequestDelay, cancellationToken);
+			}
+			catch (OperationCanceledException)
+			{
+				return;
+			}
+
+			try
+			{
 				await _setRequestsSemaphore.WaitAsync(cancellationToken);
 
 				_setRequestsCancellation?.Dispose();
