@@ -393,12 +393,12 @@ namespace MiniIT.Snipe
 
 			// await Task.Delay(HEARTBEAT_TASK_DELAY, cancellation);
 			_heartbeatTriggerTicks = 0;
+			bool pinging = false;
 
 			while (cancellation != null && !cancellation.IsCancellationRequested && Connected)
 			{
 				if (DateTime.UtcNow.Ticks >= _heartbeatTriggerTicks)
 				{
-					bool pinging = false;
 					if (pinging)
 					{
 						await Task.Delay(20);

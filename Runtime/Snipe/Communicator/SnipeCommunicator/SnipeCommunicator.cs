@@ -54,11 +54,15 @@ namespace MiniIT.Snipe
 			set
 			{
 				if (Client != null)
+				{
 					Client.BatchMode = value;
+				}
 			}
 		}
 
 		private bool _disconnecting = false;
+
+		private readonly object _clientLock = new object();
 
 		private CancellationTokenSource _delayedInitCancellation;
 
@@ -111,7 +115,7 @@ namespace MiniIT.Snipe
 				Client.MessageReceived += OnMessageReceived;
 			}
 
-			lock (Client)
+			lock (_clientLock)
 			{
 				if (!Client.Connected)
 				{
@@ -303,9 +307,7 @@ namespace MiniIT.Snipe
 			{
 				if (request != null && request.MessageType.StartsWith(SnipeMessageTypes.PREFIX_ROOM))
 				{
-					if (room_requests == null)
-						room_requests = new List<AbstractCommunicatorRequest>();
-					
+					room_requests ??= new List<AbstractCommunicatorRequest>();
 					room_requests.Add(request);
 				}
 			}

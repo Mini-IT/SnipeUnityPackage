@@ -60,6 +60,11 @@ namespace MiniIT.Snipe.Api
 
 				foreach (SnipeObject data_var in data_vars)
 				{
+					if (data_var == null)
+					{
+						continue;
+					}
+
 					bool found = false;
 
 					string var_name = data_var.SafeGetString("name");
@@ -70,8 +75,8 @@ namespace MiniIT.Snipe.Api
 							vars.Add(new SnipeLogicNodeVar()
 							{
 								var = node_var,
-								value = data_var?.SafeGetValue<int>("value") ?? default,
-								maxValue = data_var?.SafeGetValue<int>("maxValue") ?? default,
+								value = data_var.SafeGetValue<int>("value"),
+								maxValue = data_var.SafeGetValue<int>("maxValue"),
 							});
 
 							found = true;
@@ -91,12 +96,12 @@ namespace MiniIT.Snipe.Api
 						{
 							if (var_type == node_var.type)
 							{
-								int var_value = data_var?.SafeGetValue<int>("value") ?? default;
+								int var_value = data_var.SafeGetValue<int>("value");
 								vars.Add(new SnipeLogicNodeVar()
 								{
 									var = node_var,
 									value = var_value,
-									maxValue = data_var?.SafeGetValue<int>("maxValue") ?? default,
+									maxValue = data_var.SafeGetValue<int>("maxValue"),
 								});
 
 								RefreshTimerVar(var_type, var_value);

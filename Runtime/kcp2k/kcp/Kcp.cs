@@ -158,7 +158,7 @@ namespace kcp2k
             if (rcv_queue.Count == 0)
                 return -1;
 
-            if (len < 0) len = -len;
+            //if (len < 0) len = -len;
 
             int peeksize = PeekSize();
 
