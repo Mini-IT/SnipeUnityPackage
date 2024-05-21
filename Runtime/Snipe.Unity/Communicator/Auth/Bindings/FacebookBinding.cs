@@ -20,6 +20,13 @@ namespace MiniIT.Snipe.Unity
 			
 			return "";
 		}
+
+		protected override void FillExtraParameters(SnipeObject data)
+		{
+#if UNITY_IOS && MINIIT_SOCIAL_CORE_1_1
+			data["version"] = 2;
+#endif
+		}
 	}
 }
 
