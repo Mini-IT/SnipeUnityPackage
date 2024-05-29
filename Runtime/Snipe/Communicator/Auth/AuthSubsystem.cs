@@ -203,9 +203,13 @@ namespace MiniIT.Snipe
 						case SnipeErrorCodes.ALREADY_LOGGED_IN:
 							UserID = response.SafeGetValue<int>("id");
 
+							if (response.TryGetValue("name", out string username))
+							{
+								UserName = username;
+							}
+
 							StartBindings();
 
-							UserName = data.SafeGetString("name");
 							AutoLogin = true;
 							_loginAttempt = 0;
 

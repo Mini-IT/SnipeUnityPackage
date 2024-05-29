@@ -6,10 +6,16 @@ namespace MiniIT.Snipe
 	{
 		public bool IsEnabled { get; set; } = true;
 
+		private ISnipeCommunicatorAnalyticsTracker _externalTracker;
+
+		private Dictionary<string, SnipeAnalyticsTracker> _trackers;
+		private readonly object _trackersLock = new object();
+
 		public SnipeAnalyticsTracker GetTracker(string contextId = null)
 		{
 			contextId ??= string.Empty;
 			SnipeAnalyticsTracker tracker;
+
 			lock (_trackersLock)
 			{
 				_trackers ??= new Dictionary<string, SnipeAnalyticsTracker>();
@@ -23,14 +29,10 @@ namespace MiniIT.Snipe
 			return tracker;
 		}
 
-		private ISnipeCommunicatorAnalyticsTracker _externalTracker;
-
-		private Dictionary<string, SnipeAnalyticsTracker> _trackers;
-		private readonly object _trackersLock = new object();
-
 		public void SetTracker(ISnipeCommunicatorAnalyticsTracker externalTracker)
 		{
 			_externalTracker = externalTracker;
+
 			lock (_trackersLock)
 			{
 				if (_trackers == null)
