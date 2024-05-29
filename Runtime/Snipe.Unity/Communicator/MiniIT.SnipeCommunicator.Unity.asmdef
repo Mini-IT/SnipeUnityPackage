@@ -9,6 +9,7 @@
         "MiniIT.Snipe.Logging",
         "MiniIT.AdvertisingIdFetcher",
         "MiniIT.Framework.StreamingAssetsReader",
+        "MiniIT.Framework.Social",
         "fastJSON",
         "UniTask"
     ],
