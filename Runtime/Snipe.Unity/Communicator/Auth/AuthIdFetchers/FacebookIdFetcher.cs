@@ -29,17 +29,35 @@ namespace MiniIT.Snipe.Unity
 
 		private async void WaitForInitialization(Action<string> callback)
 		{
-			while (string.IsNullOrEmpty(AccessToken.CurrentAccessToken?.UserId))
+			string userId = GetFacebookUserId();
+
+			while (string.IsNullOrEmpty(userId))
 			{
 				await Task.Delay(100);
+				userId = GetFacebookUserId();
 			}
 
-			SetValue(AccessToken.CurrentAccessToken.UserId);
+			SetValue(userId);
 
 			if (!string.IsNullOrEmpty(Value))
 			{
 				callback?.Invoke(Value);
 			}
+		}
+
+		private static string GetFacebookUserId()
+		{
+#if UNITY_IOS && MINIIT_SOCIAL_CORE_1_1
+			if (MiniIT.Social.FacebookProvider.InstanceInitialized)
+			{
+				string userId = MiniIT.Social.FacebookProvider.Instance.GetPlayerUserID();
+				if (!string.IsNullOrEmpty(userId))
+				{
+					return userId;
+				}
+			}
+#endif
+			return AccessToken.CurrentAccessToken?.UserId;
 		}
 
 		private void SetValue(string value)
