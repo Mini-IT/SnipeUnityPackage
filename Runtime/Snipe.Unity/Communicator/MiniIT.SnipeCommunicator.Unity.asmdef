@@ -9,6 +9,7 @@
         "MiniIT.Snipe.Logging",
         "MiniIT.AdvertisingIdFetcher",
         "MiniIT.Framework.StreamingAssetsReader",
+        "MiniIT.Framework.Social",
         "fastJSON",
         "UniTask"
     ],
@@ -29,6 +30,11 @@
             "name": "com.cysharp.zstring",
             "expression": "2.0.0",
             "define": "ZSTRING"
+        },
+        {
+            "name": "com.miniit.framework.social.core",
+            "expression": "1.1.0",
+            "define": "MINIIT_SOCIAL_CORE_1_1"
         }
     ],
     "noEngineReferences": false

@@ -20,6 +20,16 @@ namespace MiniIT.Snipe.Unity
 			
 			return "";
 		}
+
+		protected override void FillExtraParameters(SnipeObject data)
+		{
+#if UNITY_IOS && MINIIT_SOCIAL_CORE_1_1
+			if (MiniIT.Social.FacebookProvider.InstanceInitialized && MiniIT.Social.FacebookProvider.Instance.IsTrackingLimited)
+			{
+				data["version"] = 2;
+			}
+#endif
+		}
 	}
 }
 
