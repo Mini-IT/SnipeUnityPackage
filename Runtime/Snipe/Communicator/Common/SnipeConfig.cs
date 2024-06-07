@@ -37,7 +37,7 @@ namespace MiniIT.Snipe
 		public string ContextId { get; }
 
 		public SnipeProjectInfo Project => _project;
-		public string ClientKey _project.ClientKey;
+		public string ClientKey => _project.ClientKey;
 
 		public string ProjectName { get; private set; }
 		public string AppInfo { get; private set; }
