@@ -15,7 +15,7 @@ namespace MiniIT.Snipe
 	public struct SnipeProjectInfo
 	{
 		public string ProjectID;
-		//public string ClientKey;
+		public string ClientKey;
 		public SnipeProjectMode Mode;
 	}
 
@@ -37,7 +37,7 @@ namespace MiniIT.Snipe
 		public string ContextId { get; }
 
 		public SnipeProjectInfo Project => _project;
-		public string ClientKey { get; set; }// => _project.ClientKey;
+		public string ClientKey _project.ClientKey;
 
 		public string ProjectName { get; private set; }
 		public string AppInfo { get; private set; }
