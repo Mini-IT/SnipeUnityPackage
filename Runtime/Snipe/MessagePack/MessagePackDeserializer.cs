@@ -44,22 +44,22 @@ namespace MiniIT.MessagePack
 			{
 				return Convert.ToInt32(format_byte);
 			}
-			else if ((format_byte >= 0x80) && (format_byte <= 0x8F))  // fixmap	1000xxxx	0x80 - 0x8f
+			else if (/*(format_byte >= 0x80) &&*/ (format_byte <= 0x8F))  // fixmap	1000xxxx	0x80 - 0x8f
 			{
 				int len = format_byte & 0b00001111;
 				return ReadMap(ms, len);
 			}
-			else if ((format_byte >= 0x90) && (format_byte <= 0x9F))  // fixarray	1001xxxx	0x90 - 0x9f
+			else if (/*(format_byte >= 0x90) &&*/ (format_byte <= 0x9F))  // fixarray	1001xxxx	0x90 - 0x9f
 			{
 				int len = format_byte & 0b00001111;
 				return ReadArray(ms, len);
 			}
-			else if ((format_byte >= 0xA0) && (format_byte <= 0xBF))  // fixstr	101xxxxx	0xa0 - 0xbf
+			else if (/*(format_byte >= 0xA0) &&*/ (format_byte <= 0xBF))  // fixstr	101xxxxx	0xa0 - 0xbf
 			{
 				int len = format_byte & 0b00011111;
 				return ReadString(ms, len);
 			}
-			else if ((format_byte >= 0xE0) && (format_byte <= 0xFF)) // negative fixint	111xxxxx	0xe0 - 0xff (5-bit negative integer)
+			else if (/*(format_byte >= 0xE0) &&*/ (format_byte <= 0xFF)) // negative fixint	111xxxxx	0xe0 - 0xff (5-bit negative integer)
 			{
 				return Convert.ToInt32((sbyte)format_byte);
 			}
