@@ -45,24 +45,21 @@ namespace MiniIT
 			{
 				string_builder.Append("{");
 
-				if (dict != null)
+				add_comma = false;
+				foreach (string key in dict.Keys)
 				{
-					add_comma = false;
-					foreach (string key in dict.Keys)
-					{
-						if (add_comma)
-							string_builder.Append(",");
-						else
-							add_comma = true;
+					if (add_comma)
+						string_builder.Append(",");
+					else
+						add_comma = true;
 
-						if (key == "params")
-							string_builder.Append("\"param\":"); // variable name "params" is reserved
-						else
-							string_builder.Append("\"" + key + "\":");
+					if (key == "params")
+						string_builder.Append("\"param\":"); // variable name "params" is reserved
+					else
+						string_builder.Append("\"" + key + "\":");
 
-						object item = dict[key];
-						ConvertToJSONString(item, ref string_builder);
-					}
+					object item = dict[key];
+					ConvertToJSONString(item, ref string_builder);
 				}
 
 				string_builder.Append("}");
