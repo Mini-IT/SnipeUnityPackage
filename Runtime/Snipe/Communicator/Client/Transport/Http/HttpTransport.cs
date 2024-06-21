@@ -29,6 +29,8 @@ namespace MiniIT.Snipe
 		private bool _connectionEstablished = false;
 		private readonly object _lock = new object();
 
+		private readonly SemaphoreSlim _sendSemaphore = new SemaphoreSlim(1, 1);
+
 		internal HttpTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
 			: base(config, analytics)
 		{
@@ -202,10 +204,12 @@ namespace MiniIT.Snipe
 		private async void DoSendRequest(SnipeObject message)
 		{
 			string requestType = message.SafeGetString("t");
-			string json = message.ToFastJSONString();
+			string json = message.ToJSONString(); // Don't use `ToFastJSONString` because the message can containt custom classes for attr.setMulty for example
 
 			try
 			{
+				await _sendSemaphore.WaitAsync();
+
 				var uri = new Uri(_baseUrl, requestType);
 				var requestContent = new StringContent(json, Encoding.UTF8, "application/json");
 
@@ -249,6 +253,10 @@ namespace MiniIT.Snipe
 			{
 				_logger.LogError(e, $"{e}");
 				InternalDisconnect();
+			}
+			finally
+			{
+				_sendSemaphore.Release();
 			}
 		}
 
