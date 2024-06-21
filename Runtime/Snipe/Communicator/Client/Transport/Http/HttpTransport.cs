@@ -45,11 +45,7 @@ namespace MiniIT.Snipe
 				_httpClient ??= new HttpClient();
 			}
 
-			_connected = true;
-			_connectionEstablished = true;
-			OnClientConnected();
-
-			StartHeartbeat();
+			SendHandshakeMessage();
 		}
 
 		public override void Disconnect()
@@ -59,6 +55,11 @@ namespace MiniIT.Snipe
 				return;
 			}
 
+			InternalDisconnect();
+		}
+
+		private void InternalDisconnect()
+		{
 			_connected = false;
 
 			if (_httpClient != null)
@@ -187,7 +188,14 @@ namespace MiniIT.Snipe
 					
 					if (response.IsSuccessStatusCode)
 					{
-						ProcessMessage(responseMessage);
+						if (_connected)
+						{
+							ProcessMessage(responseMessage);
+						}
+						else // handshake
+						{
+							ProcessHandshakeResponse(responseMessage);
+						}
 					}
 					else
 #if NET_STANDARD_2_1
@@ -203,6 +211,7 @@ namespace MiniIT.Snipe
 			catch (HttpRequestException e)
 			{
 				_logger.LogError(e, $"{e}");
+				InternalDisconnect();
 			}
 		}
 
@@ -277,5 +286,35 @@ namespace MiniIT.Snipe
 		}
 
 		#endregion
+
+		private void SendHandshakeMessage()
+		{
+			var message = new SnipeObject()
+			{
+				["t"] = "server.ping",
+				["id"] = -100,
+			};
+
+			SendMessage(message);
+		}
+
+		private void ProcessHandshakeResponse(string json)
+		{
+			var message = SnipeObject.FromJSONString(json);
+
+			if (message != null && message.SafeGetString("t") == "server.ping")
+			{
+				ConfirmConnectionEstablished();
+			}
+		}
+
+		private void ConfirmConnectionEstablished()
+		{
+			_connected = true;
+			_connectionEstablished = true;
+			OnClientConnected();
+
+			StartHeartbeat();
+		}
 	}
 }
