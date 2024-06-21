@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
@@ -134,31 +135,67 @@ namespace MiniIT.Snipe
 
 			if (message != null)
 			{
-				ExtractAuthToken(message);
-
 				if (message.SafeGetString("t") == "server.responses")
 				{
-					if (message.TryGetValue("data", out IList<SnipeObject> innerMessages))
+					if (message.TryGetValue("data", out var innerData))
 					{
-						foreach (var innerMessage in innerMessages)
+						if (innerData is IList innerMessages)
 						{
-							MessageReceivedHandler?.Invoke(innerMessage);
+							ProcessBatchInnerMessages(innerMessages);
+						}
+						else if (innerData is IDictionary<string, object> dataDict &&
+							dataDict.TryGetValue("list", out var dataList) &&
+							dataList is IList innerList)
+						{
+							ProcessBatchInnerMessages(innerList);
 						}
 					}
 				}
 				else // single message
 				{
-					MessageReceivedHandler?.Invoke(message);
+					InternalProcessMessage(message);
 				}
 			}
+		}
+
+		private void ProcessBatchInnerMessages(IList innerMessages)
+		{
+			foreach (var innerMessage in innerMessages)
+			{
+				if (innerMessage is SnipeObject message)
+				{
+					InternalProcessMessage(message);
+				}
+			}
+		}
+
+		private void InternalProcessMessage(SnipeObject message)
+		{
+			ExtractAuthToken(message);
+			MessageReceivedHandler?.Invoke(message);
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private void ExtractAuthToken(SnipeObject message)
 		{
-			if (message.TryGetValue("token", out string token) && message.SafeGetString("t") == "user.login")
+			_logger.LogTrace(message.ToJSONString());
+
+			if (message.SafeGetString("t") == "user.login")
 			{
-				_httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+				string token = null;
+
+				if (!message.TryGetValue("token", out token))
+				{
+					if (message.TryGetValue<SnipeObject>("data", out var data))
+					{
+						data.TryGetValue("token", out token);
+					}
+				}
+
+				if (!string.IsNullOrEmpty(token))
+				{
+					_httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+				}
 			}
 		}
 
