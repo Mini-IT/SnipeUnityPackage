@@ -95,6 +95,11 @@ namespace MiniIT
 			{  
 				string_builder.Append( Convert.ToString(obj, CultureInfo.InvariantCulture).ToLower() );
 			}
+			else if (obj is ISnipeObjectConvertable convertable)
+			{
+				var so = convertable.ConvertToSnipeObject();
+				ConvertToJSONString(so, ref string_builder);
+			}
 			else
 			{
 				string_builder.Append("null");
