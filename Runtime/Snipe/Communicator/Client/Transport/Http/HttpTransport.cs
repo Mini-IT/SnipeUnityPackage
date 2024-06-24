@@ -48,7 +48,7 @@ namespace MiniIT.Snipe
 				_httpClient ??= new HttpClient();
 			}
 
-			SendHandshakeMessage();
+			SendHandshake();
 		}
 
 		public override void Disconnect()
@@ -229,14 +229,7 @@ namespace MiniIT.Snipe
 					
 					if (response.IsSuccessStatusCode)
 					{
-						if (_connected)
-						{
-							ProcessMessage(responseMessage);
-						}
-						else // handshake
-						{
-							ProcessHandshakeResponse(responseMessage);
-						}
+						ProcessMessage(responseMessage);
 					}
 					else
 #if NET_STANDARD_2_1
@@ -332,24 +325,35 @@ namespace MiniIT.Snipe
 
 		#endregion
 
-		private void SendHandshakeMessage()
+		private async void SendHandshake()
 		{
-			var message = new SnipeObject()
+			try
 			{
-				["t"] = "server.ping",
-				["id"] = -100,
-			};
+				await _sendSemaphore.WaitAsync();
 
-			SendMessage(message);
-		}
+				string url = _config.GetHttpAddress();
+				var uri = new Uri(new Uri(url), "test_connect.html");
 
-		private void ProcessHandshakeResponse(string json)
-		{
-			var message = SnipeObject.FromJSONString(json);
+				_logger.LogTrace($"<<< request ({uri})");
 
-			if (message != null && message.SafeGetString("t") == "server.ping")
+				using (var response = await _httpClient.GetAsync(uri))
+				{
+					_logger.LogTrace($">>> response {uri} ({(int)response.StatusCode} {response.StatusCode})");
+
+					if (response.IsSuccessStatusCode)
+					{
+						ConfirmConnectionEstablished();
+					}
+				}
+			}
+			catch (HttpRequestException e)
 			{
-				ConfirmConnectionEstablished();
+				_logger.LogError(e, $"{e}");
+				InternalDisconnect();
+			}
+			finally
+			{
+				_sendSemaphore.Release();
 			}
 		}
 
