@@ -76,7 +76,7 @@ namespace MiniIT.Snipe
 
 		protected void OnIdFetched(string uid)
 		{
-			_logger.LogTrace("OnIdFetched: {uid}");
+			_logger.LogTrace($"OnIdFetched: {uid}");
 
 			if (!string.IsNullOrEmpty(uid) && !IsBindDone)
 			{
