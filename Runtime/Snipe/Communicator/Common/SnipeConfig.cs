@@ -42,6 +42,8 @@ namespace MiniIT.Snipe
 		public string ProjectName { get; private set; }
 		public string AppInfo { get; private set; }
 		public string DebugId { get; private set; }
+		
+		public bool AutoJoinRoom { get; set; } = true;
 
 		public List<string> ServerWebSocketUrls { get; } = new List<string>();
 		public List<UdpAddress> ServerUdpUrls { get; } = new List<UdpAddress>();
