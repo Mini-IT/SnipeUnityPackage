@@ -9,6 +9,8 @@ namespace MiniIT.Snipe
 {
 	public class WebSocketSharpWrapper : WebSocketWrapper
 	{
+		public override bool AutoPing => false;
+
 		private WebSocket _webSocket = null;
 		private CancellationTokenSource _connectionWaitingCancellation;
 		private readonly object _lock = new object();

@@ -3,7 +3,12 @@ using MiniIT.Snipe.Api;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeApiContext<TApi, TTables> : SnipeContext
+	public abstract class AbstractSnipeApiContext : SnipeContext
+	{
+		public virtual AbstractSnipeApiService Api { get; protected set; }
+	}
+
+	public class SnipeApiContext<TApi, TTables> : AbstractSnipeApiContext
 		where TApi : AbstractSnipeApiService
 		where TTables : SnipeApiTables, new()
 	{
@@ -13,14 +18,21 @@ namespace MiniIT.Snipe
 		/// <inheritdoc cref="SnipeContext.GetInstance(string, bool)"/>
 		public static new SnipeApiContext<TApi, TTables> GetInstance(string id = null, bool initialize = true)
 			=> GetInstance<SnipeApiContext<TApi, TTables>>(id, initialize);
+		
+		public new TApi Api
+		{
+			get => _api;
+			private set => base.Api = _api = value;
+		}
 
-		public TApi Api { get; private set; }
 		public TTables Tables { get; private set; }
 		public LogicManager LogicManager { get; private set; }
 		public BadgesManager BadgesManager { get; private set; }
 		public CalendarManager CalendarManager { get; private set; }
 
 		protected TimeZoneInfo _serverTimeZone;
+
+		private TApi _api;
 
 		private TApi CreateApi()
 		{
@@ -88,12 +100,18 @@ namespace MiniIT.Snipe
 		public override void Dispose()
 		{
 			if (IsDisposed)
+			{
 				return;
+			}
 
 			LogicManager?.Dispose();
 			CalendarManager?.Dispose();
+			BadgesManager?.Dispose();
 
-			Api?.Dispose();
+			if (Api is IDisposable disposableApi)
+			{
+				disposableApi.Dispose();
+			}
 			Api = null;
 			Tables = null;
 

@@ -8,6 +8,7 @@ namespace MiniIT.Snipe.Api
 		public SnipeApiModule(AbstractSnipeApiService snipeApiService)
 		{
 			_snipeApiService = snipeApiService;
+			_snipeApiService.AddModule(this);
 		}
 		
 		protected AbstractCommunicatorRequest CreateRequest(string messageType, SnipeObject data = null)

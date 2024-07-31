@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
@@ -28,6 +29,8 @@ namespace MiniIT.Snipe
 		private bool _connectionEstablished = false;
 		private readonly object _lock = new object();
 
+		private readonly SemaphoreSlim _sendSemaphore = new SemaphoreSlim(1, 1);
+
 		internal HttpTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
 			: base(config, analytics)
 		{
@@ -45,11 +48,7 @@ namespace MiniIT.Snipe
 				_httpClient ??= new HttpClient();
 			}
 
-			_connected = true;
-			_connectionEstablished = true;
-			OnClientConnected();
-
-			StartHeartbeat();
+			SendHandshake();
 		}
 
 		public override void Disconnect()
@@ -59,6 +58,11 @@ namespace MiniIT.Snipe
 				return;
 			}
 
+			InternalDisconnect();
+		}
+
+		private void InternalDisconnect()
+		{
 			_connected = false;
 
 			if (_httpClient != null)
@@ -133,41 +137,79 @@ namespace MiniIT.Snipe
 
 			if (message != null)
 			{
-				ExtractAuthToken(message);
-
 				if (message.SafeGetString("t") == "server.responses")
 				{
-					if (message.TryGetValue("data", out IList<SnipeObject> innerMessages))
+					if (message.TryGetValue("data", out var innerData))
 					{
-						foreach (var innerMessage in innerMessages)
+						if (innerData is IList innerMessages)
 						{
-							MessageReceivedHandler?.Invoke(innerMessage);
+							ProcessBatchInnerMessages(innerMessages);
+						}
+						else if (innerData is IDictionary<string, object> dataDict &&
+							dataDict.TryGetValue("list", out var dataList) &&
+							dataList is IList innerList)
+						{
+							ProcessBatchInnerMessages(innerList);
 						}
 					}
 				}
 				else // single message
 				{
-					MessageReceivedHandler?.Invoke(message);
+					InternalProcessMessage(message);
 				}
 			}
+		}
+
+		private void ProcessBatchInnerMessages(IList innerMessages)
+		{
+			foreach (var innerMessage in innerMessages)
+			{
+				if (innerMessage is SnipeObject message)
+				{
+					InternalProcessMessage(message);
+				}
+			}
+		}
+
+		private void InternalProcessMessage(SnipeObject message)
+		{
+			ExtractAuthToken(message);
+			MessageReceivedHandler?.Invoke(message);
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private void ExtractAuthToken(SnipeObject message)
 		{
-			if (message.TryGetValue("token", out string token) && message.SafeGetString("t") == "user.login")
+			_logger.LogTrace(message.ToJSONString());
+
+			if (message.SafeGetString("t") == "user.login")
 			{
-				_httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+				string token = null;
+
+				if (!message.TryGetValue("token", out token))
+				{
+					if (message.TryGetValue<SnipeObject>("data", out var data))
+					{
+						data.TryGetValue("token", out token);
+					}
+				}
+
+				if (!string.IsNullOrEmpty(token))
+				{
+					_httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+				}
 			}
 		}
 
 		private async void DoSendRequest(SnipeObject message)
 		{
 			string requestType = message.SafeGetString("t");
-			string json = message.ToFastJSONString();
+			string json = message.ToJSONString(); // Don't use `ToFastJSONString` because the message can containt custom classes for attr.setMulty for example
 
 			try
 			{
+				await _sendSemaphore.WaitAsync();
+
 				var uri = new Uri(_baseUrl, requestType);
 				var requestContent = new StringContent(json, Encoding.UTF8, "application/json");
 
@@ -203,6 +245,11 @@ namespace MiniIT.Snipe
 			catch (HttpRequestException e)
 			{
 				_logger.LogError(e, $"{e}");
+				InternalDisconnect();
+			}
+			finally
+			{
+				_sendSemaphore.Release();
 			}
 		}
 
@@ -277,5 +324,46 @@ namespace MiniIT.Snipe
 		}
 
 		#endregion
+
+		private async void SendHandshake()
+		{
+			try
+			{
+				await _sendSemaphore.WaitAsync();
+
+				string url = _config.GetHttpAddress();
+				var uri = new Uri(new Uri(url), "test_connect.html");
+
+				_logger.LogTrace($"<<< request ({uri})");
+
+				using (var response = await _httpClient.GetAsync(uri))
+				{
+					_logger.LogTrace($">>> response {uri} ({(int)response.StatusCode} {response.StatusCode})");
+
+					if (response.IsSuccessStatusCode)
+					{
+						ConfirmConnectionEstablished();
+					}
+				}
+			}
+			catch (HttpRequestException e)
+			{
+				_logger.LogError(e, $"{e}");
+				InternalDisconnect();
+			}
+			finally
+			{
+				_sendSemaphore.Release();
+			}
+		}
+
+		private void ConfirmConnectionEstablished()
+		{
+			_connected = true;
+			_connectionEstablished = true;
+			OnClientConnected();
+
+			StartHeartbeat();
+		}
 	}
 }

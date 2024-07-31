@@ -178,7 +178,7 @@ namespace MiniIT.Snipe
 			data["auth"] = password;
 			data["version"] = SnipeClient.SNIPE_VERSION;
 			data["appInfo"] = _config.AppInfo;
-			data["flagAutoJoinRoom"] = true;
+			data["flagAutoJoinRoom"] = _config.AutoJoinRoom;
 
 			if (_config.CompressionEnabled)
 			{
@@ -279,7 +279,7 @@ namespace MiniIT.Snipe
 			data["appInfo"] = _config.AppInfo;
 			data["ckey"] = _config.ClientKey;
 			data["auths"] = providers;
-			data["flagAutoJoinRoom"] = true;
+			data["flagAutoJoinRoom"] = _config.AutoJoinRoom;
 
 			if (_config.CompressionEnabled)
 			{

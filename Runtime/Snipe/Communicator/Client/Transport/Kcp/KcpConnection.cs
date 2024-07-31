@@ -778,8 +778,9 @@ namespace MiniIT.Snipe
 				byte message_id = message.Array[message.Offset];
 				byte chunk_id = message.Array[message.Offset + 1];
 				byte chunks_count = message.Array[message.Offset + 2];
+				int payload_length = message.Count - 3;
 
-				// Log.Info($"[KcpConnection] CHUNK RECEIVED {message_id} - {chunk_id} / {chunks_count}  {message.Count} bytes");
+				// _logger.LogTrace($"[KcpConnection] CHUNK RECEIVED {message_id} - {chunk_id + 1} / {chunks_count}  payload {payload_length} bytes");
 
 				// TODO: check values
 
@@ -801,10 +802,10 @@ namespace MiniIT.Snipe
 				}
 
 				// message header (3 bytes): msg_id + chunk_id + num_chunks
-				Buffer.BlockCopy(message.Array, message.Offset + 3, item.buffer, 5 + chunk_id * MAX_CHUNK_SIZE, message.Count - 3);
-				item.length += message.Count - 3;
+				Buffer.BlockCopy(message.Array, message.Offset + 3, item.buffer, 5 + chunk_id * MAX_CHUNK_SIZE, payload_length);
+				item.length += payload_length;
 
-				if (item.length > (1 + (chunks_count - 1) * MAX_CHUNK_SIZE)) // all chunks
+				if (item.length > (chunks_count - 1) * MAX_CHUNK_SIZE) // all chunks
 				{
 					// _logger.LogTrace($"[KcpConnection] CHUNKED_MESSAGE received: {BitConverter.ToString(item.buffer, 0, item.buffer.Length)}");
 
