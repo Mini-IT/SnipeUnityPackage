@@ -48,13 +48,22 @@ namespace MiniIT.Snipe.Unity
 
 		private static string GetFacebookUserId()
 		{
+			string uid = "";
+
 #if MINIIT_SOCIAL_CORE_1_1
 			if (MiniIT.Social.FacebookProvider.InstanceInitialized)
 			{
-				return MiniIT.Social.FacebookProvider.Instance.GetPlayerUserID();
+				uid = MiniIT.Social.FacebookProvider.Instance.GetPlayerUserID();
 			}
 #endif
-			return AccessToken.CurrentAccessToken?.UserId;
+			uid = AccessToken.CurrentAccessToken?.UserId;
+
+			if (CheckValueValid(uid))
+			{
+				return uid;
+			}
+
+			return "";
 		}
 
 		private void SetValue(string value)
