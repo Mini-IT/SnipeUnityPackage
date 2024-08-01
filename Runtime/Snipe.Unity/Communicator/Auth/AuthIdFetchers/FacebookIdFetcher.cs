@@ -10,11 +10,12 @@ namespace MiniIT.Snipe.Unity
 	{
 		public override void Fetch(bool wait_initialization, Action<string> callback = null)
 		{
-			if (string.IsNullOrEmpty(Value))
+			if (string.IsNullOrEmpty(Value) && FB.IsLoggedIn)
 			{
-				if (FB.IsLoggedIn && AccessToken.CurrentAccessToken != null)
+				string userId = GetFacebookUserId();
+				if (!string.IsNullOrEmpty(userId))
 				{
-					SetValue(AccessToken.CurrentAccessToken.UserId);
+					SetValue(userId);
 				}
 			}
 
@@ -47,14 +48,10 @@ namespace MiniIT.Snipe.Unity
 
 		private static string GetFacebookUserId()
 		{
-#if UNITY_IOS && MINIIT_SOCIAL_CORE_1_1
+#if MINIIT_SOCIAL_CORE_1_1
 			if (MiniIT.Social.FacebookProvider.InstanceInitialized)
 			{
-				string userId = MiniIT.Social.FacebookProvider.Instance.GetPlayerUserID();
-				if (!string.IsNullOrEmpty(userId))
-				{
-					return userId;
-				}
+				return MiniIT.Social.FacebookProvider.Instance.GetPlayerUserID();
 			}
 #endif
 			return AccessToken.CurrentAccessToken?.UserId;
