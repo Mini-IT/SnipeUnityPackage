@@ -13,7 +13,7 @@ namespace MiniIT.Snipe.Unity
 
 		protected override string GetAuthPassword()
 		{
-#if UNITY_IOS && MINIIT_SOCIAL_CORE_1_1
+#if MINIIT_SOCIAL_CORE_1_1
 			if (MiniIT.Social.FacebookProvider.InstanceInitialized)
 			{
 				return MiniIT.Social.FacebookProvider.Instance?.AuthToken ?? "";
