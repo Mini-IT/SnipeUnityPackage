@@ -29,12 +29,15 @@ namespace MiniIT.Snipe.Unity
 
 		private async void WaitForInitialization(Action<string> callback)
 		{
-			while (string.IsNullOrEmpty(AccessToken.CurrentAccessToken?.UserId))
+			string uid = AccessToken.CurrentAccessToken?.UserId;
+
+			while (!CheckValueValid(uid))
 			{
 				await Task.Delay(100);
+				uid = AccessToken.CurrentAccessToken?.UserId;
 			}
 
-			SetValue(AccessToken.CurrentAccessToken.UserId);
+			SetValue(uid);
 
 			if (!string.IsNullOrEmpty(Value))
 			{
