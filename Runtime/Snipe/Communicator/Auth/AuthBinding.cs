@@ -111,7 +111,11 @@ namespace MiniIT.Snipe
 
 				var pass = GetAuthPassword();
 				if (!string.IsNullOrEmpty(pass))
+				{
 					data["auth"] = pass;
+				}
+
+				FillExtraParameters(data);
 
 				_logger.LogTrace($"({ProviderId}) send user.bind " + data.ToJSONString());
 				new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_BIND, data)
@@ -136,6 +140,10 @@ namespace MiniIT.Snipe
 			return "";
 		}
 
+		protected virtual void FillExtraParameters(SnipeObject data)
+		{
+		}
+
 		/// <summary>
 		/// Resets stored authorization data to this account.
 		/// </summary>
@@ -149,6 +157,8 @@ namespace MiniIT.Snipe
 				["login"] = GetUserId(),
 				["auth"] = GetAuthPassword(),
 			};
+
+			FillExtraParameters(data);
 
 			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_RESET, data)
 				.Request((string error_code, SnipeObject response_data) =>
