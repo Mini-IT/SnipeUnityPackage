@@ -163,6 +163,8 @@ namespace MiniIT.Snipe
 							_sharedPrefs.SetString(SnipePrefs.GetAuthUID(_config.ContextId), auth_login);
 							_sharedPrefs.SetString(SnipePrefs.GetAuthKey(_config.ContextId), auth_token);
 						}
+
+						SetBindDoneFlag(true);
 					}
 					
 					callback?.Invoke(error_code);
