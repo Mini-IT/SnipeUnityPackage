@@ -8,10 +8,12 @@
         "MiniIT.Snipe.Logging",
         "MiniIT.Snipe.SharedPrefs",
         "MiniIT.Snipe.Services",
+        "MiniIT.AlterTask",
         "WebSocketSharp",
         "kcp2k",
         "ZString",
-        "fastJSON"
+        "fastJSON",
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

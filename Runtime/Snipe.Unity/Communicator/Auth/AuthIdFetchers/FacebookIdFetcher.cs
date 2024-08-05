@@ -2,6 +2,7 @@
 
 using System;
 using System.Threading.Tasks;
+using MiniIT.Threading.Tasks;
 using Facebook.Unity;
 
 namespace MiniIT.Snipe.Unity
@@ -33,7 +34,7 @@ namespace MiniIT.Snipe.Unity
 
 			while (!CheckValueValid(uid))
 			{
-				await Task.Delay(100);
+				await AlterTask.Delay(100);
 				uid = AccessToken.CurrentAccessToken?.UserId;
 			}
 

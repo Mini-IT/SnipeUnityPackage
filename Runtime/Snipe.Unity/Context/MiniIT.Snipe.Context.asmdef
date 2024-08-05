@@ -7,7 +7,9 @@
         "MiniIT.SnipeCommunicator.Unity",
         "MiniIT.Snipe.Logging",
         "MiniIT.Snipe.Services",
-        "MiniIT.Snipe.Unity"
+        "MiniIT.Snipe.Unity",
+        "MiniIT.AlterTask",
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

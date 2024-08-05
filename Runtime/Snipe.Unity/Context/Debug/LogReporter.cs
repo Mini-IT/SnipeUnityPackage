@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using MiniIT.Snipe;
+using MiniIT.Threading.Tasks;
 using UnityEngine;
 using System.Linq;
 
@@ -46,7 +46,7 @@ namespace MiniIT
 			_snipeContext = snipeContext;
 		}
 
-		public async Task<bool> SendAsync()
+		public async AlterTask<bool> SendAsync()
 		{
 			string apiKey = _snipeContext.Config.ClientKey;
 			string url = _snipeContext.Config.LogReporterUrl;
@@ -95,7 +95,7 @@ namespace MiniIT
 				try
 				{
 					await _semaphore.WaitAsync();
-					content = await Task.Run(() => GetPortionContent(ref startIndex, connectionId, userId, appVersion, appPlatform));
+					content = await AlterTask.Run(() => GetPortionContent(ref startIndex, connectionId, userId, appVersion, appPlatform));
 				}
 				catch (Exception ex)
 				{

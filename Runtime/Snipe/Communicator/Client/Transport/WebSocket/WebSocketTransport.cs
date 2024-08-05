@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.MessagePack;
+using MiniIT.Threading.Tasks;
 
 namespace MiniIT.Snipe
 {
@@ -67,7 +68,7 @@ namespace MiniIT.Snipe
 			_webSocket.OnConnectionClosed += OnWebSocketClosed;
 			_webSocket.ProcessMessage += ProcessWebSocketMessage;
 
-			Task.Run(() =>
+			AlterTask.Run(() =>
 			{
 				_analytics.ConnectionUrl = url;
 				_webSocket.Connect(url);
@@ -195,7 +196,7 @@ namespace MiniIT.Snipe
 		}
 
 		// [Testable]
-		internal async Task<byte[]> SerializeMessage(SnipeObject message)
+		internal async AlterTask<byte[]> SerializeMessage(SnipeObject message)
 		{
 			byte[] result = null;
 
@@ -203,11 +204,11 @@ namespace MiniIT.Snipe
 			{
 				await _messageSerializationSemaphore.WaitAsync();
 
-				var msg_data = await Task.Run(() => _messageSerializer.Serialize(ref _messageSerializationBuffer, message));
+				var msg_data = await AlterTask.Run(() => _messageSerializer.Serialize(ref _messageSerializationBuffer, message));
 
 				if (_config.CompressionEnabled && msg_data.Count >= _config.MinMessageBytesToCompress) // compression needed
 				{
-					await Task.Run(() =>
+					await AlterTask.Run(() =>
 					{
 						_logger.LogTrace("compress message");
 						//_logger.LogTrace("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
@@ -303,8 +304,8 @@ namespace MiniIT.Snipe
 #endif
 
 			_sendTaskCancellation = new CancellationTokenSource();
-			
-			Task.Run(() =>
+
+			AlterTask.Run(() =>
 			{
 				try
 				{
@@ -334,7 +335,7 @@ namespace MiniIT.Snipe
 			_sendMessages = null;
 		}
 
-		private async Task SendTask(CancellationToken? cancellation)
+		private async AlterTask SendTask(CancellationToken? cancellation)
 		{
 			while (cancellation?.IsCancellationRequested != true && Connected)
 			{
@@ -348,7 +349,7 @@ namespace MiniIT.Snipe
 					DoSendRequest(message);
 				}
 
-				await Task.Delay(100);
+				await AlterTask.Delay(100);
 			}
 		}
 
@@ -372,7 +373,7 @@ namespace MiniIT.Snipe
 			}
 
 			_heartbeatCancellation = new CancellationTokenSource();
-			Task.Run(() => HeartbeatTask(_heartbeatCancellation.Token));
+			AlterTask.Run(() => HeartbeatTask(_heartbeatCancellation.Token));
 		}
 
 		private void StopHeartbeat()
@@ -437,7 +438,7 @@ namespace MiniIT.Snipe
 				
 				try
 				{
-					await Task.Delay(HEARTBEAT_TASK_DELAY, cancellation);
+					await AlterTask.Delay(HEARTBEAT_TASK_DELAY, cancellation);
 				}
 				catch (OperationCanceledException)
 				{
@@ -469,7 +470,7 @@ namespace MiniIT.Snipe
 			_checkConnectionCancellation?.Cancel();
 
 			_checkConnectionCancellation = new CancellationTokenSource();
-			Task.Run(() => CheckConnectionTask(_checkConnectionCancellation.Token));
+			AlterTask.Run(() => CheckConnectionTask(_checkConnectionCancellation.Token));
 		}
 
 		private void StopCheckConnection()
@@ -491,7 +492,7 @@ namespace MiniIT.Snipe
 			
 			try
 			{
-				await Task.Delay(CHECK_CONNECTION_TIMEOUT, cancellation);
+				await AlterTask.Delay(CHECK_CONNECTION_TIMEOUT, cancellation);
 			}
 			catch (TaskCanceledException)
 			{
@@ -518,7 +519,7 @@ namespace MiniIT.Snipe
 				
 				if (pinging)
 				{
-					await Task.Delay(100);
+					await AlterTask.Delay(100);
 				}
 				else
 				{

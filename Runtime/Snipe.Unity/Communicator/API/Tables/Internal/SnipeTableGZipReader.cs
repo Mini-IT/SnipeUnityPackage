@@ -3,12 +3,13 @@ using System.Collections;
 using System.IO;
 using System.IO.Compression;
 using System.Threading.Tasks;
+using MiniIT.Threading.Tasks;
 
 namespace MiniIT.Snipe.Tables
 {
 	public class SnipeTableGZipReader
 	{
-		public static async Task<bool> TryReadAsync(Type wrapperType, IDictionary items, Stream stream)
+		public static async AlterTask<bool> TryReadAsync(Type wrapperType, IDictionary items, Stream stream)
 		{
 			try
 			{
@@ -21,7 +22,7 @@ namespace MiniIT.Snipe.Tables
 			return true;
 		}
 
-		public static async Task ReadAsync(Type wrapperType, IDictionary items, Stream stream)
+		public static async AlterTask ReadAsync(Type wrapperType, IDictionary items, Stream stream)
 		{
 			using (GZipStream gzip = new GZipStream(stream, CompressionMode.Decompress, true))
 			{

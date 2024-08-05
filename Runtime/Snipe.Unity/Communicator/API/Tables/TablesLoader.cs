@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.Snipe.Tables;
+using MiniIT.Threading.Tasks;
 using MiniIT.Unity;
 
 namespace MiniIT.Snipe
@@ -62,7 +63,7 @@ namespace MiniIT.Snipe
 			_loadingItems.Add(new TablesLoaderItem(typeof(SnipeTableItemsListWrapper<TItem>), table, name));
 		}
 
-		public async Task<bool> Load(CancellationToken cancellationToken = default)
+		public async AlterTask<bool> Load(CancellationToken cancellationToken = default)
 		{
 			bool fallbackEnabled = (TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceExternal);
 			bool loadExternal = (TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceBuiltIn);
@@ -91,7 +92,7 @@ namespace MiniIT.Snipe
 			return loaded;
 		}
 
-		private async Task<bool> LoadAll(bool loadExternal)
+		private async AlterTask<bool> LoadAll(bool loadExternal)
 		{
 			StopLoading();
 
@@ -111,20 +112,20 @@ namespace MiniIT.Snipe
 			}
 
 			_failed = false;
-			var tasks = new List<Task>(_loadingItems.Count);
+			var tasks = new List<AlterTask>(_loadingItems.Count);
 			foreach (var item in _loadingItems)
 			{
 				tasks.Add(LoadTable(item, cancellationToken));
 			}
 
-			await Task.WhenAll(tasks);
+			await AlterTask.WhenAll(tasks);
 
 			_cancellation = null;
 
 			return !_failed;
 		}
 
-		private async Task LoadTable(TablesLoaderItem loaderItem, CancellationToken cancellationToken)
+		private async AlterTask LoadTable(TablesLoaderItem loaderItem, CancellationToken cancellationToken)
 		{
 			bool loaded = false;
 			bool cancelled = false;
@@ -169,7 +170,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async Task<bool> LoadTableAsync(TablesLoaderItem loaderItem, long version, CancellationToken cancellationToken)
+		private async AlterTask<bool> LoadTableAsync(TablesLoaderItem loaderItem, long version, CancellationToken cancellationToken)
 		{
 			if (cancellationToken.IsCancellationRequested)
 			{
@@ -217,7 +218,7 @@ namespace MiniIT.Snipe
 					cancellationToken));
 		}
 
-		private async Task<bool> LoadTableAsync(SnipeTable table, SnipeTable.LoadingLocation loadingLocation, Task<bool> task)
+		private async AlterTask<bool> LoadTableAsync(SnipeTable table, SnipeTable.LoadingLocation loadingLocation, AlterTask<bool> task)
 		{
 			bool loaded = await task;
 			if (loaded)

@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
+using MiniIT.Threading.Tasks;
 
 namespace MiniIT.Snipe.Unity
 {
@@ -46,7 +47,7 @@ namespace MiniIT.Snipe.Unity
 
 			if (_bindings.Count > 0)
 			{
-				var tasks = new List<Task>(2);
+				var tasks = new List<AlterTask>(2);
 
 				foreach (AuthBinding binding in _bindings)
 				{
@@ -56,7 +57,7 @@ namespace MiniIT.Snipe.Unity
 					}
 				}
 
-				await Task.WhenAll(tasks.ToArray());
+				await AlterTask.WhenAll(tasks.ToArray());
 			}
 
 			RequestRegisterAndLogin(providers);

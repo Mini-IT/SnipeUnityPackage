@@ -5,15 +5,20 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using MiniIT.Threading.Tasks;
+using UnityEngine.Networking;
 
 namespace MiniIT.Snipe.Tables
 {
 	public class SnipeTableWebLoader
 	{
+		private const int WEB_REQUEST_TIMEOUT_SECONDS = 3;
+
 		private ILogger _logger;
 
-		public async Task<bool> LoadAsync(Type wrapperType, IDictionary items, string tableName, long version, CancellationToken cancellation)
+		public async AlterTask<bool> LoadAsync(Type wrapperType, IDictionary items, string tableName, long version, CancellationToken cancellation)
 		{
 			bool loaded = false;
 			
@@ -33,7 +38,7 @@ namespace MiniIT.Snipe.Tables
 
 				if (retry > 0)
 				{
-					await Task.Delay(100, cancellation);
+					await AlterTask.Delay(100, cancellation);
 					_logger.LogTrace($"Retry #{retry} to load table - {tableName}");
 				}
 
@@ -72,15 +77,15 @@ namespace MiniIT.Snipe.Tables
 			return loaded;
 		}
 
-		private async Task<MemoryStream> InternalLoad(string tableName, string url, CancellationToken cancellation)
+		private async AlterTask<MemoryStream> InternalLoad(string tableName, string url, CancellationToken cancellation)
 		{
-			HttpWebResponse response = null;
-
 			try
 			{
-				var webRequest = WebRequest.Create(new Uri(url));
-				var loadTask = webRequest.GetResponseAsync();
-				Task finishedTask = await Task.WhenAny(loadTask, Task.Delay(3000, cancellation));
+				using var webRequest = UnityWebRequest.Get(url);
+				webRequest.timeout = WEB_REQUEST_TIMEOUT_SECONDS;
+				webRequest.downloadHandler = new DownloadHandlerBuffer();
+				var loadingOperation = webRequest.SendWebRequest();
+				using var loadingResult = await loadingOperation;
 
 				if (cancellation.IsCancellationRequested)
 				{
@@ -88,44 +93,31 @@ namespace MiniIT.Snipe.Tables
 					return null;
 				}
 
-				if (finishedTask != loadTask)
+				if (!loadingResult.isDone)
 				{
 					_logger.LogTrace($"Failed to load table - {tableName}   (timeout)");
 					return null;
 				}
 
-				if (loadTask.IsFaulted || loadTask.IsCanceled)
+				if (!string.IsNullOrEmpty(loadingResult.error))
 				{
-					_logger.LogTrace($"Failed to load table - {tableName}   (loader failed)");
+					_logger.LogTrace($"Failed to load table - {tableName}   (loader failed) {loadingResult.error}");
 					return null;
 				}
 
-				response = (HttpWebResponse)loadTask.Result;
-
-				if (response == null)
+				if (loadingResult.result != UnityWebRequest.Result.Success)
 				{
-					_logger.LogTrace($"Failed to load table - {tableName}   (loader failed)");
+					_logger.LogTrace($"Failed to load table - {tableName}   (loader failed) - {(int)loadingResult.responseCode} {loadingResult.responseCode}");
 					return null;
 				}
 
-				if (!new HttpResponseMessage(response.StatusCode).IsSuccessStatusCode)
-				{
-					_logger.LogTrace($"Failed to load table - {tableName}   (loader failed) - {(int)response.StatusCode} {response.StatusCode}");
-					return null;
-				}
-
-				var stream = new MemoryStream();
-				response.GetResponseStream().CopyTo(stream);
+				var stream = new MemoryStream(loadingResult.downloadHandler.data);
 				stream.Position = 0;
 				return stream;
 			}
 			catch (Exception e)
 			{
 				_logger.LogTrace($"Failed to load table - {tableName} - {e}");
-			}
-			finally
-			{
-				response?.Dispose();
 			}
 
 			return null;

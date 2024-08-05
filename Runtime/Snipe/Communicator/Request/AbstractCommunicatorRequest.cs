@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using MiniIT.Threading.Tasks;
 
 namespace MiniIT.Snipe
 {
@@ -257,7 +258,7 @@ namespace MiniIT.Snipe
 		
 		private async void DelayedRetryRequest()
 		{
-			await Task.Delay(RETRY_DELAY_MS);
+			await AlterTask.Delay(RETRY_DELAY_MS);
 			
 			if (_communicator != null)
 			{
@@ -267,7 +268,7 @@ namespace MiniIT.Snipe
 		
 		private async void DelayedDispose()
 		{
-			await Task.Yield();
+			await AlterTask.Yield();
 			Dispose();
 		}
 

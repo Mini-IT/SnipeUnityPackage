@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using MiniIT.Threading.Tasks;
 
 namespace MiniIT.Snipe
 {
@@ -284,7 +285,7 @@ namespace MiniIT.Snipe
 			_heartbeatInterval = _config.HttpHeartbeatInterval;
 
 			_heartbeatCancellation = new CancellationTokenSource();
-			Task.Run(() => HeartbeatTask(_heartbeatCancellation.Token));
+			AlterTask.Run(() => HeartbeatTask(_heartbeatCancellation.Token));
 		}
 
 		private void StopHeartbeat()
@@ -309,7 +310,7 @@ namespace MiniIT.Snipe
 			{
 				try
 				{
-					await Task.Delay(milliseconds, cancellation);
+					await AlterTask.Delay(milliseconds, cancellation);
 				}
 				catch (OperationCanceledException)
 				{

@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using MiniIT.Threading.Tasks;
 
 namespace MiniIT.Snipe
 {
@@ -78,7 +79,7 @@ namespace MiniIT.Snipe
 				_responseMonitoringItems.Clear();
 			
 			_responseMonitoringCancellation = new CancellationTokenSource();
-			Task.Run(() => ResponseMonitoring(_responseMonitoringCancellation.Token));
+			AlterTask.Run(() => ResponseMonitoring(_responseMonitoringCancellation.Token));
 		}
 
 		private void StopResponseMonitoring()
@@ -101,7 +102,7 @@ namespace MiniIT.Snipe
 			{
 				try
 				{
-					await Task.Delay(1000, cancellation);
+					await AlterTask.Delay(1000, cancellation);
 				}
 				catch (TaskCanceledException)
 				{

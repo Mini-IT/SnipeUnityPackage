@@ -1,17 +1,18 @@
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
+using MiniIT.Threading.Tasks;
 
 namespace MiniIT.Snipe.Api
 {
 	public class SnipeApiTables
 	{
-		public bool Loading => _loadingTask?.IsCompleted ?? false;
+		public bool Loading => _loading;
 
 		private readonly HashSet<SnipeTable> _tables;
 		private readonly TablesLoader _loader;
 		private readonly object _lock = new object();
-		private Task<bool> _loadingTask;
+		private AlterTask<bool> _loadingTask;
+		private bool _loading = false;
 
 		public SnipeApiTables()
 		{
@@ -41,15 +42,16 @@ namespace MiniIT.Snipe.Api
 			}
 		}
 
-		public async Task Load(bool restart = false)
+		public async AlterTask Load(bool restart = false)
 		{
-			Task<bool> task = null;
+			AlterTask<bool> task;
 
 			lock (_lock)
 			{
 				if (restart)
 				{
-					_loadingTask = null;
+					_loadingTask = default;
+					_loading = false;
 					_loader.Reset();
 				}
 				else if (Loaded)
@@ -57,7 +59,15 @@ namespace MiniIT.Snipe.Api
 					return;
 				}
 
-				task = _loadingTask ??= _loader.Load();
+				if (_loading)
+				{
+					task = _loadingTask;
+				}
+				else
+				{
+					task = _loadingTask = _loader.Load();
+					_loading = true;
+				}
 			}
 
 			await task;
@@ -66,7 +76,8 @@ namespace MiniIT.Snipe.Api
 			{
 				if (task == _loadingTask)
 				{
-					_loadingTask = null;
+					_loadingTask = default;
+					_loading = false;
 				}
 			}
 		}
