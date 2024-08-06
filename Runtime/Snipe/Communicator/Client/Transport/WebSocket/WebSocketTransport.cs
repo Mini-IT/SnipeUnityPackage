@@ -1,9 +1,12 @@
+#if UNITY_WEBGL && !UNITY_EDITOR
+#define WEBGL_ENVIRONMENT
+#endif
+
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.MessagePack;
 using MiniIT.Threading.Tasks;
@@ -59,10 +62,14 @@ namespace MiniIT.Snipe
 
 			_logger.LogTrace("WebSocket Connect to " + url);
 
+#if WEBGL_ENVIRONMENT
+			_webSocket = new WebSocketJSWrapper();
+#else
 			if (_config.WebSocketImplementation == SnipeConfig.WebSocketImplementations.ClientWebSocket)
 				_webSocket = new WebSocketClientWrapper();
 			else
 				_webSocket = new WebSocketSharpWrapper();
+#endif
 
 			_webSocket.OnConnectionOpened += OnWebSocketConnected;
 			_webSocket.OnConnectionClosed += OnWebSocketClosed;
@@ -257,7 +264,7 @@ namespace MiniIT.Snipe
 			{
 				await _messageProcessingSemaphore.WaitAsync();
 
-				message = await Task.Run(() => ReadMessage(raw_data));
+				message = await AlterTask.Run(() => ReadMessage(raw_data));
 			}
 			finally
 			{
@@ -494,7 +501,7 @@ namespace MiniIT.Snipe
 			{
 				await AlterTask.Delay(CHECK_CONNECTION_TIMEOUT, cancellation);
 			}
-			catch (TaskCanceledException)
+			catch (OperationCanceledException)
 			{
 				// This is OK. Just terminating the task
 				return;

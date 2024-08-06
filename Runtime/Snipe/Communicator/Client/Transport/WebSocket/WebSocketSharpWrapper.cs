@@ -1,9 +1,14 @@
+#if UNITY_WEBGL && !UNITY_EDITOR
+#define WEBGL_ENVIRONMENT
+#endif
+
+#if !WEBGL_ENVIRONMENT
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.Snipe.Logging;
-using MiniIT.Threading.Tasks;
 using WebSocketSharp;
 
 namespace MiniIT.Snipe
@@ -43,11 +48,11 @@ namespace MiniIT.Snipe
 			_connectionWaitingCancellation = null;
 		}
 		
-		private async AlterTask WaitForConnection(CancellationToken cancellation)
+		private async Task WaitForConnection(CancellationToken cancellation)
 		{
 			try
 			{
-				await AlterTask.Delay(CONNECTION_TIMEOUT, cancellation);
+				await Task.Delay(CONNECTION_TIMEOUT, cancellation);
 			}
 			catch (TaskCanceledException)
 			{
@@ -163,3 +168,5 @@ namespace MiniIT.Snipe
 	}
 
 }
+
+#endif

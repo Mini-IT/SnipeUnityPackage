@@ -48,6 +48,12 @@ namespace MiniIT.Snipe.Api
 
 			lock (_lock)
 			{
+				if (_tables.Count == 0)
+				{
+					_loading = false;
+					return;
+				}
+
 				if (restart)
 				{
 					_loadingTask = default;

@@ -174,7 +174,7 @@ namespace MiniIT.Snipe
 			ServerWebSocketUrls.Add("wss://dev-proxy2.snipe.dev/wss_11000/");
 
 			ServerHttpUrl = "https://dev.snipe.dev/";
-			HttpHeartbeatInterval = TimeSpan.Zero;
+			HttpHeartbeatInterval = TimeSpan.FromMinutes(1);
 
 			LogReporterUrl = "https://logs-dev.snipe.dev/api/v1/log/batch";
 		}
