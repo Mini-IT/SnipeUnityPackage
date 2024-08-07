@@ -5,7 +5,8 @@
  */
 
 var LibraryWebSocket = {
-	$webSocketState: {
+	$webSocketState:
+	{
 		/*
 		 * Map of instances
 		 * 
@@ -35,10 +36,9 @@ var LibraryWebSocket = {
 	 * 
 	 * @param callback Reference to C# static function
 	 */
-	WebSocketSetOnOpen: function(callback) {
-
+	WebSocketSetOnOpen: function (callback)
+	{
 		webSocketState.onOpen = callback;
-
 	},
 
 	/**
@@ -46,10 +46,9 @@ var LibraryWebSocket = {
 	 * 
 	 * @param callback Reference to C# static function
 	 */
-	WebSocketSetOnMessage: function(callback) {
-
+	WebSocketSetOnMessage: function (callback)
+	{
 		webSocketState.onMessage = callback;
-
 	},
 
 	/**
@@ -57,10 +56,9 @@ var LibraryWebSocket = {
 	 * 
 	 * @param callback Reference to C# static function
 	 */
-	WebSocketSetOnError: function(callback) {
-
+	WebSocketSetOnError: function (callback)
+	{
 		webSocketState.onError = callback;
-
 	},
 
 	/**
@@ -68,10 +66,9 @@ var LibraryWebSocket = {
 	 * 
 	 * @param callback Reference to C# static function
 	 */
-	WebSocketSetOnClose: function(callback) {
-
+	WebSocketSetOnClose: function (callback)
+	{
 		webSocketState.onClose = callback;
-
 	},
 
 	/**
@@ -79,8 +76,8 @@ var LibraryWebSocket = {
 	 * 
 	 * @param url Server URL
 	 */
-	WebSocketAllocate: function(url) {
-
+	WebSocketAllocate: function (url)
+	{
 		var urlStr = UTF8ToString(url);
 		var id = webSocketState.lastId++;
 
@@ -90,7 +87,6 @@ var LibraryWebSocket = {
 		};
 
 		return id;
-
 	},
 
 	/**
@@ -101,11 +97,12 @@ var LibraryWebSocket = {
 	 * 
 	 * @param instanceId Instance ID
 	 */
-	WebSocketFree: function(instanceId) {
-
+	WebSocketFree: function (instanceId)
+	{
 		var instance = webSocketState.instances[instanceId];
 
-		if (!instance) return 0;
+		if (!instance)
+			return 0;
 
 		// Close if not closed
 		if (instance.ws !== null && instance.ws.readyState < 2)
@@ -115,7 +112,6 @@ var LibraryWebSocket = {
 		delete webSocketState.instances[instanceId];
 
 		return 0;
-
 	},
 
 	/**
@@ -123,8 +119,8 @@ var LibraryWebSocket = {
 	 * 
 	 * @param instanceId Instance ID
 	 */
-	WebSocketConnect: function(instanceId) {
-
+	WebSocketConnect: function (instanceId)
+	{
 		var instance = webSocketState.instances[instanceId];
 		if (!instance) return -1;
 
@@ -135,38 +131,42 @@ var LibraryWebSocket = {
 
 		instance.ws.binaryType = 'arraybuffer';
 
-		instance.ws.onopen = function() {
-
+		instance.ws.onopen = function ()
+		{
 			if (webSocketState.debug)
 				console.log("[JSLIB WebSocket] Connected.");
 
 			if (webSocketState.onOpen)
-				Module['dynCall_vi'](webSocketState.onOpen, [ instanceId ]);
-
+				Module.dynCall_vi(webSocketState.onOpen, instanceId);
 		};
 
-		instance.ws.onmessage = function(ev) {
-
+		instance.ws.onmessage = function (ev)
+		{
 			if (webSocketState.debug)
 				console.log("[JSLIB WebSocket] Received message:", ev.data);
 
 			if (webSocketState.onMessage === null)
 				return;
 
-			if (ev.data instanceof ArrayBuffer) {
+			if (ev.data instanceof ArrayBuffer)
+			{
 
 				var dataBuffer = new Uint8Array(ev.data);
 				
 				var buffer = _malloc(dataBuffer.length);
 				HEAPU8.set(dataBuffer, buffer);
 
-				try {
-					Module['dynCall_viii']( webSocketState.onMessage, [ instanceId, buffer, dataBuffer.length ]);
-				} finally {
+				try
+				{
+					Module.dynCall_viii( webSocketState.onMessage, instanceId, buffer, dataBuffer.length);
+				}
+				finally
+				{
 					_free(buffer);
 				}
-
-			} else if (typeof ev.data == 'string') {
+			}
+			else if (typeof ev.data == 'string')
+			{
 				var arrBuffer = new ArrayBuffer(ev.data.length)
 				var dataBuffer = new Uint8Array(arrBuffer)
 				for (var i = 0, len = ev.data.length; i < len; i++) {
@@ -174,17 +174,19 @@ var LibraryWebSocket = {
 				}
 				var buffer = _malloc(dataBuffer.length);
 				HEAPU8.set(dataBuffer, buffer);
-				try {
-				Runtime.dynCall("viii", webSocketState.onMessage, [ instanceId, buffer, dataBuffer.length ]);
-				} finally {
-				_free(buffer);
-			}
-      }
-
+				try
+				{
+					Module.dynCall_viii(webSocketState.onMessage, instanceId, buffer, dataBuffer.length);
+				}
+				finally
+				{
+					_free(buffer);
+				}
+      		}
 		};
 
-		instance.ws.onerror = function(ev) {
-			
+		instance.ws.onerror = function (ev)
+		{	
 			if (webSocketState.debug)
 				console.log("[JSLIB WebSocket] Error occured.");
 
@@ -196,29 +198,26 @@ var LibraryWebSocket = {
 				stringToUTF8(msg, msgBuffer, msgBytes);
 
 				try {
-					Module['dynCall_vii']( webSocketState.onError, [ instanceId, msgBuffer ]);
+					Module.dynCall_vii( webSocketState.onError, instanceId, msgBuffer);
 				} finally {
 					_free(msgBuffer);
 				}
 
 			}
-
 		};
 
-		instance.ws.onclose = function(ev) {
-
+		instance.ws.onclose = function (ev)
+		{
 			if (webSocketState.debug)
 				console.log("[JSLIB WebSocket] Closed.");
 
 			if (webSocketState.onClose)
-				Module['dynCall_vii']( webSocketState.onClose, [ instanceId, ev.code ]);
+				Module.dynCall_vii( webSocketState.onClose, instanceId, ev.code);
 
 			delete instance.ws;
-
 		};
 
 		return 0;
-
 	},
 
 	/**
@@ -228,10 +227,11 @@ var LibraryWebSocket = {
 	 * @param code Close status code
 	 * @param reasonPtr Pointer to reason string
 	 */
-	WebSocketClose: function(instanceId, code, reasonPtr) {
-
+	WebSocketClose: function (instanceId, code, reasonPtr)
+	{
 		var instance = webSocketState.instances[instanceId];
-		if (!instance) return -1;
+		if (!instance)
+			return -1;
 
 		if (instance.ws === null)
 			return -3;
@@ -244,14 +244,16 @@ var LibraryWebSocket = {
 
 		var reason = ( reasonPtr ? UTF8ToString(reasonPtr) : undefined );
 		
-		try {
+		try
+		{
 			instance.ws.close(code, reason);
-		} catch(err) {
+		}
+		catch (err)
+		{
 			return -7;
 		}
 
 		return 0;
-
 	},
 
 	/**
@@ -261,10 +263,11 @@ var LibraryWebSocket = {
 	 * @param bufferPtr Pointer to the message buffer
 	 * @param length Length of the message in the buffer
 	 */
-	WebSocketSend: function(instanceId, bufferPtr, length) {
-	
+	WebSocketSend: function (instanceId, bufferPtr, length)
+	{
 		var instance = webSocketState.instances[instanceId];
-		if (!instance) return -1;
+		if (!instance)
+			return -1;
 		
 		if (instance.ws === null)
 			return -3;
@@ -275,7 +278,6 @@ var LibraryWebSocket = {
 		instance.ws.send(HEAPU8.buffer.slice(bufferPtr, bufferPtr + length));
 
 		return 0;
-
 	},
 
 	/**
@@ -283,18 +285,17 @@ var LibraryWebSocket = {
 	 * 
 	 * @param instanceId Instance ID
 	 */
-	WebSocketGetState: function(instanceId) {
-
+	WebSocketGetState: function (instanceId)
+	{
 		var instance = webSocketState.instances[instanceId];
-		if (!instance) return -1;
+		if (!instance)
+			return -1;
 
 		if (instance.ws)
 			return instance.ws.readyState;
 		else
 			return 3;
-
 	}
-
 };
 
 autoAddDeps(LibraryWebSocket, '$webSocketState');

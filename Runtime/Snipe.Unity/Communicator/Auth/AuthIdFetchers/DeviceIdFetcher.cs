@@ -34,10 +34,11 @@ namespace MiniIT.Snipe.Unity
 						}
 					}
 				}
-				//else
-				//{
+				else
+				{
+					_logger.LogTrace("Not Supported");
 					// TODO: generate device id using custom algorithm
-				//}
+				}
 			}
 			callback?.Invoke(Value);
 		}

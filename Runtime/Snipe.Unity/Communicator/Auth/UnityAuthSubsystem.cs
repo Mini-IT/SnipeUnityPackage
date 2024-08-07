@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Threading.Tasks;
 using MiniIT.Threading.Tasks;
 
 namespace MiniIT.Snipe.Unity
@@ -30,10 +29,12 @@ namespace MiniIT.Snipe.Unity
 			}
 #endif
 
+#if UNITY_ANDROID
 			if (FindBinding<AmazonBinding>(false) == null)
 			{
 				_bindings.Add(new AmazonBinding(_communicator, this, _config));
 			}
+#endif
 		}
 
 		protected override async void RegisterAndLogin()

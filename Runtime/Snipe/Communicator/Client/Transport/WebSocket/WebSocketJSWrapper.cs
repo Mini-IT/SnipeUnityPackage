@@ -13,6 +13,9 @@ namespace MiniIT.Snipe
 {
 	public class WebSocketJSWrapper : WebSocketWrapper
 	{
+		// MsgPack serialized {"t":"user.ping"}
+		private readonly byte[] PING_SERIALIZED_DATA = new byte[] { 0x81, 0xA1, 0x74, 0xA9, 0x75, 0x73, 0x65, 0x72, 0x2E, 0x70, 0x69, 0x6E, 0x67 };
+
 		public override bool AutoPing => false;
 
 		private WebSocket _webSocket = null;
@@ -36,6 +39,8 @@ namespace MiniIT.Snipe
 				_webSocket.OnMessage += OnWebSocketMessage;
 				_webSocket.OnError += OnWebSocketError;
 			}
+
+			_webSocket.Connect();
 		}
 
 		public override void Disconnect()
@@ -103,7 +108,13 @@ namespace MiniIT.Snipe
 
 		public override void Ping(Action<bool> callback = null)
 		{
-			callback?.Invoke(false);
+			if (!Connected)
+			{
+				callback?.Invoke(false);
+				return;
+			}
+
+			SendRequest(PING_SERIALIZED_DATA);
 		}
 
 		protected override bool IsConnected()

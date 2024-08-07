@@ -12,12 +12,17 @@ namespace MiniIT.Snipe.Unity
 	{
 		public override void Fetch(bool wait_initialization, Action<string> callback = null)
 		{
+#if UNITY_WEBGL
+			callback?.Invoke(null);
+			return;
+#endif
+
 			if (!string.IsNullOrEmpty(Value))
 			{
 				callback?.Invoke(Value);
 				return;
 			}
-			
+
 #if MINI_IT_ADVERTISING_ID
 			MiniIT.Utils.AdvertisingIdFetcher.RequestAdvertisingId((advertisingId, trackingEnabled, errorMessage) =>
 			{
