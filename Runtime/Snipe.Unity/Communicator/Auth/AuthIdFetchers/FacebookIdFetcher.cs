@@ -48,10 +48,24 @@ namespace MiniIT.Snipe.Unity
 
 		private static string GetFacebookUserId()
 		{
+			// NOTE:
+			// we need to wait for FacebookProvider.InstanceInitialized
+			// because of `auth.bind` request that needs FB auth token.
+			// AccessToken.CurrentAccessToken?.UserId may become valid before getting the token
+			//
+			// TODO: remove this condition and change AuthBinding.Bind() method
+
+			if (!MiniIT.Social.FacebookProvider.InstanceInitialized)
+			{
+				return "";
+			}
+
 #if MINIIT_SOCIAL_CORE_1_1
-			string uid = MiniIT.Social.FacebookProvider.InstanceInitialized ?
-				MiniIT.Social.FacebookProvider.Instance.GetPlayerUserID() :
-				AccessToken.CurrentAccessToken?.UserId;
+			string uid = MiniIT.Social.FacebookProvider.Instance.GetPlayerUserID();
+			if (!CheckValueValid(uid))
+			{
+				uid = AccessToken.CurrentAccessToken?.UserId;
+			}
 #else
 			string uid = AccessToken.CurrentAccessToken?.UserId;
 #endif
