@@ -11,12 +11,12 @@ namespace MiniIT.Snipe.Unity
 		{
 		}
 
-		protected override string GetAuthPassword()
+		protected override string GetAuthToken()
 		{
 #if MINIIT_SOCIAL_CORE_1_1
 			if (MiniIT.Social.FacebookProvider.InstanceInitialized)
 			{
-				return MiniIT.Social.FacebookProvider.Instance?.AuthToken ?? "";
+				return MiniIT.Social.FacebookProvider.Instance.AuthToken ?? "";
 			}
 #else
 			if (FB.IsLoggedIn && AccessToken.CurrentAccessToken != null)
