@@ -45,11 +45,20 @@ namespace MiniIT.Snipe
 		
 		private void RemoveResponseMonitoringItem(int request_id, string message_type)
 		{
+			if (_responseMonitoringItems == null)
+			{
+				return;
+			}
+
+			bool found = false;
+
 			try
 			{
-				if (_responseMonitoringItems.TryGetValue(request_id, out var item) && item != null)
+				if (_responseMonitoringItems.TryGetValue(request_id, out var item))
 				{
-					if (item.message_type != message_type)
+					found = true;
+
+					if (item != null && item.message_type != message_type)
 					{
 						_analytics.TrackEvent("Wrong response type", new SnipeObject()
 							{
@@ -66,7 +75,10 @@ namespace MiniIT.Snipe
 			}
 			finally
 			{
-				_responseMonitoringItems?.Remove(request_id);
+				if (found)
+				{
+					_responseMonitoringItems.Remove(request_id);
+				}
 			}
 		}
 		
