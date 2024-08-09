@@ -17,7 +17,8 @@ namespace MiniIT.Snipe
 		private Dictionary<string, long> _versions = null;
 
 		private CancellationTokenSource _cancellation;
-		private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(MAX_LOADERS_COUNT);
+		//private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(MAX_LOADERS_COUNT);
+		private int _activeLoadersCount = 0;
 		private bool _failed = false;
 
 		private HashSet<TablesLoaderItem> _loadingItems; 
@@ -133,7 +134,12 @@ namespace MiniIT.Snipe
 
 			try
 			{
-				await _semaphore.WaitAsync(cancellationToken);
+				//await _semaphore.WaitAsync(cancellationToken);
+				while (_activeLoadersCount >= MAX_LOADERS_COUNT)
+				{
+					await AlterTask.Delay(100, cancellationToken);
+				}
+				_activeLoadersCount++;
 
 				if (!cancellationToken.IsCancellationRequested)
 				{
@@ -153,7 +159,8 @@ namespace MiniIT.Snipe
 			}
 			finally
 			{
-				_semaphore.Release();
+				// _semaphore.Release();
+				_activeLoadersCount--;
 			}
 
 			if (!loaded && !_failed)
