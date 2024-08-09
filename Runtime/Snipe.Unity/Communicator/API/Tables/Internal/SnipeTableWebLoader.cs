@@ -52,7 +52,11 @@ namespace MiniIT.Snipe.Tables
 
 				try
 				{
+#if UNITY_WEBGL
+					SnipeTableGZipReader.Read(wrapperType, items, stream);
+#else
 					await SnipeTableGZipReader.ReadAsync(wrapperType, items, stream);
+#endif
 
 					loaded = true;
 

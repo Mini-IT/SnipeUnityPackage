@@ -33,5 +33,17 @@ namespace MiniIT.Snipe.Tables
 				}
 			}
 		}
+
+		public static void Read(Type wrapperType, IDictionary items, Stream stream)
+		{
+			using (GZipStream gzip = new GZipStream(stream, CompressionMode.Decompress, true))
+			{
+				using (StreamReader reader = new StreamReader(gzip))
+				{
+					string json = reader.ReadToEnd();
+					SnipeTableParser.Parse(wrapperType, items, json);
+				}
+			}
+		}
 	}
 }

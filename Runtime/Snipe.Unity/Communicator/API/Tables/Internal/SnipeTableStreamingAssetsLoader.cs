@@ -40,8 +40,12 @@ namespace MiniIT.Snipe.Tables
 			{
 				try
 				{
+#if UNITY_WEBGL
+					SnipeTableGZipReader.Read(wrapperType, items, readStream);
+#else
 					// TODO: use cancellationToken
 					await SnipeTableGZipReader.ReadAsync(wrapperType, items, readStream);
+#endif
 					loaded = true;
 				}
 				catch (Exception e)
