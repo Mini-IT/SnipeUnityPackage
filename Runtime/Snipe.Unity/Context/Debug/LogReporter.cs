@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Threading;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -9,6 +8,7 @@ using MiniIT.Snipe;
 using MiniIT.Threading.Tasks;
 using UnityEngine;
 using System.Linq;
+using MiniIT.Threading;
 
 #if ZSTRING
 using Cysharp.Text;
@@ -34,7 +34,7 @@ namespace MiniIT
 		private HttpClient _httpClient;
 
 		private static readonly List<LogRecord> _log = new List<LogRecord>();
-		private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
+		private static readonly AlterSemaphore _semaphore = new AlterSemaphore(1, 1);
 
 		static LogReporter()
 		{

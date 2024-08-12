@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using Microsoft.Extensions.Logging;
 using MiniIT.MessagePack;
+using MiniIT.Threading;
 
 namespace MiniIT.Snipe
 {
@@ -36,8 +36,8 @@ namespace MiniIT.Snipe
 		protected readonly MessagePackSerializerNonAlloc _messageSerializer = new MessagePackSerializerNonAlloc();
 		protected byte[] _messageSerializationBuffer = new byte[10240];
 
-		protected readonly SemaphoreSlim _messageSerializationSemaphore = new SemaphoreSlim(1, 1);
-		protected readonly SemaphoreSlim _messageProcessingSemaphore = new SemaphoreSlim(1, 1);
+		protected readonly AlterSemaphore _messageSerializationSemaphore = new AlterSemaphore(1, 1);
+		protected readonly AlterSemaphore _messageProcessingSemaphore = new AlterSemaphore(1, 1);
 
 		public void Dispose()
 		{
@@ -45,6 +45,9 @@ namespace MiniIT.Snipe
 			ConnectionOpenedHandler = null;
 			ConnectionClosedHandler = null;
 			MessageReceivedHandler = null;
+			_messageSerializationSemaphore.Dispose();
+			_messageProcessingSemaphore.Dispose();
+
 		}
 	}
 }

@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.Snipe.Tables;
+using MiniIT.Threading;
 using MiniIT.Threading.Tasks;
 using MiniIT.Unity;
 
@@ -17,11 +17,9 @@ namespace MiniIT.Snipe
 		private Dictionary<string, long> _versions = null;
 
 		private CancellationTokenSource _cancellation;
-#if UNITY_WEBGL
-		private int _activeLoadersCount = 0;
-#else
-		private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(MAX_LOADERS_COUNT);
-#endif
+
+		private readonly AlterSemaphore _semaphore = new AlterSemaphore(MAX_LOADERS_COUNT);
+
 		private bool _failed = false;
 
 		private HashSet<TablesLoaderItem> _loadingItems; 
@@ -137,15 +135,7 @@ namespace MiniIT.Snipe
 
 			try
 			{
-#if UNITY_WEBGL
-				while (_activeLoadersCount >= MAX_LOADERS_COUNT)
-				{
-					await AlterTask.Delay(100, cancellationToken);
-				}
-				_activeLoadersCount++;
-#else
 				await _semaphore.WaitAsync(cancellationToken);
-#endif
 
 				if (!cancellationToken.IsCancellationRequested)
 				{
@@ -165,11 +155,7 @@ namespace MiniIT.Snipe
 			}
 			finally
 			{
-#if UNITY_WEBGL
-				_activeLoadersCount--;
-#else
 				_semaphore.Release();
-#endif
 			}
 
 			if (!loaded && !_failed)
