@@ -55,6 +55,12 @@ namespace WebSocketJS
 		
 		public void Close(WebSocketCloseCode code = WebSocketCloseCode.Normal, string reason = null)
 		{
+			var state = GetState();
+			if (state == WebSocketState.Closing || state == WebSocketState.Closed)
+			{
+				return;
+			}
+
 			int errorCode = WebSocketPlugin.WebSocketClose(_instanceId, (int)code, reason);
 
 			if (errorCode < 0)
