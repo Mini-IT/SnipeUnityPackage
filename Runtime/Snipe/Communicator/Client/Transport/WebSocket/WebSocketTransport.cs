@@ -95,11 +95,13 @@ namespace MiniIT.Snipe
 
 				if (_webSocket != null)
 				{
+					var ws = _webSocket;
 					_webSocket.OnConnectionOpened -= OnWebSocketConnected;
 					_webSocket.OnConnectionClosed -= OnWebSocketClosed;
 					_webSocket.ProcessMessage -= ProcessWebSocketMessage;
 					_webSocket.Disconnect();
 					_webSocket = null;
+					ws.Dispose();
 				}
 			}
 		}

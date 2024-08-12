@@ -33,7 +33,7 @@ namespace MiniIT.Snipe
 
 			lock (_lock)
 			{
-				_webSocket = WebSocket.CreateInstance(url);
+				_webSocket = WebSocketPlugin.CreateInstance(url);
 				_webSocket.OnOpen += OnWebSocketConnected;
 				_webSocket.OnClose += OnWebSocketClosed;
 				_webSocket.OnMessage += OnWebSocketMessage;
@@ -120,6 +120,12 @@ namespace MiniIT.Snipe
 		protected override bool IsConnected()
 		{
 			return (_webSocket != null && _webSocket.GetState() == WebSocketState.Open);
+		}
+
+		public override void Dispose()
+		{
+			base.Dispose();
+			_webSocket?.Dispose();
 		}
 	}
 

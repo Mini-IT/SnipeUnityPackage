@@ -197,9 +197,12 @@ var LibraryWebSocket = {
 				var msgBuffer = _malloc(msgBytes + 1);
 				stringToUTF8(msg, msgBuffer, msgBytes);
 
-				try {
+				try
+				{
 					Module.dynCall_vii( webSocketState.onError, instanceId, msgBuffer);
-				} finally {
+				}
+				finally
+				{
 					_free(msgBuffer);
 				}
 
