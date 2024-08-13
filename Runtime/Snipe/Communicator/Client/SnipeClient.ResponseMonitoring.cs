@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.Threading.Tasks;
 
@@ -116,7 +115,7 @@ namespace MiniIT.Snipe
 				{
 					await AlterTask.Delay(1000, cancellation);
 				}
-				catch (TaskCanceledException)
+				catch (OperationCanceledException)
 				{
 					// This is OK. Just terminating the task
 					return;
