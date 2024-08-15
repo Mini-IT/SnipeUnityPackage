@@ -96,12 +96,10 @@ namespace MiniIT.Snipe
 				_transportFactoriesQueue.Enqueue(CreateWebSocketTransport);
 			}
 
-#if !UNITY_WEBGL
 			if (_config.CheckHttpAvailable())
 			{
 				_transportFactoriesQueue.Enqueue(CreateHttpTransport);
 			}
-#endif
 
 			StartNextTransport();
 		}

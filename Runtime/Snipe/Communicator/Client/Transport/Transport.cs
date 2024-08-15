@@ -39,7 +39,7 @@ namespace MiniIT.Snipe
 		protected readonly AlterSemaphore _messageSerializationSemaphore = new AlterSemaphore(1, 1);
 		protected readonly AlterSemaphore _messageProcessingSemaphore = new AlterSemaphore(1, 1);
 
-		public void Dispose()
+		public virtual void Dispose()
 		{
 			Disconnect();
 			ConnectionOpenedHandler = null;
