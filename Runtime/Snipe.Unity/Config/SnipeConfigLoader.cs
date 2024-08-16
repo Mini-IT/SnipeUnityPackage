@@ -23,21 +23,20 @@ namespace MiniIT.Snipe
 
 		public async UniTask<Dictionary<string, object>> Load()
 		{
-			var postData = new Dictionary<string, string>()
-			{
-				["project"] = _projectID,
-				["deviceID"] = _appInfo.DeviceIdentifier,
-				["identifier"] = _appInfo.ApplicationIdentifier,
-				["version"] = _appInfo.ApplicationVersion,
-				["platform"] = _appInfo.ApplicationPlatform,
-				["packageVersion"] = PackageInfo.VERSION_CODE,
-			};
+			string requestParamsJson = "{" +
+				$"\"project\":\"{_projectID}\"," +
+				$"\"deviceID\":\"{_appInfo.DeviceIdentifier}\"," +
+				$"\"identifier\":\"{_appInfo.ApplicationIdentifier}\"," +
+				$"\"version\":\"{_appInfo.ApplicationVersion}\"," +
+				$"\"platform\":\"{_appInfo.ApplicationPlatform}\"," +
+				$"\"packageVersion\":\"{PackageInfo.VERSION_CODE}\"" +
+				"}";
 
 			Dictionary<string, object> config = null;
 
 			try
 			{
-				using var request = UnityWebRequest.Post(_url, postData);
+				using var request = UnityWebRequest.Post(_url, requestParamsJson, "application/json");
 				request.downloadHandler = new DownloadHandlerBuffer();
 				var response = await request.SendWebRequest().ToUniTask();
 
