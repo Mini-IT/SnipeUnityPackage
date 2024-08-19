@@ -66,7 +66,7 @@ namespace MiniIT.Snipe.Tables
 					}
 
 					stream.Position = 0;
-					SnipeTableSaver.SaveToCache(stream, tableName, version);
+					await SnipeTableSaver.SaveToCacheAsync(stream, tableName, version);
 				}
 				catch (Exception e)
 				{

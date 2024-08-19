@@ -1,17 +1,13 @@
 using System;
 using System.IO;
 using Microsoft.Extensions.Logging;
+using MiniIT.Threading.Tasks;
 
 namespace MiniIT.Snipe.Tables
 {
-	public class SnipeTableSaver
+	public static class SnipeTableSaver
 	{
-		public static void SaveToCache(Stream stream, string table_name, long version)
-		{
-			SaveToCacheAsync(stream, table_name, version);
-		}
-
-		private static async void SaveToCacheAsync(Stream stream, string table_name, long version)
+		public static async AlterTask SaveToCacheAsync(Stream stream, string table_name, long version)
 		{
 			string cache_path = TablesLoader.GetCachePath(table_name, version);
 
@@ -29,7 +25,12 @@ namespace MiniIT.Snipe.Tables
 
 					using (FileStream cache_write_stream = new FileStream(cache_path, FileMode.Create, FileAccess.Write))
 					{
+#if UNITY_WEBGL
+						stream.CopyTo(cache_write_stream);
+						await AlterTask.CompletedTask;
+#else
 						await stream.CopyToAsync(cache_write_stream).ConfigureAwait(false);
+#endif
 					}
 				}
 			}

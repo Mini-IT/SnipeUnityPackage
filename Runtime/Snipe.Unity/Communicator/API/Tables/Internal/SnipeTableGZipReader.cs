@@ -22,6 +22,19 @@ namespace MiniIT.Snipe.Tables
 			return true;
 		}
 
+		public static bool TryRead(Type wrapperType, IDictionary items, Stream stream)
+		{
+			try
+			{
+				Read(wrapperType, items, stream);
+			}
+			catch (Exception)
+			{
+				return false;
+			}
+			return true;
+		}
+
 		public static async AlterTask ReadAsync(Type wrapperType, IDictionary items, Stream stream)
 		{
 			using (GZipStream gzip = new GZipStream(stream, CompressionMode.Decompress, true))
