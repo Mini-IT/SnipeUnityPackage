@@ -9,7 +9,8 @@
         "MiniIT.Snipe.Core",
         "MiniIT.Snipe.MessagePack",
         "MiniIT.Snipe.Services",
-        "MiniIT.Snipe.Unity"
+        "MiniIT.Snipe.Unity",
+        "MiniIT.AlterTask"
     ],
     "includePlatforms": [
         "Editor"
