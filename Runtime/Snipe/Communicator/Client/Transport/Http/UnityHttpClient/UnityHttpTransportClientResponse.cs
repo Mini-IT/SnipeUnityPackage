@@ -24,7 +24,7 @@ namespace MiniIT.Snipe.Internal
 		public AlterTask<string> GetContentAsync()
 		{
 			string content = _unityWebRequest?.downloadHandler?.text;
-			return new AlterTask<string>(UniTask.FromResult(content));
+			return AlterTask<string>.FromResult(content);
 		}
 
 		public void Dispose()
