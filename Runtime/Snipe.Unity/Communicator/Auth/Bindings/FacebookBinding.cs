@@ -14,10 +14,8 @@ namespace MiniIT.Snipe.Unity
 		protected override string GetAuthToken()
 		{
 #if MINIIT_SOCIAL_CORE_1_1
-			if (MiniIT.Social.FacebookProvider.InstanceInitialized)
-			{
-				return MiniIT.Social.FacebookProvider.Instance.AuthToken ?? "";
-			}
+			var provider = MiniIT.Social.FacebookProvider.GetInstance(false);
+			return provider?.AuthToken ?? "";
 #else
 			if (FB.IsLoggedIn && AccessToken.CurrentAccessToken != null)
 			{
