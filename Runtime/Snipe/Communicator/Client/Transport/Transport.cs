@@ -47,7 +47,7 @@ namespace MiniIT.Snipe
 			MessageReceivedHandler = null;
 			_messageSerializationSemaphore.Dispose();
 			_messageProcessingSemaphore.Dispose();
-
+			_messageSerializationBuffer = null;
 		}
 	}
 }

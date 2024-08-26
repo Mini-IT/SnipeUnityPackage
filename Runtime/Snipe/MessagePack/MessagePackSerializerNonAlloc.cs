@@ -20,15 +20,17 @@ namespace MiniIT.MessagePack
 		public int MaxUsedBufferSize { get; private set; } = 0;
 
 		private int _position;
-		
-		public ArraySegment<byte> Serialize(ref byte[] buffer, Dictionary<string, object> data)
+		private bool _throwUnsupportedType;
+
+		public ArraySegment<byte> Serialize(ref byte[] buffer, Dictionary<string, object> data, bool throwUnsupportedType = true)
 		{
-			return Serialize(ref buffer, 0, data);
+			return Serialize(ref buffer, 0, data, throwUnsupportedType);
 		}
 		
-		public ArraySegment<byte> Serialize(ref byte[] buffer, int position, Dictionary<string, object> data)
+		public ArraySegment<byte> Serialize(ref byte[] buffer, int position, Dictionary<string, object> data, bool throwUnsupportedType = true)
 		{
 			_position = position;
+			_throwUnsupportedType = throwUnsupportedType;
 			DoSerialize(ref buffer, data);
 			return new ArraySegment<byte>(buffer, 0, _position);
 		}
@@ -67,7 +69,7 @@ namespace MiniIT.MessagePack
 				{
 					case TypeCode.UInt64:
 						WriteInteger(ref buffer, (ulong)val);
-						break;
+						return;
 
 					case TypeCode.Byte:
 					case TypeCode.SByte:
@@ -78,22 +80,27 @@ namespace MiniIT.MessagePack
 					case TypeCode.Int64:
 					case TypeCode.Char:
 						WriteInteger(ref buffer, Convert.ToInt64(val));
-						break;
+						return;
 
 					case TypeCode.Single:
 						buffer[_position++] = (byte)0xCA;
 						CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes((float)val), 4);
-						break;
+						return;
 
 					case TypeCode.Double:
 					case TypeCode.Decimal:
 						buffer[_position++] = (byte)0xCB;
 						CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes(Convert.ToDouble(val)), 8);
-						break;
+						return;
 
 					case TypeCode.Boolean:
 						buffer[_position++] = (bool)val ? (byte)0xC3 : (byte)0xC2;
-						break;
+						return;
+				}
+
+				if (_throwUnsupportedType)
+				{
+					throw new MessagePackSerializationUnsupportedTypeException();
 				}
 			}
 		}
