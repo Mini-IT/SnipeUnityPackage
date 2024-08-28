@@ -98,27 +98,37 @@ namespace MiniIT.Snipe
 			string auth_token = _sharedPrefs.GetString(SnipePrefs.GetAuthKey(_config.ContextId));
 			string uid = GetUserId();
 
-			if (!string.IsNullOrEmpty(auth_login) && !string.IsNullOrEmpty(auth_token) && !string.IsNullOrEmpty(uid))
+			if (string.IsNullOrEmpty(auth_login) ||
+				string.IsNullOrEmpty(auth_token) ||
+				string.IsNullOrEmpty(uid))
 			{
-				SnipeObject data = new SnipeObject()
-				{
-					["ckey"] = _config.ClientKey,
-					["provider"] = ProviderId,
-					["login"] = uid,
-					["loginInt"] = auth_login,
-					["authInt"] = auth_token,
-				};
-
-				var pass = GetAuthPassword();
-				if (!string.IsNullOrEmpty(pass))
-					data["auth"] = pass;
-
-				_logger.LogTrace($"({ProviderId}) send user.bind " + data.ToJSONString());
-				new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_BIND, data)
-					.Request(OnBindResponse);
-
 				return;
 			}
+
+			var data = new SnipeObject()
+			{
+				["ckey"] = _config.ClientKey,
+				["provider"] = ProviderId,
+				["login"] = uid,
+				["loginInt"] = auth_login,
+				["authInt"] = auth_token,
+			};
+
+			string pass = GetAuthToken();
+			if (!string.IsNullOrEmpty(pass))
+			{
+				data["auth"] = pass;
+			}
+			else
+			{
+				_logger.LogTrace($"({ProviderId}) user.bind - no auth token is used");
+			}
+
+			FillExtraParameters(data);
+
+			_logger.LogTrace($"({ProviderId}) send user.bind " + data.ToJSONString());
+			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_BIND, data)
+				.Request(OnBindResponse);
 		}
 
 		public string GetUserId()
@@ -131,9 +141,13 @@ namespace MiniIT.Snipe
 			return _config.ContextId + uid;
 		}
 
-		protected virtual string GetAuthPassword()
+		protected virtual string GetAuthToken()
 		{
 			return "";
+		}
+
+		protected virtual void FillExtraParameters(SnipeObject data)
+		{
 		}
 
 		/// <summary>
@@ -147,8 +161,10 @@ namespace MiniIT.Snipe
 				["ckey"] = _config.ClientKey,
 				["provider"] = ProviderId,
 				["login"] = GetUserId(),
-				["auth"] = GetAuthPassword(),
+				["auth"] = GetAuthToken(),
 			};
+
+			FillExtraParameters(data);
 
 			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_RESET, data)
 				.Request((string error_code, SnipeObject response_data) =>
@@ -163,6 +179,8 @@ namespace MiniIT.Snipe
 							_sharedPrefs.SetString(SnipePrefs.GetAuthUID(_config.ContextId), auth_login);
 							_sharedPrefs.SetString(SnipePrefs.GetAuthKey(_config.ContextId), auth_token);
 						}
+
+						SetBindDoneFlag(true);
 					}
 					
 					callback?.Invoke(error_code);
