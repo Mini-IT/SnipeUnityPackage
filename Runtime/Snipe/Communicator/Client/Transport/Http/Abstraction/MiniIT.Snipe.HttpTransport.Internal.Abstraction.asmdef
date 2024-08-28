@@ -1,0 +1,16 @@
+{
+    "name": "MiniIT.Snipe.HttpTransport.Internal.Abstraction",
+    "rootNamespace": "",
+    "references": [
+        "MiniIT.AlterTask"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

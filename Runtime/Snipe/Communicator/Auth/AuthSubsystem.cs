@@ -3,9 +3,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.Snipe.SharedPrefs;
+using MiniIT.Threading.Tasks;
 using MiniIT.Utils;
 
 namespace MiniIT.Snipe
@@ -142,7 +142,7 @@ namespace MiniIT.Snipe
 		protected async void DelayedAuthorize()
 		{
 			_loginAttempt++;
-			await Task.Delay(1000 * _loginAttempt);
+			await AlterTask.Delay(1000 * _loginAttempt);
 
 			if (!_communicator.Connected)
 				return;
@@ -249,7 +249,7 @@ namespace MiniIT.Snipe
 
 		protected abstract void RegisterAndLogin();
 
-		protected async Task FetchLoginId(string provider, AuthIdFetcher fetcher, List<SnipeObject> providers)
+		protected async AlterTask FetchLoginId(string provider, AuthIdFetcher fetcher, List<SnipeObject> providers)
 		{
 			bool done = false;
 
@@ -268,7 +268,7 @@ namespace MiniIT.Snipe
 
 			while (!done)
 			{
-				await Task.Delay(20);
+				await AlterTask.Delay(20);
 			}
 		}
 
@@ -468,7 +468,7 @@ namespace MiniIT.Snipe
 				binding.IsBindDone = false;
 				_userID = 0;
 
-				await Task.Delay(1000);
+				await AlterTask.Delay(1000);
 				startContext.Invoke();
 			});
 		}

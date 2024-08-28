@@ -84,10 +84,12 @@ namespace MiniIT.Snipe
 		{
 			_transportFactoriesQueue.Clear();
 
+#if !UNITY_WEBGL
 			if (_config.CheckUdpAvailable())
 			{
 				_transportFactoriesQueue.Enqueue(CreateKcpTransport);
 			}
+#endif
 
 			if (_config.CheckWebSocketAvailable())
 			{

@@ -4,6 +4,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using MiniIT.Threading.Tasks;
 using MiniIT.Unity;
 
 namespace MiniIT.Snipe.Tables
@@ -19,7 +20,7 @@ namespace MiniIT.Snipe.Tables
 			_logger = SnipeServices.LogService.GetLogger("SnipeTable");
 		}
 
-		public async Task<bool> LoadAsync(Type wrapperType, IDictionary items, string tableName, long version, CancellationToken cancellationToken = default)
+		public async AlterTask<bool> LoadAsync(Type wrapperType, IDictionary items, string tableName, long version, CancellationToken cancellationToken = default)
 		{
 			_logger.LogTrace($"ReadFromStramingAssets - {tableName}");
 
@@ -39,8 +40,12 @@ namespace MiniIT.Snipe.Tables
 			{
 				try
 				{
+#if UNITY_WEBGL
+					SnipeTableGZipReader.Read(wrapperType, items, readStream);
+#else
 					// TODO: use cancellationToken
 					await SnipeTableGZipReader.ReadAsync(wrapperType, items, readStream);
+#endif
 					loaded = true;
 				}
 				catch (Exception e)

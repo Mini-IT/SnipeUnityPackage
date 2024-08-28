@@ -1,14 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using MiniIT.Snipe;
+using MiniIT.Threading.Tasks;
 using UnityEngine;
 using System.Linq;
+using MiniIT.Threading;
 
 #if ZSTRING
 using Cysharp.Text;
@@ -34,7 +34,7 @@ namespace MiniIT
 		private HttpClient _httpClient;
 
 		private static readonly List<LogRecord> _log = new List<LogRecord>();
-		private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
+		private static readonly AlterSemaphore _semaphore = new AlterSemaphore(1, 1);
 
 		static LogReporter()
 		{
@@ -46,7 +46,7 @@ namespace MiniIT
 			_snipeContext = snipeContext;
 		}
 
-		public async Task<bool> SendAsync()
+		public async AlterTask<bool> SendAsync()
 		{
 			string apiKey = _snipeContext.Config.ClientKey;
 			string url = _snipeContext.Config.LogReporterUrl;
@@ -95,7 +95,7 @@ namespace MiniIT
 				try
 				{
 					await _semaphore.WaitAsync();
-					content = await Task.Run(() => GetPortionContent(ref startIndex, connectionId, userId, appVersion, appPlatform));
+					content = await AlterTask.Run(() => GetPortionContent(ref startIndex, connectionId, userId, appVersion, appPlatform));
 				}
 				catch (Exception ex)
 				{

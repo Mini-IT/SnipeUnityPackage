@@ -1,6 +1,7 @@
 ﻿﻿using System;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using MiniIT.Threading.Tasks;
 #if !MINI_IT_ADVERTISING_ID
 using UnityEngine;
 #endif
@@ -11,12 +12,17 @@ namespace MiniIT.Snipe.Unity
 	{
 		public override void Fetch(bool wait_initialization, Action<string> callback = null)
 		{
+#if UNITY_WEBGL
+			callback?.Invoke(null);
+			return;
+#endif
+
 			if (!string.IsNullOrEmpty(Value))
 			{
 				callback?.Invoke(Value);
 				return;
 			}
-			
+
 #if MINI_IT_ADVERTISING_ID
 			MiniIT.Utils.AdvertisingIdFetcher.RequestAdvertisingId((advertisingId, trackingEnabled, errorMessage) =>
 			{
@@ -39,7 +45,7 @@ namespace MiniIT.Snipe.Unity
 				{
 					if (callback != null)
 					{
-						Task.Run(() => WaitForInitialization(callback));
+						AlterTask.Run(() => WaitForInitialization(callback));
 					}
 					return;
 				}
@@ -50,11 +56,11 @@ namespace MiniIT.Snipe.Unity
 		}
 
 #if UNITY_IOS
-		private async Task WaitForInitialization(Action<string> callback)
+		private async AlterTask WaitForInitialization(Action<string> callback)
 		{
 			while (string.IsNullOrEmpty(Value))
 			{
-				await Task.Delay(100);
+				await AlterTask.Delay(100);
 			}
 			RunInMainThread(() => callback.Invoke(Value));
 		}

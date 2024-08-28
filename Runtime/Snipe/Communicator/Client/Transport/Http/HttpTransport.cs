@@ -1,14 +1,13 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using MiniIT.Snipe.Internal;
+using MiniIT.Threading;
+using MiniIT.Threading.Tasks;
 
 namespace MiniIT.Snipe
 {
@@ -20,7 +19,7 @@ namespace MiniIT.Snipe
 		public override bool Connected => _connected;
 		public override bool ConnectionEstablished => _connectionEstablished;
 
-		private HttpClient _httpClient;
+		private IHttpTransportClient _client;
 
 		private TimeSpan _heartbeatInterval;
 
@@ -29,7 +28,7 @@ namespace MiniIT.Snipe
 		private bool _connectionEstablished = false;
 		private readonly object _lock = new object();
 
-		private readonly SemaphoreSlim _sendSemaphore = new SemaphoreSlim(1, 1);
+		private readonly AlterSemaphore _sendSemaphore = new AlterSemaphore(1, 1);
 
 		internal HttpTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
 			: base(config, analytics)
@@ -45,10 +44,22 @@ namespace MiniIT.Snipe
 
 				_baseUrl = GetBaseUrl();
 
-				_httpClient ??= new HttpClient();
+				if (_client == null)
+				{
+					InitializeClient();
+				}
 			}
 
 			SendHandshake();
+		}
+
+		private void InitializeClient()
+		{
+#if UNITY_WEBGL
+			_client = new UnityHttpClient();
+#else
+			_client = new SystemHttpClient();
+#endif
 		}
 
 		public override void Disconnect()
@@ -65,10 +76,7 @@ namespace MiniIT.Snipe
 		{
 			_connected = false;
 
-			if (_httpClient != null)
-			{
-				_httpClient.DefaultRequestHeaders.Clear();
-			}
+			_client?.Reset();
 
 			StopHeartbeat();
 			ConnectionClosedHandler?.Invoke(this);
@@ -112,24 +120,6 @@ namespace MiniIT.Snipe
 
 			ConnectionOpenedHandler?.Invoke(this);
 		}
-
-		//private void OnClientDisconnected()
-		//{
-		//	_logger.LogTrace($"OnClientDisconnected");
-
-		//	//StopNetworkLoop();
-		//	Connected = false;
-
-		//	//if (!ConnectionEstablished) // failed to establish connection
-		//	//{
-		//	//	if (_config.NextUdpUrl())
-		//	//	{
-		//	//		_logger.LogTrace($"Next udp url");
-		//	//	}
-		//	//}
-
-		//	ConnectionClosedHandler?.Invoke();
-		//}
 
 		private void ProcessMessage(string json)
 		{
@@ -196,7 +186,7 @@ namespace MiniIT.Snipe
 
 				if (!string.IsNullOrEmpty(token))
 				{
-					_httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+					_client.SetAuthToken(token);
 				}
 			}
 		}
@@ -204,18 +194,17 @@ namespace MiniIT.Snipe
 		private async void DoSendRequest(SnipeObject message)
 		{
 			string requestType = message.SafeGetString("t");
-			string json = message.ToJSONString(); // Don't use `ToFastJSONString` because the message can containt custom classes for attr.setMulty for example
+			string json = message.ToJSONString(); // Don't use FastJSON because the message can contain custom classes for attr.setMulty for example
 
 			try
 			{
 				await _sendSemaphore.WaitAsync();
 
 				var uri = new Uri(_baseUrl, requestType);
-				var requestContent = new StringContent(json, Encoding.UTF8, "application/json");
 
-				_logger.LogTrace($"<<< request ({uri}) - {json}");
+				_logger.LogTrace($"<<< request ({uri}) - {requestType}");
 
-				using (var response = await _httpClient.PostAsync(uri, requestContent))
+				using (var response = await _client.PostJsonAsync(uri, json))
 				{
 					// response.StatusCode:
 					//   200 - ok
@@ -223,20 +212,14 @@ namespace MiniIT.Snipe
 					//   429 - {"errorCode":"rateLimit"}
 					//   500 - {"errorCode":"requestTimeout"}
 
-					string responseMessage = await response.Content.ReadAsStringAsync();
+					_logger.LogTrace($">>> response {requestType} ({response.ResponseCode}) {response.Error}");
 
-					_logger.LogTrace($">>> response {requestType} ({(int)response.StatusCode} {response.StatusCode}) {responseMessage}");
-					
-					if (response.IsSuccessStatusCode)
+					if (response.IsSuccess)
 					{
+						string responseMessage = await response.GetContentAsync();
 						ProcessMessage(responseMessage);
 					}
-					else
-#if NET_STANDARD_2_1
-					if (response.StatusCode != HttpStatusCode.TooManyRequests)
-#else
-					if ((int)response.StatusCode != 429)
-#endif
+					else if (response.ResponseCode != 429) // HttpStatusCode.TooManyRequests
 					{
 						Disconnect();
 					}
@@ -284,7 +267,7 @@ namespace MiniIT.Snipe
 			_heartbeatInterval = _config.HttpHeartbeatInterval;
 
 			_heartbeatCancellation = new CancellationTokenSource();
-			Task.Run(() => HeartbeatTask(_heartbeatCancellation.Token));
+			AlterTask.Run(() => HeartbeatTask(_heartbeatCancellation.Token));
 		}
 
 		private void StopHeartbeat()
@@ -309,7 +292,7 @@ namespace MiniIT.Snipe
 			{
 				try
 				{
-					await Task.Delay(milliseconds, cancellation);
+					await AlterTask.Delay(milliseconds, cancellation);
 				}
 				catch (OperationCanceledException)
 				{
@@ -336,11 +319,11 @@ namespace MiniIT.Snipe
 
 				_logger.LogTrace($"<<< request ({uri})");
 
-				using (var response = await _httpClient.GetAsync(uri))
+				using (var response = await _client.GetAsync(uri))
 				{
-					_logger.LogTrace($">>> response {uri} ({(int)response.StatusCode} {response.StatusCode})");
+					_logger.LogTrace($">>> response {uri} ({response.ResponseCode}) {response.Error}");
 
-					if (response.IsSuccessStatusCode)
+					if (response.IsSuccess)
 					{
 						ConfirmConnectionEstablished();
 					}
@@ -364,6 +347,16 @@ namespace MiniIT.Snipe
 			OnClientConnected();
 
 			StartHeartbeat();
+		}
+
+		public override void Dispose()
+		{
+			if (_client is IDisposable disposableClient)
+			{
+				disposableClient.Dispose();
+			}
+
+			base.Dispose();
 		}
 	}
 }

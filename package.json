@@ -6,6 +6,7 @@
 		"com.miniit.logger": "1.0.0",
 		"com.miniit.framework.streamingassetsreader": "1.0.0",
 		"com.miniit.framework.utilities": "1.0.0",
+		"com.miniit.altertask": "1.0.0",
 		"com.cysharp.unitask": "2.3.0"
 	},
 	"unity": "2020.3",

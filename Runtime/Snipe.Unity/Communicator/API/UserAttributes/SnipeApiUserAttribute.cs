@@ -2,7 +2,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
+using MiniIT.Threading;
+using MiniIT.Threading.Tasks;
 
 namespace MiniIT.Snipe.Api
 {
@@ -140,7 +141,7 @@ namespace MiniIT.Snipe.Api
 		// TODO: Move to more externaly available place
 		public static TimeSpan RequestDelay = TimeSpan.FromMilliseconds(900);
 
-		protected static readonly SemaphoreSlim _setRequestsSemaphore = new SemaphoreSlim(1, 1);
+		protected static readonly AlterSemaphore _setRequestsSemaphore = new AlterSemaphore(1, 1);
 		protected static UserAttributeSetRequestsBatch _requests;
 		protected static CancellationTokenSource _setRequestsCancellation;
 
@@ -193,7 +194,7 @@ namespace MiniIT.Snipe.Api
 		{
 			try
 			{
-				await Task.Delay(RequestDelay, cancellationToken);
+				await AlterTask.Delay(RequestDelay, cancellationToken);
 			}
 			catch (OperationCanceledException)
 			{

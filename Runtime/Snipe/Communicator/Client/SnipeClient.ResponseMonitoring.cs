@@ -3,8 +3,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using MiniIT.Threading.Tasks;
 
 namespace MiniIT.Snipe
 {
@@ -44,11 +44,20 @@ namespace MiniIT.Snipe
 		
 		private void RemoveResponseMonitoringItem(int request_id, string message_type)
 		{
+			if (_responseMonitoringItems == null)
+			{
+				return;
+			}
+
+			bool found = false;
+
 			try
 			{
-				if (_responseMonitoringItems.TryGetValue(request_id, out var item) && item != null)
+				if (_responseMonitoringItems.TryGetValue(request_id, out var item))
 				{
-					if (item.message_type != message_type)
+					found = true;
+
+					if (item != null && item.message_type != message_type)
 					{
 						_analytics.TrackEvent("Wrong response type", new SnipeObject()
 							{
@@ -65,7 +74,10 @@ namespace MiniIT.Snipe
 			}
 			finally
 			{
-				_responseMonitoringItems?.Remove(request_id);
+				if (found)
+				{
+					_responseMonitoringItems.Remove(request_id);
+				}
 			}
 		}
 		
@@ -78,7 +90,7 @@ namespace MiniIT.Snipe
 				_responseMonitoringItems.Clear();
 			
 			_responseMonitoringCancellation = new CancellationTokenSource();
-			Task.Run(() => ResponseMonitoring(_responseMonitoringCancellation.Token));
+			AlterTask.Run(() => ResponseMonitoring(_responseMonitoringCancellation.Token));
 		}
 
 		private void StopResponseMonitoring()
@@ -101,9 +113,9 @@ namespace MiniIT.Snipe
 			{
 				try
 				{
-					await Task.Delay(1000, cancellation);
+					await AlterTask.Delay(1000, cancellation);
 				}
-				catch (TaskCanceledException)
+				catch (OperationCanceledException)
 				{
 					// This is OK. Just terminating the task
 					return;
