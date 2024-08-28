@@ -15,16 +15,28 @@ namespace MiniIT.Snipe.Unity
 		{
 			ApplicationIdentifier = Application.identifier;
 			ApplicationVersion = Application.version;
-
-#if AMAZON_STORE && !UNITY_EDITOR
-			ApplicationPlatform = Application.platform.ToString() + "Amazon";
-#else
-			ApplicationPlatform = Application.platform.ToString();
-#endif
-
+			ApplicationPlatform = Application.platform.ToString() + GetPlatformSuffix();
 			DeviceIdentifier = SystemInfo.deviceUniqueIdentifier;
 			PersistentDataPath = Application.persistentDataPath;
 			StreamingAssetsPath = Application.streamingAssetsPath;
+		}
+
+		private static string GetPlatformSuffix()
+		{
+			string suffix = string.Empty;
+
+#if !UNITY_EDITOR
+#if AMAZON_STORE
+			suffix = "Amazon";
+#elif RUSTORE
+			suffix = "RuStore";
+#elif NUTAKU
+			suffix = "Nutaku";
+//#elif CHINA
+//			suffix = "China";
+#endif
+#endif
+			return suffix;
 		}
 	}
 }
