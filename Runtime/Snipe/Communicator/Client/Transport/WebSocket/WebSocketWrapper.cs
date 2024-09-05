@@ -7,6 +7,7 @@ namespace MiniIT.Snipe
 		protected const int CONNECTION_TIMEOUT = 5000;
 
 		public bool Connected => IsConnected();
+		public abstract bool AutoPing { get; }
 		
 		#pragma warning disable 0067
 

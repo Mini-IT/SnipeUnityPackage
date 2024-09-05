@@ -38,8 +38,6 @@ namespace MiniIT.Snipe
 		public override bool Connected => _webSocket != null && _webSocket.Connected;
 		public override bool ConnectionEstablished => _connected;
 
-		private Stopwatch _pingStopwatch;
-
 		private WebSocketWrapper _webSocket = null;
 		private readonly object _lock = new object();
 		
@@ -367,8 +365,7 @@ namespace MiniIT.Snipe
 			_heartbeatCancellation?.Cancel();
 
 			// Custom heartbeating is needed only for WebSocketSharp
-			if (_webSocket == null && _config.WebSocketImplementation != SnipeConfig.WebSocketImplementations.WebSocketSharp ||
-				_webSocket != null && !(_webSocket is WebSocketSharpWrapper))
+			if (_webSocket == null && _webSocket.AutoPing)
 			{
 				_heartbeatEnabled = false;
 				return;
@@ -389,52 +386,48 @@ namespace MiniIT.Snipe
 
 		private async void HeartbeatTask(CancellationToken cancellation)
 		{
-			//ResetHeartbeatTimer();
-
-			// await Task.Delay(HEARTBEAT_TASK_DELAY, cancellation);
 			_heartbeatTriggerTicks = 0;
+			bool pinging = false;
+			bool forcePing = false;
+			var pingStopwatch = new Stopwatch();
 
 			while (cancellation != null && !cancellation.IsCancellationRequested && Connected)
 			{
-				if (DateTime.UtcNow.Ticks >= _heartbeatTriggerTicks)
+				// if ping was sent, but pong was not yet received within HEARTBEAT_TASK_DELAY,
+				// then wait one more HEARTBEAT_TASK_DELAY and then send another ping
+				if (pinging)
 				{
-					bool pinging = false;
-					if (pinging)
+					pinging = false;
+					forcePing = true;
+				}
+				else if (forcePing || DateTime.UtcNow.Ticks >= _heartbeatTriggerTicks) // it's time to send a ping
+				{
+					lock (_lock)
 					{
-						await Task.Delay(20);
-					}
-					else
-					{
-						lock (_lock)
-						{
-							pinging = true;
+						pinging = true;
+						pingStopwatch.Restart();
 							
-							if (_pingStopwatch == null)
+						_webSocket.Ping(pong =>
+						{
+							pinging = false;
+							forcePing = false;
+							pingStopwatch.Stop();
+							_analytics.PingTime = pong ? pingStopwatch.Elapsed : TimeSpan.Zero;
+
+							if (pong)
 							{
-								_pingStopwatch = Stopwatch.StartNew();
+								_logger.LogTrace($"[{nameof(WebSocketTransport)}] Heartbeat pong {_analytics.PingTime.TotalMilliseconds} ms");
 							}
 							else
 							{
-								_pingStopwatch.Restart();
+								_logger.LogTrace($"[{nameof(WebSocketTransport)}] Heartbeat pong NOT RECEIVED");
 							}
-							
-							_webSocket.Ping(pong =>
-							{
-								pinging = false;
-								_pingStopwatch?.Stop();
-								_analytics.PingTime = pong && _pingStopwatch != null ? _pingStopwatch.Elapsed : TimeSpan.Zero;
-								
-								if (pong)
-									_logger.LogTrace($"[] Heartbeat pong {_analytics.PingTime.TotalMilliseconds} ms");
-								else
-									_logger.LogTrace($"[] Heartbeat pong NOT RECEIVED");
-							});
-						}
+						});
 					}
 					
 					ResetHeartbeatTimer();
 
-					_logger.LogTrace($"[] Heartbeat ping");
+					_logger.LogTrace($"[{nameof(WebSocketTransport)}]] Heartbeat ping");
 				}
 				
 				if (cancellation == null || cancellation.IsCancellationRequested)

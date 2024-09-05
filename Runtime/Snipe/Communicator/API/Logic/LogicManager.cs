@@ -18,7 +18,7 @@ namespace MiniIT.Snipe.Api
 		public event ExitNodeHandler ExitNode;
 		public event NodeProgressHandler NodeProgress;
 
-		public Dictionary<int, LogicNode> Nodes { get; private set; } = new Dictionary<int, LogicNode>();
+		public Dictionary<int, LogicNode> Nodes { get; } = new Dictionary<int, LogicNode>();
 		private Dictionary<string, LogicNode> _taggedNodes;
 		private ISnipeTable<SnipeTableLogicItem> _logicTable = null;
 

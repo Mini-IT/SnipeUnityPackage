@@ -43,8 +43,10 @@ namespace MiniIT
 			foreach (string key in keys)
 			{
 				object member = this[key];
-				if (member is IDisposable)
-					(member as IDisposable).Dispose();
+				if (member is IDisposable disposable)
+				{
+					disposable.Dispose();
+				}
 			}
 
 			Clear();
@@ -52,9 +54,9 @@ namespace MiniIT
 		}
 		
 		public static bool TryGetValue<T>(IDictionary<string, object> dictionary, string key, out T value)
-        {
-            if (dictionary.TryGetValue(key, out var result))
-            {
+		{
+			if (dictionary.TryGetValue(key, out var result))
+			{
 				try
 				{
 					value = (T)result;
@@ -74,11 +76,11 @@ namespace MiniIT
 				catch (NullReferenceException) // field exists but res is null
 				{
 				}
-            }
+			}
 
-            value = default;
-            return false;
-        }
+			value = default;
+			return false;
+		}
 
 		public static T SafeGetValue<T>(IDictionary<string, object> dictionary, string key, T default_value = default)
 		{
@@ -132,7 +134,7 @@ namespace MiniIT
 		*/
 		
 		public static bool ContentEquals(Dictionary<string, object> first, Dictionary<string, object> second)
-        {
+		{
 			// based on https://stackoverflow.com/a/31590664
 			
 			if (first == second)
@@ -142,7 +144,7 @@ namespace MiniIT
 			if (first.Count != second.Count)
 				return false;
 			
-            return second.OrderBy(kvp => kvp.Key).SequenceEqual(first.OrderBy(kvp => kvp.Key));
-        }
+			return second.OrderBy(kvp => kvp.Key).SequenceEqual(first.OrderBy(kvp => kvp.Key));
+		}
 	}
 }

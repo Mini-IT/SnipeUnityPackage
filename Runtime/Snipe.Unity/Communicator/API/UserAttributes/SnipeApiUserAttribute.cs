@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Linq;
 
 namespace MiniIT.Snipe.Api
 {
@@ -136,23 +135,17 @@ namespace MiniIT.Snipe.Api
 		}
 	}
 
-	public class SnipeApiUserAttribute<TAttrValue> : SnipeApiReadOnlyUserAttribute<TAttrValue>
+	public class SnipeApiUserAttribute<TAttrValue> : SnipeApiReadOnlyUserAttribute<TAttrValue>, IDisposable
 	{
-		private const int SET_REQUEST_DELAY_MILLISECONDS = 300;
+		// TODO: Move to more externaly available place
+		public static TimeSpan RequestDelay = TimeSpan.FromMilliseconds(900);
 
-		public class SetRequest
-		{
-			internal object _value;
-			internal SetCallback _callback;
-		}
-
-		protected static readonly Dictionary<string, SetRequest> _setRequests = new Dictionary<string, SetRequest>();
 		protected static readonly SemaphoreSlim _setRequestsSemaphore = new SemaphoreSlim(1, 1);
+		protected static UserAttributeSetRequestsBatch _requests;
 		protected static CancellationTokenSource _setRequestsCancellation;
 
-		public SnipeApiUserAttribute(AbstractSnipeApiService snipeApi, string key) : base(snipeApi, key)
-		{
-		}
+		public SnipeApiUserAttribute(AbstractSnipeApiService snipeApi, string key)
+			: base(snipeApi, key) { }
 
 		protected override void DoSetValue(TAttrValue val, SetCallback callback = null)
 		{
@@ -162,7 +155,7 @@ namespace MiniIT.Snipe.Api
 			}
 			else
 			{
-				var oldValue = _value;
+				TAttrValue oldValue = _value;
 				_value = val;
 
 				if (_initialized)
@@ -181,15 +174,8 @@ namespace MiniIT.Snipe.Api
 			{
 				await _setRequestsSemaphore.WaitAsync();
 
-				SetRequest request;
-				if (!_setRequests.TryGetValue(_key, out request))
-				{
-					request = new SetRequest();
-					_setRequests.Add(_key, request);
-				}
-				request._value = val;
-				if (callback != null)
-					request._callback += callback;
+				_requests ??= new UserAttributeSetRequestsBatch();
+				_requests.AddSetRequest(_key, val, callback);
 
 				if (_setRequestsCancellation == null)
 				{
@@ -207,61 +193,50 @@ namespace MiniIT.Snipe.Api
 		{
 			try
 			{
-				await Task.Delay(SET_REQUEST_DELAY_MILLISECONDS, cancellationToken);
+				await Task.Delay(RequestDelay, cancellationToken);
 			}
 			catch (OperationCanceledException)
 			{
 				return;
 			}
 
-			List<SnipeObject> attrs = null;
-			List<SetCallback> callbacks = null;
-
 			try
 			{
-				await _setRequestsSemaphore.WaitAsync();
+				await _setRequestsSemaphore.WaitAsync(cancellationToken);
 
-				if (_setRequests.Count > 0)
-				{
-					attrs = new List<SnipeObject>(_setRequests.Count);
-					callbacks = new List<SetCallback>(_setRequests.Count);
-
-					foreach (var req in _setRequests)
-					{
-						attrs.Add(new SnipeObject()
-						{
-							["key"] = req.Key,
-							["val"] = req.Value._value,
-							["action"] = "set",
-						});
-						callbacks.Add(req.Value._callback);
-					}
-
-					_setRequests.Clear();
-				}
-
+				_setRequestsCancellation?.Dispose();
 				_setRequestsCancellation = null;
+
+				FlushRequests();
+			}
+			catch (OperationCanceledException)
+			{
+				return;
 			}
 			finally
 			{
 				_setRequestsSemaphore.Release();
 			}
+		}
 
-			if (attrs == null)
+		private void FlushRequests()
+		{
+			if (!_requests.TryFlush(out List<SnipeObject> attrs, out List<SetCallback> callbacks))
+			{
 				return;
+			}
 
 			var request = _snipeApi.CreateRequest("attr.setMulti", new SnipeObject()
 			{
 				["data"] = attrs,
 			});
 
-			if (request == null)
-				return;
-
-			request.Request((error_code, response_data) =>
+			request?.Request((error_code, response_data) =>
 			{
 				if (callbacks == null)
+				{
 					return;
+				}
 
 				foreach (var callback in callbacks)
 				{
@@ -270,6 +245,18 @@ namespace MiniIT.Snipe.Api
 						response_data["val"]);
 				}
 			});
+		}
+
+		public void Dispose()
+		{
+			if (_setRequestsCancellation != null)
+			{
+				_setRequestsCancellation.Cancel();
+				_setRequestsCancellation.Dispose();
+				_setRequestsCancellation= null;
+			}
+
+			_requests?.TryFlush(out _, out _);
 		}
 
 		public static implicit operator TAttrValue(SnipeApiUserAttribute<TAttrValue> attr)

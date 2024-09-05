@@ -10,6 +10,8 @@ namespace MiniIT.Snipe
 {
 	public class WebSocketClientWrapper : WebSocketWrapper
 	{
+		public override bool AutoPing => true;
+
 		private ClientWebSocket _webSocket = null;
 		private CancellationTokenSource _cancellation;
 

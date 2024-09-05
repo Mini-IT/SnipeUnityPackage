@@ -1,0 +1,22 @@
+{
+    "name": "MiniIT.Snipe.Config",
+    "references": [
+        "MiniIT.Snipe.Services",
+        "MiniIT.Snipe.SharedPrefs",
+        "MiniIT.Snipe.Logging",
+        "MiniIT.Snipe.PackageInfo",
+        "MiniIT.Logging",
+        "MiniIT.Framework.Utilities",
+        "fastJSON",
+        "UniTask"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

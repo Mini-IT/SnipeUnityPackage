@@ -14,27 +14,55 @@ namespace MiniIT.Snipe
 		}
 
 		public static VersionsResolution Versioning = VersionsResolution.Default;
-		
-		public static List<string> TablesUrls = new List<string>();
+
+		public static IReadOnlyList<string> TablesUrls => _tablesUrls;
+
+		private static List<string> _tablesUrls = new List<string>();
 		private static int _tablesUrlIndex = 0;
+
+		public static void ResetTablesUrls()
+		{
+			_tablesUrls.Clear();
+			_tablesUrlIndex = 0;
+		}
+
+		public static void AddTableUrl(string url)
+		{
+			url = url.Trim();
+			if (string.IsNullOrEmpty(url))
+			{
+				return;
+			}
+
+			if (url[url.Length - 1] != '/') // faster than string.EndsWith("/")
+			{
+				url += "/";
+			}
+
+			_tablesUrls.Add(url);
+		}
 
 		public static void Init(IDictionary<string, object> data)
 		{
-			if (TablesUrls == null)
-				TablesUrls = new List<string>();
-			else
-				TablesUrls.Clear();
+			ResetTablesUrls();
 
-			if (data.TryGetValue("tables_path", out var tables_path_field) &&
-				tables_path_field is IList tables_ulrs_list)
+			if (data.TryGetValue("tables_path", out var tablesPathField) &&
+				tablesPathField is IList tablesUlrsList)
 			{
-				foreach (string path in tables_ulrs_list)
+				foreach (string path in tablesUlrsList)
 				{
-					var corrected_path = path.Trim();
-					if (!corrected_path.EndsWith("/"))
-						corrected_path += "/";
+					string correctedPath = path.Trim();
+					if (string.IsNullOrEmpty(correctedPath))
+					{
+						continue;
+					}
 
-					TablesUrls.Add(corrected_path);
+					if (correctedPath[correctedPath.Length - 1] != '/') // faster than string.EndsWith("/")
+					{
+						correctedPath += "/";
+					}
+
+					_tablesUrls.Add(correctedPath);
 				}
 			}
 
@@ -43,10 +71,10 @@ namespace MiniIT.Snipe
 
 		public static string GetTablesPath(bool next = false)
 		{
-			_tablesUrlIndex = SnipeConfig.GetValidIndex(TablesUrls, _tablesUrlIndex, next);
+			_tablesUrlIndex = SnipeConfig.GetValidIndex(_tablesUrls, _tablesUrlIndex, next);
 			if (_tablesUrlIndex >= 0)
 			{
-				return TablesUrls[_tablesUrlIndex];
+				return _tablesUrls[_tablesUrlIndex];
 			}
 
 			return null;

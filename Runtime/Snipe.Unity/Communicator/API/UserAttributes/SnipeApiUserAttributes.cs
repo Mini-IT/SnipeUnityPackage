@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace MiniIT.Snipe.Api
 {
-	public class SnipeApiUserAttributes
+	public class SnipeApiUserAttributes : IDisposable
 	{
 		private readonly Dictionary<string, SnipeApiUserAttribute> _attributes;
 		private readonly object _attributesLock = new object();
@@ -23,6 +23,29 @@ namespace MiniIT.Snipe.Api
 				_attributes[attr.Key] = attr;
 			}
 			return attr;
+		}
+
+		~SnipeApiUserAttributes()
+		{
+			Dispose();
+		}
+
+		public void Dispose()
+		{
+			lock (_attributesLock)
+			{
+				foreach (var attr in _attributes)
+				{
+					if (attr.Value is IDisposable disposable)
+					{
+						try
+						{
+							disposable.Dispose();
+						}
+						catch (Exception) { }
+					}
+				}
+			}
 		}
 
 		private void OnMessageReceived(string message_type, string error_code, SnipeObject data, int request_id)

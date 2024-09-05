@@ -10,7 +10,8 @@
         "MiniIT.Snipe.Services",
         "WebSocketSharp",
         "kcp2k",
-        "ZString"
+        "ZString",
+        "fastJSON"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
