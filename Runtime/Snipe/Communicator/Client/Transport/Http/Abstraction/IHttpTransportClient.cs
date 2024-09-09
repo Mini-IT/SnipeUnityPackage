@@ -6,7 +6,6 @@ namespace MiniIT.Snipe.Internal
 {
 	public interface IHttpTransportClient
 	{
-		void Initialize();
 		void Reset();
 		void SetAuthToken(string token);
 		AlterTask<IHttpTransportClientResponse> GetAsync(Uri uri);

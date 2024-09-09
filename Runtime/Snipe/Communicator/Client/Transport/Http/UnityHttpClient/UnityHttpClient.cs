@@ -10,10 +10,6 @@ namespace MiniIT.Snipe.Internal
 	{
 		string _authToken;
 
-		public void Initialize()
-		{
-		}
-
 		public void Reset()
 		{
 			_authToken = null;

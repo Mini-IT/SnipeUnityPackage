@@ -9,16 +9,16 @@ namespace MiniIT.Snipe.Internal
 {
 	public class SystemHttpClient : IHttpTransportClient, IDisposable
 	{
-		private HttpClient _httpClient;
+		private readonly HttpClient _httpClient;
 
-		public void Initialize()
+		public SystemHttpClient()
 		{
-			_httpClient ??= new HttpClient();
+			_httpClient = new HttpClient();
 		}
 
 		public void Reset()
 		{
-			_httpClient?.DefaultRequestHeaders.Clear();
+			_httpClient.DefaultRequestHeaders.Clear();
 		}
 
 		public void SetAuthToken(string token)
@@ -42,7 +42,7 @@ namespace MiniIT.Snipe.Internal
 
 		public void Dispose()
 		{
-			_httpClient?.Dispose();
+			_httpClient.Dispose();
 		}
 	}
 }
