@@ -171,9 +171,12 @@ namespace MiniIT.Snipe.Api
 
 		protected async void AddSetRequest(object val, SetCallback callback = null)
 		{
+			bool semaphoreOccupied = false;
+
 			try
 			{
 				await _setRequestsSemaphore.WaitAsync();
+				semaphoreOccupied = true;
 
 				_requests ??= new UserAttributeSetRequestsBatch();
 				_requests.AddSetRequest(_key, val, callback);
@@ -186,7 +189,10 @@ namespace MiniIT.Snipe.Api
 			}
 			finally
 			{
-				_setRequestsSemaphore.Release();
+				if (semaphoreOccupied)
+				{
+					_setRequestsSemaphore.Release();
+				}
 			}
 		}
 
@@ -201,9 +207,12 @@ namespace MiniIT.Snipe.Api
 				return;
 			}
 
+			bool semaphoreOccupied = false;
+
 			try
 			{
 				await _setRequestsSemaphore.WaitAsync(cancellationToken);
+				semaphoreOccupied = true;
 
 				_setRequestsCancellation?.Dispose();
 				_setRequestsCancellation = null;
@@ -216,7 +225,10 @@ namespace MiniIT.Snipe.Api
 			}
 			finally
 			{
-				_setRequestsSemaphore.Release();
+				if (semaphoreOccupied)
+				{
+					_setRequestsSemaphore.Release();
+				}
 			}
 		}
 

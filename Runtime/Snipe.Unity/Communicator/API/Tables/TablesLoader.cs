@@ -133,9 +133,12 @@ namespace MiniIT.Snipe
 			bool cancelled = false;
 			Exception exception = null;
 
+			bool semaphoreOccupied = false;
+
 			try
 			{
 				await _semaphore.WaitAsync(cancellationToken);
+				semaphoreOccupied = true;
 
 				if (!cancellationToken.IsCancellationRequested)
 				{
@@ -155,7 +158,10 @@ namespace MiniIT.Snipe
 			}
 			finally
 			{
-				_semaphore.Release();
+				if(semaphoreOccupied)
+				{
+					_semaphore.Release();
+				}
 			}
 
 			if (!loaded && !_failed)

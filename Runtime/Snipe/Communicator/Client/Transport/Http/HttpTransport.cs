@@ -196,9 +196,14 @@ namespace MiniIT.Snipe
 			string requestType = message.SafeGetString("t");
 			string json = message.ToJSONString(); // Don't use FastJSON because the message can contain custom classes for attr.setMulty for example
 
+			string responseMessage = null;
+
+			bool semaphoreOccupied = false;
+
 			try
 			{
 				await _sendSemaphore.WaitAsync();
+				semaphoreOccupied = true;
 
 				var uri = new Uri(_baseUrl, requestType);
 
@@ -216,8 +221,7 @@ namespace MiniIT.Snipe
 
 					if (response.IsSuccess)
 					{
-						string responseMessage = await response.GetContentAsync();
-						ProcessMessage(responseMessage);
+						responseMessage = await response.GetContentAsync();
 					}
 					else if (response.ResponseCode != 429) // HttpStatusCode.TooManyRequests
 					{
@@ -225,14 +229,29 @@ namespace MiniIT.Snipe
 					}
 				}
 			}
-			catch (HttpRequestException e)
+			catch (HttpRequestException httpException)
 			{
-				_logger.LogError(e, $"{e}");
+				_logger.LogError(httpException, httpException.ToString());
 				InternalDisconnect();
+			}
+			catch (Exception e)
+			{
+				_logger.LogError(e, "Request failed {0}", e.ToString());
+			}
+
+			try
+			{
+				if (!string.IsNullOrEmpty(responseMessage))
+				{
+					ProcessMessage(responseMessage);
+				}
 			}
 			finally
 			{
-				_sendSemaphore.Release();
+				if (semaphoreOccupied)
+				{
+					_sendSemaphore.Release();
+				}
 			}
 		}
 
@@ -310,9 +329,12 @@ namespace MiniIT.Snipe
 
 		private async void SendHandshake()
 		{
+			bool semaphoreOccupied = false;
+
 			try
 			{
 				await _sendSemaphore.WaitAsync();
+				semaphoreOccupied = true;
 
 				string url = _config.GetHttpAddress();
 				var uri = new Uri(new Uri(url), "test_connect.html");
@@ -329,14 +351,21 @@ namespace MiniIT.Snipe
 					}
 				}
 			}
-			catch (HttpRequestException e)
+			catch (HttpRequestException httpException)
 			{
-				_logger.LogError(e, $"{e}");
+				_logger.LogError(httpException, httpException.ToString());
 				InternalDisconnect();
+			}
+			catch (Exception e)
+			{
+				_logger.LogError(e, "Request failed {0}", e.ToString());
 			}
 			finally
 			{
-				_sendSemaphore.Release();
+				if (semaphoreOccupied)
+				{
+					_sendSemaphore.Release();
+				}
 			}
 		}
 

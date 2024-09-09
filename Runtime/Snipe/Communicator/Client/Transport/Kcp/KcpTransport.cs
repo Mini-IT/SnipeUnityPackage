@@ -137,17 +137,23 @@ namespace MiniIT.Snipe
 
 			SnipeObject message = null;
 
+			bool semaphoreOccupied = false;
+
 			try
 			{
 				await _messageProcessingSemaphore.WaitAsync();
+				semaphoreOccupied = true;
 
 				message = await Task.Run(() => ReadMessage(buffer, compressed));
 			}
 			finally
 			{
 				ArrayPool<byte>.Shared.Return(data);
-				
-				_messageProcessingSemaphore.Release();
+
+				if (semaphoreOccupied)
+				{
+					_messageProcessingSemaphore.Release();
+				}
 			}
 			
 			if (message != null)
@@ -182,16 +188,22 @@ namespace MiniIT.Snipe
 		
 		private async void DoSendRequest(SnipeObject message)
 		{
+			bool semaphoreOccupied = false;
+
 			try
 			{
 				await _messageSerializationSemaphore.WaitAsync();
+				semaphoreOccupied = true;
 
 				ArraySegment<byte> msg_data = await SerializeMessage(message);
 				_kcpConnection?.SendData(msg_data, KcpChannel.Reliable);
 			}
 			finally
 			{
-				_messageSerializationSemaphore.Release();
+				if (semaphoreOccupied)
+				{
+					_messageSerializationSemaphore.Release();
+				}
 			}
 		}
 
@@ -199,9 +211,12 @@ namespace MiniIT.Snipe
 		{
 			var data = new List<ArraySegment<byte>>(messages.Count);
 
+			bool semaphoreOccupied = false;
+
 			try
 			{
 				await _messageSerializationSemaphore.WaitAsync();
+				semaphoreOccupied = true;
 
 				foreach (var message in messages)
 				{
@@ -214,7 +229,10 @@ namespace MiniIT.Snipe
 			}
 			finally
 			{
-				_messageSerializationSemaphore.Release();
+				if (semaphoreOccupied)
+				{
+					_messageSerializationSemaphore.Release();
+				}
 			}
 
 			_kcpConnection?.SendBatchReliable(data);

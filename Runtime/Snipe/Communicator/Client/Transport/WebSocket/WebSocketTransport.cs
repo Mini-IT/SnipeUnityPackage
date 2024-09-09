@@ -209,9 +209,11 @@ namespace MiniIT.Snipe
 		{
 			byte[] result = null;
 
+			bool semaphoreOccupied = false;
 			try
 			{
 				await _messageSerializationSemaphore.WaitAsync();
+				semaphoreOccupied = true;
 
 				var msg_data = await AlterTask.Run(() => _messageSerializer.Serialize(ref _messageSerializationBuffer, message));
 
@@ -240,7 +242,10 @@ namespace MiniIT.Snipe
 			}
 			finally
 			{
-				_messageSerializationSemaphore.Release();
+				if (semaphoreOccupied)
+				{
+					_messageSerializationSemaphore.Release();
+				}
 			}
 
 			return result;
@@ -262,15 +267,20 @@ namespace MiniIT.Snipe
 
 			SnipeObject message;
 
+			bool semaphoreOccupied = false;
 			try
 			{
 				await _messageProcessingSemaphore.WaitAsync();
+				semaphoreOccupied = true;
 
 				message = await AlterTask.Run(() => ReadMessage(raw_data));
 			}
 			finally
 			{
-				_messageProcessingSemaphore.Release();
+				if (semaphoreOccupied)
+				{
+					_messageProcessingSemaphore.Release();
+				}
 			}
 
 			MessageReceivedHandler?.Invoke(message);

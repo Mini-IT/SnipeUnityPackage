@@ -56,11 +56,14 @@ namespace MiniIT
 				DebugLogWarning($"[{nameof(LogReporter)}] Invalid apiKey or url");
 				return false;
 			}
-			
+
+			bool semaphoreOccupied = false;
+
 			try
 			{
 				await _semaphore.WaitAsync();
-				
+				semaphoreOccupied = true;
+
 				if (_running)
 				{
 					DebugLogWarning($"[{nameof(LogReporter)}] Already running");
@@ -70,7 +73,10 @@ namespace MiniIT
 			}
 			finally
 			{
-				_semaphore.Release();
+				if (semaphoreOccupied)
+				{
+					_semaphore.Release();
+				}
 			}
 
 			int connectionId = 0;
@@ -92,9 +98,12 @@ namespace MiniIT
 			for (int startIndex = 0; startIndex < _log.Count;)
 			{
 				string content;
+				semaphoreOccupied = false;
+
 				try
 				{
 					await _semaphore.WaitAsync();
+					semaphoreOccupied = true;
 					content = await AlterTask.Run(() => GetPortionContent(ref startIndex, connectionId, userId, appVersion, appPlatform));
 				}
 				catch (Exception ex)
@@ -106,7 +115,10 @@ namespace MiniIT
 				}
 				finally
 				{
-					_semaphore.Release();
+					if (semaphoreOccupied)
+					{
+						_semaphore.Release();
+					}
 				}
 					
 				var requestContent = new StringContent(content, Encoding.UTF8, "application/json");
@@ -138,16 +150,23 @@ namespace MiniIT
 			{
 				DebugLog($"[{nameof(LogReporter)}] - Sent successfully. UserId = {userId}, ConnectionId = {connectionId}");
 
+				semaphoreOccupied = false;
+
 				try
 				{
 					await _semaphore.WaitAsync();
-					
+					semaphoreOccupied = true;
+
 					_log.Clear();
 				}
 				finally
 				{
 					_running = false;
-					_semaphore.Release();
+
+					if (semaphoreOccupied)
+					{
+						_semaphore.Release();
+					}
 				}
 			}
 
@@ -195,10 +214,13 @@ namespace MiniIT
 
 		private static async void OnLogMessageReceived(string condition, string stackTrace, LogType type)
 		{
+			bool semaphoreOccupied = false;
+
 			try
 			{
 				await _semaphore.WaitAsync();
-				
+				semaphoreOccupied = true;
+
 				_log.Add(new LogRecord()
 				{
 					_time = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
@@ -209,7 +231,10 @@ namespace MiniIT
 			}
 			finally
 			{
-				_semaphore.Release();
+				if (semaphoreOccupied)
+				{
+					_semaphore.Release();
+				}
 			}
 		}
 
