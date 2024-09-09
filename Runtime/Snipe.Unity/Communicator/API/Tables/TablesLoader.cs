@@ -182,11 +182,11 @@ namespace MiniIT.Snipe
 		{
 			if (cancellationToken.IsCancellationRequested)
 			{
-				_logger.LogTrace($"Failed to load table - {loaderItem.Name}   (task canceled)");
+				_logger.LogTrace("Failed to load table - {0}   (task canceled)", loaderItem.Name);
 				return false;
 			}
 
-			_logger.LogTrace($"LoadTask start - {loaderItem.Name}");
+			_logger.LogTrace("LoadTask start - {0}", loaderItem.Name);
 
 			// Try to load from cache
 			if (await LoadTableAsync(loaderItem.Table,

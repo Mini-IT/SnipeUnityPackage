@@ -43,8 +43,11 @@ namespace MiniIT.Snipe.Tables
 				}
 				else
 				{
-					_logger.LogTrace("LoadVersion Failed. Trying to use the built-in ones");
-					_analyticsTracker.TrackEvent("Tables - LoadVersion Failed");
+					if (loadExternal)
+					{
+						_logger.LogTrace("LoadVersion Failed. Trying to use the built-in ones");
+						_analyticsTracker.TrackEvent("Tables - LoadVersion Failed");
+					}
 
 					versions = await LoadBuiltIn();
 				}

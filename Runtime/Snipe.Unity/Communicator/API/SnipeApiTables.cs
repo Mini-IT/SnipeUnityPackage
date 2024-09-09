@@ -6,12 +6,12 @@ namespace MiniIT.Snipe.Api
 {
 	public class SnipeApiTables
 	{
-		public bool Loading => _loadingTask != null;
+		public bool Loading => _loading;
 
 		private readonly HashSet<SnipeTable> _tables;
 		private readonly TablesLoader _loader;
 		private readonly object _lock = new object();
-		private AlterTask<bool>? _loadingTask;
+		private bool _loading = false;
 
 		public SnipeApiTables()
 		{
@@ -54,7 +54,7 @@ namespace MiniIT.Snipe.Api
 
 				if (restart)
 				{
-					_loadingTask = null;
+					_loading = false;
 					_loader.Reset();
 				}
 				else if (Loaded)
@@ -62,27 +62,22 @@ namespace MiniIT.Snipe.Api
 					return;
 				}
 
-				if (_loadingTask != null)
+				if (!_loading)
 				{
-					task = _loadingTask;
-				}
-				else
-				{
-					task = _loadingTask = _loader.Load();
+					_loading = true;
+					task = _loader.Load();
 				}
 			}
 
 			if (task != null)
 			{
 				_ = await task.Value;
+				_loading = false;
 			}
-
-			lock (_lock)
+			
+			while (_loading)
 			{
-				if (task != null && task == _loadingTask)
-				{
-					_loadingTask = null;
-				}
+				await AlterTask.Delay(100);
 			}
 		}
 
@@ -93,7 +88,9 @@ namespace MiniIT.Snipe.Api
 				lock (_lock)
 				{
 					if (_tables.Count == 0)
+					{
 						return true;
+					}
 					
 					foreach (var table in _tables)
 					{
@@ -115,7 +112,9 @@ namespace MiniIT.Snipe.Api
 				lock (_lock)
 				{
 					if (_tables.Count == 0)
+					{
 						return false;
+					}
 					
 					foreach (var table in _tables)
 					{

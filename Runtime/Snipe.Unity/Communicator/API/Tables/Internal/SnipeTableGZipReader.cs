@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.IO;
 using System.IO.Compression;
-using System.Threading.Tasks;
 using MiniIT.Threading.Tasks;
 
 namespace MiniIT.Snipe.Tables

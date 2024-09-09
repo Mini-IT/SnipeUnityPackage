@@ -1,10 +1,7 @@
 using System;
 using System.Collections;
 using System.IO;
-using System.Net;
-using System.Net.Http;
 using System.Threading;
-using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.Threading.Tasks;
