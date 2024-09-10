@@ -43,7 +43,7 @@ namespace MiniIT.Snipe.Api
 
 		public async AlterTask Load(bool restart = false)
 		{
-			AlterTask<bool>? task = null;
+			bool startLoading = false;
 
 			lock (_lock)
 			{
@@ -65,13 +65,13 @@ namespace MiniIT.Snipe.Api
 				if (!_loading)
 				{
 					_loading = true;
-					task = _loader.Load();
+					startLoading = true;
 				}
 			}
 
-			if (task != null)
+			if (startLoading)
 			{
-				_ = await task.Value;
+				_ = await _loader.Load();
 				_loading = false;
 			}
 			
