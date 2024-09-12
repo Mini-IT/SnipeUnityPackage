@@ -3,7 +3,7 @@
 	"version": "6.2.0",
 	"dependencies": {
 		"com.miniit.fastjson": "1.0.0",
-		"com.miniit.logger": "1.0.0",
+		"com.miniit.logger": "1.1.0",
 		"com.miniit.framework.streamingassetsreader": "1.0.0",
 		"com.miniit.framework.utilities": "1.0.0",
 		"com.miniit.altertask": "1.0.0",
