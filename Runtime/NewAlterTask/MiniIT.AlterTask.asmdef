@@ -1,5 +1,5 @@
 {
-    "name": "MiniIT.Snipe.HttpTransport.Internal.Abstraction",
+    "name": "MiniIT.AlterTask",
     "rootNamespace": "",
     "references": [
         "UniTask"

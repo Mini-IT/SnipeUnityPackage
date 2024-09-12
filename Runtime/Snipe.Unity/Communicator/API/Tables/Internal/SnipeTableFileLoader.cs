@@ -1,14 +1,14 @@
 using System;
 using System.Collections;
 using System.IO;
+using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using MiniIT.Threading.Tasks;
 
 namespace MiniIT.Snipe.Tables
 {
 	public static class SnipeTableFileLoader
 	{
-		public static async AlterTask<bool> LoadAsync(Type wrapperType, IDictionary items, string table_name, long version)
+		public static async UniTask<bool> LoadAsync(Type wrapperType, IDictionary items, string table_name, long version)
 		{
 			bool loaded = false;
 			string file_path = GetFilePath(table_name, version);

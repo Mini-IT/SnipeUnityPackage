@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
-using MiniIT.Threading.Tasks;
+using MiniIT.Threading;
 
 namespace MiniIT.Snipe.Api
 {
@@ -100,7 +99,7 @@ namespace MiniIT.Snipe.Api
 			{
 				try
 				{
-					await AlterTask.Delay(100, cancellation);
+					await TaskHelper.Delay(100, cancellation);
 				}
 				catch (OperationCanceledException)
 				{

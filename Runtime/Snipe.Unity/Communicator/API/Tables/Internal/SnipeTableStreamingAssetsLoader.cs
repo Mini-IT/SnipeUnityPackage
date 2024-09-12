@@ -2,8 +2,8 @@ using System;
 using System.Collections;
 using System.IO;
 using System.Threading;
+using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using MiniIT.Threading.Tasks;
 using MiniIT.Unity;
 
 namespace MiniIT.Snipe.Tables
@@ -19,7 +19,7 @@ namespace MiniIT.Snipe.Tables
 			_logger = SnipeServices.LogService.GetLogger("SnipeTable");
 		}
 
-		public async AlterTask<bool> LoadAsync(Type wrapperType, IDictionary items, string tableName, long version, CancellationToken cancellationToken = default)
+		public async UniTask<bool> LoadAsync(Type wrapperType, IDictionary items, string tableName, long version, CancellationToken cancellationToken = default)
 		{
 			_logger.LogTrace($"ReadFromStramingAssets - {tableName}");
 

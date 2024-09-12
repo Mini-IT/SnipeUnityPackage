@@ -7,9 +7,10 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
+using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.MessagePack;
-using MiniIT.Threading.Tasks;
+using MiniIT.Threading;
 
 namespace MiniIT.Snipe
 {
@@ -75,7 +76,7 @@ namespace MiniIT.Snipe
 			_webSocket.OnConnectionClosed += OnWebSocketClosed;
 			_webSocket.ProcessMessage += ProcessWebSocketMessage;
 
-			AlterTask.Run(() =>
+			TaskHelper.RunAndForget(() =>
 			{
 				_analytics.ConnectionUrl = url;
 				_webSocket.Connect(url);
@@ -205,7 +206,7 @@ namespace MiniIT.Snipe
 		}
 
 		// [Testable]
-		internal async AlterTask<byte[]> SerializeMessage(SnipeObject message)
+		internal async UniTask<byte[]> SerializeMessage(SnipeObject message)
 		{
 			byte[] result = null;
 
@@ -215,11 +216,11 @@ namespace MiniIT.Snipe
 				await _messageSerializationSemaphore.WaitAsync();
 				semaphoreOccupied = true;
 
-				var msg_data = await AlterTask.Run(() => _messageSerializer.Serialize(ref _messageSerializationBuffer, message));
+				var msg_data = await TaskHelper.Run(() => _messageSerializer.Serialize(ref _messageSerializationBuffer, message));
 
 				if (_config.CompressionEnabled && msg_data.Count >= _config.MinMessageBytesToCompress) // compression needed
 				{
-					await AlterTask.Run(() =>
+					await TaskHelper.Run(() =>
 					{
 						_logger.LogTrace("compress message");
 						//_logger.LogTrace("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
@@ -273,7 +274,7 @@ namespace MiniIT.Snipe
 				await _messageProcessingSemaphore.WaitAsync();
 				semaphoreOccupied = true;
 
-				message = await AlterTask.Run(() => ReadMessage(raw_data));
+				message = await TaskHelper.Run(() => ReadMessage(raw_data));
 			}
 			finally
 			{
@@ -324,21 +325,7 @@ namespace MiniIT.Snipe
 
 			_sendTaskCancellation = new CancellationTokenSource();
 
-			AlterTask.Run(async () =>
-			{
-				try
-				{
-					await SendTask(_sendTaskCancellation?.Token);
-				}
-				catch (Exception task_exception)
-				{
-					var e = task_exception is AggregateException ae ? ae.InnerException : task_exception;
-					_logger.LogTrace($"SendTask Exception: {e}");
-					_analytics.TrackError("WebSocket SendTask error", e);
-					
-					StopSendTask();
-				}
-			});
+			TaskHelper.RunAndForget(() => SendTask(_sendTaskCancellation?.Token));
 		}
 
 		private void StopSendTask()
@@ -348,27 +335,39 @@ namespace MiniIT.Snipe
 			if (_sendTaskCancellation != null)
 			{
 				_sendTaskCancellation.Cancel();
+				_sendTaskCancellation.Dispose();
 				_sendTaskCancellation = null;
 			}
 			
 			_sendMessages = null;
 		}
 
-		private async AlterTask SendTask(CancellationToken? cancellation)
+		private async void SendTask(CancellationToken? cancellation)
 		{
-			while (cancellation?.IsCancellationRequested != true && Connected)
+			try
 			{
-				if (_batchMessages != null && !_batchMessages.IsEmpty && _batchMessages.TryDequeue(out var messages) && messages != null && messages.Count > 0)
+				while (cancellation?.IsCancellationRequested != true && Connected)
 				{
-					DoSendBatch(messages);
-				}
+					if (_batchMessages != null && !_batchMessages.IsEmpty && _batchMessages.TryDequeue(out var messages) && messages != null && messages.Count > 0)
+					{
+						DoSendBatch(messages);
+					}
 
-				if (_sendMessages != null && !_sendMessages.IsEmpty && _sendMessages.TryDequeue(out var message) && message != null)
-				{
-					DoSendRequest(message);
-				}
+					if (_sendMessages != null && !_sendMessages.IsEmpty && _sendMessages.TryDequeue(out var message) && message != null)
+					{
+						DoSendRequest(message);
+					}
 
-				await AlterTask.Delay(100);
+					await TaskHelper.Delay(100);
+				}
+			}
+			catch (Exception task_exception)
+			{
+				var e = task_exception is AggregateException ae ? ae.InnerException : task_exception;
+				_logger.LogTrace($"SendTask Exception: {e}");
+				_analytics.TrackError("WebSocket SendTask error", e);
+
+				StopSendTask();
 			}
 		}
 
@@ -392,7 +391,7 @@ namespace MiniIT.Snipe
 			}
 
 			_heartbeatCancellation = new CancellationTokenSource();
-			AlterTask.Run(() => HeartbeatTask(_heartbeatCancellation.Token));
+			TaskHelper.RunAndForget(() => HeartbeatTask(_heartbeatCancellation.Token));
 		}
 
 		private void StopHeartbeat()
@@ -457,7 +456,7 @@ namespace MiniIT.Snipe
 				
 				try
 				{
-					await AlterTask.Delay(HEARTBEAT_TASK_DELAY, cancellation);
+					await TaskHelper.Delay(HEARTBEAT_TASK_DELAY, cancellation);
 				}
 				catch (OperationCanceledException)
 				{
@@ -489,7 +488,7 @@ namespace MiniIT.Snipe
 			_checkConnectionCancellation?.Cancel();
 
 			_checkConnectionCancellation = new CancellationTokenSource();
-			AlterTask.Run(() => CheckConnectionTask(_checkConnectionCancellation.Token));
+			TaskHelper.RunAndForget(() => CheckConnectionTask(_checkConnectionCancellation.Token));
 		}
 
 		private void StopCheckConnection()
@@ -511,7 +510,7 @@ namespace MiniIT.Snipe
 			
 			try
 			{
-				await AlterTask.Delay(CHECK_CONNECTION_TIMEOUT, cancellation);
+				await TaskHelper.Delay(CHECK_CONNECTION_TIMEOUT, cancellation);
 			}
 			catch (OperationCanceledException)
 			{
@@ -538,7 +537,7 @@ namespace MiniIT.Snipe
 				
 				if (pinging)
 				{
-					await AlterTask.Delay(100);
+					await TaskHelper.Delay(100);
 				}
 				else
 				{

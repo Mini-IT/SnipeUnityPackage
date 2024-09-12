@@ -3,7 +3,7 @@ using System;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
-using MiniIT.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 
 namespace MiniIT.Snipe.Internal
 {
@@ -26,13 +26,13 @@ namespace MiniIT.Snipe.Internal
 			_httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 		}
 
-		public async AlterTask<IHttpTransportClientResponse> GetAsync(Uri uri)
+		public async UniTask<IHttpTransportClientResponse> GetAsync(Uri uri)
 		{
 			HttpResponseMessage response = await _httpClient.GetAsync(uri);
 			return new SystemHttpTransportClientResponse(response);
 		}
 
-		public async AlterTask<IHttpTransportClientResponse> PostJsonAsync(Uri uri, string content)
+		public async UniTask<IHttpTransportClientResponse> PostJsonAsync(Uri uri, string content)
 		{
 			var requestContent = new StringContent(content, Encoding.UTF8, "application/json");
 

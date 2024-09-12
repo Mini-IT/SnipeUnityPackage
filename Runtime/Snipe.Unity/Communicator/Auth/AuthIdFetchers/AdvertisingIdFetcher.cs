@@ -1,7 +1,7 @@
 ﻿﻿using System;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using MiniIT.Threading.Tasks;
+using MiniIT.Threading;
 #if !MINI_IT_ADVERTISING_ID
 using UnityEngine;
 #endif
@@ -56,11 +56,11 @@ namespace MiniIT.Snipe.Unity
 		}
 
 #if UNITY_IOS
-		private async AlterTask WaitForInitialization(Action<string> callback)
+		private async UniTask WaitForInitialization(Action<string> callback)
 		{
 			while (string.IsNullOrEmpty(Value))
 			{
-				await AlterTask.Delay(100);
+				await TaskHelper.Delay(100);
 			}
 			RunInMainThread(() => callback.Invoke(Value));
 		}

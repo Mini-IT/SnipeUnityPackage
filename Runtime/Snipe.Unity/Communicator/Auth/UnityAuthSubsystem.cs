@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using MiniIT.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 
 namespace MiniIT.Snipe.Unity
 {
@@ -48,7 +48,7 @@ namespace MiniIT.Snipe.Unity
 
 			if (_bindings.Count > 0)
 			{
-				var tasks = new List<AlterTask>(2);
+				var tasks = new List<UniTask>(2);
 
 				foreach (AuthBinding binding in _bindings)
 				{
@@ -58,7 +58,7 @@ namespace MiniIT.Snipe.Unity
 					}
 				}
 
-				await AlterTask.WhenAll(tasks.ToArray());
+				await UniTask.WhenAll(tasks.ToArray());
 			}
 
 			RequestRegisterAndLogin(providers);

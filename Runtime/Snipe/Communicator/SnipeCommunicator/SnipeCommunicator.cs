@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using Microsoft.Extensions.Logging;
-using MiniIT.Threading.Tasks;
+using MiniIT.Threading;
 using MiniIT.Utils;
 
 namespace MiniIT.Snipe
@@ -283,7 +283,7 @@ namespace MiniIT.Snipe
 
 			try
 			{
-				await AlterTask.Delay(delay, cancellation);
+				await TaskHelper.Delay(delay, cancellation);
 			}
 			catch (Exception)
 			{

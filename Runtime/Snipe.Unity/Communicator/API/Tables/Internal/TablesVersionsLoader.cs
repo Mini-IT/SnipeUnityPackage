@@ -8,7 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using MiniIT.Threading.Tasks;
+using MiniIT.Threading;
 using UnityEngine.Networking;
 
 namespace MiniIT.Snipe.Tables
@@ -26,7 +26,7 @@ namespace MiniIT.Snipe.Tables
 			_logger = SnipeServices.LogService.GetLogger(nameof(TablesVersionsLoader));
 		}
 
-		public async AlterTask<Dictionary<string, long>> Load(CancellationToken cancellationToken, bool loadExternal)
+		public async UniTask<Dictionary<string, long>> Load(CancellationToken cancellationToken, bool loadExternal)
 		{
 			Dictionary<string, long> versions = null;
 
@@ -56,7 +56,7 @@ namespace MiniIT.Snipe.Tables
 			return versions;
 		}
 
-		private async AlterTask<Dictionary<string, long>> LoadFromWeb(CancellationToken cancellationToken)
+		private async UniTask<Dictionary<string, long>> LoadFromWeb(CancellationToken cancellationToken)
 		{
 			Dictionary<string, long> versions = null;
 
@@ -67,7 +67,7 @@ namespace MiniIT.Snipe.Tables
 				{
 					try
 					{
-						await AlterTask.Delay(500, cancellationToken);
+						await TaskHelper.Delay(500, cancellationToken);
 					}
 					catch (OperationCanceledException)
 					{
@@ -155,11 +155,11 @@ namespace MiniIT.Snipe.Tables
 			return versions;
 		}
 
-		private async AlterTask<Dictionary<string, long>> LoadBuiltIn()
+		private async UniTask<Dictionary<string, long>> LoadBuiltIn()
 		{
 			while (_builtInTablesListService.Items == null)
 			{
-				await AlterTask.Delay(50);
+				await TaskHelper.Delay(50);
 			}
 
 			var versions = new Dictionary<string, long>(_builtInTablesListService.Items.Count);

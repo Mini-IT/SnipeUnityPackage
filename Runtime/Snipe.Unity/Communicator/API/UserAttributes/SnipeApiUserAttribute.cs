@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using MiniIT.Threading;
-using MiniIT.Threading.Tasks;
+using MiniIT.Threading;
 
 namespace MiniIT.Snipe.Api
 {
@@ -200,7 +200,7 @@ namespace MiniIT.Snipe.Api
 		{
 			try
 			{
-				await AlterTask.Delay(RequestDelay, cancellationToken);
+				await TaskHelper.Delay(RequestDelay, cancellationToken);
 			}
 			catch (OperationCanceledException)
 			{

@@ -1,5 +1,5 @@
 using System.Net.Http;
-using MiniIT.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 
 namespace MiniIT.Snipe.Internal
 {
@@ -18,7 +18,7 @@ namespace MiniIT.Snipe.Internal
 			Error = $"{(int)response.StatusCode} {response.StatusCode}";
 		}
 
-		public async AlterTask<string> GetContentAsync()
+		public async UniTask<string> GetContentAsync()
 		{
 			return await _response.Content.ReadAsStringAsync();
 		}

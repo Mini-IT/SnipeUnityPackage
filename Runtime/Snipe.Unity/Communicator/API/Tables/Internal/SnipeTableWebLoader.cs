@@ -4,7 +4,7 @@ using System.IO;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using MiniIT.Threading.Tasks;
+using MiniIT.Threading;
 using UnityEngine.Networking;
 
 namespace MiniIT.Snipe.Tables
@@ -15,7 +15,7 @@ namespace MiniIT.Snipe.Tables
 
 		private ILogger _logger;
 
-		public async AlterTask<bool> LoadAsync(Type wrapperType, IDictionary items, string tableName, long version, CancellationToken cancellation)
+		public async UniTask<bool> LoadAsync(Type wrapperType, IDictionary items, string tableName, long version, CancellationToken cancellation)
 		{
 			bool loaded = false;
 			
@@ -35,7 +35,7 @@ namespace MiniIT.Snipe.Tables
 
 				if (retry > 0)
 				{
-					await AlterTask.Delay(100, cancellation);
+					await TaskHelper.Delay(100, cancellation);
 					_logger.LogTrace($"Retry #{retry} to load table - {tableName}");
 				}
 
@@ -78,7 +78,7 @@ namespace MiniIT.Snipe.Tables
 			return loaded;
 		}
 
-		private async AlterTask<MemoryStream> InternalLoad(string tableName, string url, CancellationToken cancellation)
+		private async UniTask<MemoryStream> InternalLoad(string tableName, string url, CancellationToken cancellation)
 		{
 			try
 			{

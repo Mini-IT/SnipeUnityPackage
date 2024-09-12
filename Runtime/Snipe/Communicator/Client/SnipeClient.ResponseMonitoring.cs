@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using Microsoft.Extensions.Logging;
-using MiniIT.Threading.Tasks;
+using MiniIT.Threading;
 
 namespace MiniIT.Snipe
 {
@@ -90,7 +90,7 @@ namespace MiniIT.Snipe
 				_responseMonitoringItems.Clear();
 			
 			_responseMonitoringCancellation = new CancellationTokenSource();
-			AlterTask.Run(() => ResponseMonitoring(_responseMonitoringCancellation.Token));
+			TaskHelper.RunAndForget(() => ResponseMonitoring(_responseMonitoringCancellation.Token));
 		}
 
 		private void StopResponseMonitoring()
@@ -113,7 +113,7 @@ namespace MiniIT.Snipe
 			{
 				try
 				{
-					await AlterTask.Delay(1000, cancellation);
+					await TaskHelper.Delay(1000, cancellation);
 				}
 				catch (OperationCanceledException)
 				{
