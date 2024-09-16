@@ -5,10 +5,9 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using MiniIT.Snipe;
-using MiniIT.Threading.Tasks;
-using UnityEngine;
-using System.Linq;
 using MiniIT.Threading;
+using UnityEngine;
+using Cysharp.Threading.Tasks;
 
 #if ZSTRING
 using Cysharp.Text;
@@ -46,7 +45,7 @@ namespace MiniIT
 			_snipeContext = snipeContext;
 		}
 
-		public async AlterTask<bool> SendAsync()
+		public async UniTask<bool> SendAsync()
 		{
 			string apiKey = _snipeContext.Config.ClientKey;
 			string url = _snipeContext.Config.LogReporterUrl;

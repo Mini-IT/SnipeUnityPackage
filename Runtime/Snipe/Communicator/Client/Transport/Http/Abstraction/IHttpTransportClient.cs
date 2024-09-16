@@ -1,6 +1,6 @@
 
 using System;
-using MiniIT.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 
 namespace MiniIT.Snipe.Internal
 {
@@ -8,8 +8,8 @@ namespace MiniIT.Snipe.Internal
 	{
 		void Reset();
 		void SetAuthToken(string token);
-		AlterTask<IHttpTransportClientResponse> GetAsync(Uri uri);
-		AlterTask<IHttpTransportClientResponse> PostJsonAsync(Uri uri, string content);
+		UniTask<IHttpTransportClientResponse> GetAsync(Uri uri);
+		UniTask<IHttpTransportClientResponse> PostJsonAsync(Uri uri, string content);
 	}
 
 	public interface IHttpTransportClientResponse : IDisposable
@@ -17,6 +17,6 @@ namespace MiniIT.Snipe.Internal
 		long ResponseCode { get; }
 		bool IsSuccess { get; }
 		string Error { get; }
-		AlterTask<string> GetContentAsync();
+		UniTask<string> GetContentAsync();
 	}
 }

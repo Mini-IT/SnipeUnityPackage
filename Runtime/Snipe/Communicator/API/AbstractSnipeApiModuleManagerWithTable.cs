@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
-using MiniIT.Threading.Tasks;
+using MiniIT.Threading;
 
 namespace MiniIT.Snipe.Api
 {

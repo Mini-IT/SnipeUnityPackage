@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
+using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.Snipe.Tables;
 using MiniIT.Threading;
-using MiniIT.Threading.Tasks;
 using MiniIT.Unity;
 
 namespace MiniIT.Snipe
@@ -65,7 +65,7 @@ namespace MiniIT.Snipe
 			_loadingItems.Add(new TablesLoaderItem(typeof(SnipeTableItemsListWrapper<TItem>), table, name));
 		}
 
-		public async AlterTask<bool> Load(CancellationToken cancellationToken = default)
+		public async UniTask<bool> Load(CancellationToken cancellationToken = default)
 		{
 			bool fallbackEnabled = (TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceExternal);
 			bool loadExternal = (TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceBuiltIn);
@@ -94,7 +94,7 @@ namespace MiniIT.Snipe
 			return loaded;
 		}
 
-		private async AlterTask<bool> LoadAll(bool loadExternal)
+		private async UniTask<bool> LoadAll(bool loadExternal)
 		{
 			StopLoading();
 
@@ -114,20 +114,20 @@ namespace MiniIT.Snipe
 			}
 
 			_failed = false;
-			var tasks = new List<AlterTask>(_loadingItems.Count);
+			var tasks = new List<UniTask>(_loadingItems.Count);
 			foreach (var item in _loadingItems)
 			{
 				tasks.Add(LoadTable(item, cancellationToken));
 			}
 
-			await AlterTask.WhenAll(tasks);
+			await UniTask.WhenAll(tasks);
 
 			_cancellation = null;
 
 			return !_failed;
 		}
 
-		private async AlterTask LoadTable(TablesLoaderItem loaderItem, CancellationToken cancellationToken)
+		private async UniTask LoadTable(TablesLoaderItem loaderItem, CancellationToken cancellationToken)
 		{
 			bool loaded = false;
 			bool cancelled = false;
@@ -178,7 +178,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async AlterTask<bool> LoadTableAsync(TablesLoaderItem loaderItem, long version, CancellationToken cancellationToken)
+		private async UniTask<bool> LoadTableAsync(TablesLoaderItem loaderItem, long version, CancellationToken cancellationToken)
 		{
 			if (cancellationToken.IsCancellationRequested)
 			{
@@ -226,7 +226,7 @@ namespace MiniIT.Snipe
 					cancellationToken));
 		}
 
-		private async AlterTask<bool> LoadTableAsync(SnipeTable table, SnipeTable.LoadingLocation loadingLocation, AlterTask<bool> task)
+		private async UniTask<bool> LoadTableAsync(SnipeTable table, SnipeTable.LoadingLocation loadingLocation, UniTask<bool> task)
 		{
 			bool loaded = await task;
 			if (loaded)

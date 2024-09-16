@@ -2,7 +2,7 @@
 
 using System;
 using System.Threading.Tasks;
-using MiniIT.Threading.Tasks;
+using MiniIT.Threading;
 using Facebook.Unity;
 
 namespace MiniIT.Snipe.Unity
@@ -35,7 +35,7 @@ namespace MiniIT.Snipe.Unity
 
 			while (string.IsNullOrEmpty(userId))
 			{
-				await AlterTask.Delay(100);
+				await TaskHelper.Delay(100);
 				userId = GetFacebookUserId();
 			}
 

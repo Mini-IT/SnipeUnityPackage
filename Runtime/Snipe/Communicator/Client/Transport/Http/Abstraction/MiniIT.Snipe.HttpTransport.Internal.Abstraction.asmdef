@@ -2,7 +2,7 @@
     "name": "MiniIT.Snipe.HttpTransport.Internal.Abstraction",
     "rootNamespace": "",
     "references": [
-        "MiniIT.AlterTask"
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

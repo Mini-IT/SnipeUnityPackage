@@ -3,9 +3,10 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.Snipe.SharedPrefs;
-using MiniIT.Threading.Tasks;
+using MiniIT.Threading;
 using MiniIT.Utils;
 
 namespace MiniIT.Snipe
@@ -249,7 +250,7 @@ namespace MiniIT.Snipe
 
 		protected abstract void RegisterAndLogin();
 
-		protected async AlterTask FetchLoginId(string provider, AuthIdFetcher fetcher, List<SnipeObject> providers)
+		protected async UniTask FetchLoginId(string provider, AuthIdFetcher fetcher, List<SnipeObject> providers)
 		{
 			bool done = false;
 

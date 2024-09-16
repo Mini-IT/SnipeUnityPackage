@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
-using MiniIT.Threading.Tasks;
+using Cysharp.Threading.Tasks;
+using MiniIT.Threading;
 
 namespace MiniIT.Snipe.Api
 {
@@ -41,7 +42,7 @@ namespace MiniIT.Snipe.Api
 			}
 		}
 
-		public async AlterTask Load(bool restart = false)
+		public async UniTask Load(bool restart = false)
 		{
 			bool startLoading = false;
 

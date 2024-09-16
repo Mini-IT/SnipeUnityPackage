@@ -1,5 +1,5 @@
 using Cysharp.Threading.Tasks;
-using MiniIT.Threading.Tasks;
+using MiniIT.Threading;
 using UnityEngine.Networking;
 
 namespace MiniIT.Snipe.Internal
@@ -21,10 +21,10 @@ namespace MiniIT.Snipe.Internal
 			Error = unityWebRequest.error;
 		}
 
-		public AlterTask<string> GetContentAsync()
+		public UniTask<string> GetContentAsync()
 		{
 			string content = _unityWebRequest?.downloadHandler?.text;
-			return AlterTask<string>.FromResult(content);
+			return UniTask.FromResult(content);
 		}
 
 		public void Dispose()
