@@ -1,8 +1,14 @@
+#if UNITY_WSA && !UNITY_EDITOR
+#define SYSTEM_INFO
+#endif
 using UnityEngine;
 
 namespace MiniIT.Snipe.Unity
 {
 	public class UnityApplicationInfo : IApplicationInfo
+#if SYSTEM_INFO
+		, ISystemInfo
+#endif
 	{
 		public string ApplicationIdentifier { get; }
 		public string ApplicationVersion { get; }
@@ -10,6 +16,12 @@ namespace MiniIT.Snipe.Unity
 		public string DeviceIdentifier { get; }
 		public string PersistentDataPath { get; }
 		public string StreamingAssetsPath { get; }
+
+#region ISystemInfo
+		string DeviceManufacturer { get; }
+		string OperatingSystemFamily { get; }
+		Version OperatingSystemVersion { get; }
+#endregion ISystemInfo
 
 		public UnityApplicationInfo()
 		{
@@ -19,6 +31,13 @@ namespace MiniIT.Snipe.Unity
 			DeviceIdentifier = SystemInfo.deviceUniqueIdentifier;
 			PersistentDataPath = Application.persistentDataPath;
 			StreamingAssetsPath = Application.streamingAssetsPath;
+
+#if SYSTEM_INFO
+			var info = SystemInformationExtractor.GetSystemInfo();
+			DeviceManufacturer = info.DeviceManufacturer;
+			OperatingSystemFamily = info.OperatingSystemFamily;
+			OperatingSystemVersion = info.OperatingSystemVersion;
+#endif
 		}
 
 		private static string GetPlatformSuffix()
