@@ -35,7 +35,7 @@ namespace MiniIT.Snipe.Unity
 
 			while (string.IsNullOrEmpty(userId))
 			{
-				await TaskHelper.Delay(100);
+				await AlterTask.Delay(100);
 				userId = GetFacebookUserId();
 			}
 
