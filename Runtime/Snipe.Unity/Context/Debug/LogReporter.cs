@@ -103,6 +103,7 @@ namespace MiniIT
 				{
 					await _semaphore.WaitAsync();
 					semaphoreOccupied = true;
+
 					content = await AlterTask.Run(() => GetPortionContent(ref startIndex, connectionId, userId, appVersion, appPlatform));
 				}
 				catch (Exception ex)
@@ -175,7 +176,7 @@ namespace MiniIT
 		private string GetPortionContent(ref int startIndex, int connectionId, int userId, string version, RuntimePlatform platform)
 		{
 #if ZSTRING
-			ursing var content = ZString.CreateStringBuilder(true);
+			using var content = ZString.CreateStringBuilder(true);
 			content.Append("{");
 #else
 			var content = new StringBuilder("{");
@@ -241,7 +242,7 @@ namespace MiniIT
 		private static string Escape(string input)
 		{
 			StringBuilder literal = new StringBuilder(input.Length + 2);
-			foreach (var c in input)
+			foreach (char c in input)
 			{
 				switch (c)
 				{
@@ -288,29 +289,17 @@ namespace MiniIT
 
 		#region DebugLog
 
-		private void DebugLog(string text)
+		private void DebugLog(LogType logType, string text)
 		{
-			var stackType = Application.GetStackTraceLogType(LogType.Log);
-			Application.SetStackTraceLogType(LogType.Log, StackTraceLogType.ScriptOnly);
+			var stackType = Application.GetStackTraceLogType(logType);
+			Application.SetStackTraceLogType(logType, StackTraceLogType.ScriptOnly);
 			Debug.Log(text);
-			Application.SetStackTraceLogType(LogType.Log, stackType);
+			Application.SetStackTraceLogType(logType, stackType);
 		}
 
-		private void DebugLogWarning(string text)
-		{
-			var stackType = Application.GetStackTraceLogType(LogType.Warning);
-			Application.SetStackTraceLogType(LogType.Warning, StackTraceLogType.ScriptOnly);
-			Debug.LogWarning(text);
-			Application.SetStackTraceLogType(LogType.Warning, stackType);
-		}
-
-		private void DebugLogError(string text)
-		{
-			var stackType = Application.GetStackTraceLogType(LogType.Error);
-			Application.SetStackTraceLogType(LogType.Error, StackTraceLogType.ScriptOnly);
-			Debug.LogError(text);
-			Application.SetStackTraceLogType(LogType.Error, stackType);
-		}
+		private void DebugLog(string text) => DebugLog(LogType.Log, text);
+		private void DebugLogWarning(string text) => DebugLog(LogType.Warning, text);
+		private void DebugLogError(string text) => DebugLog(LogType.Error, text);
 
 		#endregion
 	}
