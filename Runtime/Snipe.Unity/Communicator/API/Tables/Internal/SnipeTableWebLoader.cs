@@ -35,7 +35,7 @@ namespace MiniIT.Snipe.Tables
 
 				if (retry > 0)
 				{
-					await TaskHelper.Delay(100, cancellation);
+					await AlterTask.Delay(100, cancellation);
 					_logger.LogTrace($"Retry #{retry} to load table - {tableName}");
 				}
 

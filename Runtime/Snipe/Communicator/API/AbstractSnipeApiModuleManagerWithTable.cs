@@ -99,7 +99,7 @@ namespace MiniIT.Snipe.Api
 			{
 				try
 				{
-					await TaskHelper.Delay(100, cancellation);
+					await AlterTask.Delay(100, cancellation);
 				}
 				catch (OperationCanceledException)
 				{

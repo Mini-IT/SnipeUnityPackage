@@ -39,7 +39,7 @@ namespace MiniIT.Snipe.Unity
 		{
 			while (string.IsNullOrEmpty(Value))
 			{
-				await TaskHelper.Delay(100);
+				await AlterTask.Delay(100);
 			}
 			callback?.Invoke(Value);
 		}

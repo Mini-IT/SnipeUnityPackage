@@ -283,7 +283,7 @@ namespace MiniIT.Snipe
 
 			try
 			{
-				await TaskHelper.Delay(delay, cancellation);
+				await AlterTask.Delay(delay, cancellation);
 			}
 			catch (Exception)
 			{

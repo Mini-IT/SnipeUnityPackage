@@ -200,7 +200,7 @@ namespace MiniIT.Snipe.Api
 		{
 			try
 			{
-				await TaskHelper.Delay(RequestDelay, cancellationToken);
+				await AlterTask.Delay(RequestDelay, cancellationToken);
 			}
 			catch (OperationCanceledException)
 			{

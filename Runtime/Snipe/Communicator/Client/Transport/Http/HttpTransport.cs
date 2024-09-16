@@ -285,7 +285,7 @@ namespace MiniIT.Snipe
 			_heartbeatInterval = _config.HttpHeartbeatInterval;
 
 			_heartbeatCancellation = new CancellationTokenSource();
-			TaskHelper.RunAndForget(() => HeartbeatTask(_heartbeatCancellation.Token));
+			AlterTask.RunAndForget(() => HeartbeatTask(_heartbeatCancellation.Token));
 		}
 
 		private void StopHeartbeat()
@@ -310,7 +310,7 @@ namespace MiniIT.Snipe
 			{
 				try
 				{
-					await TaskHelper.Delay(milliseconds, cancellation);
+					await AlterTask.Delay(milliseconds, cancellation);
 				}
 				catch (OperationCanceledException)
 				{

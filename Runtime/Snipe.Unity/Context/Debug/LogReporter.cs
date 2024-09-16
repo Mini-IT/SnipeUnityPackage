@@ -103,7 +103,7 @@ namespace MiniIT
 				{
 					await _semaphore.WaitAsync();
 					semaphoreOccupied = true;
-					content = await TaskHelper.Run(() => GetPortionContent(ref startIndex, connectionId, userId, appVersion, appPlatform));
+					content = await AlterTask.Run(() => GetPortionContent(ref startIndex, connectionId, userId, appVersion, appPlatform));
 				}
 				catch (Exception ex)
 				{

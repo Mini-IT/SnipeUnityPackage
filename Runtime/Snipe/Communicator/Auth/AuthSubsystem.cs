@@ -143,7 +143,7 @@ namespace MiniIT.Snipe
 		protected async void DelayedAuthorize()
 		{
 			_loginAttempt++;
-			await TaskHelper.Delay(1000 * _loginAttempt);
+			await AlterTask.Delay(1000 * _loginAttempt);
 
 			if (!_communicator.Connected)
 				return;
@@ -269,7 +269,7 @@ namespace MiniIT.Snipe
 
 			while (!done)
 			{
-				await TaskHelper.Delay(20);
+				await AlterTask.Delay(20);
 			}
 		}
 
@@ -469,7 +469,7 @@ namespace MiniIT.Snipe
 				binding.IsBindDone = false;
 				_userID = 0;
 
-				await TaskHelper.Delay(1000);
+				await AlterTask.Delay(1000);
 				startContext.Invoke();
 			});
 		}

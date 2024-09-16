@@ -90,7 +90,7 @@ namespace MiniIT.Snipe
 				_responseMonitoringItems.Clear();
 			
 			_responseMonitoringCancellation = new CancellationTokenSource();
-			TaskHelper.RunAndForget(() => ResponseMonitoring(_responseMonitoringCancellation.Token));
+			AlterTask.RunAndForget(() => ResponseMonitoring(_responseMonitoringCancellation.Token));
 		}
 
 		private void StopResponseMonitoring()
@@ -113,7 +113,7 @@ namespace MiniIT.Snipe
 			{
 				try
 				{
-					await TaskHelper.Delay(1000, cancellation);
+					await AlterTask.Delay(1000, cancellation);
 				}
 				catch (OperationCanceledException)
 				{

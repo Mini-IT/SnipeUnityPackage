@@ -78,7 +78,7 @@ namespace MiniIT.Snipe.Api
 			
 			while (_loading)
 			{
-				await TaskHelper.Delay(100);
+				await AlterTask.Delay(100);
 			}
 		}
 

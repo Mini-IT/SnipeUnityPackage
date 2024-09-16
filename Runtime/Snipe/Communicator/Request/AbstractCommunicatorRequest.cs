@@ -258,7 +258,7 @@ namespace MiniIT.Snipe
 		
 		private async void DelayedRetryRequest()
 		{
-			await TaskHelper.Delay(RETRY_DELAY_MS);
+			await AlterTask.Delay(RETRY_DELAY_MS);
 			
 			if (_communicator != null)
 			{
@@ -268,7 +268,7 @@ namespace MiniIT.Snipe
 		
 		private async void DelayedDispose()
 		{
-			await TaskHelper.Yield();
+			await AlterTask.Yield();
 			Dispose();
 		}
 

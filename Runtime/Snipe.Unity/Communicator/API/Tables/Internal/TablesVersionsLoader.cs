@@ -67,7 +67,7 @@ namespace MiniIT.Snipe.Tables
 				{
 					try
 					{
-						await TaskHelper.Delay(500, cancellationToken);
+						await AlterTask.Delay(500, cancellationToken);
 					}
 					catch (OperationCanceledException)
 					{
@@ -159,7 +159,7 @@ namespace MiniIT.Snipe.Tables
 		{
 			while (_builtInTablesListService.Items == null)
 			{
-				await TaskHelper.Delay(50);
+				await AlterTask.Delay(50);
 			}
 
 			var versions = new Dictionary<string, long>(_builtInTablesListService.Items.Count);
