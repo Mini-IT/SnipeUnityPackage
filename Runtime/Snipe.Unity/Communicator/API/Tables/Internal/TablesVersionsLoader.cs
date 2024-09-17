@@ -24,7 +24,7 @@ namespace MiniIT.Snipe.Tables
 			_logger = SnipeServices.LogService.GetLogger(nameof(TablesVersionsLoader));
 		}
 
-		public async UniTask<Dictionary<string, long>> Load(CancellationToken cancellationToken, bool loadExternal)
+		public async UniTask<Dictionary<string, long>> Load(bool loadExternal, CancellationToken cancellationToken)
 		{
 			Dictionary<string, long> versions = null;
 
@@ -76,7 +76,7 @@ namespace MiniIT.Snipe.Tables
 
 				string url = GetVersionsUrl();
 
-				_logger.LogTrace("LoadVersion ({0}) {1}", retries_count, url);
+				_logger.LogTrace("LoadVersion ({count}) {url}", retries_count, url);
 
 				try
 				{
@@ -103,7 +103,7 @@ namespace MiniIT.Snipe.Tables
 							}
 							else
 							{
-								_logger.LogTrace("LoadVersion done - {0} items", versions.Count);
+								_logger.LogTrace("LoadVersion done - {count} items", versions.Count);
 							}
 
 							break;
@@ -121,7 +121,7 @@ namespace MiniIT.Snipe.Tables
 							{
 								// HTTP Status: 404
 								// It is useless to retry loading
-								_logger.LogTrace("LoadVersion StatusCode = {0} - will not rety", loadingResult.responseCode);
+								_logger.LogTrace("LoadVersion StatusCode = {code} - will not rety", loadingResult.responseCode);
 								break;
 							}
 						}
@@ -129,7 +129,7 @@ namespace MiniIT.Snipe.Tables
 				}
 				catch (Exception e) when (e is AggregateException ae && ae.InnerException is HttpRequestException)
 				{
-					_logger.LogTrace($"LoadVersion HttpRequestException - network is unreachable - will not rety. {e}");
+					_logger.LogTrace("LoadVersion HttpRequestException - network is unreachable - will not rety. {e}", e);
 					break;
 				}
 				catch (Exception e) when (e is OperationCanceledException ||
@@ -140,7 +140,7 @@ namespace MiniIT.Snipe.Tables
 				}
 				catch (Exception e)
 				{
-					_logger.LogTrace($"LoadVersion - Exception: {e}");
+					_logger.LogTrace("LoadVersion - Exception: {e}", e);
 				}
 
 				if (cancellationToken.IsCancellationRequested)
@@ -169,7 +169,7 @@ namespace MiniIT.Snipe.Tables
 			return versions;
 		}
 
-		private string GetVersionsUrl()
+		private static string GetVersionsUrl()
 		{
 			return TablesConfig.GetTablesPath(true) + "version.json";
 		}

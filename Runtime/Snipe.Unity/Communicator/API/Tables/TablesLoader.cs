@@ -106,7 +106,7 @@ namespace MiniIT.Snipe
 			_cancellation = new CancellationTokenSource();
 			CancellationToken cancellationToken = _cancellation.Token;
 
-			_versions = await _versionsLoader.Load(cancellationToken, loadExternal);
+			_versions = await _versionsLoader.Load(loadExternal, cancellationToken);
 
 			if (cancellationToken.IsCancellationRequested || _loadingItems == null)
 			{
