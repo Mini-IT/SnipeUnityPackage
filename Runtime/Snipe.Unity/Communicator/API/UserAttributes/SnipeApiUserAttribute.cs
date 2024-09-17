@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using MiniIT.Threading;
-using MiniIT.Threading;
 
 namespace MiniIT.Snipe.Api
 {
@@ -221,7 +220,7 @@ namespace MiniIT.Snipe.Api
 			}
 			catch (OperationCanceledException)
 			{
-				return;
+				// Ignore
 			}
 			finally
 			{
