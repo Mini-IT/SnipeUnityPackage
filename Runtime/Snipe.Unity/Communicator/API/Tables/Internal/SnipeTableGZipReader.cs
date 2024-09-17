@@ -6,7 +6,7 @@ using Cysharp.Threading.Tasks;
 
 namespace MiniIT.Snipe.Tables
 {
-	public class SnipeTableGZipReader
+	public static class SnipeTableGZipReader
 	{
 		public static async UniTask<bool> TryReadAsync(Type wrapperType, IDictionary items, Stream stream)
 		{
