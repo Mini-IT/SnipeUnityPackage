@@ -23,10 +23,12 @@ namespace MiniIT.Snipe
 		{
 			Application.quitting -= OnApplicationQuit;
 
-			foreach (var context in SnipeContext.All)
-			{
-				context?.Dispose();
-			}
+			// TODO: dispose SnipeContextProvider
+
+			//foreach (var context in SnipeContext.All)
+			//{
+			//	context?.Dispose();
+			//}
 		}
 	}
 }
