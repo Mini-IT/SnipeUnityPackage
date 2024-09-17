@@ -1,11 +1,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
-using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.Threading;
@@ -79,7 +77,7 @@ namespace MiniIT.Snipe.Tables
 				string url = GetVersionsUrl();
 
 				_logger.LogTrace("LoadVersion ({0}) {1}", retries_count, url);
-				
+
 				try
 				{
 					using var webRequest = UnityWebRequest.Get(url);
@@ -144,7 +142,7 @@ namespace MiniIT.Snipe.Tables
 				{
 					_logger.LogTrace($"LoadVersion - Exception: {e}");
 				}
-				
+
 				if (cancellationToken.IsCancellationRequested)
 				{
 					_logger.LogTrace("LoadVersion task canceled");
