@@ -18,7 +18,7 @@ namespace MiniIT.Snipe.Tables
 		public async UniTask<bool> LoadAsync(Type wrapperType, IDictionary items, string tableName, long version, CancellationToken cancellation)
 		{
 			bool loaded = false;
-			
+
 			string url = GetTableUrl(tableName, version);
 
 			_logger ??= SnipeServices.LogService.GetLogger("SnipeTable");
@@ -29,14 +29,14 @@ namespace MiniIT.Snipe.Tables
 			{
 				if (cancellation.IsCancellationRequested)
 				{
-					_logger.LogTrace($"Failed to load table - {tableName}   (task canceled)");
+					_logger.LogTrace("Failed to load table - {tableName}   (task canceled)", tableName);
 					return false;
 				}
 
 				if (retry > 0)
 				{
 					await AlterTask.Delay(100, cancellation);
-					_logger.LogTrace($"Retry #{retry} to load table - {tableName}");
+					_logger.LogTrace("Retry #{retry} to load table - {tableName}", retry, tableName);
 				}
 
 				retry++;
@@ -59,7 +59,7 @@ namespace MiniIT.Snipe.Tables
 
 					if (version > 0)
 					{
-						_logger.LogTrace("Table ready - " + tableName);
+						_logger.LogTrace("Table ready - {tableName}", tableName);
 					}
 
 					stream.Position = 0;
@@ -67,7 +67,7 @@ namespace MiniIT.Snipe.Tables
 				}
 				catch (Exception e)
 				{
-					_logger.LogTrace($"Failed to parse table - {tableName} - {e}");
+					_logger.LogTrace("Failed to parse table - {tableName} - {e}", tableName, e);
 				}
 				finally
 				{
@@ -90,19 +90,19 @@ namespace MiniIT.Snipe.Tables
 
 				if (cancellation.IsCancellationRequested)
 				{
-					_logger.LogTrace($"Failed to load table - {tableName}   (task canceled)");
+					_logger.LogTrace("Failed to load table - {tableName}   (task canceled)", tableName);
 					return null;
 				}
 
 				if (!loadingResult.isDone)
 				{
-					_logger.LogTrace($"Failed to load table - {tableName}   (timeout)");
+					_logger.LogTrace("Failed to load table - {tableName}   (timeout)", tableName);
 					return null;
 				}
 
 				if (!string.IsNullOrEmpty(loadingResult.error))
 				{
-					_logger.LogTrace($"Failed to load table - {tableName}   (loader failed) {loadingResult.error}");
+					_logger.LogTrace("Failed to load table - {tableName}   (loader failed) {error}", tableName, loadingResult.error);
 					return null;
 				}
 
@@ -118,7 +118,7 @@ namespace MiniIT.Snipe.Tables
 			}
 			catch (Exception e)
 			{
-				_logger.LogTrace($"Failed to load table - {tableName} - {e}");
+				_logger.LogTrace("Failed to load table - {tableName} - {e}", tableName, e);
 			}
 
 			return null;

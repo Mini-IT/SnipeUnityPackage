@@ -21,7 +21,7 @@ namespace MiniIT.Snipe.Tables
 
 		public async UniTask<bool> LoadAsync(Type wrapperType, IDictionary items, string tableName, long version, CancellationToken cancellationToken = default)
 		{
-			_logger.LogTrace($"ReadFromStramingAssets - {tableName}");
+			_logger.LogTrace("ReadFromStramingAssets - {tableName}", tableName);
 
 			string filePath = GetFilePath(tableName, version);
 
@@ -29,7 +29,7 @@ namespace MiniIT.Snipe.Tables
 
 			if (data == null || data.Length == 0)
 			{
-				_logger.LogTrace($"Failed to read file {filePath}");
+				_logger.LogTrace("Failed to read file {filePath}", filePath);
 				return false;
 			}
 
@@ -49,13 +49,13 @@ namespace MiniIT.Snipe.Tables
 				}
 				catch (Exception e)
 				{
-					_logger.LogTrace($"Failed to read file - {tableName} - {e}");
+					_logger.LogTrace("Failed to read file - {tableName} - {e}", tableName, e);
 				}
 			}
 
 			if (loaded)
 			{
-				_logger.LogTrace($"Table ready (built-in) - {tableName}");
+				_logger.LogTrace("Table ready (built-in) - {tableName}", tableName);
 			}
 
 			return loaded;
