@@ -27,7 +27,7 @@ namespace MiniIT
 
 		private const int MAX_CHUNK_LENGTH = 200 * 1024;
 
-		private SnipeContext _snipeContext;
+		private readonly SnipeContext _snipeContext;
 		private bool _running = false;
 
 		private HttpClient _httpClient;
