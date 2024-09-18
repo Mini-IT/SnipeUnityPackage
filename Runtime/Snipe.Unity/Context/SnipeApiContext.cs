@@ -1,42 +1,9 @@
 using System;
 using MiniIT.Snipe.Api;
-using MiniIT.Snipe.Unity;
 
 namespace MiniIT.Snipe
 {
-	public abstract class AbstractSnipeApiContextFactory : ISnipeContextFactory
-	{
-		public SnipeContext CreateContext(string id)
-		{
-			if (!SnipeServices.IsInitialized)
-			{
-				SnipeServices.Initialize(new UnitySnipeServicesFactory());
-			}
-
-			var config = new SnipeConfig(id);
-			var communicator = new SnipeCommunicator(config);
-			var auth = new UnityAuthSubsystem(communicator, config);
-			var logReporter = new LogReporter();
-			
-			var context = InternalCreateContext(id, config, communicator, auth, logReporter);
-
-			logReporter.SetSnipeContext(context);
-			return context;
-		}
-
-		protected abstract SnipeContext InternalCreateContext(string id, SnipeConfig config, SnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter);
-	}
-
-	//===================
-
-	//public abstract class AbstractSnipeApiContext : SnipeContext
-	//{
-	//	public virtual AbstractSnipeApiService Api { get; protected set; }
-	//}
-
-	public class SnipeApiContext<TApi, TTables> : SnipeContext
-		where TApi : AbstractSnipeApiService
-		where TTables : SnipeApiTables, new()
+	public class SnipeApiContext : SnipeContext
 	{
 		/// <inheritdoc cref="SnipeContext.Default"/>
 		//public static new SnipeApiContext<TApi, TTables> Default => GetInstance();
@@ -45,14 +12,14 @@ namespace MiniIT.Snipe
 		//public static new SnipeApiContext<TApi, TTables> GetInstance(string id = null, bool initialize = true)
 		//	=> InternalGetInstance<SnipeApiContext<TApi, TTables>>(id, initialize);
 		
-		public TApi Api { get; }
-		public TTables Tables { get; }
+		public AbstractSnipeApiService Api { get; }
+		public SnipeApiTables Tables { get; }
 		public LogicManager LogicManager { get; }
 		public BadgesManager BadgesManager { get; }
 		public CalendarManager CalendarManager { get; }
 
 		public SnipeApiContext(string id, SnipeConfig config, SnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter,
-			TApi api, TTables tables, TimeZoneInfo serverTimeZone)
+			AbstractSnipeApiService api, SnipeApiTables tables, TimeZoneInfo serverTimeZone)
 			: base(id, config, communicator, auth, logReporter)
 		{
 			Api = api;
