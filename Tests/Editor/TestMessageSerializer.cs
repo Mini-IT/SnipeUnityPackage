@@ -41,7 +41,7 @@ public class TestMessageSerializer
 		}
 
 		// Single WebSocketTransport instance
-		var transport = new WebSocketTransport(new SnipeConfig(""), null);
+		var transport = new WebSocketTransport(new SnipeConfig(0), null);
 		result = Task.Run(async () => await TestWSMessageSerializerAsync(data, transport)).GetAwaiter().GetResult();
 		Assert.AreEqual(serialized.Count, result.Count);
 		for (int i = 0; i < data.Count; i++)
@@ -60,7 +60,7 @@ public class TestMessageSerializer
 
 		List<Task> tasks = new List<Task>(data.Count);
 
-		transport ??= new WebSocketTransport(new SnipeConfig(""), null);
+		transport ??= new WebSocketTransport(new SnipeConfig(0), null);
 		for (int i = 0; i < data.Count; i++)
 		{
 			int index = i;
