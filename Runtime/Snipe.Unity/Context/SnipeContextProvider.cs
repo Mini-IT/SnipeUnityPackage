@@ -41,11 +41,13 @@ namespace MiniIT.Snipe
 		/// <returns>A reference to the <see cref="SnipeContext"/> instance, corresponding to the specified <paramref name="id"/>.
 		/// Can return <c>null</c> if <paramref name="create"/> is set to <c>false</c></returns>
 		public SnipeContext GetContext(int id = 0, bool create = true)
-			=> InternalGetInstance<SnipeContext>(id, create);
-
-		protected TContext InternalGetInstance<TContext>(int id = 0, bool initialize = true) where TContext : SnipeContext
 		{
-			return InternalGetInstance<TContext>(id, _factory);
+			return InternalGetInstance<SnipeContext>(id, create);
+		}
+
+		protected TContext InternalGetInstance<TContext>(int id = 0, bool create = true) where TContext : SnipeContext
+		{
+			return InternalGetInstance<TContext>(id, create ? _factory : null);
 		}
 
 		protected TContext InternalGetInstance<TContext>(int id, ISnipeContextFactory factory) where TContext : SnipeContext
