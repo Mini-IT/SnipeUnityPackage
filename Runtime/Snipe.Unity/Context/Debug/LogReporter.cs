@@ -27,7 +27,7 @@ namespace MiniIT
 
 		private const int MAX_CHUNK_LENGTH = 200 * 1024;
 
-		private readonly SnipeContext _snipeContext;
+		private SnipeContext _snipeContext;
 		private bool _running = false;
 
 		private HttpClient _httpClient;
@@ -40,7 +40,7 @@ namespace MiniIT
 			Application.logMessageReceivedThreaded += OnLogMessageReceived;
 		}
 
-		public LogReporter(SnipeContext snipeContext)
+		public void SetSnipeContext(SnipeContext snipeContext)
 		{
 			_snipeContext = snipeContext;
 		}

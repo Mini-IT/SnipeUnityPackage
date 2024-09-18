@@ -4,12 +4,28 @@ using MiniIT.Snipe.Unity;
 
 namespace MiniIT.Snipe
 {
-	//public class SnipeApiContextFactory : ISnipeContextFactory
-	//{
-	//	public SnipeContext CreateContext(string id)
-	//	{
-	//	}
-	//}
+	public abstract class AbstractSnipeApiContextFactory : ISnipeContextFactory
+	{
+		public SnipeContext CreateContext(string id)
+		{
+			if (!SnipeServices.IsInitialized)
+			{
+				SnipeServices.Initialize(new UnitySnipeServicesFactory());
+			}
+
+			var config = new SnipeConfig(id);
+			var communicator = new SnipeCommunicator(config);
+			var auth = new UnityAuthSubsystem(communicator, config);
+			var logReporter = new LogReporter();
+			
+			var context = InternalCreateContext(id, config, communicator, auth, logReporter);
+
+			logReporter.SetSnipeContext(context);
+			return context;
+		}
+
+		protected abstract SnipeContext InternalCreateContext(string id, SnipeConfig config, SnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter);
+	}
 
 	//===================
 
@@ -35,7 +51,7 @@ namespace MiniIT.Snipe
 		public BadgesManager BadgesManager { get; }
 		public CalendarManager CalendarManager { get; }
 
-		public SnipeApiContext(string id, SnipeConfig config, SnipeCommunicator communicator, UnityAuthSubsystem auth, LogReporter logReporter,
+		public SnipeApiContext(string id, SnipeConfig config, SnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter,
 			TApi api, TTables tables, TimeZoneInfo serverTimeZone)
 			: base(id, config, communicator, auth, logReporter)
 		{
@@ -59,6 +75,8 @@ namespace MiniIT.Snipe
 			{
 				CalendarManager = new CalendarManager(calendarTable, serverTimeZone);
 			}
+
+			Communicator.ConnectionSucceeded += OnCommunicatorConnected;
 		}
 
 		//private TApi CreateApi()
@@ -82,39 +100,6 @@ namespace MiniIT.Snipe
 
 		/// <inheritdoc cref="SnipeContext.SnipeContext"/>
 		//protected SnipeApiContext() { }
-
-		protected override void Construct()
-		{
-			base.Construct();
-			
-			if (Api != null)
-			{
-				return;
-			}
-			
-			Communicator.ConnectionSucceeded += OnCommunicatorConnected;
-
-			//Api = CreateApi();
-			//Tables = CreateTables();
-
-			//var logicTable = Tables.GetTable<SnipeTableLogicItem>();
-			//if (logicTable != null)
-			//{
-			//	LogicManager = new LogicManager(Communicator, CreateRequest, logicTable);
-			//}
-
-			//var badgesTable = Tables.GetTable<SnipeTableBadgesItem>();
-			//if (badgesTable != null)
-			//{
-			//	BadgesManager = new BadgesManager(Communicator, CreateRequest, badgesTable);
-			//}
-
-			//var calendarTable = Tables.GetTable<SnipeTableCalendarItem>();
-			//if (calendarTable != null)
-			//{
-			//	CalendarManager = new CalendarManager(calendarTable, _serverTimeZone);
-			//}
-		}
 
 		private void OnCommunicatorConnected()
 		{

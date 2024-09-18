@@ -130,7 +130,7 @@ namespace MiniIT.Snipe
 
 		public SnipeConfig Config { get; }
 		public SnipeCommunicator Communicator { get; }
-		public UnityAuthSubsystem Auth { get; }
+		public AuthSubsystem Auth { get; }
 		public LogReporter LogReporter { get; }
 
 		public bool IsDefault => string.IsNullOrEmpty(Id);
@@ -138,13 +138,15 @@ namespace MiniIT.Snipe
 		/// <summary>
 		/// Protected constructor. Use <see cref="Default"/> or <see cref="GetInstance(string)"/> to get an instance
 		/// </summary>
-		protected SnipeContext(string id, SnipeConfig config, SnipeCommunicator communicator, UnityAuthSubsystem auth, LogReporter logReporter)
+		protected SnipeContext(string id, SnipeConfig config, SnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter)
 		{
 			Id = id;
 			Config = config;
 			Communicator = communicator;
 			Auth = auth;
 			LogReporter = logReporter;
+
+			UnityTerminator.Run();
 		}
 
 		/// <summary>
@@ -153,7 +155,7 @@ namespace MiniIT.Snipe
 		/// If the context hasn't been disposed, this method won't do anything meaningful.
 		/// </summary>
 		/// <returns>The same context instance</returns>
-		public void Start() => Construct(); //GetInstance(Id);
+		//public void Start() => Construct(); //GetInstance(Id);
 
 		/// <summary>
 		/// Tear down a <see cref="SnipeContext"/> and notify all internal services that the context should be destroyed.
@@ -170,34 +172,8 @@ namespace MiniIT.Snipe
 
 			IsDisposed = true;
 
-			if (Communicator != null)
-			{
-				Communicator.Dispose();
-				//Communicator = null;
-			}
-
-			if (LogReporter != null)
-			{
-				LogReporter.Dispose();
-				//LogReporter = null;
-			}
-		}
-
-		protected virtual void Construct()
-		{
-			IsDisposed = false;
-
-			if (Communicator != null)
-			{
-				return;
-			}
-
-			if (!SnipeServices.IsInitialized)
-			{
-				SnipeServices.Initialize(new UnitySnipeServicesFactory());
-			}
-
-			UnityTerminator.Run();
+			Communicator?.Dispose();
+			LogReporter?.Dispose();
 		}
 
 		public AbstractCommunicatorRequest CreateRequest(string messageType, SnipeObject data)
