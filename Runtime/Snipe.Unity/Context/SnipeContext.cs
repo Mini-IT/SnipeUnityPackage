@@ -5,10 +5,10 @@ namespace MiniIT.Snipe
 	public class SnipeContext : IDisposable
 	{
 		/// <summary>
-		/// The player's context identifier. The <see cref="Default"/> context uses an empty string,
-		/// but you can use values like "Player1" and "Player2" to get two different concurrently running contexts.
+		/// The player's context identifier. The <see cref="Default"/> context id is 0,
+		/// but you can use any int values to get different concurrently running contexts.
 		/// </summary>
-		public string Id { get; }
+		public int Id { get; }
 
 		/// <summary>
 		/// If the <see cref="Dispose"/> method has been run, this property will return true.
@@ -22,12 +22,12 @@ namespace MiniIT.Snipe
 		public AuthSubsystem Auth { get; }
 		public LogReporter LogReporter { get; }
 
-		public bool IsDefault => string.IsNullOrEmpty(Id);
+		public bool IsDefault => Id == 0;
 
 		/// <summary>
 		/// Protected constructor. Use <see cref="Default"/> or <see cref="GetInstance(string)"/> to get an instance
 		/// </summary>
-		protected SnipeContext(string id, SnipeConfig config, SnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter)
+		protected SnipeContext(int id, SnipeConfig config, SnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter)
 		{
 			Id = id;
 			Config = config;

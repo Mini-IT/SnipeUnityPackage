@@ -18,7 +18,7 @@ namespace MiniIT.Snipe
 		public BadgesManager BadgesManager { get; }
 		public CalendarManager CalendarManager { get; }
 
-		public SnipeApiContext(string id, SnipeConfig config, SnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter,
+		public SnipeApiContext(int id, SnipeConfig config, SnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter,
 			AbstractSnipeApiService api, SnipeApiTables tables, TimeZoneInfo serverTimeZone)
 			: base(id, config, communicator, auth, logReporter)
 		{

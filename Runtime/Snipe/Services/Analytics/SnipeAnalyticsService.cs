@@ -8,17 +8,16 @@ namespace MiniIT.Snipe
 
 		private ISnipeCommunicatorAnalyticsTracker _externalTracker;
 
-		private Dictionary<string, SnipeAnalyticsTracker> _trackers;
+		private Dictionary<int, SnipeAnalyticsTracker> _trackers;
 		private readonly object _trackersLock = new object();
 
-		public SnipeAnalyticsTracker GetTracker(string contextId = null)
+		public SnipeAnalyticsTracker GetTracker(int contextId = 0)
 		{
-			contextId ??= string.Empty;
 			SnipeAnalyticsTracker tracker;
 
 			lock (_trackersLock)
 			{
-				_trackers ??= new Dictionary<string, SnipeAnalyticsTracker>();
+				_trackers ??= new Dictionary<int, SnipeAnalyticsTracker>();
 				if (!_trackers.TryGetValue(contextId, out tracker))
 				{
 					tracker = new SnipeAnalyticsTracker(this, contextId);

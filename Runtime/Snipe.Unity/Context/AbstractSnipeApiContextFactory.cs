@@ -4,7 +4,7 @@ namespace MiniIT.Snipe
 {
 	public abstract class AbstractSnipeApiContextFactory : ISnipeContextFactory
 	{
-		public SnipeContext CreateContext(string id)
+		public SnipeContext CreateContext(int id)
 		{
 			if (!SnipeServices.IsInitialized)
 			{
@@ -22,6 +22,6 @@ namespace MiniIT.Snipe
 			return context;
 		}
 
-		protected abstract SnipeContext InternalCreateContext(string id, SnipeConfig config, SnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter);
+		protected abstract SnipeContext InternalCreateContext(int id, SnipeConfig config, SnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter);
 	}
 }

@@ -5,14 +5,14 @@ namespace MiniIT.Snipe
 {
 	public interface ISnipeContextFactory
 	{
-		SnipeContext CreateContext(string id);
+		SnipeContext CreateContext(int id);
 	}
 
 	public interface ISnipeContextProvider
 	{
 		//public static SnipeContextProvider Default => GetInstance();
 
-		SnipeContext GetContext(string id = null, bool create = true);
+		SnipeContext GetContext(int id = 0, bool create = true);
 	}
 
 	public class SnipeContextProvider : ISnipeContextProvider
@@ -29,28 +29,27 @@ namespace MiniIT.Snipe
 		/// </summary>
 		//public static IEnumerable<SnipeContext> All => s_instances.Values;
 
-		private readonly Dictionary<string, SnipeContext> _instances = new Dictionary<string, SnipeContext>();
+		private readonly Dictionary<int, SnipeContext> _instances = new Dictionary<int, SnipeContext>();
 		private readonly object _instancesLock = new object();
 
 		/// <summary>
 		/// Create or retrieve a <see cref="SnipeContext"/> for the given <see cref="Id"/>.
 		/// There is only one instance of a context per <see cref="Id"/>.
 		/// </summary>
-		/// <param name="id">A named code that represents a player slot on the device. The <see cref="Default"/> context uses an empty string. </param>
+		/// <param name="id">A code that represents a player slot on the device. The <see cref="Default"/> context id is 0. </param>
 		/// <param name="create">Create and initialize a new instance if no existing one is found or reinitialize the old one if it was stopped.</param>
 		/// <returns>A reference to the <see cref="SnipeContext"/> instance, corresponding to the specified <paramref name="id"/>.
 		/// Can return <c>null</c> if <paramref name="create"/> is set to <c>false</c></returns>
-		public SnipeContext GetContext(string id = null, bool create = true)
+		public SnipeContext GetContext(int id = 0, bool create = true)
 			=> InternalGetInstance<SnipeContext>(id, create);
 
-		protected TContext InternalGetInstance<TContext>(string id = null, bool initialize = true) where TContext : SnipeContext
+		protected TContext InternalGetInstance<TContext>(int id = 0, bool initialize = true) where TContext : SnipeContext
 		{
 			return InternalGetInstance<TContext>(id, _factory);
 		}
 
-		protected TContext InternalGetInstance<TContext>(string id, ISnipeContextFactory factory) where TContext : SnipeContext
+		protected TContext InternalGetInstance<TContext>(int id, ISnipeContextFactory factory) where TContext : SnipeContext
 		{
-			id ??= string.Empty;
 			TContext context = null;
 
 			lock (_instancesLock)

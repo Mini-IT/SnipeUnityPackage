@@ -34,7 +34,7 @@ namespace MiniIT.Snipe
 		}
 		public WebSocketImplementations WebSocketImplementation = WebSocketImplementations.WebSocketSharp;
 
-		public string ContextId { get; }
+		public int ContextId { get; }
 
 		public SnipeProjectInfo Project => _project;
 		public string ClientKey => _project.ClientKey;
@@ -69,12 +69,12 @@ namespace MiniIT.Snipe
 		private readonly IMainThreadRunner _mainThreadRunner;
 		private readonly IApplicationInfo _applicationInfo;
 
-		public SnipeConfig(string contextId)
+		public SnipeConfig(int contextId)
 		{
 			_mainThreadRunner = SnipeServices.MainThreadRunner;
 			_applicationInfo = SnipeServices.ApplicationInfo;
 
-			ContextId = contextId ?? "";
+			ContextId = contextId;
 		}
 
 		/// <summary>

@@ -29,11 +29,11 @@ namespace MiniIT.Snipe
 		private string _userId = null;
 		private string _debugId = null;
 		private readonly object _userIdLock = new object();
-		private readonly string _contextId;
+		private readonly int _contextId;
 		private readonly SnipeAnalyticsService _analyticsService;
 		private readonly IMainThreadRunner _mainThreadRunner;
 
-		internal SnipeAnalyticsTracker(SnipeAnalyticsService analyticsService, string contextId)
+		internal SnipeAnalyticsTracker(SnipeAnalyticsService analyticsService, int contextId)
 		{
 			_analyticsService = analyticsService;
 			_contextId = contextId;
@@ -59,7 +59,7 @@ namespace MiniIT.Snipe
 				{
 					if (!string.IsNullOrEmpty(_userId))
 					{
-						if (string.IsNullOrEmpty(_contextId)) // Default context only
+						if (_contextId == 0) // Default context only
 						{
 							_externalTracker.SetUserId(_userId);
 						}
@@ -68,7 +68,7 @@ namespace MiniIT.Snipe
 
 					if (!string.IsNullOrEmpty(_debugId))
 					{
-						string prefix = string.IsNullOrEmpty(_contextId) ? "" : $"{_contextId} ";
+						string prefix = (_contextId == 0) ? "" : $"{_contextId} ";
 						_externalTracker.SetUserProperty(prefix + "debugID", _debugId);
 						_debugId = null;
 					}
@@ -150,7 +150,7 @@ namespace MiniIT.Snipe
 				properties["event_type"] = name;
 				properties["snipe_package_version"] = PackageInfo.VERSION_NAME;
 
-				if (!string.IsNullOrEmpty(_contextId))
+				if (_contextId != 0)
 					properties["sinpe_context"] = _contextId;
 
 				if (PingTime.TotalMilliseconds > 0)
@@ -206,7 +206,7 @@ namespace MiniIT.Snipe
 		{
 			if (CheckReady())
 			{
-				if (!string.IsNullOrEmpty(_contextId))
+				if (_contextId != 0)
 				{
 					properties ??= new Dictionary<string, object>();
 					properties["sinpe_context"] = _contextId;
