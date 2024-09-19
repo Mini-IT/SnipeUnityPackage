@@ -10,23 +10,23 @@ namespace MiniIT.Snipe
 {
 	internal static class UnityTerminator
 	{
-		private static HashSet<WeakReference<IDisposable>> s_references;
+		private static HashSet<WeakReference<IDisposable>> s_targets;
 		private static readonly object s_lock = new object();
 
 		internal static void AddTarget(IDisposable disposable)
 		{
 			lock (s_lock)
 			{
-				if (s_references == null)
+				if (s_targets == null)
 				{
-					s_references = new HashSet<WeakReference<IDisposable>>();
+					s_targets = new HashSet<WeakReference<IDisposable>>();
 					Application.quitting += OnApplicationQuit;
 #if UNITY_EDITOR
 					EditorApplication.playModeStateChanged += OnEditorPlayModeStateChanged;
 #endif
 				}
 
-				s_references.Add(new WeakReference<IDisposable>(disposable));
+				s_targets.Add(new WeakReference<IDisposable>(disposable));
 			}
 		}
 
@@ -54,7 +54,7 @@ namespace MiniIT.Snipe
 		{
 			lock (s_lock)
 			{
-				foreach (var weak in s_references)
+				foreach (var weak in s_targets)
 				{
 					if (weak.TryGetTarget(out IDisposable disposable))
 					{
@@ -62,7 +62,7 @@ namespace MiniIT.Snipe
 					}
 				}
 
-				s_references.Clear();
+				s_targets.Clear();
 			}
 		}
 	}
