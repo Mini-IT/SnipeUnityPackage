@@ -5,7 +5,7 @@ namespace MiniIT.Snipe.Api
 {
 	public class CalendarManager : IDisposable
 	{
-		public TimeZoneInfo ServerTimeZone;
+		public TimeZoneInfo ServerTimeZone { get; }
 
 		private ISnipeTable<SnipeTableCalendarItem> _calendarTable = null;
 
