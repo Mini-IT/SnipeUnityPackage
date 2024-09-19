@@ -35,7 +35,7 @@ namespace MiniIT.Snipe
 			Auth = auth;
 			LogReporter = logReporter;
 
-			UnityTerminator.Run();
+			UnityTerminator.AddTarget(this);
 		}
 
 		/// <summary>
