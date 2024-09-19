@@ -1,5 +1,3 @@
-using System;
-using MiniIT.Snipe.Api;
 using MiniIT.Snipe.Unity;
 
 namespace MiniIT.Snipe
@@ -18,17 +16,12 @@ namespace MiniIT.Snipe
 			var auth = new UnityAuthSubsystem(communicator, config);
 			var logReporter = new LogReporter();
 
-			var api = GetApiService(communicator, auth);
-			var tables = GetTables();
-			var serverTimeZone = TimeZoneInfo.CreateCustomTimeZone("server time", GetServerTimeZoneUtcOffset(), "server time", "server time");
-			var context = new SnipeApiContext(id, config, communicator, auth, logReporter, api, tables, serverTimeZone);
+			var context = InternalCreateContext(id, config, communicator, auth, logReporter);
 
 			logReporter.SetSnipeContext(context);
 			return context;
 		}
 
-		protected abstract AbstractSnipeApiService GetApiService(SnipeCommunicator communicator, AuthSubsystem auth);
-		protected abstract SnipeApiTables GetTables();
-		protected abstract TimeSpan GetServerTimeZoneUtcOffset();
+		protected abstract SnipeContext InternalCreateContext(int id, SnipeConfig config, SnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter);
 	}
 }
