@@ -1,7 +1,7 @@
 ﻿﻿using System;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using MiniIT.Threading;
+using Cysharp.Threading.Tasks;
+
 #if !MINI_IT_ADVERTISING_ID
 using UnityEngine;
 #endif
@@ -45,7 +45,7 @@ namespace MiniIT.Snipe.Unity
 				{
 					if (callback != null)
 					{
-						AlterTask.Run(() => WaitForInitialization(callback));
+						WaitForInitialization(callback).Forget();
 					}
 					return;
 				}
@@ -56,11 +56,11 @@ namespace MiniIT.Snipe.Unity
 		}
 
 #if UNITY_IOS
-		private async UniTask WaitForInitialization(Action<string> callback)
+		private async UniTaskVoid WaitForInitialization(Action<string> callback)
 		{
 			while (string.IsNullOrEmpty(Value))
 			{
-				await TaskHelper.Delay(100);
+				await UniTask.Delay(100);
 			}
 			RunInMainThread(() => callback.Invoke(Value));
 		}
