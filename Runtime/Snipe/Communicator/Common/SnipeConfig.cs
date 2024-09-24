@@ -53,7 +53,7 @@ namespace MiniIT.Snipe
 		/// Http transport heartbeat interval.
 		/// If the value is less than 1 second then heartbeat is turned off.
 		/// </summary>
-		public TimeSpan HttpHeartbeatInterval { get; set; } = TimeSpan.Zero;
+		public TimeSpan HttpHeartbeatInterval { get; set; } = TimeSpan.FromMinutes(1);
 		
 		public bool CompressionEnabled { get; set; } = true;
 		public int MinMessageBytesToCompress { get; set; } = 13 * 1024;
