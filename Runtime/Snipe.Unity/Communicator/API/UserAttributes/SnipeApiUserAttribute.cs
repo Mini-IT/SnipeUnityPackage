@@ -8,6 +8,8 @@ namespace MiniIT.Snipe.Api
 {
 	public abstract class SnipeApiUserAttribute
 	{
+		public static TimeSpan RequestDelay = TimeSpan.FromMilliseconds(900);
+
 		public delegate void SetCallback(string errorCode, string key, object value);
 		
 		public string Key => _key;
@@ -137,9 +139,6 @@ namespace MiniIT.Snipe.Api
 
 	public class SnipeApiUserAttribute<TAttrValue> : SnipeApiReadOnlyUserAttribute<TAttrValue>, IDisposable
 	{
-		// TODO: Move to more externaly available place
-		public static TimeSpan RequestDelay = TimeSpan.FromMilliseconds(900);
-
 		protected static readonly AlterSemaphore _setRequestsSemaphore = new AlterSemaphore(1, 1);
 		protected static UserAttributeSetRequestsBatch _requests;
 		protected static CancellationTokenSource _setRequestsCancellation;
