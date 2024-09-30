@@ -380,14 +380,15 @@ namespace MiniIT.Snipe
 
 			string messageType = message.SafeGetString("t");
 			string errorCode = message.SafeGetString("errorCode");
-			int requestId = message.SafeGetValue<int>("id");
+			int requestID = message.SafeGetValue<int>("id");
+			int ackID = message.SafeGetValue<int>("ackID");
 			SnipeObject responseData = message.SafeGetValue<SnipeObject>("data");
 
-			RemoveResponseMonitoringItem(requestId, messageType);
+			RemoveResponseMonitoringItem(requestID, messageType);
 
 			if (_logger.IsEnabled(LogLevel.Trace))
 			{
-				_logger.LogTrace("[{0}] ProcessMessage - {1} - {2} {3} {4}", ConnectionId, requestId, messageType, errorCode, responseData?.ToFastJSONString());
+				_logger.LogTrace("[{0}] ProcessMessage - {1} - {2} {3} {4}", ConnectionId, requestID, messageType, errorCode, responseData?.ToFastJSONString());
 			}
 
 			if (!_loggedIn && messageType == SnipeMessageTypes.USER_LOGIN)
@@ -395,7 +396,12 @@ namespace MiniIT.Snipe
 				ProcessLoginResponse(errorCode, responseData);
 			}
 
-			InvokeMessageReceived(messageType, errorCode, requestId, responseData);
+			InvokeMessageReceived(messageType, errorCode, requestID, responseData);
+
+			if (ackID > 0)
+			{
+				SendRequest("ack.ack", new SnipeObject() { ["ackID"] = ackID });
+			}
 		}
 
 		private void ProcessLoginResponse(string errorCode, SnipeObject responseData)

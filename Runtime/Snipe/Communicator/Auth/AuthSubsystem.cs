@@ -177,9 +177,7 @@ namespace MiniIT.Snipe
 			SnipeObject data = _config.LoginParameters != null ? new SnipeObject(_config.LoginParameters) : new SnipeObject();
 			data["login"] = login;
 			data["auth"] = password;
-			data["version"] = SnipeClient.SNIPE_VERSION;
-			data["appInfo"] = _config.AppInfo;
-			data["flagAutoJoinRoom"] = _config.AutoJoinRoom;
+			FillCommonAuthRequestParameters(data);
 
 			if (_config.CompressionEnabled)
 			{
@@ -248,6 +246,14 @@ namespace MiniIT.Snipe
 			return true;
 		}
 
+		private void FillCommonAuthRequestParameters(SnipeObject data)
+		{
+			data["version"] = SnipeClient.SNIPE_VERSION;
+			data["appInfo"] = _config.AppInfo;
+			data["flagAutoJoinRoom"] = _config.AutoJoinRoom;
+			data["flagCanAck"] = true;
+		}
+
 		protected abstract void RegisterAndLogin();
 
 		protected async UniTask FetchLoginId(string provider, AuthIdFetcher fetcher, List<SnipeObject> providers)
@@ -276,11 +282,9 @@ namespace MiniIT.Snipe
 		protected void RequestRegisterAndLogin(List<SnipeObject> providers)
 		{
 			SnipeObject data = _config.LoginParameters != null ? new SnipeObject(_config.LoginParameters) : new SnipeObject();
-			data["version"] = SnipeClient.SNIPE_VERSION;
-			data["appInfo"] = _config.AppInfo;
 			data["ckey"] = _config.ClientKey;
 			data["auths"] = providers;
-			data["flagAutoJoinRoom"] = _config.AutoJoinRoom;
+			FillCommonAuthRequestParameters(data);
 
 			if (_config.CompressionEnabled)
 			{
