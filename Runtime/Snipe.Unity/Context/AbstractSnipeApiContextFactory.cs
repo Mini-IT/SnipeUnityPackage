@@ -22,8 +22,6 @@ namespace MiniIT.Snipe
 			var logReporter = new LogReporter();
 
 			var context = InternalCreateContext(id, config, communicator, auth, logReporter);
-
-			logReporter.SetSnipeContext(context);
 			return context;
 		}
 

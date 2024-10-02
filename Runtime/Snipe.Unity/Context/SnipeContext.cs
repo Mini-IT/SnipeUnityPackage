@@ -33,6 +33,8 @@ namespace MiniIT.Snipe
 			Config = config;
 			Communicator = communicator;
 			Auth = auth;
+
+			logReporter.SetSnipeContext(this);
 			LogReporter = logReporter;
 
 			UnityTerminator.AddTarget(this);
