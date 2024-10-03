@@ -112,12 +112,8 @@ namespace MiniIT
 
 				if (_file != null && _file.CanWrite)
 				{
-					string json = GetLogRecordJson(
-						DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-						type.ToString(),
-						condition,
-						stackTrace);
-
+					long ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+					string json = GetLogRecordJson(ts, type, condition, stackTrace);
 					byte[] bytes = Encoding.UTF8.GetBytes(json + "\n");
 					await _file.WriteAsync(bytes, 0, bytes.Length);
 				}
@@ -131,9 +127,13 @@ namespace MiniIT
 			}
 		}
 
-		private static string GetLogRecordJson(long time, string type, string message, string stackTrace)
+		private static string GetLogRecordJson(long time, LogType type, string message, string stackTrace)
 		{
-			return $"{{\"time\":{time},\"level\":\"{type}\",\"msg\":\"{Escape(message)}\",\"stack\":\"{Escape(stackTrace)}\"}}";
+			return string.Format("{{\"time\":{0},\"level\":\"{1}\",\"msg\":\"{2}\",\"stack\":\"{3}\"}}",
+				time,
+				type,
+				Escape(message),
+				Escape(stackTrace));
 		}
 
 		// https://stackoverflow.com/a/14087738
