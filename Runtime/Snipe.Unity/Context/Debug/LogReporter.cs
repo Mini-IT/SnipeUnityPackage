@@ -11,12 +11,15 @@ namespace MiniIT
 {
 	public class LogReporter : IDisposable
 	{
+		private const int MIN_BYTES_TO_FLUSH = 4096;
+
 		private static readonly AlterSemaphore s_semaphore = new AlterSemaphore(1, 1);
 
-		private readonly LogSender _sender;
+		private static string s_filePath;
+		private static FileStream s_file;
+		private static int s_bytesWritten;
 
-		private static string _filePath;
-		private static FileStream _file;
+		private readonly LogSender _sender;
 
 		static LogReporter()
 		{
@@ -26,13 +29,14 @@ namespace MiniIT
 
 		private static void CreateNewFile()
 		{
-			_file?.Close();
+			s_file?.Close();
 
 			long ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-			_filePath = Path.Combine(UnityEngine.Application.temporaryCachePath, $"log{ts}.txt");
-			_file = File.Open(_filePath, FileMode.OpenOrCreate, FileAccess.Write);
+			s_filePath = Path.Combine(UnityEngine.Application.temporaryCachePath, $"log{ts}.txt");
+			s_file = File.Open(s_filePath, FileMode.OpenOrCreate, FileAccess.Write);
+			s_bytesWritten = 0;
 
-			DebugLogger.Log($"[{nameof(LogReporter)}] New temp log file created: " + _filePath);
+			DebugLogger.Log($"[{nameof(LogReporter)}] New temp log file created: " + s_filePath);
 		}
 
 		public LogReporter()
@@ -57,7 +61,7 @@ namespace MiniIT
 				await s_semaphore.WaitAsync();
 				semaphoreOccupied = true;
 
-				filepath = _filePath;
+				filepath = s_filePath;
 				CreateNewFile();
 			}
 			catch (Exception ex)
@@ -101,7 +105,12 @@ namespace MiniIT
 			return result;
 		}
 
-		private static async void OnLogMessageReceived(string condition, string stackTrace, LogType type)
+		private static void OnLogMessageReceived(string condition, string stackTrace, LogType type)
+		{
+			ProcessLogMessageAsync(condition, stackTrace, type).Forget();
+		}
+
+		private static async UniTaskVoid ProcessLogMessageAsync(string condition, string stackTrace, LogType type)
 		{
 			bool semaphoreOccupied = false;
 
@@ -110,12 +119,19 @@ namespace MiniIT
 				await s_semaphore.WaitAsync();
 				semaphoreOccupied = true;
 
-				if (_file != null && _file.CanWrite)
+				if (s_file != null && s_file.CanWrite)
 				{
 					long ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 					string json = GetLogRecordJson(ts, type, condition, stackTrace);
 					byte[] bytes = Encoding.UTF8.GetBytes(json + "\n");
-					await _file.WriteAsync(bytes, 0, bytes.Length);
+					await s_file.WriteAsync(bytes, 0, bytes.Length);
+
+					s_bytesWritten += bytes.Length;
+					if (s_bytesWritten >= MIN_BYTES_TO_FLUSH)
+					{
+						s_bytesWritten = 0;
+						await s_file.FlushAsync();
+					}
 				}
 			}
 			finally
@@ -173,21 +189,21 @@ namespace MiniIT
 
 		public void Dispose()
 		{
-			_file?.Dispose();
-			_file = null;
+			s_file?.Dispose();
+			s_file = null;
 			_sender.Dispose();
 
 			try
 			{
-				if (File.Exists(_filePath))
+				if (File.Exists(s_filePath))
 				{
-					File.Delete(_filePath);
-					DebugLogger.Log($"[{nameof(LogReporter)}] File {_filePath} deleted");
+					File.Delete(s_filePath);
+					DebugLogger.Log($"[{nameof(LogReporter)}] File {s_filePath} deleted");
 				}
 			}
 			catch (Exception e)
 			{
-				DebugLogger.LogError($"[{nameof(LogReporter)}] Failed to delete {_filePath}: " + e.ToString());
+				DebugLogger.LogError($"[{nameof(LogReporter)}] Failed to delete {s_filePath}: " + e.ToString());
 			}
 		}
 	}
