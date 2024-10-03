@@ -1,7 +1,6 @@
 ﻿#if SNIPE_FACEBOOK
 
 using System;
-using System.Threading.Tasks;
 using MiniIT.Threading;
 using Facebook.Unity;
 
