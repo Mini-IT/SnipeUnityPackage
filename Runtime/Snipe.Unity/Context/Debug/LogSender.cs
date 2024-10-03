@@ -97,10 +97,10 @@ namespace MiniIT.Snipe.Internal
 			_httpClient ??= new HttpClient();
 			_httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
 
+			string line = null;
+
 			while (!file.EndOfStream)
 			{
-				string content = null;
-				string line = null;
 				semaphoreOccupied = false;
 
 				try
@@ -108,46 +108,28 @@ namespace MiniIT.Snipe.Internal
 					await _semaphore.WaitAsync();
 					semaphoreOccupied = true;
 
-#if ZSTRING
-					using var contentBuilder = ZString.CreateStringBuilder(true);
-#else
-					var contentBuilder = new StringBuilder();
-#endif
-					contentBuilder.Append("{");
-					contentBuilder.Append($"\"connectionID\":{connectionId},");
-					contentBuilder.Append($"\"userID\":{userId},");
-					contentBuilder.Append($"\"version\":\"{appVersion}\",");
-					contentBuilder.Append($"\"platform\":\"{appPlatform}\",");
-					contentBuilder.Append("\"list\":[");
+					string content = GetPortionContent(file, ref line, connectionId, userId, appVersion, appPlatform);
+					var requestContent = new StringContent(content, Encoding.UTF8, "application/json");
 
-					bool linesAdded = false;
-
-					if (!string.IsNullOrEmpty(line))
+					try
 					{
-						contentBuilder.Append(line);
-						line = null;
-						linesAdded = true;
-					}
+						HttpResponseMessage result = await _httpClient.PostAsync(url, requestContent);
 
-					while (!file.EndOfStream)
-					{
-						line = file.ReadLine(); // make it async?
-						if (linesAdded && contentBuilder.Length + line.Length > MAX_CHUNK_LENGTH)
+						statusCode = result.StatusCode;
+
+						if (!result.IsSuccessStatusCode)
 						{
+							succeeded = false;
 							break;
 						}
-
-						if (linesAdded)
-						{
-							contentBuilder.Append(",");
-						}
-						contentBuilder.Append(line);
-
-						linesAdded = true;
 					}
-
-					contentBuilder.Append("]}");
-					content = contentBuilder.ToString();
+					catch (Exception ex)
+					{
+						succeeded = false;
+						statusCode = HttpStatusCode.BadRequest;
+						DebugLogger.LogError($"[{nameof(LogSender)}] - Error posting log portion: {ex}");
+						break;
+					}
 				}
 				catch (Exception ex)
 				{
@@ -164,37 +146,13 @@ namespace MiniIT.Snipe.Internal
 					}
 				}
 
-				if (string.IsNullOrEmpty(content))
+				DebugLogger.Log($"[{nameof(LogSender)}] - Send log portion result code = {(int)statusCode} {statusCode}");
+
+				if (!succeeded)
 				{
-					DebugLogger.LogError($"[{nameof(LogSender)}] - Log is empty. Nothing to send.");
-					succeeded = false;
-					break;
-				}
-
-				var requestContent = new StringContent(content, Encoding.UTF8, "application/json");
-
-				try
-				{
-					var result = await _httpClient.PostAsync(url, requestContent);
-
-					statusCode = result.StatusCode;
-
-					if (!result.IsSuccessStatusCode)
-					{
-						succeeded = false;
-						break;
-					}
-				}
-				catch (Exception ex)
-				{
-					succeeded = false;
-					statusCode = HttpStatusCode.BadRequest;
-					DebugLogger.LogError($"[{nameof(LogSender)}] - Error posting log portion: {ex}");
 					break;
 				}
 			}
-
-			DebugLogger.Log($"[{nameof(LogSender)}] - Send result code = {(int)statusCode} {statusCode}");
 
 			if (succeeded)
 			{
@@ -204,6 +162,53 @@ namespace MiniIT.Snipe.Internal
 			_running = false;
 
 			return succeeded;
+		}
+
+		private string GetPortionContent(StreamReader file, ref string line, int connectionId, int userId, string appVersion, RuntimePlatform appPlatform)
+		{
+#if ZSTRING
+			using var contentBuilder = ZString.CreateStringBuilder(true);
+#else
+			var contentBuilder = new StringBuilder();
+#endif
+			contentBuilder.Append("{");
+			contentBuilder.Append($"\"connectionID\":{connectionId},");
+			contentBuilder.Append($"\"userID\":{userId},");
+			contentBuilder.Append($"\"version\":\"{appVersion}\",");
+			contentBuilder.Append($"\"platform\":\"{appPlatform}\",");
+			contentBuilder.Append("\"list\":[");
+
+			bool linesAdded = false;
+
+			if (!string.IsNullOrEmpty(line))
+			{
+				contentBuilder.Append(line);
+				line = null;
+				linesAdded = true;
+			}
+
+			while (!file.EndOfStream)
+			{
+				line = file.ReadLine(); // ReadLineAsync?
+
+				if (linesAdded && contentBuilder.Length + line.Length > MAX_CHUNK_LENGTH)
+				{
+					break;
+				}
+
+				if (linesAdded)
+				{
+					contentBuilder.Append(",");
+				}
+
+				contentBuilder.Append(line);
+
+				linesAdded = true;
+			}
+
+			contentBuilder.Append("]}");
+
+			return contentBuilder.ToString();
 		}
 	}
 }
