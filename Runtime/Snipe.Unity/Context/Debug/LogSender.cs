@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Text;
 using System.Net;
 using System.Net.Http;
@@ -7,6 +6,7 @@ using System.Net.Http.Headers;
 using MiniIT.Threading;
 using UnityEngine;
 using Cysharp.Threading.Tasks;
+using System.IO;
 
 #if ZSTRING
 using Cysharp.Text;
@@ -48,14 +48,14 @@ namespace MiniIT.Snipe.Internal
 			}
 		}
 
-		internal async UniTask<bool> SendAsync(List<LogReporter.LogRecord> log)
+		internal async UniTask<bool> SendAsync(StreamReader file)
 		{
 			string apiKey = _snipeContext.Config.ClientKey;
 			string url = _snipeContext.Config.LogReporterUrl;
 
 			if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(url))
 			{
-				DebugLogWarning($"[{nameof(LogReporter)}] Invalid apiKey or url");
+				DebugLogger.LogWarning($"[{nameof(LogSender)}] Invalid apiKey or url");
 				return false;
 			}
 
@@ -68,7 +68,7 @@ namespace MiniIT.Snipe.Internal
 
 				if (_running)
 				{
-					DebugLogWarning($"[{nameof(LogReporter)}] Already running");
+					DebugLogger.LogWarning($"[{nameof(LogSender)}] Already running");
 					return false;
 				}
 				_running = true;
@@ -97,9 +97,10 @@ namespace MiniIT.Snipe.Internal
 			_httpClient ??= new HttpClient();
 			_httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
 
-			for (int startIndex = 0; startIndex < log.Count;)
+			while (!file.EndOfStream)
 			{
-				string content;
+				string content = null;
+				string line = null;
 				semaphoreOccupied = false;
 
 				try
@@ -107,13 +108,52 @@ namespace MiniIT.Snipe.Internal
 					await _semaphore.WaitAsync();
 					semaphoreOccupied = true;
 
-					content = await AlterTask.Run(() => GetPortionContent(log, ref startIndex, connectionId, userId, appVersion, appPlatform));
+#if ZSTRING
+					using var contentBuilder = ZString.CreateStringBuilder(true);
+#else
+					var contentBuilder = new StringBuilder();
+#endif
+					contentBuilder.Append("{");
+					contentBuilder.Append($"\"connectionID\":{connectionId},");
+					contentBuilder.Append($"\"userID\":{userId},");
+					contentBuilder.Append($"\"version\":\"{appVersion}\",");
+					contentBuilder.Append($"\"platform\":\"{appPlatform}\",");
+					contentBuilder.Append("\"list\":[");
+
+					bool linesAdded = false;
+
+					if (!string.IsNullOrEmpty(line))
+					{
+						contentBuilder.Append(line);
+						line = null;
+						linesAdded = true;
+					}
+
+					while (!file.EndOfStream)
+					{
+						line = file.ReadLine(); // make it async?
+						if (linesAdded && contentBuilder.Length + line.Length > MAX_CHUNK_LENGTH)
+						{
+							break;
+						}
+
+						if (linesAdded)
+						{
+							contentBuilder.Append(",");
+						}
+						contentBuilder.Append(line);
+
+						linesAdded = true;
+					}
+
+					contentBuilder.Append("]}");
+					content = contentBuilder.ToString();
 				}
 				catch (Exception ex)
 				{
 					succeeded = false;
 					statusCode = HttpStatusCode.BadRequest;
-					DebugLogError($"[{nameof(LogReporter)}] - Error getting log portion: {ex}");
+					DebugLogger.LogError($"[{nameof(LogSender)}] - Error getting log portion: {ex}");
 					break;
 				}
 				finally
@@ -122,6 +162,13 @@ namespace MiniIT.Snipe.Internal
 					{
 						_semaphore.Release();
 					}
+				}
+
+				if (string.IsNullOrEmpty(content))
+				{
+					DebugLogger.LogError($"[{nameof(LogSender)}] - Log is empty. Nothing to send.");
+					succeeded = false;
+					break;
 				}
 
 				var requestContent = new StringContent(content, Encoding.UTF8, "application/json");
@@ -142,132 +189,21 @@ namespace MiniIT.Snipe.Internal
 				{
 					succeeded = false;
 					statusCode = HttpStatusCode.BadRequest;
-					DebugLogError($"[{nameof(LogReporter)}] - Error posting log portion: {ex}");
+					DebugLogger.LogError($"[{nameof(LogSender)}] - Error posting log portion: {ex}");
 					break;
 				}
 			}
 
-			DebugLog($"[{nameof(LogReporter)}] - Send result code = {(int)statusCode} {statusCode}");
+			DebugLogger.Log($"[{nameof(LogSender)}] - Send result code = {(int)statusCode} {statusCode}");
 
 			if (succeeded)
 			{
-				DebugLog($"[{nameof(LogReporter)}] - Sent successfully. UserId = {userId}, ConnectionId = {connectionId}");
-
-				semaphoreOccupied = false;
-
-				try
-				{
-					await _semaphore.WaitAsync();
-					semaphoreOccupied = true;
-
-					log.Clear();
-				}
-				finally
-				{
-					_running = false;
-
-					if (semaphoreOccupied)
-					{
-						_semaphore.Release();
-					}
-				}
+				DebugLogger.Log($"[{nameof(LogSender)}] - Sent successfully. UserId = {userId}, ConnectionId = {connectionId}");
 			}
-			else
-			{
-				_running = false;
-			}
+
+			_running = false;
 
 			return succeeded;
 		}
-
-		private string GetPortionContent(List<LogReporter.LogRecord> log, ref int startIndex, int connectionId, int userId, string version, RuntimePlatform platform)
-		{
-#if ZSTRING
-			using var content = ZString.CreateStringBuilder(true);
-			content.Append("{");
-#else
-			var content = new StringBuilder("{");
-#endif
-			content.Append($"\"connectionID\":{connectionId},");
-			content.Append($"\"userID\":{userId},");
-			content.Append($"\"version\":\"{version}\",");
-			content.Append($"\"platform\":\"{platform}\",");
-			content.Append("\"list\":[");
-
-			bool linesAdded = false;
-			while (startIndex < log.Count)
-			{
-				var item = log[startIndex];
-
-				string line = $"{{\"time\":{item._time},\"level\":\"{item._type}\",\"msg\":\"{Escape(item._message)}\",\"stack\":\"{Escape(item._stackTrace)}\"}}";
-				if (linesAdded && content.Length + line.Length > MAX_CHUNK_LENGTH)
-				{
-					break;
-				}
-
-				if (linesAdded)
-				{
-					content.Append(",");
-				}
-				content.Append(line);
-
-				startIndex++;
-				linesAdded = true;
-			}
-
-			content.Append("]}");
-			return content.ToString();
-		}
-
-		// https://stackoverflow.com/a/14087738
-		private static string Escape(string input)
-		{
-			StringBuilder literal = new StringBuilder(input.Length + 2);
-			foreach (char c in input)
-			{
-				switch (c)
-				{
-					case '\"': literal.Append("\\\""); break;
-					case '\\': literal.Append(@"\\"); break;
-					case '\0': literal.Append(@"\0"); break;
-					case '\a': literal.Append(@"\a"); break;
-					case '\b': literal.Append(@"\b"); break;
-					case '\f': literal.Append(@"\f"); break;
-					case '\n': literal.Append(@"\n"); break;
-					case '\r': literal.Append(@"\r"); break;
-					case '\t': literal.Append(@"\t"); break;
-					case '\v': literal.Append(@"\v"); break;
-					default:
-						// ASCII printable character
-						if (c >= 0x20 && c <= 0x7e)
-						{
-							literal.Append(c); // As UTF16 escaped character
-						}
-						else
-						{
-							literal.Append(@"\u");
-							literal.Append(((int)c).ToString("x4"));
-						}
-						break;
-				}
-			}
-			return literal.ToString();
-		}
-
-		#region DebugLog
-
-		private void DebugLog(LogType logType, string text)
-		{
-			var stackType = Application.GetStackTraceLogType(logType);
-			Application.SetStackTraceLogType(logType, StackTraceLogType.ScriptOnly);
-			Debug.Log(text);
-			Application.SetStackTraceLogType(logType, stackType);
-		}
-
-		private void DebugLog(string text) => DebugLog(LogType.Log, text);
-		private void DebugLogWarning(string text) => DebugLog(LogType.Warning, text);
-		private void DebugLogError(string text) => DebugLog(LogType.Error, text);
-
-		#endregion
 	}
 }
