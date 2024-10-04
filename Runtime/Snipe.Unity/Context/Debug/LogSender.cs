@@ -120,6 +120,7 @@ namespace MiniIT.Snipe.Internal
 						if (!result.IsSuccessStatusCode)
 						{
 							succeeded = false;
+							DebugLogger.Log($"[{nameof(LogSender)}] Failed posting log. Result code = {(int)statusCode} {statusCode}");
 							break;
 						}
 					}
@@ -127,7 +128,7 @@ namespace MiniIT.Snipe.Internal
 					{
 						succeeded = false;
 						statusCode = HttpStatusCode.BadRequest;
-						DebugLogger.LogError($"[{nameof(LogSender)}] - Error posting log portion: {ex}");
+						DebugLogger.LogError($"[{nameof(LogSender)}] Error posting log portion: {ex}");
 						break;
 					}
 				}
@@ -135,7 +136,7 @@ namespace MiniIT.Snipe.Internal
 				{
 					succeeded = false;
 					statusCode = HttpStatusCode.BadRequest;
-					DebugLogger.LogError($"[{nameof(LogSender)}] - Error getting log portion: {ex}");
+					DebugLogger.LogError($"[{nameof(LogSender)}] Error getting log portion: {ex}");
 					break;
 				}
 				finally
@@ -146,7 +147,7 @@ namespace MiniIT.Snipe.Internal
 					}
 				}
 
-				DebugLogger.Log($"[{nameof(LogSender)}] - Send log portion result code = {(int)statusCode} {statusCode}");
+				DebugLogger.Log($"[{nameof(LogSender)}] Send log portion result code = {(int)statusCode} {statusCode}");
 
 				if (!succeeded)
 				{
@@ -156,7 +157,7 @@ namespace MiniIT.Snipe.Internal
 
 			if (succeeded)
 			{
-				DebugLogger.Log($"[{nameof(LogSender)}] - Sent successfully. UserId = {userId}, ConnectionId = {connectionId}");
+				DebugLogger.Log($"[{nameof(LogSender)}] Sent successfully. UserId = {userId}, ConnectionId = {connectionId}");
 			}
 
 			_running = false;
