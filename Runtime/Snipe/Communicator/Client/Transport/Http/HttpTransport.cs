@@ -244,7 +244,7 @@ namespace MiniIT.Snipe
 			}
 			catch (HttpRequestException e)
 			{
-				_logger.LogError(e, $"{e}");
+				_logger.LogWarning(e, $"DoSendRequest failed: {e}");
 				InternalDisconnect();
 			}
 			finally
@@ -348,7 +348,7 @@ namespace MiniIT.Snipe
 			}
 			catch (HttpRequestException e)
 			{
-				_logger.LogError(e, $"{e}");
+				_logger.LogWarning(e, $"SendHandshake failed: {e}");
 				InternalDisconnect();
 			}
 			finally
