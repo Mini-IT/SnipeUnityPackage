@@ -1,12 +1,10 @@
 using System;
 using System.Text;
 using System.Net;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using MiniIT.Threading;
 using UnityEngine;
 using Cysharp.Threading.Tasks;
 using System.IO;
+using UnityEngine.Networking;
 
 #if ZSTRING
 using Cysharp.Text;
@@ -14,38 +12,15 @@ using Cysharp.Text;
 
 namespace MiniIT.Snipe.Internal
 {
-	internal class LogSender : IDisposable
+	internal class LogSender
 	{
 		private const int MAX_CHUNK_LENGTH = 200 * 1024;
 
-		private SnipeContext _snipeContext;
-		private HttpClient _httpClient;
-		private bool _running = false;
+		private readonly SnipeContext _snipeContext;
 
-		private readonly AlterSemaphore _semaphore;
-
-		public LogSender(AlterSemaphore semaphore)
-		{
-			_semaphore = semaphore;
-		}
-
-		internal void SetSnipeContext(SnipeContext snipeContext)
+		public LogSender(SnipeContext snipeContext)
 		{
 			_snipeContext = snipeContext;
-		}
-
-		public void Dispose()
-		{
-			if (_httpClient != null)
-			{
-				try
-				{
-					_httpClient.Dispose();
-				}
-				catch (Exception) { }
-
-				_httpClient = null;
-			}
 		}
 
 		internal async UniTask<bool> SendAsync(StreamReader file)
@@ -57,28 +32,6 @@ namespace MiniIT.Snipe.Internal
 			{
 				DebugLogger.LogWarning($"[{nameof(LogSender)}] Invalid apiKey or url");
 				return false;
-			}
-
-			bool semaphoreOccupied = false;
-
-			try
-			{
-				await _semaphore.WaitAsync();
-				semaphoreOccupied = true;
-
-				if (_running)
-				{
-					DebugLogger.LogWarning($"[{nameof(LogSender)}] Already running");
-					return false;
-				}
-				_running = true;
-			}
-			finally
-			{
-				if (semaphoreOccupied)
-				{
-					_semaphore.Release();
-				}
 			}
 
 			int connectionId = 0;
@@ -94,57 +47,44 @@ namespace MiniIT.Snipe.Internal
 			bool succeeded = true;
 			HttpStatusCode statusCode = default;
 
-			_httpClient ??= new HttpClient();
-			_httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-
 			string line = null;
 
 			while (!file.EndOfStream)
 			{
-				semaphoreOccupied = false;
+				string content = GetPortionContent(file, ref line, connectionId, userId, appVersion, appPlatform);
 
 				try
 				{
-					await _semaphore.WaitAsync();
-					semaphoreOccupied = true;
-
-					string content = GetPortionContent(file, ref line, connectionId, userId, appVersion, appPlatform);
-					var requestContent = new StringContent(content, Encoding.UTF8, "application/json");
-
-					try
+					using (var request = UnityWebRequest.Post(url, content, "application/json"))
 					{
-						HttpResponseMessage result = await _httpClient.PostAsync(url, requestContent);
+						request.SetRequestHeader("Authorization", "Bearer " + apiKey);
+						await request.SendWebRequest();
 
-						statusCode = result.StatusCode;
+						try
+						{
+							statusCode = (HttpStatusCode)request.responseCode;
+						}
+						catch (Exception)
+						{
+							statusCode = (request.result == UnityWebRequest.Result.Success) ?
+								HttpStatusCode.OK :
+								HttpStatusCode.BadRequest;
+						}
 
-						if (!result.IsSuccessStatusCode)
+						if (request.result != UnityWebRequest.Result.Success)
 						{
 							succeeded = false;
-							DebugLogger.Log($"[{nameof(LogSender)}] Failed posting log. Result code = {(int)statusCode} {statusCode}");
+							DebugLogger.Log($"[{nameof(LogSender)}] Failed posting log. Result code = {(int)statusCode} {statusCode} " + request.error);
 							break;
 						}
-					}
-					catch (Exception ex)
-					{
-						succeeded = false;
-						statusCode = HttpStatusCode.BadRequest;
-						DebugLogger.LogError($"[{nameof(LogSender)}] Error posting log portion: {ex}");
-						break;
 					}
 				}
 				catch (Exception ex)
 				{
 					succeeded = false;
 					statusCode = HttpStatusCode.BadRequest;
-					DebugLogger.LogError($"[{nameof(LogSender)}] Error getting log portion: {ex}");
+					DebugLogger.LogError($"[{nameof(LogSender)}] Error posting log portion: {ex}");
 					break;
-				}
-				finally
-				{
-					if (semaphoreOccupied)
-					{
-						_semaphore.Release();
-					}
 				}
 
 				DebugLogger.Log($"[{nameof(LogSender)}] Send log portion result code = {(int)statusCode} {statusCode}");
@@ -159,8 +99,6 @@ namespace MiniIT.Snipe.Internal
 			{
 				DebugLogger.Log($"[{nameof(LogSender)}] Sent successfully. UserId = {userId}, ConnectionId = {connectionId}");
 			}
-
-			_running = false;
 
 			return succeeded;
 		}

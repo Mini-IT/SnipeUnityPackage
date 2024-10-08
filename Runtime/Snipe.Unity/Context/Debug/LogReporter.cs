@@ -1,3 +1,7 @@
+#if UNITY_WEBGL
+#define SINGLE_THREAD
+#endif
+
 using System;
 using MiniIT.Snipe;
 using MiniIT.Snipe.Internal;
@@ -13,16 +17,16 @@ namespace MiniIT
 	{
 		private const int MIN_BYTES_TO_FLUSH = 4096;
 
-		private static readonly AlterSemaphore s_semaphore = new AlterSemaphore(1, 1);
+		private static readonly AlterSemaphore s_semaphore;
 
 		private static string s_filePath;
 		private static FileStream s_file;
 		private static int s_bytesWritten;
-
-		private readonly LogSender _sender;
+		private SnipeContext _snipeContext;
 
 		static LogReporter()
 		{
+			s_semaphore = new AlterSemaphore(1, 1);
 			Application.logMessageReceivedThreaded += OnLogMessageReceived;
 			CreateNewFile();
 		}
@@ -39,14 +43,9 @@ namespace MiniIT
 			DebugLogger.Log($"[{nameof(LogReporter)}] New temp log file created: " + s_filePath);
 		}
 
-		public LogReporter()
-		{
-			_sender = new LogSender(s_semaphore);
-		}
-
 		internal void SetSnipeContext(SnipeContext snipeContext)
 		{
-			_sender.SetSnipeContext(snipeContext);
+			_snipeContext = snipeContext;
 		}
 
 		public async UniTask<bool> SendAsync()
@@ -81,8 +80,8 @@ namespace MiniIT
 			try
 			{
 				file = File.OpenText(filepath);
-
-				result = await _sender.SendAsync(file);
+				var sender = new LogSender(_snipeContext);
+				result = await sender.SendAsync(file);
 			}
 			finally
 			{
@@ -124,13 +123,22 @@ namespace MiniIT
 					long ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 					string json = GetLogRecordJson(ts, type, condition, stackTrace);
 					byte[] bytes = Encoding.UTF8.GetBytes(json + "\n");
+
+#if SINGLE_THREAD
+					s_file.Write(bytes, 0, bytes.Length);
+#else
 					await s_file.WriteAsync(bytes, 0, bytes.Length);
+#endif
 
 					s_bytesWritten += bytes.Length;
 					if (s_bytesWritten >= MIN_BYTES_TO_FLUSH)
 					{
 						s_bytesWritten = 0;
+#if SINGLE_THREAD
+						s_file.Flush();
+#else
 						await s_file.FlushAsync();
+#endif
 					}
 				}
 			}
@@ -191,7 +199,6 @@ namespace MiniIT
 		{
 			s_file?.Dispose();
 			s_file = null;
-			_sender.Dispose();
 
 			try
 			{
