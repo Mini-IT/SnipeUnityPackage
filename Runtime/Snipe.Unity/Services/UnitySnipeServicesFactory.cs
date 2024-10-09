@@ -7,7 +7,13 @@ namespace MiniIT.Snipe.Unity
 {
 	public class UnitySnipeServicesFactory : ISnipeServiceLocatorFactory
 	{
-		public virtual ISharedPrefs CreateSharedPrefs() => new UnitySharedPrefs();
+		public virtual ISharedPrefs CreateSharedPrefs() =>
+#if UNITY_WEBGL && !UNITY_EDITOR
+			new WebGLSharedPrefs();
+#else
+			new UnitySharedPrefs();
+#endif
+
 		public virtual ILogService CreateLogService() => new UnityLogService();
 		public virtual ISnipeAnalyticsService CreateAnalyticsService() => new SnipeAnalyticsService();
 		public virtual IMainThreadRunner CreateMainThreadRunner() => new MainThreadRunner();
