@@ -1,9 +1,9 @@
 using System.Net.Http;
 using Cysharp.Threading.Tasks;
 
-namespace MiniIT.Snipe.Internal
+namespace MiniIT.Http
 {
-	public struct SystemHttpTransportClientResponse : IHttpTransportClientResponse
+	public struct SystemHttpClientResponse : IHttpClientResponse
 	{
 		public long ResponseCode { get; }
 		public readonly bool IsSuccess => _response.IsSuccessStatusCode;
@@ -11,7 +11,7 @@ namespace MiniIT.Snipe.Internal
 
 		private readonly HttpResponseMessage _response;
 
-		public SystemHttpTransportClientResponse(HttpResponseMessage response) : this()
+		public SystemHttpClientResponse(HttpResponseMessage response) : this()
 		{
 			_response = response;
 			ResponseCode = (long)response.StatusCode;

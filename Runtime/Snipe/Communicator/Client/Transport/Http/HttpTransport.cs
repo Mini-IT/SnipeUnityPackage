@@ -5,7 +5,7 @@ using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using Microsoft.Extensions.Logging;
-using MiniIT.Snipe.Internal;
+using MiniIT.Http;
 using MiniIT.Threading;
 
 namespace MiniIT.Snipe
@@ -18,7 +18,7 @@ namespace MiniIT.Snipe
 		public override bool Connected => _connected;
 		public override bool ConnectionEstablished => _connectionEstablished;
 
-		private IHttpTransportClient _client;
+		private IHttpClient _client;
 
 		private TimeSpan _heartbeatInterval;
 
@@ -43,22 +43,10 @@ namespace MiniIT.Snipe
 
 				_baseUrl = GetBaseUrl();
 
-				if (_client == null)
-				{
-					InitializeClient();
-				}
+				_client ??= HttpClientFactory.Create();
 			}
 
 			SendHandshake();
-		}
-
-		private void InitializeClient()
-		{
-#if UNITY_WEBGL
-			_client = new UnityHttpClient();
-#else
-			_client = new SystemHttpClient();
-#endif
 		}
 
 		public override void Disconnect()

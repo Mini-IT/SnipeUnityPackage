@@ -3,9 +3,9 @@ using System;
 using Cysharp.Threading.Tasks;
 using UnityEngine.Networking;
 
-namespace MiniIT.Snipe.Internal
+namespace MiniIT.Http
 {
-	public class UnityHttpClient : IHttpTransportClient
+	public class UnityHttpClient : IHttpClient
 	{
 		string _authToken;
 
@@ -19,13 +19,13 @@ namespace MiniIT.Snipe.Internal
 			_authToken = token;
 		}
 
-		public async UniTask<IHttpTransportClientResponse> GetAsync(Uri uri)
+		public async UniTask<IHttpClientResponse> GetAsync(Uri uri)
 		{
 			var request = UnityWebRequest.Get(uri.ToString());
 			return await SendRequestAsync(request);
 		}
 
-		public async UniTask<IHttpTransportClientResponse> PostJsonAsync(Uri uri, string content)
+		public async UniTask<IHttpClientResponse> PostJsonAsync(Uri uri, string content)
 		{
 			var request = UnityWebRequest.Post(uri.ToString(), content, "application/json");
 			if (!string.IsNullOrEmpty(_authToken))
@@ -36,11 +36,11 @@ namespace MiniIT.Snipe.Internal
 			return await SendRequestAsync(request);
 		}
 
-		private static async UniTask<IHttpTransportClientResponse> SendRequestAsync(UnityWebRequest request)
+		private static async UniTask<IHttpClientResponse> SendRequestAsync(UnityWebRequest request)
 		{
 			request.downloadHandler = new DownloadHandlerBuffer();
 			await request.SendWebRequest().ToUniTask();
-			return new UnityHttpTransportClientResponse(request);
+			return new UnityHttpClientResponse(request);
 		}
 	}
 }
