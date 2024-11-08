@@ -39,7 +39,7 @@ namespace MiniIT.Http
 
 		public async UniTask<IHttpClientResponse> PostAsync(Uri uri, string name, byte[] content)
 		{
-			WWWForm form = new WWWForm();
+			var form = new WWWForm();
 			form.AddBinaryData(name, content);
 
 			var request = UnityWebRequest.Post(uri, form);
