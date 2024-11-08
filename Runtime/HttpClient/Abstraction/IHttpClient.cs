@@ -1,4 +1,3 @@
-
 using System;
 using Cysharp.Threading.Tasks;
 
@@ -10,6 +9,7 @@ namespace MiniIT.Http
 		void SetAuthToken(string token);
 		UniTask<IHttpClientResponse> GetAsync(Uri uri);
 		UniTask<IHttpClientResponse> PostJsonAsync(Uri uri, string content);
+		UniTask<IHttpClientResponse> PostAsync(Uri uri, string name, byte[] content);
 	}
 
 	public interface IHttpClientResponse : IDisposable

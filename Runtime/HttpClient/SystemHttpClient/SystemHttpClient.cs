@@ -40,6 +40,15 @@ namespace MiniIT.Http
 			return new SystemHttpClientResponse(response);
 		}
 
+		public async UniTask<IHttpClientResponse> PostAsync(Uri uri, string name, byte[] content)
+		{
+			var requestContent = new MultipartFormDataContent();
+			requestContent.Add(new ByteArrayContent(content), name);
+
+			var response = await _httpClient.PostAsync(uri, requestContent);
+			return new SystemHttpClientResponse(response);
+		}
+
 		public void Dispose()
 		{
 			_httpClient.Dispose();

@@ -1,6 +1,7 @@
 
 using System;
 using Cysharp.Threading.Tasks;
+using UnityEngine;
 using UnityEngine.Networking;
 
 namespace MiniIT.Http
@@ -21,13 +22,27 @@ namespace MiniIT.Http
 
 		public async UniTask<IHttpClientResponse> GetAsync(Uri uri)
 		{
-			var request = UnityWebRequest.Get(uri.ToString());
+			var request = UnityWebRequest.Get(uri);
 			return await SendRequestAsync(request);
 		}
 
 		public async UniTask<IHttpClientResponse> PostJsonAsync(Uri uri, string content)
 		{
-			var request = UnityWebRequest.Post(uri.ToString(), content, "application/json");
+			var request = UnityWebRequest.Post(uri, content, "application/json");
+			if (!string.IsNullOrEmpty(_authToken))
+			{
+				request.SetRequestHeader("Authorization", "Bearer " + _authToken);
+			}
+
+			return await SendRequestAsync(request);
+		}
+
+		public async UniTask<IHttpClientResponse> PostAsync(Uri uri, string name, byte[] content)
+		{
+			WWWForm form = new WWWForm();
+			form.AddBinaryData(name, content);
+
+			var request = UnityWebRequest.Post(uri, form);
 			if (!string.IsNullOrEmpty(_authToken))
 			{
 				request.SetRequestHeader("Authorization", "Bearer " + _authToken);
