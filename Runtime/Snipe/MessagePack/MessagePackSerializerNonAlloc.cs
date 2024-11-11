@@ -26,7 +26,7 @@ namespace MiniIT.MessagePack
 		{
 			return Serialize(ref buffer, 0, data, throwUnsupportedType);
 		}
-		
+
 		public ArraySegment<byte> Serialize(ref byte[] buffer, int position, Dictionary<string, object> data, bool throwUnsupportedType = true)
 		{
 			_position = position;
@@ -34,11 +34,11 @@ namespace MiniIT.MessagePack
 			DoSerialize(ref buffer, data);
 			return new ArraySegment<byte>(buffer, 0, _position);
 		}
-		
+
 		private void DoSerialize(ref byte[] buffer, object val)
 		{
 			EnsureCapacity(ref buffer, 1);
-			
+
 			if (val == null)
 			{
 				buffer[_position++] = (byte)0xC0;
@@ -55,13 +55,13 @@ namespace MiniIT.MessagePack
 			{
 				WriteMap(ref buffer, map);
 			}
+			else if (val is byte[] data)
+			{
+				WriteBinary(ref buffer, data);
+			}
 			else if (val is IList list)
 			{
 				WirteArray(ref buffer, list);
-			}
-			else if (val is byte[] data)
-			{
-				CopyBytes(ref buffer, data);
 			}
 			else
 			{
@@ -109,7 +109,7 @@ namespace MiniIT.MessagePack
 		{
 			byte[] raw_bytes = Encoding.UTF8.GetBytes(str);
 			int len = raw_bytes.Length;
-			
+
 			EnsureCapacity(ref buffer, len + 5);
 
 			if (len <= 31)
@@ -131,16 +131,16 @@ namespace MiniIT.MessagePack
 				buffer[_position++] = (byte)0xDB;
 				CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes(Convert.ToUInt32(len)), 4);
 			}
-			
+
 			CopyBytes(ref buffer, raw_bytes, len);
 		}
 
 		private void WriteMap(ref byte[] buffer, IDictionary map)
 		{
 			int len = map.Count;
-			
+
 			EnsureCapacity(ref buffer, len + 5);
-			
+
 			if (len <= 0x0F)
 			{
 				buffer[_position++] = (byte)(0x80 | len);
@@ -166,15 +166,15 @@ namespace MiniIT.MessagePack
 		private void WirteArray(ref byte[] buffer, IList list)
 		{
 			int len = list.Count;
-			
+
 			EnsureCapacity(ref buffer, len + 5);
-			
+
 			if (len <= 0x0F)
 			{
 				buffer[_position++] = (byte)(0x90 | len);
 			}
 			else if (len <= 0xFFFF)
-			{	
+			{
 				buffer[_position++] = (byte)0xDC;
 				CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes((UInt16)len), 2);
 			}
@@ -193,9 +193,9 @@ namespace MiniIT.MessagePack
 		private void WriteBinary(ref byte[] buffer, byte[] data)
 		{
 			int len = data.Length;
-			
+
 			EnsureCapacity(ref buffer, len + 5);
-			
+
 			if (len <= 0xFF)
 			{
 				buffer[_position++] = (byte)0xC4;
@@ -211,14 +211,14 @@ namespace MiniIT.MessagePack
 				buffer[_position++] = (byte)0xC6;
 				CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes(Convert.ToUInt32(len)), 4);
 			}
-			
+
 			CopyBytes(ref buffer, data, len);
 		}
 
 		private void WriteInteger(ref byte[] buffer, ulong val) // uint 64
 		{
 			EnsureCapacity(ref buffer, 9);
-			
+
 			buffer[_position++] = (byte)0xCF;
 			CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes(val));
 		}
@@ -226,7 +226,7 @@ namespace MiniIT.MessagePack
 		private void WriteInteger(ref byte[] buffer, long val)
 		{
 			EnsureCapacity(ref buffer, 9);
-			
+
 			if (val >= 0)
 			{
 				if (val <= 0x7F)  // positive fixint
@@ -282,22 +282,22 @@ namespace MiniIT.MessagePack
 				}
 			}
 		}
-		
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private void CopyBytes(ref byte[] buffer, byte[] data)
 		{
 			CopyBytes(ref buffer, data, data.Length);
 		}
-		
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private void CopyBytes(ref byte[] buffer, byte[] data, int length)
 		{
 			EnsureCapacity(ref buffer, length);
-			
+
 			Array.ConstrainedCopy(data, 0, buffer, _position, length);
 			_position += length;
 		}
-		
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		void EnsureCapacity(ref byte[] buffer, int additional_lenght)
 		{
@@ -306,7 +306,7 @@ namespace MiniIT.MessagePack
 			{
 				int capacity = Math.Max(length, buffer.Length * 2);
 				Array.Resize(ref buffer, capacity);
-				
+
 				if (MaxUsedBufferSize < capacity)
 					MaxUsedBufferSize = capacity;
 			}
