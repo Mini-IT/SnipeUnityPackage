@@ -10,6 +10,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace MiniIT.MessagePack
@@ -86,29 +87,21 @@ namespace MiniIT.MessagePack
 			else if (format_byte == 0xC4)  // bin 8
 			{
 				int len = ms.ReadByte();
-				var raw_bytes = new byte[len];
-				ms.Read(raw_bytes, 0, len);
-				return Convert.ToInt32(raw_bytes);
+				return ReadBytes(ms, len);
 			}
 			else if (format_byte == 0xC5)  // bin 16
 			{
 				var raw_bytes = new byte[2];
 				ms.Read(raw_bytes, 0, 2);
 				int len = EndianBitConverter.Big.ToInt16(raw_bytes, 0);
-
-				raw_bytes = new byte[len];
-				ms.Read(raw_bytes, 0, len);
-				return raw_bytes;
+				return ReadBytes(ms, len);
 			}
 			else if (format_byte == 0xC6)  // bin 32
 			{
 				var raw_bytes = new byte[4];
 				ms.Read(raw_bytes, 0, 4);
 				int len = Convert.ToInt32(EndianBitConverter.Big.ToUInt32(raw_bytes, 0));
-
-				raw_bytes = new byte[len];
-				ms.Read(raw_bytes, 0, len);
-				return raw_bytes;
+				return ReadBytes(ms, len);
 			}
 			else if (format_byte == 0xCA)  // float 32
 			{
@@ -200,6 +193,14 @@ namespace MiniIT.MessagePack
 			}
 
 			return null;
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private static object ReadBytes(Stream ms, int len)
+		{
+			var raw_bytes = new byte[len];
+			ms.Read(raw_bytes, 0, len);
+			return raw_bytes;
 		}
 
 		private static List<object> ReadArray(Stream ms, int len)
