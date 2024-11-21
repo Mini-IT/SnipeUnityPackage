@@ -1,7 +1,9 @@
 {
-    "name": "MiniIT.Snipe.HttpTransport.Internal.Abstraction",
+    "name": "MiniIT.HttpClient.Unity",
     "rootNamespace": "",
     "references": [
+        "MiniIT.HttpClient.Abstraction",
+        "MiniIT.AlterTask",
         "UniTask"
     ],
     "includePlatforms": [],

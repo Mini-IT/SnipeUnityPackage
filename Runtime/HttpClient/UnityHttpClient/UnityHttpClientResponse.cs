@@ -2,9 +2,9 @@ using Cysharp.Threading.Tasks;
 using MiniIT.Threading;
 using UnityEngine.Networking;
 
-namespace MiniIT.Snipe.Internal
+namespace MiniIT.Http
 {
-	public struct UnityHttpTransportClientResponse : IHttpTransportClientResponse
+	public struct UnityHttpClientResponse : IHttpClientResponse
 	{
 		public long ResponseCode { get; }
 
@@ -13,7 +13,7 @@ namespace MiniIT.Snipe.Internal
 
 		private readonly UnityWebRequest _unityWebRequest;
 
-		public UnityHttpTransportClientResponse(UnityWebRequest unityWebRequest) : this()
+		public UnityHttpClientResponse(UnityWebRequest unityWebRequest) : this()
 		{
 			_unityWebRequest = unityWebRequest;
 			ResponseCode = _unityWebRequest.responseCode;

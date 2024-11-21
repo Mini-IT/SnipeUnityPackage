@@ -5,9 +5,9 @@ using System.Net.Http.Headers;
 using System.Text;
 using Cysharp.Threading.Tasks;
 
-namespace MiniIT.Snipe.Internal
+namespace MiniIT.Http
 {
-	public class SystemHttpClient : IHttpTransportClient, IDisposable
+	public class SystemHttpClient : IHttpClient, IDisposable
 	{
 		private readonly HttpClient _httpClient;
 
@@ -26,23 +26,33 @@ namespace MiniIT.Snipe.Internal
 			_httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 		}
 
-		public async UniTask<IHttpTransportClientResponse> GetAsync(Uri uri)
+		public async UniTask<IHttpClientResponse> GetAsync(Uri uri)
 		{
 			HttpResponseMessage response = await _httpClient.GetAsync(uri);
-			return new SystemHttpTransportClientResponse(response);
+			return new SystemHttpClientResponse(response);
 		}
 
-		public async UniTask<IHttpTransportClientResponse> PostJsonAsync(Uri uri, string content)
+		public async UniTask<IHttpClientResponse> PostJsonAsync(Uri uri, string content)
 		{
 			var requestContent = new StringContent(content, Encoding.UTF8, "application/json");
 
 			var response = await _httpClient.PostAsync(uri, requestContent);
-			return new SystemHttpTransportClientResponse(response);
+			return new SystemHttpClientResponse(response);
+		}
+
+		public async UniTask<IHttpClientResponse> PostAsync(Uri uri, string name, byte[] content)
+		{
+			var requestContent = new MultipartFormDataContent();
+			requestContent.Add(new ByteArrayContent(content), name);
+
+			var response = await _httpClient.PostAsync(uri, requestContent);
+			return new SystemHttpClientResponse(response);
 		}
 
 		public void Dispose()
 		{
 			_httpClient.Dispose();
+			GC.SuppressFinalize(this);
 		}
 	}
 }
