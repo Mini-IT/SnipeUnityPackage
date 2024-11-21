@@ -164,8 +164,6 @@ namespace MiniIT.Snipe
 		
 		private SnipeObject ReadMessage(ArraySegment<byte> buffer, bool compressed)
 		{
-			// byte opcode = buffer.Array[buffer.Offset];
-
 			int len = BitConverter.ToInt32(buffer.Array, buffer.Offset + 1);
 			
 			if (len > buffer.Count - 5)
@@ -178,9 +176,7 @@ namespace MiniIT.Snipe
 
 			if (compressed)
 			{
-				var decompressed_data = _messageCompressor.Decompress(raw_data);
-
-				return MessagePackDeserializer.Parse(decompressed_data) as SnipeObject;
+				raw_data = _messageCompressor.Decompress(raw_data);
 			}
 
 			return MessagePackDeserializer.Parse(raw_data) as SnipeObject;
