@@ -11,6 +11,7 @@ namespace MiniIT.Snipe
 		ISnipeAnalyticsService Analytics { get; }
 		IMainThreadRunner MainThreadRunner { get; }
 		IApplicationInfo ApplicationInfo { get; }
+		IStopwatchFactory FuzzyStopwatchFactory { get; }
 	}
 
 	public interface ISnipeServiceLocatorFactory
@@ -20,5 +21,6 @@ namespace MiniIT.Snipe
 		ISnipeAnalyticsService CreateAnalyticsService();
 		IMainThreadRunner CreateMainThreadRunner();
 		IApplicationInfo CreateApplicationInfo();
+		IStopwatchFactory CreateFuzzyStopwatchFactory();
 	}
 }

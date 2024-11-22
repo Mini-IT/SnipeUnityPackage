@@ -5,7 +5,8 @@
         "MiniIT.Snipe.SharedPrefs",
         "MiniIT.Snipe.Logging",
         "MiniIT.Logging",
-        "MiniIT.Web.Cookie"
+        "MiniIT.Web.Cookie",
+        "MiniIT.Framework.Utilities"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

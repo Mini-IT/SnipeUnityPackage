@@ -14,6 +14,7 @@ namespace MiniIT.Snipe
 		public static ISnipeAnalyticsService Analytics => s_locator.Analytics;
 		public static IMainThreadRunner MainThreadRunner => s_locator.MainThreadRunner;
 		public static IApplicationInfo ApplicationInfo => s_locator.ApplicationInfo;
+		public static IStopwatchFactory FuzzyStopwatchFactory => s_locator.FuzzyStopwatchFactory;
 
 		#endregion
 

@@ -18,5 +18,6 @@ namespace MiniIT.Snipe.Unity
 		public virtual ISnipeAnalyticsService CreateAnalyticsService() => new SnipeAnalyticsService();
 		public virtual IMainThreadRunner CreateMainThreadRunner() => new MainThreadRunner();
 		public virtual IApplicationInfo CreateApplicationInfo() => new UnityApplicationInfo();
+		public virtual IStopwatchFactory CreateFuzzyStopwatchFactory() => new FuzzyStopwatchFactory();
 	}
 }
