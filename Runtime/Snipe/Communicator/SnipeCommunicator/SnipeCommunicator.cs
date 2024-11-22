@@ -341,7 +341,11 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception) { }
 
-			Client = null;
+			if (Client != null)
+			{
+				Client.Dispose();
+				Client = null;
+			}
 		}
 		
 		public void DisposeRequests()

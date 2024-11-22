@@ -523,6 +523,7 @@ namespace MiniIT.Snipe
 
 		public void Dispose()
 		{
+			Disconnect(false);
 			_responseMonitor.Dispose();
 		}
 	}
