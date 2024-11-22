@@ -1,0 +1,3 @@
+# Ignore ".meta" files
+*.meta
+**/*.meta
