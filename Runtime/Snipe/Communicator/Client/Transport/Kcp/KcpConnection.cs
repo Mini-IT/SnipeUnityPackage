@@ -242,28 +242,28 @@ namespace MiniIT.Snipe
 			{
 				if (channel == KcpChannel.Reliable)
 				{
-					byte num_chunks = (byte)(data.Count / CHUNK_DATA_SIZE);
+					byte numChunks = (byte)(data.Count / CHUNK_DATA_SIZE);
 					if (data.Count % CHUNK_DATA_SIZE != 0)
 					{
-						num_chunks++;
+						numChunks++;
 					}
 
 					byte[] buffer = ArrayPool<byte>.Shared.Rent(Kcp.MTU_DEF - 1); // without kcp header
 					buffer[0] = (++_chunkedMessageId);
-					buffer[2] = num_chunks;
+					buffer[2] = numChunks;
 
 					try
 					{
-						for (int chunk_id = 0; chunk_id < num_chunks; chunk_id++)
+						for (int chunkID = 0; chunkID < numChunks; chunkID++)
 						{
-							int start_index = chunk_id * CHUNK_DATA_SIZE;
-							int length = (start_index + CHUNK_DATA_SIZE > data.Count) ? data.Count % CHUNK_DATA_SIZE : CHUNK_DATA_SIZE;
+							int startIndex = chunkID * CHUNK_DATA_SIZE;
+							int chunkLength = (startIndex + CHUNK_DATA_SIZE > data.Count) ? data.Count % CHUNK_DATA_SIZE : CHUNK_DATA_SIZE;
 
-							buffer[1] = (byte)chunk_id;
-							Buffer.BlockCopy(data.Array, data.Offset + start_index, buffer, 3, length);
+							buffer[1] = (byte)chunkID;
+							Buffer.BlockCopy(data.Array, data.Offset + startIndex, buffer, 3, chunkLength);
 
-							var chunk_data = new ArraySegment<byte>(buffer, 0, length + 3);
-							SendReliable(KcpHeader.Chunk, chunk_data);
+							var chunkData = new ArraySegment<byte>(buffer, 0, chunkLength + 3);
+							SendReliable(KcpHeader.Chunk, chunkData);
 						}
 					}
 					finally
