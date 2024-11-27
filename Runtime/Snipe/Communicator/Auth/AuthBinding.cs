@@ -93,9 +93,8 @@ namespace MiniIT.Snipe
 				InvokeBindResultCallback(SnipeErrorCodes.OK);// IsBindDone ? SnipeErrorCodes.OK : SnipeErrorCodes.NOT_INITIALIZED);
 				return;
 			}
-
-			string auth_login = _sharedPrefs.GetString(SnipePrefs.GetAuthUID(_config.ContextId));
-			string auth_token = _sharedPrefs.GetString(SnipePrefs.GetAuthKey(_config.ContextId));
+			string auth_login = GetInternalAuthLogin();
+			string auth_token = GetInternalAuthToken();
 			string uid = GetUserId();
 
 			if (string.IsNullOrEmpty(auth_login) ||
@@ -107,7 +106,7 @@ namespace MiniIT.Snipe
 
 			var data = new SnipeObject()
 			{
-				["ckey"] = _config.ClientKey,
+				["ckey"] = GetClientKey(),
 				["provider"] = ProviderId,
 				["login"] = uid,
 				["loginInt"] = auth_login,
@@ -134,6 +133,18 @@ namespace MiniIT.Snipe
 		public string GetUserId()
 		{
 			return Fetcher?.Value ?? "";
+		}
+
+		protected string GetClientKey() => _config.ClientKey;
+
+		protected string GetInternalAuthToken()
+		{
+			return _sharedPrefs.GetString(SnipePrefs.GetAuthKey(_config.ContextId));
+		}
+
+		protected string GetInternalAuthLogin()
+		{
+			return _sharedPrefs.GetString(SnipePrefs.GetAuthUID(_config.ContextId));
 		}
 
 		protected virtual string GetAuthToken()
