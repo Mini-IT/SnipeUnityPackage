@@ -2,7 +2,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Threading;
 
 namespace MiniIT.Snipe.Api
 {
@@ -26,7 +25,7 @@ namespace MiniIT.Snipe.Api
 		private SnipeObject _logicGetRequestParameters;
 
 		private readonly Stopwatch _refTime = Stopwatch.StartNew();
-		private Timer _secondsTimer;
+		private UniTimer _secondsTimer;
 
 		public LogicManager(SnipeCommunicator communicator,
 			AbstractSnipeApiService.RequestFactoryMethod requestFactory,
@@ -69,7 +68,7 @@ namespace MiniIT.Snipe.Api
 
 			return null;
 		}
-		
+
 		public LogicNode GetNodeByTreeId(int id)
 		{
 			foreach (var node in Nodes.Values)
@@ -95,7 +94,7 @@ namespace MiniIT.Snipe.Api
 
 			return null;
 		}
-		
+
 		public LogicNode GetNodeByTreeStringID(string stringID)
 		{
 			foreach (var node in Nodes.Values)
@@ -209,7 +208,7 @@ namespace MiniIT.Snipe.Api
 					}
 				}
 			}
-				
+
 			bool timerFinished = false;
 
 			if (Nodes.Count == 0)
@@ -221,7 +220,7 @@ namespace MiniIT.Snipe.Api
 					{
 						continue;
 					}
-						
+
 					Nodes.Add(node.id, node);
 					AddTaggedNode(node);
 				}
@@ -293,7 +292,7 @@ namespace MiniIT.Snipe.Api
 				StartSecondsTimer();
 			}
 		}
-		
+
 		private void AddTaggedNode(LogicNode node)
 		{
 			if (node?.tree?.tags == null)
@@ -361,20 +360,19 @@ namespace MiniIT.Snipe.Api
 
 		private void StartSecondsTimer()
 		{
-			if (_secondsTimer == null)
-				_secondsTimer = new Timer(OnSecondsTimerTick, null, 0, 1000);
+			_secondsTimer ??= new UniTimer(TimeSpan.FromSeconds(1), OnSecondsTimerTick);
 		}
 
 		private void StopSecondsTimer()
 		{
-			if (_secondsTimer == null)
-				return;
-
-			_secondsTimer.Dispose();
-			_secondsTimer = null;
+			if (_secondsTimer != null)
+			{
+				_secondsTimer.Stop();
+				_secondsTimer = null;
+			}
 		}
 
-		private void OnSecondsTimerTick(object state = null)
+		private void OnSecondsTimerTick()
 		{
 			if (Nodes.Count > 0)
 			{
