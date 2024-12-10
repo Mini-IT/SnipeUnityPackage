@@ -5,33 +5,19 @@ using MiniIT.Threading;
 
 namespace MiniIT.Snipe.Api
 {
-	public abstract class AbstractSnipeApiModuleManagerWithTable : IDisposable
+	public abstract class AbstractSnipeApiModuleManagerWithTable : AbstractSnipeApiModuleManager
 	{
-		private class QueuedMessage
-		{
-			internal string _messageType;
-			internal string _errorCode;
-			internal SnipeObject _data;
-		}
-		
 		private ISnipeTable _table = null;
 
 		protected CancellationTokenSource _waitingTableCancellation;
 		private Queue<QueuedMessage> _waitingTableMessages;
 
-		protected SnipeCommunicator _snipeCommunicator;
-		protected readonly AbstractSnipeApiService.RequestFactoryMethod _requestFactory;
-
 		public AbstractSnipeApiModuleManagerWithTable(SnipeCommunicator communicator,
 			AbstractSnipeApiService.RequestFactoryMethod requestFactory,
 			ISnipeTable table)
+			: base(communicator, requestFactory)
 		{
-			_requestFactory = requestFactory;
 			_table = table;
-
-			ClearCommunicatorReference();
-
-			_snipeCommunicator = communicator;
 
 			if (_table != null)
 			{
@@ -45,13 +31,13 @@ namespace MiniIT.Snipe.Api
 				}
 			}
 		}
-		
-		protected virtual void OnSnipeCommunicatorPreDestroy()
+
+		protected override void OnSnipeCommunicatorPreDestroy()
 		{
 			Dispose();
 		}
 
-		public virtual void Dispose()
+		public override void Dispose()
 		{
 			if (_waitingTableCancellation != null)
 			{
@@ -63,18 +49,6 @@ namespace MiniIT.Snipe.Api
 
 			_table = null;
 		}
-
-		protected void ClearCommunicatorReference()
-		{
-			if (_snipeCommunicator != null)
-			{
-				_snipeCommunicator.MessageReceived -= OnSnipeMessageReceived;
-				_snipeCommunicator.PreDestroy -= OnSnipeCommunicatorPreDestroy;
-				_snipeCommunicator = null;
-			}
-		}
-
-		protected abstract void OnSnipeMessageReceived(string messageType, string errorCode, SnipeObject data, int requestId);
 
 		protected void ProcessMessage(string messageType, string errorCode, SnipeObject data, Action<string, SnipeObject> handler)
 		{
