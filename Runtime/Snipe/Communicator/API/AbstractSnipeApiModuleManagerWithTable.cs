@@ -19,16 +19,10 @@ namespace MiniIT.Snipe.Api
 		{
 			_table = table;
 
-			if (_table != null)
+			if (_table != null && !_table.Loaded)
 			{
-				_snipeCommunicator.MessageReceived += OnSnipeMessageReceived;
-				_snipeCommunicator.PreDestroy += OnSnipeCommunicatorPreDestroy;
-
-				if (!_table.Loaded)
-				{
-					_waitingTableCancellation = new CancellationTokenSource();
-					WaitForTableLoaded(_waitingTableCancellation.Token);
-				}
+				_waitingTableCancellation = new CancellationTokenSource();
+				WaitForTableLoaded(_waitingTableCancellation.Token);
 			}
 		}
 

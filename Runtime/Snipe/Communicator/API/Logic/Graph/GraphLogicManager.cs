@@ -10,7 +10,7 @@ namespace MiniIT.Snipe.Api
 		public delegate void GraphFinishedHandler(LogicGraph graph);
 		// public delegate void NodeProgressHandler(GraphLogicNode node, SnipeLogicNodeVar nodeVar, int oldValue);
 
-		public event GraphUpdatedHandler GraphLogicUpdated;
+		public event GraphUpdatedHandler GraphUpdated;
 		public event GraphFinishedHandler GraphFinished;
 		// public event NodeProgressHandler NodeProgress;
 
@@ -36,7 +36,7 @@ namespace MiniIT.Snipe.Api
 			GC.SuppressFinalize(this);
 		}
 
-		public void RequestGraphGet(bool force = false)
+		public void RequestGraphGet()
 		{
 			var request = _requestFactory.Invoke("graph.get");
 			request?.Request();
@@ -69,7 +69,7 @@ namespace MiniIT.Snipe.Api
 			switch (messageType)
 			{
 				case "graph.get":
-					OnGraphGet(messageType, data);
+					OnGraphGet(errorCode, data);
 					break;
 
 				case "graph.change":
@@ -106,6 +106,8 @@ namespace MiniIT.Snipe.Api
 					Graphs[graph.ID] = graph;
 				}
 			}
+
+			GraphUpdated?.Invoke(Graphs);
 		}
 
 		private void OnLogicExitNode(string errorCode, SnipeObject data)

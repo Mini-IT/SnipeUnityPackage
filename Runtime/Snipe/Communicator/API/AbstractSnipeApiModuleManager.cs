@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Threading;
 
 namespace MiniIT.Snipe.Api
 {
@@ -19,10 +17,11 @@ namespace MiniIT.Snipe.Api
 		public AbstractSnipeApiModuleManager(SnipeCommunicator communicator,
 			AbstractSnipeApiService.RequestFactoryMethod requestFactory)
 		{
-			ClearCommunicatorReference();
-
 			_requestFactory = requestFactory;
 			_snipeCommunicator = communicator;
+
+			_snipeCommunicator.MessageReceived += OnSnipeMessageReceived;
+			_snipeCommunicator.PreDestroy += OnSnipeCommunicatorPreDestroy;
 		}
 
 		protected virtual void OnSnipeCommunicatorPreDestroy()
