@@ -62,7 +62,7 @@ namespace MiniIT.Snipe.Api
 				return;
 			}
 
-			var request = _requestFactory.Invoke("graph.change",
+			var request = _requestFactory.Invoke("graph.set",
 				new SnipeObject()
 				{
 					["graphID"] = graphID,
@@ -89,11 +89,11 @@ namespace MiniIT.Snipe.Api
 					}
 					break;
 
+				case "graph.set":
 				case "graph.change":
 					RequestGraphGet();
 					break;
 
-				case "graph.finish":
 				case "graph.aborted":
 				case "graph.finished":
 				case "graph.restarted":
