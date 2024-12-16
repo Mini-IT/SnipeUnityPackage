@@ -58,7 +58,7 @@ namespace MiniIT.Snipe.Api
 		{
 			if (!Graphs.TryGetValue(graphID, out graph) || graph?.State == null)
 			{
-				_logger.LogError($"No graph with ID = {graphID} is found");
+				_logger.LogError($"No graph with ID {graphID} is found");
 				graphVar = null;
 				return false;
 			}
@@ -77,7 +77,7 @@ namespace MiniIT.Snipe.Api
 		{
 			if (!TryGetGraphAndVar(graphID, name, out LogicGraph graph, out object currentValue))
 			{
-				_logger.LogError($"Graph with ID = {graphID} has no variable named {name}");
+				_logger.LogError($"Graph with ID {graphID} has no variable named {name}");
 				return;
 			}
 
@@ -102,7 +102,7 @@ namespace MiniIT.Snipe.Api
 		{
 			if (!TryGetGraphAndVar(graphID, name, out LogicGraph graph, out object boxedValue))
 			{
-				_logger.LogError($"Graph with ID = {graphID} has no variable named {name}");
+				_logger.LogError($"Graph with ID {graphID} has no variable named {name}");
 				return;
 			}
 
