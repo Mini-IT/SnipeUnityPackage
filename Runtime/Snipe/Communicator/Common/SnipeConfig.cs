@@ -26,7 +26,7 @@ namespace MiniIT.Snipe
 			public string Host;
 			public ushort Port;
 		}
-		
+
 		public enum WebSocketImplementations
 		{
 			WebSocketSharp,
@@ -42,7 +42,7 @@ namespace MiniIT.Snipe
 		public string ProjectName { get; private set; }
 		public string AppInfo { get; private set; }
 		public string DebugId { get; private set; }
-		
+
 		public bool AutoJoinRoom { get; set; } = true;
 
 		public List<string> ServerWebSocketUrls { get; } = new List<string>();
@@ -54,7 +54,7 @@ namespace MiniIT.Snipe
 		/// If the value is less than 1 second then heartbeat is turned off.
 		/// </summary>
 		public TimeSpan HttpHeartbeatInterval { get; set; } = TimeSpan.FromMinutes(1);
-		
+
 		public bool CompressionEnabled { get; set; } = true;
 		public int MinMessageBytesToCompress { get; set; } = 13 * 1024;
 
@@ -474,18 +474,28 @@ namespace MiniIT.Snipe
 
 		private void InitializeAppInfo()
 		{
-			AppInfo = new SnipeObject()
+			var appInfo = new SnipeObject()
 			{
 				["identifier"] = _applicationInfo.ApplicationIdentifier,
 				["version"] = _applicationInfo.ApplicationVersion,
 				["platform"] = _applicationInfo.ApplicationPlatform,
 				["packageVersion"] = PackageInfo.VERSION_CODE,
 				["packageVersionName"] = PackageInfo.VERSION_NAME,
-			}.ToJSONString();
+			};
+
+			// ReSharper disable once SuspiciousTypeConversion.Global
+			if (_applicationInfo is ISystemInfo systemInfo)
+			{
+				appInfo["deviceName"] = systemInfo.DeviceManufacturer;
+				appInfo["osName"] = systemInfo.OperatingSystemFamily;
+				appInfo["osVersion"] = $"{systemInfo.OperatingSystemVersion.Major}.{systemInfo.OperatingSystemVersion.Minor}";
+			}
+
+			AppInfo = appInfo.ToJSONString();
 
 			DebugId = GenerateDebugId();
 			SnipeServices.Analytics.GetTracker(ContextId).SetDebugId(DebugId);
-			
+
 		}
 
 		private string GenerateDebugId()
