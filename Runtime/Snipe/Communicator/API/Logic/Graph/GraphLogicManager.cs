@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace MiniIT.Snipe.Api
 {
@@ -18,10 +19,13 @@ namespace MiniIT.Snipe.Api
 
 		private List<GraphUpdatedHandler> _graphGetCallbacks;
 
+		private readonly ILogger _logger;
+
 		public GraphLogicManager(SnipeCommunicator communicator,
 			AbstractSnipeApiService.RequestFactoryMethod requestFactory)
 			: base(communicator, requestFactory)
 		{
+			_logger = SnipeServices.LogService.GetLogger<GraphLogicManager>();
 		}
 
 		~GraphLogicManager()
@@ -50,17 +54,39 @@ namespace MiniIT.Snipe.Api
 			request?.Request();
 		}
 
+		public bool TryGetGraphAndVar(int graphID, string varName, out LogicGraph graph, out object graphVar)
+		{
+			if (!Graphs.TryGetValue(graphID, out graph) || graph?.State == null)
+			{
+				_logger.LogError($"No graph with ID = {graphID} is found");
+				graphVar = null;
+				return false;
+			}
+
+			if (!graph.State.Vars.TryGetValue(varName, out object boxedValue))
+			{
+				graphVar = null;
+				return false;
+			}
+
+			graphVar = boxedValue;
+			return true;
+		}
+
 		public void SetGraphVar(int graphID, string name, object value)
 		{
-			if (!Graphs.TryGetValue(graphID, out LogicGraph graph) || graph?.State == null)
+			if (!TryGetGraphAndVar(graphID, name, out LogicGraph graph, out object currentValue))
+			{
+				_logger.LogError($"Graph with ID = {graphID} has no variable named {name}");
+				return;
+			}
+
+			if (currentValue.Equals(value))
 			{
 				return;
 			}
 
-			if (!graph.State.Vars.TryGetValue(name, out var currentValue) || currentValue.Equals(value))
-			{
-				return;
-			}
+			graph.State.Vars[name] = value;
 
 			var request = _requestFactory.Invoke("graph.set",
 				new SnipeObject()
@@ -68,6 +94,27 @@ namespace MiniIT.Snipe.Api
 					["graphID"] = graphID,
 					["name"] = name,
 					["val"] = value,
+				});
+			request?.Request();
+		}
+
+		public void ChangeGraphVar(int graphID, string name, int delta)
+		{
+			if (!TryGetGraphAndVar(graphID, name, out LogicGraph graph, out object boxedValue))
+			{
+				_logger.LogError($"Graph with ID = {graphID} has no variable named {name}");
+				return;
+			}
+
+			int currentValue = Convert.ToInt32(boxedValue);
+			graph.State.Vars[name] = currentValue + delta;
+
+			var request = _requestFactory.Invoke("graph.change",
+				new SnipeObject()
+				{
+					["graphID"] = graphID,
+					["name"] = name,
+					["val"] = delta,
 				});
 			request?.Request();
 		}
@@ -95,8 +142,11 @@ namespace MiniIT.Snipe.Api
 					break;
 
 				case "graph.aborted":
-				case "graph.finished":
 				case "graph.restarted":
+					break;
+
+				case "graph.finished":
+					OnGraphFinished(errorCode, data);
 					break;
 			}
 		}
@@ -127,12 +177,17 @@ namespace MiniIT.Snipe.Api
 			GraphUpdated?.Invoke(Graphs);
 		}
 
-		private void OnLogicExitNode(string errorCode, SnipeObject data)
+		private void OnGraphFinished(string errorCode, SnipeObject data)
 		{
+			if (data == null || errorCode != "ok")
+			{
+				return;
+			}
+
 			LogicGraph graph = Graphs.GetValueOrDefault(data.SafeGetValue("id", 0));
 			GraphFinished?.Invoke(graph);
 
-			// RequestLogicGet(true);
+			RequestGraphGet();
 		}
 	}
 }
