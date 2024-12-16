@@ -24,12 +24,12 @@ namespace MiniIT.Snipe.Api
 				var graph = new SnipeTableGraphsItem();
 				graphsListWrapper.list.Add(graph);
 
-				if (treeData.TryGetValue("id", out var treeID))
-					graph.id = Convert.ToInt32(treeID);
-				if (treeData.TryGetValue("name", out var treeName))
-					graph.name = Convert.ToString(treeName);
-				if (treeData.TryGetValue("stringID", out var treeStringID))
-					graph.stringID = Convert.ToString(treeStringID);
+				if (treeData.TryGetValue("id", out var graphID))
+					graph.id = Convert.ToInt32(graphID);
+				if (treeData.TryGetValue("name", out var graphName))
+					graph.name = Convert.ToString(graphName);
+				if (treeData.TryGetValue("stringID", out var graphStringID))
+					graph.stringID = Convert.ToString(graphStringID);
 
 				graph.nodes = new List<SnipeTableGraphNode>();
 
