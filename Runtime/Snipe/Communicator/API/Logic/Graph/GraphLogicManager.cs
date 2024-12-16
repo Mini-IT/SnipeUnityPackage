@@ -16,6 +16,8 @@ namespace MiniIT.Snipe.Api
 
 		public Dictionary<int, LogicGraph> Graphs { get; } = new Dictionary<int, LogicGraph>();
 
+		private List<GraphUpdatedHandler> _graphGetCallbacks;
+
 		public GraphLogicManager(SnipeCommunicator communicator,
 			AbstractSnipeApiService.RequestFactoryMethod requestFactory)
 			: base(communicator, requestFactory)
@@ -36,8 +38,14 @@ namespace MiniIT.Snipe.Api
 			GC.SuppressFinalize(this);
 		}
 
-		public void RequestGraphGet()
+		public void RequestGraphGet(GraphUpdatedHandler callback = null)
 		{
+			if (callback != null)
+			{
+				_graphGetCallbacks ??= new List<GraphUpdatedHandler>();
+				_graphGetCallbacks.Add(callback);
+			}
+
 			var request = _requestFactory.Invoke("graph.get");
 			request?.Request();
 		}
@@ -70,10 +78,19 @@ namespace MiniIT.Snipe.Api
 			{
 				case "graph.get":
 					OnGraphGet(errorCode, data);
+
+					if (_graphGetCallbacks != null)
+					{
+						foreach (var cb in _graphGetCallbacks)
+						{
+							cb?.Invoke(Graphs);
+						}
+						_graphGetCallbacks.Clear();
+					}
 					break;
 
 				case "graph.change":
-					//RequestLogicGet(true);
+					RequestGraphGet();
 					break;
 
 				case "graph.finish":
