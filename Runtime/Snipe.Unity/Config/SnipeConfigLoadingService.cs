@@ -1,6 +1,9 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using fastJSON;
+using UnityEngine;
 
 namespace MiniIT.Snipe
 {
@@ -8,6 +11,7 @@ namespace MiniIT.Snipe
 	{
 		Dictionary<string, object> Config { get; }
 		UniTask<Dictionary<string, object>> Load(CancellationToken cancellationToken = default);
+		void Reset();
 	}
 
 	public class SnipeConfigLoadingService : ISnipeConfigLoadingService
@@ -53,10 +57,57 @@ namespace MiniIT.Snipe
 				_loader ??= new SnipeConfigLoader(_projectID, SnipeServices.ApplicationInfo);
 			}
 
+			var loadedAdditionalParams = await LoadAdditionalParamsAsync();
+
+			string requestParams = BuildRequestParamsJson(SnipeServices.ApplicationInfo, loadedAdditionalParams);
+			_loader.SetRequestParams(requestParams);
+
 			_config = await _loader.Load();
 			_loading = false;
 
 			return _config;
+		}
+
+		public void Reset()
+		{
+			_config = null;
+			_loading = false;
+		}
+
+		private string BuildRequestParamsJson(IApplicationInfo appInfo, Dictionary<string, object> additionalParams = null)
+		{
+			var requestParams = new Dictionary<string, object>
+			{
+				{ "project", _projectID },
+				{ "deviceID", appInfo.DeviceIdentifier },
+				{ "identifier", appInfo.ApplicationIdentifier },
+				{ "version", appInfo.ApplicationVersion },
+				{ "platform", appInfo.ApplicationPlatform },
+				{ "packageVersion", PackageInfo.VERSION_CODE }
+			};
+
+			if (additionalParams != null)
+			{
+				foreach (var param in additionalParams)
+				{
+					requestParams[param.Key] = param.Value;
+				}
+			}
+
+			return JSON.ToJSON(requestParams);
+		}
+
+		private async UniTask<Dictionary<string, object>> LoadAdditionalParamsAsync()
+		{
+			string filePath = Path.Combine(Application.persistentDataPath, string.Format("additionalParams{0}.json", Application.version));
+
+			if (!File.Exists(filePath))
+			{
+				return new Dictionary<string, object>();
+			}
+
+			string json = await File.ReadAllTextAsync(filePath);
+			return (Dictionary<string, object>)JSON.Parse(json);
 		}
 	}
 }
