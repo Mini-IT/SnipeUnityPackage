@@ -3,8 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using fastJSON;
-using UnityEngine;
 using UnityEngine.Networking;
+using Microsoft.Extensions.Logging;
 
 namespace MiniIT.Snipe
 {
@@ -13,12 +13,14 @@ namespace MiniIT.Snipe
 		private readonly string _projectID;
 		private readonly string _url;
 		private readonly IApplicationInfo _appInfo;
+		private readonly ILogger _logger;
 
 		public SnipeConfigLoader(string projectID, IApplicationInfo appInfo)
 		{
 			_projectID = projectID;
 			_appInfo = appInfo;
 			_url = "https://config.snipe.dev/api/v1/configStrings";
+			_logger = SnipeServices.LogService.GetLogger<SnipeConfigLoader>();
 		}
 
 		public async UniTask<Dictionary<string, object>> Load()
@@ -42,12 +44,12 @@ namespace MiniIT.Snipe
 
 				if (response.result != UnityWebRequest.Result.Success)
 				{
-					Debug.Log($"[{nameof(SnipeConfigLoader)}] loader failed. {response.error}");
+					_logger.LogTrace($"loader failed. {response.error}");
 					return config;
 				}
 
 				string responseMessage = response.downloadHandler.text;
-				Debug.Log($"[{nameof(SnipeConfigLoader)}] loader response: {responseMessage}");
+				_logger.LogTrace($"loader response: {responseMessage}");
 
 				var fullResponse = (Dictionary<string, object>)JSON.Parse(responseMessage);
 				if (fullResponse != null)
@@ -76,7 +78,7 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception e)
 			{
-				Debug.Log($"[{nameof(SnipeConfigLoader)}] loader failed: {e}");
+				_logger.LogTrace($"loader failed: {e}");
 			}
 
 			return config;
