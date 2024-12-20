@@ -3,27 +3,30 @@ using System.Collections;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 
-using GraphUpdatedHandler = System.Action<System.Collections.Generic.Dictionary<int, MiniIT.Snipe.Api.LogicGraph>>;
+using GraphUpdatedDelegate = System.Action<System.Collections.Generic.Dictionary<int, MiniIT.Snipe.Api.LogicGraph>>;
 
 namespace MiniIT.Snipe.Api
 {
-	public class GraphLogicManager : AbstractSnipeApiModuleManager
+	public class GraphLogicManager : AbstractSnipeApiModuleManagerWithTable
 	{
-		public event GraphUpdatedHandler GraphUpdated;
+		public event GraphUpdatedDelegate GraphUpdated;
 		public event Action<LogicGraph> GraphFinished;
 		public event Action<LogicGraph> GraphAborted;
 		public event Action<LogicGraph> GraphRestarted;
 
 		public Dictionary<int, LogicGraph> Graphs { get; } = new Dictionary<int, LogicGraph>();
 
-		private List<GraphUpdatedHandler> _graphGetCallbacks;
+		private List<GraphUpdatedDelegate> _graphGetCallbacks;
 
+		private readonly LogicGraphParser _graphParser;
 		private readonly ILogger _logger;
 
 		public GraphLogicManager(SnipeCommunicator communicator,
-			AbstractSnipeApiService.RequestFactoryMethod requestFactory)
-			: base(communicator, requestFactory)
+			AbstractSnipeApiService.RequestFactoryMethod requestFactory,
+			ISnipeTable<SnipeTableGraphsItem> table)
+			: base(communicator, requestFactory, table)
 		{
+			_graphParser = new LogicGraphParser(table);
 			_logger = SnipeServices.LogService.GetLogger<GraphLogicManager>();
 		}
 
@@ -41,11 +44,11 @@ namespace MiniIT.Snipe.Api
 			GC.SuppressFinalize(this);
 		}
 
-		public void RequestGraphGet(GraphUpdatedHandler callback = null)
+		public void RequestGraphGet(GraphUpdatedDelegate callback = null)
 		{
 			if (callback != null)
 			{
-				_graphGetCallbacks ??= new List<GraphUpdatedHandler>();
+				_graphGetCallbacks ??= new List<GraphUpdatedDelegate>();
 				_graphGetCallbacks.Add(callback);
 			}
 
@@ -55,7 +58,7 @@ namespace MiniIT.Snipe.Api
 
 		public bool TryGetGraphAndVar(int graphID, string varName, out LogicGraph graph, out object graphVar)
 		{
-			if (!Graphs.TryGetValue(graphID, out graph) || graph?.State == null)
+			if (!Graphs.TryGetValue(graphID, out graph) || graph.ID <= 0 || graph.State.NodeID <= 0)
 			{
 				_logger.LogError($"No graph with ID {graphID} is found");
 				graphVar = null;
@@ -170,9 +173,8 @@ namespace MiniIT.Snipe.Api
 
 			foreach (var item in graphsList)
 			{
-				if (item is SnipeObject so)
+				if (item is SnipeObject so && _graphParser.TryParse(so, out var graph))
 				{
-					var graph = new LogicGraph(so);
 					Graphs[graph.ID] = graph;
 				}
 			}

@@ -26,7 +26,11 @@ namespace MiniIT.Snipe
 				LogicManager = new LogicManager(Communicator, CreateRequest, logicTable);
 			}
 
-			GraphManager = new GraphLogicManager(Communicator, CreateRequest);
+			var graphsTable = tables.GetTable<SnipeTableGraphsItem>();
+			if (graphsTable != null)
+			{
+				GraphManager = new GraphLogicManager(Communicator, CreateRequest, graphsTable);
+			}
 
 			var badgesTable = tables.GetTable<SnipeTableBadgesItem>();
 			if (badgesTable != null)
