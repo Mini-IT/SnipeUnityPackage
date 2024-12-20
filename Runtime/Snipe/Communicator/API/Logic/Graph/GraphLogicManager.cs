@@ -3,17 +3,16 @@ using System.Collections;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 
+using GraphUpdatedHandler = System.Action<System.Collections.Generic.Dictionary<int, MiniIT.Snipe.Api.LogicGraph>>;
+
 namespace MiniIT.Snipe.Api
 {
 	public class GraphLogicManager : AbstractSnipeApiModuleManager
 	{
-		public delegate void GraphUpdatedHandler(Dictionary<int, LogicGraph> nodes);
-		public delegate void GraphFinishedHandler(LogicGraph graph);
-		// public delegate void NodeProgressHandler(GraphLogicNode node, SnipeLogicNodeVar nodeVar, int oldValue);
-
 		public event GraphUpdatedHandler GraphUpdated;
-		public event GraphFinishedHandler GraphFinished;
-		// public event NodeProgressHandler NodeProgress;
+		public event Action<LogicGraph> GraphFinished;
+		public event Action<LogicGraph> GraphAborted;
+		public event Action<LogicGraph> GraphRestarted;
 
 		public Dictionary<int, LogicGraph> Graphs { get; } = new Dictionary<int, LogicGraph>();
 
@@ -142,11 +141,15 @@ namespace MiniIT.Snipe.Api
 					break;
 
 				case "graph.aborted":
+					ProcessGraphEnded(errorCode, data, GraphAborted);
+					break;
+
 				case "graph.restarted":
+					ProcessGraphEnded(errorCode, data, GraphRestarted);
 					break;
 
 				case "graph.finished":
-					OnGraphFinished(errorCode, data);
+					ProcessGraphEnded(errorCode, data, GraphFinished);
 					break;
 			}
 		}
@@ -177,15 +180,17 @@ namespace MiniIT.Snipe.Api
 			GraphUpdated?.Invoke(Graphs);
 		}
 
-		private void OnGraphFinished(string errorCode, SnipeObject data)
+		private void ProcessGraphEnded(string errorCode, SnipeObject data, Action<LogicGraph> callback)
 		{
 			if (data == null || errorCode != "ok")
 			{
 				return;
 			}
 
-			LogicGraph graph = Graphs.GetValueOrDefault(data.SafeGetValue("id", 0));
-			GraphFinished?.Invoke(graph);
+			if (Graphs.TryGetValue(data.SafeGetValue("id", 0), out LogicGraph graph))
+			{
+				callback?.Invoke(graph);
+			}
 
 			RequestGraphGet();
 		}
