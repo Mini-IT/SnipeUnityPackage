@@ -10,7 +10,7 @@ namespace MiniIT.Snipe
 	public interface ISnipeConfigLoadingService
 	{
 		Dictionary<string, object> Config { get; }
-		UniTask<Dictionary<string, object>> Load(CancellationToken cancellationToken = default);
+		UniTask<Dictionary<string, object>> Load();
 		void Reset();
 	}
 
@@ -24,12 +24,14 @@ namespace MiniIT.Snipe
 		private SnipeConfigLoader _loader;
 		private readonly string _projectID;
 
+		private CancellationTokenSource _loadingCancellation;
+
 		public SnipeConfigLoadingService(string projectID)
 		{
 			_projectID = projectID;
 		}
 
-		public async UniTask<Dictionary<string, object>> Load(CancellationToken cancellationToken = default)
+		public async UniTask<Dictionary<string, object>> Load()
 		{
 			if (_config != null)
 			{
@@ -38,18 +40,19 @@ namespace MiniIT.Snipe
 
 			if (_loading)
 			{
-				await UniTask.WaitWhile(() => _config == null, PlayerLoopTiming.Update, cancellationToken);
+				await UniTask.WaitWhile(() => _config == null, PlayerLoopTiming.Update, _loadingCancellation.Token);
 				return _config;
 			}
 
+			_loadingCancellation ??= new CancellationTokenSource();
 			_loading = true;
 
 			if (_loader == null)
 			{
-				await UniTask.WaitUntil(() => SnipeServices.IsInitialized, PlayerLoopTiming.Update, cancellationToken)
+				await UniTask.WaitUntil(() => SnipeServices.IsInitialized, PlayerLoopTiming.Update, _loadingCancellation.Token)
 					.SuppressCancellationThrow();
 
-				if (cancellationToken.IsCancellationRequested)
+				if (_loadingCancellation.Token.IsCancellationRequested)
 				{
 					return _config;
 				}
@@ -59,10 +62,7 @@ namespace MiniIT.Snipe
 
 			var loadedAdditionalParams = await LoadAdditionalParamsAsync();
 
-			string requestParams = BuildRequestParamsJson(SnipeServices.ApplicationInfo, loadedAdditionalParams);
-			_loader.SetRequestParams(requestParams);
-
-			_config = await _loader.Load();
+			_config = await _loader.Load(loadedAdditionalParams);
 			_loading = false;
 
 			return _config;
@@ -70,31 +70,11 @@ namespace MiniIT.Snipe
 
 		public void Reset()
 		{
+			_loadingCancellation.Cancel();
+			_loadingCancellation.Dispose();
+			_loadingCancellation = null;
 			_config = null;
 			_loading = false;
-		}
-
-		private string BuildRequestParamsJson(IApplicationInfo appInfo, Dictionary<string, object> additionalParams = null)
-		{
-			var requestParams = new Dictionary<string, object>
-			{
-				{ "project", _projectID },
-				{ "deviceID", appInfo.DeviceIdentifier },
-				{ "identifier", appInfo.ApplicationIdentifier },
-				{ "version", appInfo.ApplicationVersion },
-				{ "platform", appInfo.ApplicationPlatform },
-				{ "packageVersion", PackageInfo.VERSION_CODE }
-			};
-
-			if (additionalParams != null)
-			{
-				foreach (var param in additionalParams)
-				{
-					requestParams[param.Key] = param.Value;
-				}
-			}
-
-			return JSON.ToJSON(requestParams);
 		}
 
 		private async UniTask<Dictionary<string, object>> LoadAdditionalParamsAsync()

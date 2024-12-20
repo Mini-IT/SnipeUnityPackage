@@ -14,7 +14,6 @@ namespace MiniIT.Snipe
 		private readonly string _url;
 		private readonly IApplicationInfo _appInfo;
 
-		private string _requestParamsJson;
 		public SnipeConfigLoader(string projectID, IApplicationInfo appInfo)
 		{
 			_projectID = projectID;
@@ -22,18 +21,15 @@ namespace MiniIT.Snipe
 			_url = "https://config.snipe.dev/api/v1/configStrings";
 		}
 
-		public void SetRequestParams(string requestParams)
+		public async UniTask<Dictionary<string, object>> Load(Dictionary<string, object> additionalParams = null)
 		{
-			_requestParamsJson = requestParams;
-		}
+			string requestParamsJson = BuildRequestParamsJson(additionalParams);
 
-		public async UniTask<Dictionary<string, object>> Load()
-		{
 			Dictionary<string, object> config = null;
 
 			try
 			{
-				using var request = UnityWebRequest.Post(_url, _requestParamsJson, "application/json");
+				using var request = UnityWebRequest.Post(_url, requestParamsJson, "application/json");
 				request.downloadHandler = new DownloadHandlerBuffer();
 				var response = await request.SendWebRequest().ToUniTask();
 
@@ -77,6 +73,29 @@ namespace MiniIT.Snipe
 			}
 
 			return config;
+		}
+
+		private string BuildRequestParamsJson(Dictionary<string, object> additionalParams)
+		{
+			var requestParams = new Dictionary<string, object>
+			{
+				{ "project", _projectID },
+				{ "deviceID", _appInfo.DeviceIdentifier },
+				{ "identifier", _appInfo.ApplicationIdentifier },
+				{ "version", _appInfo.ApplicationVersion },
+				{ "platform", _appInfo.ApplicationPlatform },
+				{ "packageVersion", PackageInfo.VERSION_CODE }
+			};
+
+			if (additionalParams != null)
+			{
+				foreach (var param in additionalParams)
+				{
+					requestParams[param.Key] = param.Value;
+				}
+			}
+
+			return JSON.ToJSON(requestParams);
 		}
 	}
 }
