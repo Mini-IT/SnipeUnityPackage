@@ -1,6 +1,6 @@
 using System;
 using MiniIT.Snipe.Logging;
-using MiniIT.Snipe.SharedPrefs;
+using MiniIT.Storage;
 
 namespace MiniIT.Snipe
 {

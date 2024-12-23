@@ -1,6 +1,6 @@
 ﻿using System;
 using Microsoft.Extensions.Logging;
-using MiniIT.Snipe.SharedPrefs;
+using MiniIT.Storage;
 
 namespace MiniIT.Snipe
 {
@@ -65,7 +65,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 			_started = true;
-			
+
 			_logger.LogTrace("Start");
 			if (Fetcher != null && !IsBindDone)
 			{
@@ -179,7 +179,7 @@ namespace MiniIT.Snipe
 					{
 						string auth_login = response_data.SafeGetString("uid");
 						string auth_token = response_data.SafeGetString("password");
-						
+
 						if (!string.IsNullOrEmpty(auth_login) && !string.IsNullOrEmpty(auth_token))
 						{
 							_sharedPrefs.SetString(SnipePrefs.GetAuthUID(_config.ContextId), auth_login);
@@ -188,7 +188,7 @@ namespace MiniIT.Snipe
 
 						SetBindDoneFlag(true);
 					}
-					
+
 					callback?.Invoke(error_code);
 				});
 		}
@@ -276,7 +276,7 @@ namespace MiniIT.Snipe
 				_bindResultCallback = null;
 			}
 		}
-		
+
 		private void SetBindDoneFlag(bool value)
 		{
 			if (value == IsBindDone)

@@ -1,7 +1,6 @@
 using MiniIT.Snipe.Logging;
 using MiniIT.Snipe.Logging.Unity;
-using MiniIT.Snipe.SharedPrefs;
-using MiniIT.Snipe.SharedPrefs.Unity;
+using MiniIT.Storage;
 
 namespace MiniIT.Snipe.Unity
 {
@@ -9,12 +8,7 @@ namespace MiniIT.Snipe.Unity
 	{
 		public static Debugging.ISnipeErrorsTracker DebugErrorsTracker { get; set; } = null;
 
-		public virtual ISharedPrefs CreateSharedPrefs() =>
-#if UNITY_WEBGL && !UNITY_EDITOR
-			new WebGLSharedPrefs();
-#else
-			new UnitySharedPrefs();
-#endif
+		public virtual ISharedPrefs CreateSharedPrefs() => SharedPrefs.Instance;
 
 		public virtual ILogService CreateLogService() => new UnityLogService();
 		public virtual ISnipeAnalyticsService CreateAnalyticsService() => new SnipeAnalyticsService(DebugErrorsTracker);
