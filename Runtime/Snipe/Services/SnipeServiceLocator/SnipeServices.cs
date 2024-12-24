@@ -1,7 +1,7 @@
 using System;
 using Microsoft.Extensions.Logging;
 using MiniIT.Snipe.Logging;
-using MiniIT.Snipe.SharedPrefs;
+using MiniIT.Storage;
 
 namespace MiniIT.Snipe
 {
