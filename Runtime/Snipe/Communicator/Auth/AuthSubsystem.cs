@@ -200,12 +200,7 @@ namespace MiniIT.Snipe
 					{
 						case SnipeErrorCodes.OK:
 						case SnipeErrorCodes.ALREADY_LOGGED_IN:
-							UserID = response.SafeGetValue<int>("id");
-
-							if (response.TryGetValue("name", out string username))
-							{
-								UserName = username;
-							}
+							FillUserIdentity(response);
 
 							StartBindings();
 
@@ -297,7 +292,7 @@ namespace MiniIT.Snipe
 					if (error_code == SnipeErrorCodes.OK)
 					{
 						//ClearAllBindings();
-						UserID = response.SafeGetValue<int>("id");
+						FillUserIdentity(response);
 						SetAuthData(response.SafeGetString("uid"), response.SafeGetString("password"));
 
 						JustRegistered = response.SafeGetValue<bool>("registrationDone", false);
@@ -332,6 +327,16 @@ namespace MiniIT.Snipe
 					}
 				})
 			);
+		}
+
+		private void FillUserIdentity(SnipeObject response)
+		{
+			UserID = response.SafeGetValue<int>("id");
+
+			if (response.TryGetValue("name", out string username))
+			{
+				UserName = username;
+			}
 		}
 
 		private void RunAuthRequest(Action action)
