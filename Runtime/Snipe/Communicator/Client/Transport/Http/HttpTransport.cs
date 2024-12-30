@@ -294,7 +294,7 @@ namespace MiniIT.Snipe
 				["id"] = -1,
 			};
 
-			while (cancellation != null && !cancellation.IsCancellationRequested && Connected)
+			while (!cancellation.IsCancellationRequested && Connected)
 			{
 				try
 				{

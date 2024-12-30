@@ -485,7 +485,7 @@ namespace MiniIT.Snipe
 
 		private void FlushBatchedRequests()
 		{
-			Span<SnipeObject> queue;
+			ReadOnlySpan<SnipeObject> queue;
 
 			lock (_batchLock)
 			{
@@ -513,7 +513,7 @@ namespace MiniIT.Snipe
 					messages.Add(message);
 					_logger.LogTrace("Request batched - {0}", message.ToJSONString());
 				}
-				
+
 				DoSendBatch(messages);
 			}
 		}

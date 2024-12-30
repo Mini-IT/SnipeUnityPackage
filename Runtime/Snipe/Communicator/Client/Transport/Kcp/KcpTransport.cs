@@ -308,7 +308,7 @@ namespace MiniIT.Snipe
 
 		private async void NetworkLoop(CancellationToken cancellation)
 		{
-			while (cancellation != null && !cancellation.IsCancellationRequested)
+			while (!cancellation.IsCancellationRequested)
 			{
 				try
 				{

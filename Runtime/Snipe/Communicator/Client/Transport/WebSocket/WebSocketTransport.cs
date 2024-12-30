@@ -410,7 +410,7 @@ namespace MiniIT.Snipe
 			bool forcePing = false;
 			var pingStopwatch = new Stopwatch();
 
-			while (cancellation != null && !cancellation.IsCancellationRequested && Connected)
+			while (!cancellation.IsCancellationRequested && Connected)
 			{
 				// if ping was sent, but pong was not yet received within HEARTBEAT_TASK_DELAY,
 				// then wait one more HEARTBEAT_TASK_DELAY and then send another ping
@@ -449,7 +449,7 @@ namespace MiniIT.Snipe
 					_logger.LogTrace($"Heartbeat ping");
 				}
 
-				if (cancellation == null || cancellation.IsCancellationRequested)
+				if (cancellation.IsCancellationRequested)
 				{
 					break;
 				}
@@ -519,7 +519,7 @@ namespace MiniIT.Snipe
 			}
 
 			// if the connection is ok then this task should already be cancelled
-			if (cancellation == null || cancellation.IsCancellationRequested)
+			if (cancellation.IsCancellationRequested)
 				return;
 
 			BadConnection = true;
@@ -529,7 +529,7 @@ namespace MiniIT.Snipe
 			while (Connected && BadConnection)
 			{
 				// if the connection is ok then this task should be cancelled
-				if (cancellation == null || cancellation.IsCancellationRequested)
+				if (cancellation.IsCancellationRequested)
 				{
 					BadConnection = false;
 					return;
