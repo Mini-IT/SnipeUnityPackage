@@ -2,37 +2,44 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
-using Microsoft.Extensions.Logging;
 using MiniIT.Threading;
 
 namespace MiniIT.Snipe
 {
 	public class ResponseMonitor : IDisposable
 	{
-		private const int RESPONSE_MONITORING_MAX_DELAY = 3000; // ms
-		
-		internal struct ResponseMonitoringItem
+		private const int MAX_RESPONSE_MILLISECONDS = 3000;
+
+		private struct ResponseMonitoringItem
 		{
 			public TimeSpan Time;
 			public string MessageType;
 		}
-		
+
 		private IStopwatch _stopwatch;
-		private IDictionary<int, ResponseMonitoringItem> _items; // key is request_id
-		
+
 		private CancellationTokenSource _cancellation;
 
+		private readonly IDictionary<int, ResponseMonitoringItem> _items;
 		private readonly SnipeAnalyticsTracker _analytics;
 
 		public ResponseMonitor(SnipeAnalyticsTracker analytics)
 		{
 			_analytics = analytics;
+
+#if UNITY_WEBGL
+			_items = new Dictionary<int, ResponseMonitoringItem>();
+#else
+			_items = new ConcurrentDictionary<int, ResponseMonitoringItem>();
+#endif
+
 			_stopwatch = SnipeServices.FuzzyStopwatchFactory.Create();
+			_stopwatch.Start();
 		}
 
-		public void Add(int request_id, string message_type)
+		public void Add(int requestID, string messageType)
 		{
-			if (message_type == SnipeMessageTypes.USER_LOGIN)
+			if (messageType == SnipeMessageTypes.USER_LOGIN)
 			{
 				return;
 			}
@@ -41,26 +48,23 @@ namespace MiniIT.Snipe
 			{
 				throw new ObjectDisposedException(GetType().Name);
 			}
-				
-			_items ??= new ConcurrentDictionary<int, ResponseMonitoringItem>();
-			_stopwatch.Restart();
-			
-			_items[request_id] = new ResponseMonitoringItem()
+
+			_items[requestID] = new ResponseMonitoringItem()
 			{
 				Time = _stopwatch.Elapsed,
-				MessageType = message_type,
+				MessageType = messageType,
 			};
-			
-			Start();
+
+			if (_cancellation == null)
+			{
+				// Start monitoring
+				_cancellation = new CancellationTokenSource();
+				AlterTask.RunAndForget(() => MonitoringLoop(_cancellation.Token));
+			}
 		}
-		
+
 		public void Remove(int requestID, string messageType)
 		{
-			if (_items == null)
-			{
-				return;
-			}
-
 			bool found = false;
 
 			try
@@ -71,12 +75,12 @@ namespace MiniIT.Snipe
 
 					if (item.MessageType != messageType)
 					{
-						_analytics.TrackEvent("Wrong response type", new SnipeObject()
-							{
-								["request_id"] = requestID,
-								["request_type"] = item.MessageType,
-								["response_type"] = messageType,
-							});
+						_analytics.TrackEvent("Wrong response type", new Dictionary<string, object>()
+						{
+							["request_id"] = requestID,
+							["request_type"] = item.MessageType,
+							["response_type"] = messageType,
+						});
 					}
 				}
 			}
@@ -92,24 +96,11 @@ namespace MiniIT.Snipe
 				}
 			}
 		}
-		
-		public void Start()
-		{
-			if (_cancellation != null)
-			{
-				return;
-			}
-			
-			_items?.Clear();
-			
-			_cancellation = new CancellationTokenSource();
-			AlterTask.RunAndForget(() => ResponseMonitoring(_cancellation.Token));
-		}
 
 		public void Stop()
 		{
 			_items?.Clear();
-			
+
 			if (_cancellation != null)
 			{
 				_cancellation.Cancel();
@@ -131,11 +122,9 @@ namespace MiniIT.Snipe
 			GC.SuppressFinalize(this);
 		}
 
-		private async void ResponseMonitoring(CancellationToken cancellation)
+		private async void MonitoringLoop(CancellationToken cancellation)
 		{
-			List<int> keysToRemove = null;
-
-			while (cancellation != null && !cancellation.IsCancellationRequested)
+			while (!cancellation.IsCancellationRequested)
 			{
 				try
 				{
@@ -146,43 +135,49 @@ namespace MiniIT.Snipe
 					// This is OK. Just terminating the task
 					return;
 				}
-				
-				keysToRemove?.Clear();
-				
-				if (_items != null && _stopwatch != null)
+
+				if (_stopwatch == null)
 				{
-					var now = _stopwatch.Elapsed;
-					
-					foreach (var pair in _items)
+					break;
+				}
+
+				if (_items != null)
+				{
+					ProcessItems();
+				}
+			}
+		}
+
+		private void ProcessItems()
+		{
+			int removeCount = 0;
+			Span<int> removeKeys = stackalloc int[_items.Count];
+
+			var now = _stopwatch.Elapsed;
+
+			foreach (var pair in _items)
+			{
+				int requestID = pair.Key;
+				var item = pair.Value;
+
+				TimeSpan timePassed = now.Subtract(item.Time);
+
+				if (timePassed.TotalMilliseconds > MAX_RESPONSE_MILLISECONDS)
+				{
+					removeKeys[removeCount++] = requestID;
+
+					_analytics.TrackEvent("Response not found", new Dictionary<string, object>()
 					{
-						var requestID = pair.Key;
-						var item = pair.Value;
-						
-						if (now.Subtract(item.Time).TotalMilliseconds > RESPONSE_MONITORING_MAX_DELAY)
-						{
-							keysToRemove ??= new List<int>();
-							keysToRemove.Add(requestID);
-							
-							_analytics.TrackEvent("Response not found", new SnipeObject()
-								{
-									["request_id"] = requestID,
-									["message_type"] = item.MessageType,
-								});
-						}
-					}
-					
-					if (keysToRemove != null)
-					{
-						for (int i = 0; i < keysToRemove.Count; i++)
-						{
-							_items.Remove(keysToRemove[i]);
-						}
-					}
-				}				
+						["request_id"] = requestID,
+						["message_type"] = item.MessageType,
+					});
+				}
 			}
 
-			ILogger logger = SnipeServices.LogService.GetLogger(nameof(ResponseMonitor));
-			logger.LogTrace("ResponseMonitoring - finish");
+			for (int i = 0; i < removeCount; i++)
+			{
+				_items.Remove(removeKeys[i]);
+			}
 		}
 	}
 }
