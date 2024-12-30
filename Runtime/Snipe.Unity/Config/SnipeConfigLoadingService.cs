@@ -1,16 +1,21 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using fastJSON;
+using UnityEngine;
 
 namespace MiniIT.Snipe
 {
 	public interface ISnipeConfigLoadingService
 	{
 		Dictionary<string, object> Config { get; }
-		UniTask<Dictionary<string, object>> Load(CancellationToken cancellationToken = default);
+		UniTask<Dictionary<string, object>> Load(Dictionary<string, object> loadedAdditionalParams, CancellationToken cancellationToken = default);
+		void Reset();
 	}
 
-	public class SnipeConfigLoadingService : ISnipeConfigLoadingService
+	public class SnipeConfigLoadingService : ISnipeConfigLoadingService, IDisposable
 	{
 		public Dictionary<string, object> Config => _config;
 
@@ -20,12 +25,20 @@ namespace MiniIT.Snipe
 		private SnipeConfigLoader _loader;
 		private readonly string _projectID;
 
+		private CancellationTokenSource _loadingCancellation;
+
 		public SnipeConfigLoadingService(string projectID)
 		{
 			_projectID = projectID;
 		}
 
-		public async UniTask<Dictionary<string, object>> Load(CancellationToken cancellationToken = default)
+		public void Dispose()
+		{
+			_loadingCancellation?.Cancel();
+			_loadingCancellation?.Dispose();
+		}
+
+		public async UniTask<Dictionary<string, object>> Load(Dictionary<string, object> loadedAdditionalParams, CancellationToken cancellationToken = default)
 		{
 			if (_config != null)
 			{
@@ -38,14 +51,23 @@ namespace MiniIT.Snipe
 				return _config;
 			}
 
+			if (_loadingCancellation != null)
+			{
+				_loadingCancellation.Cancel();
+				_loadingCancellation.Dispose();
+			}
+
+			_loadingCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+			var loadingToken = _loadingCancellation.Token;
+
 			_loading = true;
 
 			if (_loader == null)
 			{
-				await UniTask.WaitUntil(() => SnipeServices.IsInitialized, PlayerLoopTiming.Update, cancellationToken)
+				await UniTask.WaitUntil(() => SnipeServices.IsInitialized, PlayerLoopTiming.Update, loadingToken)
 					.SuppressCancellationThrow();
 
-				if (cancellationToken.IsCancellationRequested)
+				if (loadingToken.IsCancellationRequested)
 				{
 					return _config;
 				}
@@ -53,10 +75,19 @@ namespace MiniIT.Snipe
 				_loader ??= new SnipeConfigLoader(_projectID, SnipeServices.ApplicationInfo);
 			}
 
-			_config = await _loader.Load();
+			_config = await _loader.Load(loadedAdditionalParams);
 			_loading = false;
 
 			return _config;
+		}
+
+		public void Reset()
+		{
+			_loadingCancellation.Cancel();
+			_loadingCancellation.Dispose();
+			_loadingCancellation = null;
+			_config = null;
+			_loading = false;
 		}
 	}
 }
