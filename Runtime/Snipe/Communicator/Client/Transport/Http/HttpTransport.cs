@@ -77,7 +77,7 @@ namespace MiniIT.Snipe
 			DoSendRequest(message);
 		}
 
-		public override void SendBatch(List<SnipeObject> messages)
+		public override void SendBatch(IList<SnipeObject> messages)
 		{
 			if (messages.Count == 1)
 			{
@@ -101,7 +101,7 @@ namespace MiniIT.Snipe
 			return new Uri(url);
 		}
 
-		private void OnClientConnected() 
+		private void OnClientConnected()
 		{
 			_logger.LogTrace("OnClientConnected");
 
@@ -242,7 +242,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void DoSendBatch(List<SnipeObject> messages)
+		private void DoSendBatch(IList<SnipeObject> messages)
 		{
 			var batch = new SnipeObject()
 			{

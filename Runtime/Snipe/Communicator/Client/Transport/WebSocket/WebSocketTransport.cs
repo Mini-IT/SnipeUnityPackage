@@ -38,16 +38,16 @@ namespace MiniIT.Snipe
 				}
 			}
 		}
-		
+
 		public override bool Started => _webSocket != null;
 		public override bool Connected => _webSocket != null && _webSocket.Connected;
 		public override bool ConnectionEstablished => _connected;
 
 		private WebSocketWrapper _webSocket = null;
 		private readonly object _lock = new object();
-		
+
 		private ConcurrentQueue<SnipeObject> _sendMessages;
-		private ConcurrentQueue<List<SnipeObject>> _batchMessages;
+		private ConcurrentQueue<IList<SnipeObject>> _batchMessages;
 
 		private bool _connected;
 		private bool _loggedIn;
@@ -126,7 +126,7 @@ namespace MiniIT.Snipe
 
 			ConnectionOpenedHandler?.Invoke(this);
 		}
-		
+
 		protected void OnWebSocketClosed()
 		{
 			_logger.LogTrace("OnWebSocketClosed");
@@ -140,21 +140,21 @@ namespace MiniIT.Snipe
 
 			ConnectionClosedHandler?.Invoke(this);
 		}
-		
+
 		public override void SendMessage(SnipeObject message)
 		{
 			if (_sendMessages == null)
 			{
 				StartSendTask();
 			}
-			_sendMessages.Enqueue(message);
+			_sendMessages!.Enqueue(message);
 		}
 
-		public override void SendBatch(List<SnipeObject> messages)
+		public override void SendBatch(IList<SnipeObject> messages)
 		{
 			lock (_lock)
 			{
-				_batchMessages ??= new ConcurrentQueue<List<SnipeObject>>();
+				_batchMessages ??= new ConcurrentQueue<IList<SnipeObject>>();
 				_batchMessages.Enqueue(messages);
 
 				if (_sendMessages == null)
@@ -179,7 +179,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async void DoSendBatch(List<SnipeObject> messages)
+		private async void DoSendBatch(IList<SnipeObject> messages)
 		{
 			byte[][] data = new byte[messages.Count][];
 			int length = 2; // 2 bytes for batch header
@@ -331,14 +331,14 @@ namespace MiniIT.Snipe
 		private void StopSendTask()
 		{
 			StopCheckConnection();
-			
+
 			if (_sendTaskCancellation != null)
 			{
 				_sendTaskCancellation.Cancel();
 				_sendTaskCancellation.Dispose();
 				_sendTaskCancellation = null;
 			}
-			
+
 			_sendMessages = null;
 		}
 
@@ -425,7 +425,7 @@ namespace MiniIT.Snipe
 					{
 						pinging = true;
 						pingStopwatch.Restart();
-							
+
 						_webSocket.Ping(pong =>
 						{
 							pinging = false;
@@ -443,17 +443,17 @@ namespace MiniIT.Snipe
 							}
 						});
 					}
-					
+
 					ResetHeartbeatTimer();
 
 					_logger.LogTrace($"Heartbeat ping");
 				}
-				
+
 				if (cancellation == null || cancellation.IsCancellationRequested)
 				{
 					break;
 				}
-				
+
 				try
 				{
 					await AlterTask.Delay(HEARTBEAT_TASK_DELAY, cancellation);
@@ -482,7 +482,7 @@ namespace MiniIT.Snipe
 		{
 			if (!_loggedIn)
 				return;
-			
+
 			// _logger.LogTrace($"StartCheckConnection");
 
 			_checkConnectionCancellation?.Cancel();
@@ -500,14 +500,14 @@ namespace MiniIT.Snipe
 
 				// _logger.LogTrace($"StopCheckConnection");
 			}
-			
+
 			BadConnection = false;
 		}
 
 		private async void CheckConnectionTask(CancellationToken cancellation)
 		{
 			BadConnection = false;
-			
+
 			try
 			{
 				await AlterTask.Delay(CHECK_CONNECTION_TIMEOUT, cancellation);
@@ -521,10 +521,10 @@ namespace MiniIT.Snipe
 			// if the connection is ok then this task should already be cancelled
 			if (cancellation == null || cancellation.IsCancellationRequested)
 				return;
-			
+
 			BadConnection = true;
 			_logger.LogTrace($"CheckConnectionTask - Bad connection detected");
-			
+
 			bool pinging = false;
 			while (Connected && BadConnection)
 			{
@@ -534,7 +534,7 @@ namespace MiniIT.Snipe
 					BadConnection = false;
 					return;
 				}
-				
+
 				if (pinging)
 				{
 					await AlterTask.Delay(100);
@@ -547,7 +547,7 @@ namespace MiniIT.Snipe
 						_webSocket.Ping(pong =>
 						{
 							pinging = false;
-							
+
 							if (pong)
 							{
 								BadConnection = false;
@@ -563,7 +563,7 @@ namespace MiniIT.Snipe
 				}
 			}
 		}
-		
+
 		private void OnDisconnectDetected()
 		{
 			if (Connected)

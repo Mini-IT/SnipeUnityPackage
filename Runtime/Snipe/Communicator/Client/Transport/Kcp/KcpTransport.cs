@@ -71,7 +71,7 @@ namespace MiniIT.Snipe
 			DoSendRequest(message);
 		}
 
-		public override void SendBatch(List<SnipeObject> messages)
+		public override void SendBatch(IList<SnipeObject> messages)
 		{
 			if (messages.Count == 1)
 			{
@@ -82,7 +82,7 @@ namespace MiniIT.Snipe
 			DoSendBatch(messages);
 		}
 
-		private void OnClientConnected() 
+		private void OnClientConnected()
 		{
 			_connectionEstablished = true;
 
@@ -94,7 +94,7 @@ namespace MiniIT.Snipe
 		private void OnClientDisconnected()
 		{
 			_logger.LogTrace("OnUdpClientDisconnected");
-			
+
 			StopNetworkLoop();
 			_kcpConnection = null;
 
@@ -110,11 +110,11 @@ namespace MiniIT.Snipe
 
 			ConnectionClosedHandler?.Invoke(this);
 		}
-		
+
 		private void OnClientDataReceived(ArraySegment<byte> buffer, KcpChannel channel, bool compressed)
 		{
 			_logger.LogTrace("OnUdpClientDataReceived");
-			
+
 			var opcode = (KcpOpCode)buffer.Array[buffer.Offset];
 
 			//if (opcode == KcpOpCodes.Heartbeat)
@@ -155,23 +155,23 @@ namespace MiniIT.Snipe
 					_messageProcessingSemaphore.Release();
 				}
 			}
-			
+
 			if (message != null)
 			{
 				MessageReceivedHandler?.Invoke(message);
 			}
 		}
-		
+
 		private SnipeObject ReadMessage(ArraySegment<byte> buffer, bool compressed)
 		{
 			int len = BitConverter.ToInt32(buffer.Array, buffer.Offset + 1);
-			
+
 			if (len > buffer.Count - 5)
 			{
 				_logger.LogError($"ProcessMessage - Message length (${len} bytes) is greater than the buffer size (${buffer.Count} bytes)");
 				return null;
 			}
-			
+
 			var raw_data = new ArraySegment<byte>(buffer.Array, buffer.Offset + 5, len);
 
 			if (compressed)
@@ -181,7 +181,7 @@ namespace MiniIT.Snipe
 
 			return MessagePackDeserializer.Parse(raw_data) as SnipeObject;
 		}
-		
+
 		private async void DoSendRequest(SnipeObject message)
 		{
 			bool semaphoreOccupied = false;
@@ -203,7 +203,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async void DoSendBatch(List<SnipeObject> messages)
+		private async void DoSendBatch(IList<SnipeObject> messages)
 		{
 			var data = new List<ArraySegment<byte>>(messages.Count);
 
@@ -287,7 +287,7 @@ namespace MiniIT.Snipe
 		private void StartNetworkLoop()
 		{
 			_logger.LogTrace("StartNetworkLoop");
-			
+
 			_networkLoopCancellation?.Cancel();
 
 			_networkLoopCancellation = new CancellationTokenSource();
@@ -298,7 +298,7 @@ namespace MiniIT.Snipe
 		public void StopNetworkLoop()
 		{
 			_logger.LogTrace("StopNetworkLoop");
-			
+
 			if (_networkLoopCancellation != null)
 			{
 				_networkLoopCancellation.Cancel();
@@ -322,7 +322,7 @@ namespace MiniIT.Snipe
 					OnClientDisconnected();
 					return;
 				}
-				
+
 				try
 				{
 					await Task.Delay(100, cancellation);
@@ -334,11 +334,11 @@ namespace MiniIT.Snipe
 				}
 			}
 		}
-		
+
 		//private async void UdpConnectionTimeout(CancellationToken cancellation)
 		//{
 		//	_logger.LogTrace("UdpConnectionTimeoutTask - start");
-			
+
 		//	try
 		//	{
 		//		await Task.Delay(2000, cancellation);
@@ -348,18 +348,18 @@ namespace MiniIT.Snipe
 		//		// This is OK. Just terminating the task
 		//		return;
 		//	}
-			
+
 		//	if (cancellation == null || cancellation.IsCancellationRequested)
 		//		return;
 		//	if (cancellation != _networkLoopCancellation?.Token)
 		//		return;
-			
+
 		//	if (!Connected)
 		//	{
 		//		_logger.LogTrace("UdpConnectionTimeoutTask - Calling Disconnect");
 		//		OnClientDisconnected();
 		//	}
-			
+
 		//	_logger.LogTrace("UdpConnectionTimeoutTask - finish");
 		//}
 	}

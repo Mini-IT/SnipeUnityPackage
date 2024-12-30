@@ -30,7 +30,7 @@ namespace MiniIT.Snipe
 		public abstract void Connect();
 		public abstract void Disconnect();
 		public abstract void SendMessage(SnipeObject message);
-		public abstract void SendBatch(List<SnipeObject> messages);
+		public abstract void SendBatch(IList<SnipeObject> messages);
 
 		protected readonly SnipeMessageCompressor _messageCompressor = new SnipeMessageCompressor();
 		protected readonly MessagePackSerializerNonAlloc _messageSerializer = new MessagePackSerializerNonAlloc();
