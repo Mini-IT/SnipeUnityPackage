@@ -8,7 +8,7 @@ namespace MiniIT.Snipe
 {
 	public class ResponseMonitor : IDisposable
 	{
-		private const int RESPONSE_MONITORING_MAX_DELAY = 3000; // ms
+		private const int MAX_RESPONSE_MILLISECONDS = 3000;
 
 		private struct ResponseMonitoringItem
 		{
@@ -17,16 +17,24 @@ namespace MiniIT.Snipe
 		}
 
 		private IStopwatch _stopwatch;
-		private IDictionary<int, ResponseMonitoringItem> _items; // key is request_id
 
 		private CancellationTokenSource _cancellation;
 
+		private readonly IDictionary<int, ResponseMonitoringItem> _items;
 		private readonly SnipeAnalyticsTracker _analytics;
 
 		public ResponseMonitor(SnipeAnalyticsTracker analytics)
 		{
 			_analytics = analytics;
+
+#if UNITY_WEBGL
+			_items = new Dictionary<int, ResponseMonitoringItem>();
+#else
+			_items = new ConcurrentDictionary<int, ResponseMonitoringItem>();
+#endif
+
 			_stopwatch = SnipeServices.FuzzyStopwatchFactory.Create();
+			_stopwatch.Start();
 		}
 
 		public void Add(int requestID, string messageType)
@@ -41,25 +49,22 @@ namespace MiniIT.Snipe
 				throw new ObjectDisposedException(GetType().Name);
 			}
 
-			_items ??= new ConcurrentDictionary<int, ResponseMonitoringItem>(); // Concurrent ????????????
-			_stopwatch.Restart();
-
 			_items[requestID] = new ResponseMonitoringItem()
 			{
 				Time = _stopwatch.Elapsed,
 				MessageType = messageType,
 			};
 
-			Start();
+			if (_cancellation == null)
+			{
+				// Start monitoring
+				_cancellation = new CancellationTokenSource();
+				AlterTask.RunAndForget(() => MonitoringLoop(_cancellation.Token));
+			}
 		}
 
 		public void Remove(int requestID, string messageType)
 		{
-			if (_items == null)
-			{
-				return;
-			}
-
 			bool found = false;
 
 			try
@@ -70,7 +75,7 @@ namespace MiniIT.Snipe
 
 					if (item.MessageType != messageType)
 					{
-						_analytics.TrackEvent("Wrong response type", new SnipeObject()
+						_analytics.TrackEvent("Wrong response type", new Dictionary<string, object>()
 						{
 							["request_id"] = requestID,
 							["request_type"] = item.MessageType,
@@ -90,19 +95,6 @@ namespace MiniIT.Snipe
 					_items.Remove(requestID);
 				}
 			}
-		}
-
-		public void Start()
-		{
-			if (_cancellation != null)
-			{
-				return;
-			}
-
-			_items?.Clear();
-
-			_cancellation = new CancellationTokenSource();
-			AlterTask.RunAndForget(() => MonitoringLoop(_cancellation.Token));
 		}
 
 		public void Stop()
@@ -170,11 +162,11 @@ namespace MiniIT.Snipe
 
 				TimeSpan timePassed = now.Subtract(item.Time);
 
-				if (timePassed.TotalMilliseconds > RESPONSE_MONITORING_MAX_DELAY)
+				if (timePassed.TotalMilliseconds > MAX_RESPONSE_MILLISECONDS)
 				{
 					removeKeys[removeCount++] = requestID;
 
-					_analytics.TrackEvent("Response not found", new SnipeObject()
+					_analytics.TrackEvent("Response not found", new Dictionary<string, object>()
 					{
 						["request_id"] = requestID,
 						["message_type"] = item.MessageType,
