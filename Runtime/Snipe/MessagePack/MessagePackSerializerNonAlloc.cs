@@ -107,8 +107,8 @@ namespace MiniIT.MessagePack
 
 		private void WriteString(ref byte[] buffer, string str)
 		{
-			byte[] raw_bytes = Encoding.UTF8.GetBytes(str);
-			int len = raw_bytes.Length;
+			byte[] rawBytes = Encoding.UTF8.GetBytes(str);
+			int len = rawBytes.Length;
 
 			EnsureCapacity(ref buffer, len + 5);
 
@@ -132,7 +132,7 @@ namespace MiniIT.MessagePack
 				CopyBytes(ref buffer, EndianBitConverter.Big.GetBytes(Convert.ToUInt32(len)), 4);
 			}
 
-			CopyBytes(ref buffer, raw_bytes, len);
+			CopyBytes(ref buffer, rawBytes, len);
 		}
 
 		private void WriteMap(ref byte[] buffer, IDictionary map)
@@ -299,16 +299,18 @@ namespace MiniIT.MessagePack
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		void EnsureCapacity(ref byte[] buffer, int additional_lenght)
+		void EnsureCapacity(ref byte[] buffer, int additionalLenght)
 		{
-			int length = _position + additional_lenght;
+			int length = _position + additionalLenght;
 			if (buffer.Length < length)
 			{
 				int capacity = Math.Max(length, buffer.Length * 2);
 				Array.Resize(ref buffer, capacity);
 
 				if (MaxUsedBufferSize < capacity)
+				{
 					MaxUsedBufferSize = capacity;
+				}
 			}
 		}
 	}
