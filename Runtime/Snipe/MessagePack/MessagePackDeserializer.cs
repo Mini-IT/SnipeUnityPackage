@@ -1,9 +1,9 @@
 //
 //  MessagePack serialization format specification can be found here:
-//  https: //github.com/msgpack/msgpack/blob/master/spec.md
+//  https://github.com/msgpack/msgpack/blob/master/spec.md
 //
 //  This implementation is inspired by
-//  https: //github.com/ymofen/SimpleMsgPack.Net
+//  https://github.com/ymofen/SimpleMsgPack.Net
 //
 
 
