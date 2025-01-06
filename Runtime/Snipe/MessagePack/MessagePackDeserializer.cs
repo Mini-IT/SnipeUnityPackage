@@ -39,52 +39,63 @@ namespace MiniIT.MessagePack
 				{
 					return Convert.ToInt32(formatByte);
 				}
+
 				case <= 0x8F: // fixmap	1000xxxx	0x80 - 0x8f
 				{
 					int len = formatByte & 0b00001111;
 					return ReadMap(input, ref position, len);
 				}
+
 				case <= 0x9F: // fixarray	1001xxxx	0x90 - 0x9f
 				{
 					int len = formatByte & 0b00001111;
 					return ReadArray(input, ref position, len);
 				}
+
 				case <= 0xBF: // fixstr	101xxxxx	0xa0 - 0xbf
 				{
 					int len = formatByte & 0b00011111;
 					return ReadString(input, ref position, len);
 				}
+
 				case >= 0xE0: // negative fixint	111xxxxx	0xe0 - 0xff (5-bit negative integer)
 				{
 					return Convert.ToInt32(unchecked((sbyte)formatByte));
 				}
+
 				case 0xC0:
 				{
 					return null;
 				}
+
 				//case 0xC1:
 				//{
 				//    throw new ArgumentException("(never used) 0xc1");
 				//}
+
 				//case 0xC7:
 				//case 0xC8:
 				//case 0xC9:
 				//{
 				//    throw new ArgumentException("(ext8, ext16, ex32) type 0xc7, 0xc8, 0xc9");
 				//}
+
 				case 0xC2:
 				{
 					return false;
 				}
+
 				case 0xC3:
 				{
 					return true;
 				}
+
 				case 0xC4: // bin 8
 				{
 					int len = input[position++];
 					return ReadBytes(input, ref position, len);
 				}
+
 				case 0xC5: // bin 16
 				{
 					var rawBytes = InternalReadBytes(input, ref position, 2);
@@ -92,36 +103,43 @@ namespace MiniIT.MessagePack
 					int len = EndianBitConverter.Big.ToInt16(rawBytes);
 					return ReadBytes(input, ref position, len);
 				}
+
 				case 0xC6: // bin 32
 				{
 					var rawBytes = InternalReadBytes(input, ref position, 4);
 					int len = Convert.ToInt32(EndianBitConverter.Big.ToUInt32(rawBytes));
 					return ReadBytes(input, ref position, len);
 				}
+
 				case 0xCA: // float 32
 				{
 					var rawBytes = InternalReadBytes(input, ref position, 4);
 					return EndianBitConverter.Big.ToSingle(rawBytes);
 				}
+
 				case 0xCB: // float 64
 				{
 					var rawBytes = InternalReadBytes(input, ref position, 8);
 					return EndianBitConverter.Big.ToDouble(rawBytes);
 				}
+
 				case 0xCC: // uint8
 				{
 					return Convert.ToInt32(input[position++]);
 				}
+
 				case 0xCD: // uint16
 				{
 					var rawBytes = InternalReadBytes(input, ref position, 2);
 					return EndianBitConverter.Big.ToUInt16(rawBytes);
 				}
+
 				case 0xCE: // uint 32
 				{
 					var rawBytes = InternalReadBytes(input, ref position, 4);
 					return EndianBitConverter.Big.ToUInt32(rawBytes);
 				}
+
 				case 0xCF: // uint 64
 				{
 					var rawBytes = InternalReadBytes(input, ref position, 8);
@@ -134,49 +152,58 @@ namespace MiniIT.MessagePack
 				{
 					return ReadString(formatByte, input, ref position);
 				}
+
 				case 0xDC: // array 16
 				{
 					var rawBytes = InternalReadBytes(input, ref position, 2);
 					int len = EndianBitConverter.Big.ToUInt16(rawBytes);
 					return ReadArray(input, ref position, len);
 				}
+
 				case 0xDD: // array 32
 				{
 					var rawBytes = InternalReadBytes(input, ref position, 4);
 					int len = EndianBitConverter.Big.ToInt32(rawBytes);
 					return ReadArray(input, ref position, len);
 				}
+
 				case 0xDE: // map 16
 				{
 					var rawBytes = InternalReadBytes(input, ref position, 2);
 					int len = EndianBitConverter.Big.ToUInt16(rawBytes);
 					return ReadMap(input, ref position, len);
 				}
+
 				case 0xDF: // map 32
 				{
 					var rawBytes = InternalReadBytes(input, ref position, 4);
 					int len = EndianBitConverter.Big.ToInt32(rawBytes);
 					return ReadMap(input, ref position, len);
 				}
+
 				case 0xD0: // int 8
 				{
 					return Convert.ToInt32((sbyte)input[position++]);
 				}
+
 				case 0xD1: // int 16
 				{
 					var rawBytes = InternalReadBytes(input, ref position, 2);
 					return Convert.ToInt32(EndianBitConverter.Big.ToInt16(rawBytes));
 				}
+
 				case 0xD2: // int 32
 				{
 					var rawBytes = InternalReadBytes(input, ref position, 4);
 					return Convert.ToInt32(EndianBitConverter.Big.ToInt32(rawBytes));
 				}
+
 				case 0xD3: // int 64
 				{
 					var rawBytes = InternalReadBytes(input, ref position, 8);
 					return EndianBitConverter.Big.ToInt64(rawBytes);
 				}
+
 				default:
 				{
 					return null;
