@@ -1,5 +1,6 @@
 ﻿// from https://github.com/caesay/CS.Util/blob/master/CS.Util/EndianBitConverter.cs
 using System;
+using System.Runtime.CompilerServices;
 
 namespace MiniIT
 {
@@ -16,38 +17,42 @@ namespace MiniIT
         byte[] GetBytes(float value);
         byte[] GetBytes(double value);
 
-        char ToChar(byte[] value, int index);
-        short ToInt16(byte[] value, int index);
-        int ToInt32(byte[] value, int index);
-        long ToInt64(byte[] value, int index);
-        ushort ToUInt16(byte[] value, int index);
-        uint ToUInt32(byte[] value, int index);
-        ulong ToUInt64(byte[] value, int index);
-        float ToSingle(byte[] value, int index);
-        double ToDouble(byte[] value, int index);
-        bool ToBoolean(byte[] value, int index);
+        char ToChar(ReadOnlySpan<byte> value);
+        short ToInt16(ReadOnlySpan<byte> value);
+        int ToInt32(ReadOnlySpan<byte> value);
+        long ToInt64(ReadOnlySpan<byte> value);
+        ushort ToUInt16(ReadOnlySpan<byte> value);
+        uint ToUInt32(ReadOnlySpan<byte> value);
+        ulong ToUInt64(ReadOnlySpan<byte> value);
+        float ToSingle(ReadOnlySpan<byte> value);
+        double ToDouble(ReadOnlySpan<byte> value);
+        bool ToBoolean(ReadOnlySpan<byte> value);
     }
 
     internal sealed class BigEndianBitConverter : EndianBitConverter
     {
         public override bool IsLittleEndian => false;
-        protected override long FromBytesImpl(byte[] buffer, int index, int bytes)
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected override long FromBytes(ReadOnlySpan<byte> buffer, int len)
         {
             long ret = 0;
-            for (int i = 0; i < bytes; i++)
+            for (int i = 0; i < len; i++)
             {
-                ret = unchecked((ret << 8) | buffer[index + i]);
+                ret = unchecked((ret << 8) | buffer[i]);
             }
             return ret;
         }
-        protected override byte[] ToBytesImpl(long value, int bytes)
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected override byte[] ToBytesImpl(long value, int len)
         {
-            byte[] buffer = new byte[bytes];
-            int endOffset = bytes - 1;
-            for (int i = 0; i < bytes; i++)
+            byte[] buffer = new byte[len];
+            int endOffset = len - 1;
+            for (int i = 0; i < len; i++)
             {
                 buffer[endOffset - i] = unchecked((byte)(value & 0xff));
-                value = value >> 8;
+                value >>= 8;
             }
             return buffer;
         }
@@ -56,22 +61,26 @@ namespace MiniIT
     internal sealed class LittleEndianBitConverter : EndianBitConverter
     {
         public override bool IsLittleEndian => true;
-        protected override long FromBytesImpl(byte[] buffer, int index, int bytes)
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected override long FromBytes(ReadOnlySpan<byte> buffer, int len)
         {
             long ret = 0;
-            for (int i = 0; i < bytes; i++)
+            for (int i = 0; i < len; i++)
             {
-                ret = unchecked((ret << 8) | buffer[index + bytes - 1 - i]);
+                ret = unchecked((ret << 8) | buffer[len - 1 - i]);
             }
             return ret;
         }
-        protected override byte[] ToBytesImpl(long value, int bytes)
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected override byte[] ToBytesImpl(long value, int len)
         {
-            byte[] buffer = new byte[bytes];
-            for (int i = 0; i < bytes; i++)
+            byte[] buffer = new byte[len];
+            for (int i = 0; i < len; i++)
             {
                 buffer[i] = unchecked((byte)(value & 0xff));
-                value = value >> 8;
+                value >>= 8;
             }
             return buffer;
         }
@@ -81,31 +90,21 @@ namespace MiniIT
     {
         public abstract bool IsLittleEndian { get; }
 
-        public static IBitConverter Big => _big ?? (_big = new BigEndianBitConverter());
-        public static IBitConverter Little => _little ?? (_little = new LittleEndianBitConverter());
+        public static IBitConverter Big => _big ??= new BigEndianBitConverter();
+        public static IBitConverter Little => _little ??= new LittleEndianBitConverter();
 
         private static BigEndianBitConverter _big;
         private static LittleEndianBitConverter _little;
 
         protected EndianBitConverter() { }
 
-        protected long FromBytes(byte[] buffer, int index, int bytes)
-        {
-            if (buffer == null)
-                throw new ArgumentNullException(nameof(buffer));
-            if (index < 0)
-                throw new ArgumentOutOfRangeException(nameof(index));
-            if (index + bytes > buffer.Length)
-                throw new ArgumentOutOfRangeException(nameof(bytes));
-
-            return FromBytesImpl(buffer, index, bytes);
-        }
-        protected abstract long FromBytesImpl(byte[] buffer, int index, int bytes);
+        protected abstract long FromBytes(ReadOnlySpan<byte> buffer, int bytes);
+        
         protected byte[] ToBytes(long value, int bytes)
         {
             return ToBytesImpl(value, bytes);
         }
-        protected abstract byte[] ToBytesImpl(long value, int bytes);
+        protected abstract byte[] ToBytesImpl(long value, int len);
 
         public byte[] GetBytes(bool value)
         {
@@ -148,47 +147,47 @@ namespace MiniIT
             return GetBytes(*(long*)&value);
         }
 
-        public char ToChar(byte[] value, int index = 0)
+        public char ToChar(ReadOnlySpan<byte> value)
         {
-            return unchecked((char)(FromBytes(value, index, 2)));
+            return unchecked((char)(FromBytes(value, 2)));
         }
-        public short ToInt16(byte[] value, int index = 0)
+        public short ToInt16(ReadOnlySpan<byte> value)
         {
-            return unchecked((short)(FromBytes(value, index, 2)));
+            return unchecked((short)(FromBytes(value, 2)));
         }
-        public int ToInt32(byte[] value, int index = 0)
+        public int ToInt32(ReadOnlySpan<byte> value)
         {
-            return unchecked((int)(FromBytes(value, index, 4)));
+            return unchecked((int)(FromBytes(value, 4)));
         }
-        public long ToInt64(byte[] value, int index = 0)
+        public long ToInt64(ReadOnlySpan<byte> value)
         {
-            return FromBytes(value, index, 8);
+            return FromBytes(value, 8);
         }
-        public ushort ToUInt16(byte[] value, int index = 0)
+        public ushort ToUInt16(ReadOnlySpan<byte> value)
         {
-            return unchecked((ushort)(FromBytes(value, index, 2)));
+            return unchecked((ushort)(FromBytes(value, 2)));
         }
-        public uint ToUInt32(byte[] value, int index = 0)
+        public uint ToUInt32(ReadOnlySpan<byte> value)
         {
-            return unchecked((uint)(FromBytes(value, index, 4)));
+            return unchecked((uint)(FromBytes(value, 4)));
         }
-        public ulong ToUInt64(byte[] value, int index = 0)
+        public ulong ToUInt64(ReadOnlySpan<byte> value)
         {
-            return unchecked((ulong)(FromBytes(value, index, 8)));
+            return unchecked((ulong)(FromBytes(value, 8)));
         }
-        public unsafe float ToSingle(byte[] value, int index = 0)
+        public unsafe float ToSingle(ReadOnlySpan<byte> value)
         {
-            int val = ToInt32(value, index);
+            int val = ToInt32(value);
             return *(float*)&val;
         }
-        public unsafe double ToDouble(byte[] value, int index = 0)
+        public unsafe double ToDouble(ReadOnlySpan<byte> value)
         {
-            long val = ToInt64(value, index);
+            long val = ToInt64(value);
             return *(double*)&val;
         }
-        public bool ToBoolean(byte[] value, int index = 0)
+        public bool ToBoolean(ReadOnlySpan<byte> value)
         {
-            return BitConverter.ToBoolean(value, index);
+            return BitConverter.ToBoolean(value);
         }
     }
 }
