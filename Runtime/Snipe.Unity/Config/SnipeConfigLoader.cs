@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using fastJSON;
-using UnityEngine.Networking;
 using Microsoft.Extensions.Logging;
 using MiniIT.Http;
 
