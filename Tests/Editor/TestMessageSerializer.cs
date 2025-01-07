@@ -1,12 +1,7 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using UnityEngine;
-using UnityEngine.TestTools;
-using MiniIT;
-using MiniIT.Snipe;
 using MiniIT.MessagePack;
 using MiniIT.Snipe.Unity;
 
@@ -114,6 +109,25 @@ namespace MiniIT.Snipe.Tests.Editor
 			});
 
 			_ = MessagePackSerializer.Serialize(message, false);
+		}
+
+		[Test]
+		public void TestMessageSerializerOffset()
+		{
+			var data = new SnipeObject()
+			{
+				["value"] = 1000, ["errorCode"] = "ok", ["json"] = "{\"id\":2,\"field\":\"fildvalue\"}",
+			};
+			var message = new SnipeObject() { ["id"] = 11, ["name"] = "SomeName", ["data"] = data, };
+
+			const int OFFSET = 4;
+			var serializer = new MessagePackSerializerNonAlloc();
+			var buffer = new byte[4096];
+			var original = serializer.Serialize(ref buffer, message).ToArray();
+			var shifted = serializer.Serialize(ref buffer, OFFSET, message).ToArray();
+
+			Assert.AreEqual(OFFSET, shifted.Length - original.Length);
+			Assert.AreEqual(original, shifted.AsSpan(OFFSET).ToArray());
 		}
 
 		class CustomUnsupportedData

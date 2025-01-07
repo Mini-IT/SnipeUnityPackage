@@ -1,15 +1,7 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Text;
-using System.Threading.Tasks;
 using NUnit.Framework;
-using UnityEngine;
-using UnityEngine.TestTools;
-using MiniIT;
-using MiniIT.Snipe;
 using MiniIT.MessagePack;
-using MiniIT.Snipe.Unity;
 
 using IMap = System.Collections.Generic.IDictionary<string, object>;
 using Map = System.Collections.Generic.Dictionary<string, object>;
