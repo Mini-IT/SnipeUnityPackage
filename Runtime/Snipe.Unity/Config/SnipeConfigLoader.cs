@@ -5,6 +5,7 @@ using Cysharp.Threading.Tasks;
 using fastJSON;
 using UnityEngine.Networking;
 using Microsoft.Extensions.Logging;
+using MiniIT.Http;
 
 namespace MiniIT.Snipe
 {
@@ -36,19 +37,19 @@ namespace MiniIT.Snipe
 
 			Dictionary<string, object> config = null;
 
+			IHttpClient httpClient = HttpClientFactory.Create();
+
 			try
 			{
-				using var request = UnityWebRequest.Post(_url, requestParamsJson, "application/json");
-				request.downloadHandler = new DownloadHandlerBuffer();
-				var response = await request.SendWebRequest().ToUniTask();
+				var response = await httpClient.PostJsonAsync(new Uri(_url), requestParamsJson);
 
-				if (response.result != UnityWebRequest.Result.Success)
+				if (!response.IsSuccess)
 				{
-					_logger.LogTrace($"loader failed. {response.error}");
-					return config;
+					_logger.LogTrace($"loader failed. {response.Error}");
+					return null;
 				}
 
-				string responseMessage = response.downloadHandler.text;
+				string responseMessage = await response.GetContentAsync();
 				_logger.LogTrace($"loader response: {responseMessage}");
 
 				var fullResponse = (Dictionary<string, object>)JSON.Parse(responseMessage);
@@ -61,13 +62,15 @@ namespace MiniIT.Snipe
 
 					// Inject AB-tests
 					// "abTests":[{"id":1,"stringID":"testString","variantID":1}]
-					if (fullResponse.TryGetValue("abTests", out var testsList) && testsList is IEnumerable tests)
+					if (config != null &&
+					    fullResponse.TryGetValue("abTests", out var testsList) &&
+					    testsList is IEnumerable tests)
 					{
 						foreach (var testData in tests)
 						{
 							if (testData is IDictionary<string, object> test &&
-								test.TryGetValue("stringID", out var testStringID) &&
-								test.TryGetValue("variantID", out var testVariantID))
+							    test.TryGetValue("stringID", out var testStringID) &&
+							    test.TryGetValue("variantID", out var testVariantID))
 							{
 								config[$"test_{testStringID}"] = $"test_{testStringID}_Variant{testVariantID}";
 							}
@@ -79,6 +82,13 @@ namespace MiniIT.Snipe
 			catch (Exception e)
 			{
 				_logger.LogTrace($"loader failed: {e}");
+			}
+			finally
+			{
+				if (httpClient is IDisposable disposable)
+				{
+					disposable.Dispose();
+				}
 			}
 
 			return config;
