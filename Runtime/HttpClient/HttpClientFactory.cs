@@ -5,7 +5,9 @@ namespace MiniIT.Http
 	{
 		public static IHttpClient Create()
 		{
-#if UNITY_WEBGL
+#if BEST_HTTP
+			return new BestHttpClient();
+#elif UNITY_WEBGL
 			return new UnityHttpClient();
 #else
 			return new SystemHttpClient();

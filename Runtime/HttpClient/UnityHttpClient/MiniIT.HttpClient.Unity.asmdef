@@ -1,6 +1,6 @@
 {
     "name": "MiniIT.HttpClient.Unity",
-    "rootNamespace": "",
+    "rootNamespace": "MiniIT.Http",
     "references": [
         "MiniIT.HttpClient.Abstraction",
         "MiniIT.AlterTask",

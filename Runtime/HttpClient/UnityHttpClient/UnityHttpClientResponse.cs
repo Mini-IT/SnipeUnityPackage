@@ -1,5 +1,4 @@
 using Cysharp.Threading.Tasks;
-using MiniIT.Threading;
 using UnityEngine.Networking;
 
 namespace MiniIT.Http
