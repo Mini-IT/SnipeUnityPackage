@@ -34,7 +34,6 @@ namespace MiniIT.Snipe
 
 		protected readonly SnipeMessageCompressor _messageCompressor = new SnipeMessageCompressor();
 		protected readonly MessagePackSerializerNonAlloc _messageSerializer = new MessagePackSerializerNonAlloc();
-		protected byte[] _messageSerializationBuffer = new byte[10240];
 
 		protected readonly AlterSemaphore _messageSerializationSemaphore = new AlterSemaphore(1, 1);
 		protected readonly AlterSemaphore _messageProcessingSemaphore = new AlterSemaphore(1, 1);
@@ -47,7 +46,6 @@ namespace MiniIT.Snipe
 			MessageReceivedHandler = null;
 			_messageSerializationSemaphore.Dispose();
 			_messageProcessingSemaphore.Dispose();
-			_messageSerializationBuffer = null;
 		}
 	}
 }

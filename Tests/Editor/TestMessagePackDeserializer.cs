@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using NUnit.Framework;
@@ -95,7 +96,8 @@ namespace MiniIT.Snipe.Tests.Editor
 			        ["floats"] = new List<float>() { 1.1f, 1.2f, 1.3f },
 		        }
 	        };
-	        byte[] mapBytes = MessagePackSerializer.Serialize(map);
+	        
+	        Span<byte> mapBytes = new MessagePackSerializerNonAlloc(4096).Serialize(map);
 
 	        // Act
 	        var result = MessagePackDeserializer.Parse(mapBytes);

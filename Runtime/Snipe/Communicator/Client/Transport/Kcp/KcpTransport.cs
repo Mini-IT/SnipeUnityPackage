@@ -172,14 +172,14 @@ namespace MiniIT.Snipe
 				return null;
 			}
 
-			var raw_data = new ArraySegment<byte>(buffer.Array, buffer.Offset + 5, len);
+			var rawData = new ArraySegment<byte>(buffer.Array, buffer.Offset + 5, len);
 
 			if (compressed)
 			{
-				raw_data = _messageCompressor.Decompress(raw_data);
+				rawData = _messageCompressor.Decompress(rawData);
 			}
 
-			return MessagePackDeserializer.Parse(raw_data) as SnipeObject;
+			return MessagePackDeserializer.Parse(rawData) as SnipeObject;
 		}
 
 		private async void DoSendRequest(SnipeObject message)
@@ -191,8 +191,8 @@ namespace MiniIT.Snipe
 				await _messageSerializationSemaphore.WaitAsync();
 				semaphoreOccupied = true;
 
-				ArraySegment<byte> msg_data = await SerializeMessage(message);
-				_kcpConnection?.SendData(msg_data, KcpChannel.Reliable);
+				ArraySegment<byte> msgData = await Task.Run(() => SerializeMessage(message));
+				_kcpConnection?.SendData(msgData, KcpChannel.Reliable);
 			}
 			finally
 			{
@@ -216,11 +216,11 @@ namespace MiniIT.Snipe
 
 				foreach (var message in messages)
 				{
-					ArraySegment<byte> msg_data = await SerializeMessage(message, false);
+					ArraySegment<byte> msgData = await Task.Run(() => SerializeMessage(message, false));
 
-					byte[] temp = ArrayPool<byte>.Shared.Rent(msg_data.Count);
-					Array.ConstrainedCopy(msg_data.Array, msg_data.Offset, temp, 0, msg_data.Count);
-					data.Add(new ArraySegment<byte>(temp, 0, msg_data.Count));
+					byte[] temp = ArrayPool<byte>.Shared.Rent(msgData.Count);
+					Array.ConstrainedCopy(msgData.Array, msgData.Offset, temp, 0, msgData.Count);
+					data.Add(new ArraySegment<byte>(temp, 0, msgData.Count));
 				}
 			}
 			finally
@@ -239,7 +239,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async Task<ArraySegment<byte>> SerializeMessage(SnipeObject message, bool writeLength = true)
+		private ArraySegment<byte> SerializeMessage(SnipeObject message, bool writeLength = true)
 		{
 			int offset = 1; // opcode (1 byte)
 			if (writeLength)
@@ -247,41 +247,38 @@ namespace MiniIT.Snipe
 				offset += 4; // + length (4 bytes)
 			}
 
-			ArraySegment<byte> msg_data = await Task.Run(() => _messageSerializer.Serialize(ref _messageSerializationBuffer, offset, message));
+			Span<byte> msgData = _messageSerializer.Serialize(offset, message);
 
-			if (_config.CompressionEnabled && msg_data.Count >= _config.MinMessageBytesToCompress) // compression needed
+			if (_config.CompressionEnabled && msgData.Length >= _config.MinMessageBytesToCompress) // compression needed
 			{
-				await Task.Run(() =>
+				_logger.LogTrace("compress message");
+				// _logger.LogTrace("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
+
+				Span<byte> msgContent = msgData.Slice(offset);
+				var compressed = _messageCompressor.Compress(msgContent);
+
+				msgData[0] = (byte)KcpOpCode.SnipeRequestCompressed;
+
+				if (writeLength)
 				{
-					_logger.LogTrace("compress message");
-					// _logger.LogTrace("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
+					BytesUtil.WriteInt(msgData, 1, compressed.Length + 4); // msg_data = opcode + length (4 bytes) + msg
+				}
+				compressed.CopyTo(msgContent);
 
-					ArraySegment<byte> msg_content = new ArraySegment<byte>(_messageSerializationBuffer, offset, msg_data.Count - offset);
-					ArraySegment<byte> compressed = _messageCompressor.Compress(msg_content);
+				msgData = msgData.Slice(0, compressed.Length + offset);
 
-					_messageSerializationBuffer[0] = (byte)KcpOpCode.SnipeRequestCompressed;
-
-					if (writeLength)
-					{
-						BytesUtil.WriteInt(_messageSerializationBuffer, 1, compressed.Count + 4); // msg_data = opcode + length (4 bytes) + msg
-					}
-					Array.ConstrainedCopy(compressed.Array, compressed.Offset, _messageSerializationBuffer, offset, compressed.Count);
-
-					msg_data = new ArraySegment<byte>(_messageSerializationBuffer, 0, compressed.Count + offset);
-
-					// _logger.LogTrace("Compressed:   " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
-				});
+				// _logger.LogTrace("Compressed:   " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
 			}
 			else // compression not needed
 			{
-				_messageSerializationBuffer[0] = (byte)KcpOpCode.SnipeRequest;
+				msgData[0] = (byte)KcpOpCode.SnipeRequest;
 				if (writeLength)
 				{
-					BytesUtil.WriteInt(_messageSerializationBuffer, 1, msg_data.Count - 1); // msg_data.Count = opcode (1 byte) + length (4 bytes) + msg.Length
+					BytesUtil.WriteInt(msgData, 1, msgData.Length - 1); // msg_data.Count = opcode (1 byte) + length (4 bytes) + msg.Length
 				}
 			}
 
-			return msg_data;
+			return _messageSerializer.GetBufferSegment(msgData.Length);
 		}
 
 		private void StartNetworkLoop()

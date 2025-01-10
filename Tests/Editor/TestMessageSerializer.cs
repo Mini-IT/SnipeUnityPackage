@@ -21,11 +21,13 @@ namespace MiniIT.Snipe.Tests.Editor
 				SnipeServices.Initialize(new UnitySnipeServicesFactory());
 			}
 
+			var serializer = new MessagePackSerializerNonAlloc(4096);
+
 			for (int i = 0; i < THREADS_COUNT; i++)
 			{
 				var obj = GenerateRandomSnipeObject();
 				data.Add(obj);
-				serialized.Add(MessagePackSerializer.Serialize(obj));
+				serialized.Add(serializer.Serialize(obj).ToArray());
 			}
 
 			// Unique WebSocketTransport instances
@@ -99,16 +101,18 @@ namespace MiniIT.Snipe.Tests.Editor
 			};
 			var message = new SnipeObject() { ["id"] = 11, ["name"] = "SomeName", ["data"] = data, };
 
-			_ = MessagePackSerializer.Serialize(message);
+			var serializer = new MessagePackSerializerNonAlloc(4096, true);
+			_ = serializer.Serialize(message);
 
 			data["unsupported"] = new CustomUnsupportedData();
 
 			Assert.Catch<MessagePackSerializationUnsupportedTypeException>(() =>
 			{
-				_ = MessagePackSerializer.Serialize(message);
+				_ = serializer.Serialize(message);
 			});
 
-			_ = MessagePackSerializer.Serialize(message, false);
+			serializer = new MessagePackSerializerNonAlloc(4096, false);
+			_ = serializer.Serialize(message);
 		}
 
 		[Test]
@@ -121,13 +125,28 @@ namespace MiniIT.Snipe.Tests.Editor
 			var message = new SnipeObject() { ["id"] = 11, ["name"] = "SomeName", ["data"] = data, };
 
 			const int OFFSET = 4;
-			var serializer = new MessagePackSerializerNonAlloc();
-			var buffer = new byte[4096];
-			var original = serializer.Serialize(ref buffer, message).ToArray();
-			var shifted = serializer.Serialize(ref buffer, OFFSET, message).ToArray();
+			var serializer = new MessagePackSerializerNonAlloc(4096);
+			var original = serializer.Serialize(message).ToArray();
+			var shifted = serializer.Serialize(OFFSET, message).ToArray();
 
 			Assert.AreEqual(OFFSET, shifted.Length - original.Length);
 			Assert.AreEqual(original, shifted.AsSpan(OFFSET).ToArray());
+		}
+
+		[Test]
+		public void TestMessageSerializerDeserialize()
+		{
+			var data = new SnipeObject()
+			{
+				["value"] = 1000, ["errorCode"] = "ok", ["json"] = "{\"id\":2,\"field\":\"fildvalue\"}",
+			};
+			var message = new SnipeObject() { ["id"] = 11, ["name"] = "SomeName", ["data"] = data, };
+
+			var serializer = new MessagePackSerializerNonAlloc(4096);
+			var serizlized = serializer.Serialize(message).ToArray();
+			var deserialized = MessagePackDeserializer.Parse(serizlized);
+
+			Assert.AreEqual(message, deserialized);
 		}
 
 		class CustomUnsupportedData
