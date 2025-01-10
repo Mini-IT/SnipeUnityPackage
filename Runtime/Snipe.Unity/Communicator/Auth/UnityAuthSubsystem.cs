@@ -56,12 +56,12 @@ namespace MiniIT.Snipe.Unity
 					{
 						if (binding is DeviceIdBinding or AdvertisingIdBinding)
 						{
-							tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers));
+							tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers, true));
 						}
 #if NUTAKU
 						else if (binding is NutakuBinding)
 						{
-							tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers));
+							tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers, false));
 						}
 #endif
 					}

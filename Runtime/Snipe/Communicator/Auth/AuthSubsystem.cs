@@ -294,7 +294,7 @@ namespace MiniIT.Snipe
 
 		protected abstract void RegisterAndLogin();
 
-		protected async UniTask FetchLoginId(string provider, AuthIdFetcher fetcher, List<SnipeObject> providers)
+		protected async UniTask FetchLoginId(string provider, AuthIdFetcher fetcher, List<SnipeObject> providers, bool contextIdPrefix)
 		{
 			bool done = false;
 
@@ -302,10 +302,15 @@ namespace MiniIT.Snipe
 			{
 				if (!string.IsNullOrEmpty(uid))
 				{
+					if (contextIdPrefix)
+					{
+						uid = _config.ContextId + uid;
+					}
+
 					providers.Add(new SnipeObject()
 					{
 						["provider"] = provider,
-						["login"] = _config.ContextId + uid,
+						["login"] = uid,
 					});
 				}
 				done = true;
