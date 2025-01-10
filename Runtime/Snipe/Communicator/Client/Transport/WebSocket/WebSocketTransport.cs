@@ -258,17 +258,17 @@ namespace MiniIT.Snipe
 			return result;
 		}
 
-		protected void ProcessWebSocketMessage(byte[] raw_data)
+		protected void ProcessWebSocketMessage(byte[] rawData)
 		{
-			if (raw_data.Length < 2)
+			if (rawData.Length < 2)
 				return;
 
 			StopCheckConnection();
 
-			ProcessMessage(raw_data);
+			ProcessMessage(rawData);
 		}
 
-		private async void ProcessMessage(byte[] raw_data)
+		private async void ProcessMessage(byte[] rawData)
 		{
 			_logger.LogTrace("ProcessWebSocketMessage"); //   " + BitConverter.ToString(raw_data, 0, raw_data.Length));
 
@@ -280,7 +280,7 @@ namespace MiniIT.Snipe
 				await _messageProcessingSemaphore.WaitAsync();
 				semaphoreOccupied = true;
 
-				message = await AlterTask.Run(() => ReadMessage(raw_data));
+				message = await AlterTask.Run(() => ReadMessage(rawData));
 			}
 			finally
 			{
