@@ -1,4 +1,5 @@
 ﻿#if NUTAKU
+
 using System;
 using Nutaku.Unity;
 
@@ -11,20 +12,14 @@ namespace MiniIT.Snipe.Unity
 			if (string.IsNullOrEmpty(Value))
 			{
 				string userId = SdkPlugin.loginInfo?.userId;
-				if (!string.IsNullOrEmpty(userId))
-				{
-					SetValue(userId);
-				}
+				SetValue(userId);
 			}
 			callback?.Invoke(Value);
 		}
 
-		public void SetValue(string value)
+		private void SetValue(string value)
 		{
-			if (CheckValueValid(value))
-				Value = value;
-			else
-				Value = "";
+			Value = CheckValueValid(value) ? value : "";
 		}
 
 		private static bool CheckValueValid(string value)
@@ -33,4 +28,5 @@ namespace MiniIT.Snipe.Unity
 		}
 	}
 }
+
 #endif
