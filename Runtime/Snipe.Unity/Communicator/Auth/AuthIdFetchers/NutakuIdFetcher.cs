@@ -24,7 +24,7 @@ namespace MiniIT.Snipe.Unity
 
 		private static bool CheckValueValid(string value)
 		{
-			return !string.IsNullOrEmpty(value) && value.ToLower() != "fakeid";
+			return !string.IsNullOrEmpty(value);
 		}
 	}
 }
