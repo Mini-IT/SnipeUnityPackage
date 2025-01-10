@@ -96,7 +96,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			        ["floats"] = new List<float>() { 1.1f, 1.2f, 1.3f },
 		        }
 	        };
-	        
+
 	        Span<byte> mapBytes = new MessagePackSerializerNonAlloc(4096).Serialize(map);
 
 	        // Act
