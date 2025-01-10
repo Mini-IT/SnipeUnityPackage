@@ -255,7 +255,7 @@ namespace MiniIT.Snipe
 				// _logger.LogTrace("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
 
 				Span<byte> msgContent = msgData.Slice(offset);
-				var compressed = _messageCompressor.Compress(msgContent);
+				byte[] compressed = _messageCompressor.Compress(msgContent);
 
 				msgData[0] = (byte)KcpOpCode.SnipeRequestCompressed;
 
@@ -263,9 +263,11 @@ namespace MiniIT.Snipe
 				{
 					BytesUtil.WriteInt(msgData, 1, compressed.Length + 4); // msg_data = opcode + length (4 bytes) + msg
 				}
-				compressed.CopyTo(msgContent);
 
-				msgData = msgData.Slice(0, compressed.Length + offset);
+				byte[] buffer = _messageSerializer.GetBuffer();
+				Array.ConstrainedCopy(compressed, 0, buffer, offset, compressed.Length);
+
+				msgData = buffer.AsSpan(0, compressed.Length + offset);
 
 				// _logger.LogTrace("Compressed:   " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
 			}

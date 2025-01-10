@@ -35,6 +35,11 @@ namespace MiniIT.MessagePack
 			_bigEndianConverter = EndianBitConverter.Big;
 		}
 
+		public byte[] GetBuffer()
+		{
+			return _buffer;
+		}
+
 		public ArraySegment<byte> GetBufferSegment(int length)
 		{
 			return new ArraySegment<byte>(_buffer, 0, length);

@@ -240,14 +240,14 @@ namespace MiniIT.Snipe
 				_logger.LogTrace("compress message");
 				//_logger.LogTrace("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
 
-				Span<byte> compressed = _messageCompressor.Compress(msgData);
+				byte[] compressed = _messageCompressor.Compress(msgData);
 
 				//_logger.LogTrace("Compressed:   " + BitConverter.ToString(compressed.Array, compressed.Offset, compressed.Count));
 
 				result = new byte[compressed.Length + 2];
 				result[0] = COMPRESSED_HEADER[0];
 				result[1] = COMPRESSED_HEADER[1];
-				compressed.CopyTo(result.AsSpan(2));
+				Array.ConstrainedCopy(compressed, 0, result, 2, compressed.Length);
 			}
 			else // compression not needed
 			{
