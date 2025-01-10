@@ -2,7 +2,6 @@
     "name": "MiniIT.Snipe.MessagePack",
     "rootNamespace": "MiniIT.Snipe",
     "references": [
-		"System.Runtime.InteropServices",
         "MiniIT.Snipe.Core"
     ],
     "includePlatforms": [],
