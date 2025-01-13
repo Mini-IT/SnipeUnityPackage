@@ -26,13 +26,13 @@ namespace MiniIT.Http
 			_httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 		}
 
-		public async UniTask<IHttpClientResponse> GetAsync(Uri uri)
+		public async UniTask<IHttpClientResponse> Get(Uri uri)
 		{
 			HttpResponseMessage response = await _httpClient.GetAsync(uri);
 			return new SystemHttpClientResponse(response);
 		}
 
-		public async UniTask<IHttpClientResponse> PostJsonAsync(Uri uri, string content)
+		public async UniTask<IHttpClientResponse> PostJson(Uri uri, string content)
 		{
 			var requestContent = new StringContent(content, Encoding.UTF8, "application/json");
 
@@ -40,7 +40,7 @@ namespace MiniIT.Http
 			return new SystemHttpClientResponse(response);
 		}
 
-		public async UniTask<IHttpClientResponse> PostAsync(Uri uri, string name, byte[] content)
+		public async UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content)
 		{
 			var requestContent = new MultipartFormDataContent();
 			requestContent.Add(new ByteArrayContent(content), name);

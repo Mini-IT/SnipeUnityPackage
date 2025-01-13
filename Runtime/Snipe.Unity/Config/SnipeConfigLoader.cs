@@ -40,7 +40,7 @@ namespace MiniIT.Snipe
 
 			try
 			{
-				var response = await httpClient.PostJsonAsync(new Uri(_url), requestParamsJson);
+				var response = await httpClient.PostJson(new Uri(_url), requestParamsJson);
 
 				if (!response.IsSuccess)
 				{

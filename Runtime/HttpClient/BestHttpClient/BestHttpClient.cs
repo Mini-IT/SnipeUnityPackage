@@ -23,14 +23,14 @@ namespace MiniIT.Http
 			_authToken = token;
 		}
 
-		public async UniTask<IHttpClientResponse> GetAsync(Uri uri)
+		public async UniTask<IHttpClientResponse> Get(Uri uri)
 		{
 			var request = HTTPRequest.CreateGet(uri);
 			await request.Send();
 			return new BestHttpClientResponse(request.Response);
 		}
 
-		public async UniTask<IHttpClientResponse> PostJsonAsync(Uri uri, string json)
+		public async UniTask<IHttpClientResponse> PostJson(Uri uri, string json)
 		{
 			var request = HTTPRequest.CreatePost(uri);
 			request.SetHeader("Content-Type", "application/json; charset=UTF-8");
@@ -47,7 +47,7 @@ namespace MiniIT.Http
 			return new BestHttpClientResponse(request.Response);
 		}
 
-		public async UniTask<IHttpClientResponse> PostAsync(Uri uri, string name, byte[] content)
+		public async UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content)
 		{
 			var request = HTTPRequest.CreatePost(uri);
 
