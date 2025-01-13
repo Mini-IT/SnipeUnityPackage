@@ -87,9 +87,7 @@ namespace MiniIT.Snipe.Tables
 		{
 			try
 			{
-				//webRequest.timeout = WEB_REQUEST_TIMEOUT_SECONDS;
-
-				using var loadingResult = await httpClient.Get(new Uri(url));
+				using var loadingResult = await httpClient.Get(new Uri(url), TimeSpan.FromSeconds(WEB_REQUEST_TIMEOUT_SECONDS));
 
 				if (cancellation.IsCancellationRequested)
 				{

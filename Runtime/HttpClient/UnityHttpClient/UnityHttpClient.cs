@@ -8,7 +8,7 @@ namespace MiniIT.Http
 {
 	public class UnityHttpClient : IHttpClient
 	{
-		string _authToken;
+		private string _authToken;
 
 		public void Reset()
 		{
@@ -23,6 +23,13 @@ namespace MiniIT.Http
 		public async UniTask<IHttpClientResponse> Get(Uri uri)
 		{
 			var request = UnityWebRequest.Get(uri);
+			return await SendRequestAsync(request);
+		}
+
+		public async UniTask<IHttpClientResponse> Get(Uri uri, TimeSpan timeout)
+		{
+			var request = UnityWebRequest.Get(uri);
+			request.timeout = (int)timeout.TotalSeconds;
 			return await SendRequestAsync(request);
 		}
 
@@ -51,7 +58,7 @@ namespace MiniIT.Http
 			return await SendRequestAsync(request);
 		}
 
-		private static async UniTask<IHttpClientResponse> SendRequestAsync(UnityWebRequest request)
+		private async UniTask<IHttpClientResponse> SendRequestAsync(UnityWebRequest request)
 		{
 			request.downloadHandler = new DownloadHandlerBuffer();
 			await request.SendWebRequest().ToUniTask();

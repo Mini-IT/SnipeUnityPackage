@@ -30,6 +30,14 @@ namespace MiniIT.Http
 			return new BestHttpClientResponse(request.Response);
 		}
 
+		public async UniTask<IHttpClientResponse> Get(Uri uri, TimeSpan timeout)
+		{
+			var request = HTTPRequest.CreateGet(uri);
+			request.TimeoutSettings.Timeout = timeout;
+			await request.Send();
+			return new BestHttpClientResponse(request.Response);
+		}
+
 		public async UniTask<IHttpClientResponse> PostJson(Uri uri, string json)
 		{
 			var request = HTTPRequest.CreatePost(uri);
