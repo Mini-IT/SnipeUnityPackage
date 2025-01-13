@@ -54,13 +54,13 @@ namespace MiniIT.MessagePack
 		{
 			_position = position;
 			Span<byte> bufferSpan = _buffer.AsSpan();
-			DoSerialize(bufferSpan, data);
+			DoSerialize(ref bufferSpan, data);
 			return _buffer.AsSpan(0, _position);
 		}
 
-		private void DoSerialize<T>(Span<byte> bufferSpan, T val)
+		private void DoSerialize<T>(ref Span<byte> bufferSpan, T val)
 		{
-			bufferSpan = EnsureBufferCapacity(bufferSpan, 1);
+			EnsureBufferCapacity(ref bufferSpan, 1);
 
 			if (val == null)
 			{
@@ -71,32 +71,32 @@ namespace MiniIT.MessagePack
 			switch (val)
 			{
 				case string str:
-					WriteString(bufferSpan, str);
+					WriteString(ref bufferSpan, str);
 					break;
 				case IDictionary map:
-					WriteMap(bufferSpan, map);
+					WriteMap(ref bufferSpan, map);
 					break;
 				case byte[] data:
-					WriteBinary(bufferSpan, data);
+					WriteBinary(ref bufferSpan, data);
 					break;
 				case IList list:
-					WirteArray(bufferSpan, list);
+					WirteArray(ref bufferSpan, list);
 					break;
 				case ISnipeObjectConvertable soc:
-					WriteMap(bufferSpan, soc.ConvertToSnipeObject());
+					WriteMap(ref bufferSpan, soc.ConvertToSnipeObject());
 					break;
 				default:
-					WriteInternalValueType(bufferSpan, val);
+					WriteInternalValueType(ref bufferSpan, val);
 					break;
 			}
 		}
 
-		private void WriteInternalValueType(Span<byte> bufferSpan, object val)
+		private void WriteInternalValueType(ref Span<byte> bufferSpan, object val)
 		{
 			switch (Type.GetTypeCode(val.GetType()))
 			{
 				case TypeCode.UInt64:
-					WriteInteger(bufferSpan, (ulong)val);
+					WriteInteger(ref bufferSpan, (ulong)val);
 					return;
 
 				case TypeCode.Byte:
@@ -107,18 +107,18 @@ namespace MiniIT.MessagePack
 				case TypeCode.Int32:
 				case TypeCode.Int64:
 				case TypeCode.Char:
-					WriteInteger(bufferSpan, Convert.ToInt64(val));
+					WriteInteger(ref bufferSpan, Convert.ToInt64(val));
 					return;
 
 				case TypeCode.Single:
 					bufferSpan[_position++] = (byte)0xCA;
-					CopyBytes(bufferSpan, _bigEndianConverter.GetBytes((float)val), 4);
+					CopyBytes(ref bufferSpan, _bigEndianConverter.GetBytes((float)val), 4);
 					return;
 
 				case TypeCode.Double:
 				case TypeCode.Decimal:
 					bufferSpan[_position++] = (byte)0xCB;
-					CopyBytes(bufferSpan, _bigEndianConverter.GetBytes(Convert.ToDouble(val)), 8);
+					CopyBytes(ref bufferSpan, _bigEndianConverter.GetBytes(Convert.ToDouble(val)), 8);
 					return;
 
 				case TypeCode.Boolean:
@@ -132,7 +132,7 @@ namespace MiniIT.MessagePack
 			}
 		}
 
-		private void WriteString(Span<byte> bufferSpan, string str)
+		private void WriteString(ref Span<byte> bufferSpan, string str)
 		{
 			int encodedBytesCount = _utf8.GetByteCount(str);
 
@@ -148,24 +148,26 @@ namespace MiniIT.MessagePack
 			_ = _utf8.GetBytes(str, rawBytes);
 			int len = rawBytes.Length;
 
-			bufferSpan = EnsureBufferCapacity(bufferSpan, len + 5);
-
 			if (len <= 31)
 			{
+				EnsureBufferCapacity(ref bufferSpan, len + 1);
 				bufferSpan[_position++] = (byte)(0xA0 | len);
 			}
 			else if (len <= 0xFF)
 			{
+				EnsureBufferCapacity(ref bufferSpan, len + 2);
 				bufferSpan[_position++] = (byte)0xD9;
 				bufferSpan[_position++] = (byte)len;
 			}
 			else if (len <= 0xFFFF)
 			{
+				EnsureBufferCapacity(ref bufferSpan, len + 3);
 				bufferSpan[_position++] = (byte)0xDA;
 				CopyBytesUnsafe(bufferSpan, _bigEndianConverter.GetBytes(Convert.ToUInt16(len)), 2);
 			}
 			else
 			{
+				EnsureBufferCapacity(ref bufferSpan, len + 5);
 				bufferSpan[_position++] = (byte)0xDB;
 				CopyBytesUnsafe(bufferSpan, _bigEndianConverter.GetBytes(Convert.ToUInt32(len)), 4);
 			}
@@ -173,11 +175,11 @@ namespace MiniIT.MessagePack
 			CopyBytesUnsafe(bufferSpan, rawBytes, len);
 		}
 
-		private void WriteMap(Span<byte> bufferSpan, IDictionary map)
+		private void WriteMap(ref Span<byte> bufferSpan, IDictionary map)
 		{
 			int len = map.Count;
 
-			bufferSpan = EnsureBufferCapacity(bufferSpan, len + 5);
+			EnsureBufferCapacity(ref bufferSpan, len + 5);
 
 			if (len <= 0x0F)
 			{
@@ -199,8 +201,8 @@ namespace MiniIT.MessagePack
 			while (enumerator.MoveNext())
 			{
 				var item = enumerator.Entry;
-				DoSerialize(bufferSpan, item.Key);
-				DoSerialize(bufferSpan, item.Value);
+				DoSerialize(ref bufferSpan, item.Key);
+				DoSerialize(ref bufferSpan, item.Value);
 			}
 
 			if (enumerator is IDisposable disposable)
@@ -209,11 +211,11 @@ namespace MiniIT.MessagePack
 			}
 		}
 
-		private void WirteArray(Span<byte> bufferSpan, IList list)
+		private void WirteArray(ref Span<byte> bufferSpan, IList list)
 		{
 			int len = list.Count;
 
-			bufferSpan = EnsureBufferCapacity(bufferSpan, len + 5);
+			EnsureBufferCapacity(ref bufferSpan, len + 5);
 
 			if (len <= 0x0F)
 			{
@@ -234,14 +236,14 @@ namespace MiniIT.MessagePack
 
 			if (listType.IsArray)
 			{
-				if (TryWriteArrayItems(bufferSpan, list))
+				if (TryWriteArrayItems(ref bufferSpan, list))
 				{
 					return;
 				}
 			}
 			else if (listType.IsGenericType)
 			{
-				if (TryWriteGenericListItems(bufferSpan, list))
+				if (TryWriteGenericListItems(ref bufferSpan, list))
 				{
 					return;
 				}
@@ -249,96 +251,96 @@ namespace MiniIT.MessagePack
 
 			for (int i = 0; i < len; i++)
 			{
-				DoSerialize(bufferSpan, list[i]);
+				DoSerialize(ref bufferSpan, list[i]);
 			}
 		}
 
-		private bool TryWriteArrayItems(Span<byte> bufferSpan, IList list)
+		private bool TryWriteArrayItems(ref Span<byte> bufferSpan, IList list)
 		{
 			switch (list)
 			{
 				case int[] intArray:
-					WriteArrayItems(bufferSpan, intArray);
+					WriteArrayItems(ref bufferSpan, intArray);
 					return true;
 				case uint[] uintArray:
-					WriteArrayItems(bufferSpan, uintArray);
+					WriteArrayItems(ref bufferSpan, uintArray);
 					return true;
 				case char[] charArray:
-					WriteArrayItems(bufferSpan, charArray);
+					WriteArrayItems(ref bufferSpan, charArray);
 					return true;
 				case byte[] byteArray:
-					WriteArrayItems(bufferSpan, byteArray);
+					WriteArrayItems(ref bufferSpan, byteArray);
 					return true;
 				case short[] shortArray:
-					WriteArrayItems(bufferSpan, shortArray);
+					WriteArrayItems(ref bufferSpan, shortArray);
 					return true;
 				case ushort[] ushortArray:
-					WriteArrayItems(bufferSpan, ushortArray);
+					WriteArrayItems(ref bufferSpan, ushortArray);
 					return true;
 				case long[] longArray:
-					WriteArrayItems(bufferSpan, longArray);
+					WriteArrayItems(ref bufferSpan, longArray);
 					return true;
 				case ulong[] ulongArray:
-					WriteArrayItems(bufferSpan, ulongArray);
+					WriteArrayItems(ref bufferSpan, ulongArray);
 					return true;
 				case float[] floatArray:
-					WriteArrayItems(bufferSpan, floatArray);
+					WriteArrayItems(ref bufferSpan, floatArray);
 					return true;
 				case double[] doubleArray:
-					WriteArrayItems(bufferSpan, doubleArray);
+					WriteArrayItems(ref bufferSpan, doubleArray);
 					return true;
 				case decimal[] decimalArray:
-					WriteArrayItems(bufferSpan, decimalArray);
+					WriteArrayItems(ref bufferSpan, decimalArray);
 					return true;
 				case bool[] boolArray:
-					WriteArrayItems(bufferSpan, boolArray);
+					WriteArrayItems(ref bufferSpan, boolArray);
 					return true;
 			}
 
 			return false;
 		}
 
-		private bool TryWriteGenericListItems(Span<byte> bufferSpan, IList list)
+		private bool TryWriteGenericListItems(ref Span<byte> bufferSpan, IList list)
 		{
 			// CollectionsMarshal.AsSpan is not available in Unity
 
 			switch (list)
 			{
 				case List<int> intList:
-					WriteListItems(bufferSpan, intList);
+					WriteListItems(ref bufferSpan, intList);
 					return true;
 				case List<uint> uintList:
-					WriteListItems(bufferSpan, uintList);
+					WriteListItems(ref bufferSpan, uintList);
 					return true;
 				case List<char> charList:
-					WriteListItems(bufferSpan, charList);
+					WriteListItems(ref bufferSpan, charList);
 					return true;
 				case List<byte> byteList:
-					WriteListItems(bufferSpan, byteList);
+					WriteListItems(ref bufferSpan, byteList);
 					return true;
 				case List<short> shortList:
-					WriteListItems(bufferSpan, shortList);
+					WriteListItems(ref bufferSpan, shortList);
 					return true;
 				case List<ushort> ushortList:
-					WriteListItems(bufferSpan, ushortList);
+					WriteListItems(ref bufferSpan, ushortList);
 					return true;
 				case List<long> longList:
-					WriteListItems(bufferSpan, longList);
+					WriteListItems(ref bufferSpan, longList);
 					return true;
 				case List<ulong> ulongList:
-					WriteListItems(bufferSpan, ulongList);
+					WriteListItems(ref bufferSpan, ulongList);
 					return true;
 				case List<float> floatList:
-					WriteListItems(bufferSpan, floatList);
+					WriteListItems(ref bufferSpan, floatList);
 					return true;
 				case List<double> doubleList:
-					WriteListItems(bufferSpan, doubleList);
+					WriteListItems(ref bufferSpan, doubleList);
 					return true;
 				case List<decimal> decimalList:
-					WriteListItems(bufferSpan, decimalList);
+					WriteListItems(ref bufferSpan, decimalList);
 					return true;
 				case List<bool> boolList:
-					WriteListItems(bufferSpan, boolList);
+					WriteListItems(ref bufferSpan, boolList);
 					return true;
 			}
 
@@ -346,28 +348,28 @@ namespace MiniIT.MessagePack
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private void WriteArrayItems<T>(Span<byte> bufferSpan, T[] list)
+		private void WriteArrayItems<T>(ref Span<byte> bufferSpan, T[] list)
 		{
 			for (int i = 0; i < list.Length; i++)
 			{
-				DoSerialize(bufferSpan, list[i]);
+				DoSerialize(ref bufferSpan, list[i]);
 			}
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private void WriteListItems<T>(Span<byte> bufferSpan, IList<T> list)
+		private void WriteListItems<T>(ref Span<byte> bufferSpan, IList<T> list)
 		{
 			foreach (var item in list)
 			{
-				DoSerialize(bufferSpan, item);
+				DoSerialize(ref bufferSpan, item);
 			}
 		}
 
-		private void WriteBinary(Span<byte> bufferSpan, byte[] data)
+		private void WriteBinary(ref Span<byte> bufferSpan, byte[] data)
 		{
 			int len = data.Length;
 
-			bufferSpan = EnsureBufferCapacity(bufferSpan, len + 5);
+			EnsureBufferCapacity(ref bufferSpan, len + 5);
 
 			if (len <= 0xFF)
 			{
@@ -388,9 +390,9 @@ namespace MiniIT.MessagePack
 			CopyBytesUnsafe(bufferSpan, data, len);
 		}
 
-		private void WriteInteger(Span<byte> bufferSpan, ulong val) // uint 64
+		private void WriteInteger(ref Span<byte> bufferSpan, ulong val) // uint 64
 		{
-			bufferSpan = EnsureBufferCapacity(bufferSpan, 9);
+			EnsureBufferCapacity(ref bufferSpan, 9);
 
 			bufferSpan[_position++] = (byte)0xCF;
 
@@ -398,9 +400,9 @@ namespace MiniIT.MessagePack
 			CopyBytesUnsafe(bufferSpan, bytes, bytes.Length);
 		}
 
-		private void WriteInteger(Span<byte> bufferSpan, long val)
+		private void WriteInteger(ref Span<byte> bufferSpan, long val)
 		{
-			bufferSpan = EnsureBufferCapacity(bufferSpan, 9);
+			EnsureBufferCapacity(ref bufferSpan, 9);
 
 			if (val >= 0)
 			{
@@ -459,9 +461,9 @@ namespace MiniIT.MessagePack
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private void CopyBytes(Span<byte> bufferSpan, Span<byte> data, int length)
+		private void CopyBytes(ref Span<byte> bufferSpan, Span<byte> data, int length)
 		{
-			bufferSpan = EnsureBufferCapacity(bufferSpan, length);
+			EnsureBufferCapacity(ref bufferSpan, length);
 			CopyBytesUnsafe(bufferSpan, data, length);
 		}
 
@@ -472,19 +474,19 @@ namespace MiniIT.MessagePack
 			_position += length;
 		}
 
-		private Span<byte> EnsureBufferCapacity(Span<byte> span, int additionalLenght)
+		private void EnsureBufferCapacity(ref Span<byte> span, int additionalLenght)
 		{
 			int length = _position + additionalLenght;
 
-			if (_buffer.Length >= length)
+			if (span.Length >= length)
 			{
-				return span;
+				return;
 			}
 
 			int capacity = Math.Max(length, _buffer.Length * 2);
 			Array.Resize(ref _buffer, capacity);
 
-			return _buffer.AsSpan();
+			span = _buffer.AsSpan();
 		}
 	}
 }
