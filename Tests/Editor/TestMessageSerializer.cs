@@ -21,7 +21,7 @@ namespace MiniIT.Snipe.Tests.Editor
 				SnipeServices.Initialize(new UnitySnipeServicesFactory());
 			}
 
-			var serializer = new MessagePackSerializerNonAlloc(4096);
+			var serializer = new MessagePackSerializer(4096);
 
 			for (int i = 0; i < THREADS_COUNT; i++)
 			{
@@ -101,7 +101,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			};
 			var message = new SnipeObject() { ["id"] = 11, ["name"] = "SomeName", ["data"] = data, };
 
-			var serializer = new MessagePackSerializerNonAlloc(4096, true);
+			var serializer = new MessagePackSerializer(4096, true);
 			_ = serializer.Serialize(message);
 
 			data["unsupported"] = new CustomUnsupportedData();
@@ -111,7 +111,7 @@ namespace MiniIT.Snipe.Tests.Editor
 				_ = serializer.Serialize(message);
 			});
 
-			serializer = new MessagePackSerializerNonAlloc(4096, false);
+			serializer = new MessagePackSerializer(4096, false);
 			_ = serializer.Serialize(message);
 		}
 
@@ -125,7 +125,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			var message = new SnipeObject() { ["id"] = 11, ["name"] = "SomeName", ["data"] = data, };
 
 			const int OFFSET = 4;
-			var serializer = new MessagePackSerializerNonAlloc(4096);
+			var serializer = new MessagePackSerializer(4096);
 			var original = serializer.Serialize(message).ToArray();
 			var shifted = serializer.Serialize(OFFSET, message).ToArray();
 
@@ -142,7 +142,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			};
 			var message = new SnipeObject() { ["id"] = 11, ["name"] = "SomeName", ["data"] = data, };
 
-			var serializer = new MessagePackSerializerNonAlloc(4096);
+			var serializer = new MessagePackSerializer(4096);
 			var serizlized = serializer.Serialize(message).ToArray();
 			var deserialized = MessagePackDeserializer.Parse(serizlized);
 
@@ -158,10 +158,10 @@ namespace MiniIT.Snipe.Tests.Editor
 			};
 			var message = new SnipeObject() { ["id"] = 11, ["name"] = "SomeName", ["data"] = data, };
 
-			var serializer = new MessagePackSerializerNonAlloc(4096);
+			var serializer = new MessagePackSerializer(4096);
 			var serizlized = serializer.Serialize(message).ToArray();
 
-			serializer = new MessagePackSerializerNonAlloc(serizlized.Length / 3);
+			serializer = new MessagePackSerializer(serizlized.Length / 3);
 			var serizlizedNew = serializer.Serialize(message).ToArray();
 
 			Assert.AreEqual(serizlized, serizlizedNew);

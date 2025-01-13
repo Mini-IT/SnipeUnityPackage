@@ -33,7 +33,7 @@ namespace MiniIT.Snipe
 		public abstract void SendBatch(IList<SnipeObject> messages);
 
 		protected readonly SnipeMessageCompressor _messageCompressor = new SnipeMessageCompressor();
-		protected readonly MessagePackSerializerNonAlloc _messageSerializer = new MessagePackSerializerNonAlloc();
+		protected readonly MessagePackSerializer _messageSerializer = new MessagePackSerializer();
 
 		protected readonly AlterSemaphore _messageSerializationSemaphore = new AlterSemaphore(1, 1);
 		protected readonly AlterSemaphore _messageProcessingSemaphore = new AlterSemaphore(1, 1);

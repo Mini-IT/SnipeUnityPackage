@@ -15,7 +15,7 @@ using System.Runtime.CompilerServices;
 
 namespace MiniIT.MessagePack
 {
-	public class MessagePackSerializerNonAlloc
+	public class MessagePackSerializer
 	{
 		private const int STRING_ENCODING_BUFFER_PORTION = 1024;
 
@@ -27,7 +27,7 @@ namespace MiniIT.MessagePack
 		private byte[] _buffer;
 		private byte[] _stringEncodingBuffer;
 
-		public MessagePackSerializerNonAlloc(int initialBufferSize = 10240, bool throwUnsupportedType = true)
+		public MessagePackSerializer(int initialBufferSize = 10240, bool throwUnsupportedType = true)
 		{
 			_buffer = new byte[initialBufferSize];
 			_stringEncodingBuffer = new byte[STRING_ENCODING_BUFFER_PORTION];

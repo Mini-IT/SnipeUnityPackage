@@ -97,7 +97,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		        }
 	        };
 
-	        Span<byte> mapBytes = new MessagePackSerializerNonAlloc(4096).Serialize(map);
+	        Span<byte> mapBytes = new MessagePackSerializer(4096).Serialize(map);
 
 	        // Act
 	        var result = MessagePackDeserializer.Parse(mapBytes);
