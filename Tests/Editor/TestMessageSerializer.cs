@@ -149,6 +149,24 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(message, deserialized);
 		}
 
+		[Test]
+		public void TestSmallBuffer()
+		{
+			var data = new SnipeObject()
+			{
+				["value"] = 1000, ["errorCode"] = "ok", ["json"] = "{\"id\":2,\"field\":\"fildvalue\"}",
+			};
+			var message = new SnipeObject() { ["id"] = 11, ["name"] = "SomeName", ["data"] = data, };
+
+			var serializer = new MessagePackSerializerNonAlloc(4096);
+			var serizlized = serializer.Serialize(message).ToArray();
+
+			serializer = new MessagePackSerializerNonAlloc(serizlized.Length / 3);
+			var serizlizedNew = serializer.Serialize(message).ToArray();
+
+			Assert.AreEqual(serizlized, serizlizedNew);
+		}
+
 		class CustomUnsupportedData
 		{
 			public string Value { get; }
