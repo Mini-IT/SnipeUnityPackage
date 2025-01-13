@@ -11,7 +11,7 @@ namespace MiniIT.Http
 {
 	public class BestHttpClient : IHttpClient
 	{
-		string _authToken;
+		private string _authToken;
 
 		public void Reset()
 		{

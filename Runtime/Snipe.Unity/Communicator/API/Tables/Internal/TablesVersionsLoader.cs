@@ -6,8 +6,8 @@ using System.Net.Http;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using MiniIT.Http;
 using MiniIT.Threading;
-using UnityEngine.Networking;
 
 namespace MiniIT.Snipe.Tables
 {
@@ -24,13 +24,15 @@ namespace MiniIT.Snipe.Tables
 			_logger = SnipeServices.LogService.GetLogger(nameof(TablesVersionsLoader));
 		}
 
-		public async UniTask<Dictionary<string, long>> Load(bool loadExternal, CancellationToken cancellationToken)
+		public async UniTask<Dictionary<string, long>> Load(IHttpClient httpClient, CancellationToken cancellationToken)
 		{
 			Dictionary<string, long> versions = null;
 
+			bool loadExternal = httpClient != null;
+
 			if (loadExternal)
 			{
-				versions = await LoadFromWeb(cancellationToken);
+				versions = await LoadFromWeb(httpClient, cancellationToken);
 			}
 
 			if (versions == null)
@@ -54,14 +56,14 @@ namespace MiniIT.Snipe.Tables
 			return versions;
 		}
 
-		private async UniTask<Dictionary<string, long>> LoadFromWeb(CancellationToken cancellationToken)
+		private async UniTask<Dictionary<string, long>> LoadFromWeb(IHttpClient httpClient, CancellationToken cancellationToken)
 		{
 			Dictionary<string, long> versions = null;
 
 			const int MAX_RETIES = 3;
-			for (int retries_count = 0; retries_count < MAX_RETIES; retries_count++)
+			for (int retriesCount = 0; retriesCount < MAX_RETIES; retriesCount++)
 			{
-				if (retries_count > 0)
+				if (retriesCount > 0)
 				{
 					try
 					{
@@ -76,54 +78,49 @@ namespace MiniIT.Snipe.Tables
 
 				string url = GetVersionsUrl();
 
-				_logger.LogTrace("LoadVersion ({count}) {url}", retries_count, url);
+				_logger.LogTrace("LoadVersion ({count}) {url}", retriesCount, url);
 
 				try
 				{
-					using var webRequest = UnityWebRequest.Get(url);
-					webRequest.timeout = 1;
-					webRequest.downloadHandler = new DownloadHandlerBuffer();
-					var loadingOperation = webRequest.SendWebRequest();
-					using var loadingResult = await loadingOperation;
+					var webRequest = await httpClient.GetAsync(new Uri(url));
 
-					if (loadingResult.isDone)
+					if (webRequest.IsSuccess)
 					{
-						if (loadingResult.result == UnityWebRequest.Result.Success)
+						string json = await webRequest.GetStringContentAsync();
+						versions = ParseVersionsJson(json);
+
+						if (versions == null)
 						{
-							string json = loadingResult.downloadHandler.text;
-							versions = ParseVersionsJson(json);
-
-							if (versions == null)
+							_analyticsTracker.TrackEvent("Tables - LoadVersion Failed to prase versions json", new SnipeObject()
 							{
-								_analyticsTracker.TrackEvent("Tables - LoadVersion Failed to prase versions json", new SnipeObject()
-								{
-									["url"] = url,
-									["json"] = json,
-								});
-							}
-							else
-							{
-								_logger.LogTrace("LoadVersion done - {count} items", versions.Count);
-							}
-
-							break;
+								["url"] = url,
+								["json"] = json,
+							});
 						}
 						else
 						{
-							_analyticsTracker.TrackEvent("Tables - LoadVersion Failed to load url", new SnipeObject()
-							{
-								["HttpStatus"] = loadingResult.responseCode,
-								["HttpStatusCode"] = (int)loadingResult.responseCode,
-								["url"] = url,
-							});
+							_logger.LogTrace("LoadVersion done - {count} items", versions.Count);
+						}
 
-							if (loadingResult.responseCode == (long)HttpStatusCode.NotFound)
-							{
-								// HTTP Status: 404
-								// It is useless to retry loading
-								_logger.LogTrace("LoadVersion StatusCode = {code} - will not rety", loadingResult.responseCode);
-								break;
-							}
+						break;
+					}
+					else
+					{
+						long responseCode = webRequest.ResponseCode;
+
+						_analyticsTracker.TrackEvent("Tables - LoadVersion Failed to load url", new SnipeObject()
+						{
+							["HttpStatus"] = (HttpStatusCode)responseCode,
+							["HttpStatusCode"] = responseCode,
+							["url"] = url,
+						});
+
+						if (responseCode == (long)HttpStatusCode.NotFound)
+						{
+							// HTTP Status: 404
+							// It is useless to retry loading
+							_logger.LogTrace("LoadVersion StatusCode = {code} - will not rety", responseCode);
+							break;
 						}
 					}
 				}

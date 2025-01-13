@@ -11,7 +11,9 @@
         "MiniIT.Framework.Social",
         "MiniIT.AlterTask",
         "fastJSON",
-        "UniTask"
+        "UniTask",
+        "MiniIT.HttpClient.Abstraction",
+        "MiniIT.HttpClient"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

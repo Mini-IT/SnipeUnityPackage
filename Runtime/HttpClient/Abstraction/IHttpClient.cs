@@ -17,6 +17,7 @@ namespace MiniIT.Http
 		long ResponseCode { get; }
 		bool IsSuccess { get; }
 		string Error { get; }
-		UniTask<string> GetContentAsync();
+		UniTask<string> GetStringContentAsync();
+		UniTask<byte[]> GetBinaryContentAsync();
 	}
 }

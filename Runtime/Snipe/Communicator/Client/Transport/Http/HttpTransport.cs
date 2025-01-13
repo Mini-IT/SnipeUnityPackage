@@ -208,7 +208,7 @@ namespace MiniIT.Snipe
 
 					if (response.IsSuccess)
 					{
-						responseMessage = await response.GetContentAsync();
+						responseMessage = await response.GetStringContentAsync();
 					}
 					else if (response.ResponseCode != 429) // HttpStatusCode.TooManyRequests
 					{

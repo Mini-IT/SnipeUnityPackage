@@ -4,6 +4,7 @@ using System.IO;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using MiniIT.Http;
 using MiniIT.Snipe.Tables;
 using MiniIT.Threading;
 using MiniIT.Unity;
@@ -22,7 +23,7 @@ namespace MiniIT.Snipe
 
 		private bool _failed = false;
 
-		private HashSet<TablesLoaderItem> _loadingItems; 
+		private HashSet<TablesLoaderItem> _loadingItems;
 		private readonly TablesVersionsLoader _versionsLoader;
 		private readonly BuiltInTablesListService _builtInTablesListService;
 		private readonly SnipeAnalyticsTracker _analyticsTracker;
@@ -42,9 +43,9 @@ namespace MiniIT.Snipe
 			return Path.Combine(SnipeServices.ApplicationInfo.PersistentDataPath ?? "", "SnipeTables");
 		}
 
-		internal static string GetCachePath(string table_name, long version)
+		internal static string GetCachePath(string tableName, long version)
 		{
-			return Path.Combine(GetCacheDirectoryPath(), $"{version}_{table_name}.json.gz");
+			return Path.Combine(GetCacheDirectoryPath(), $"{version}_{tableName}.json.gz");
 		}
 
 		public void Reset()
@@ -53,7 +54,7 @@ namespace MiniIT.Snipe
 			_analyticsTracker.TrackEvent("TablesLoader - Reset");
 
 			StopLoading();
-			
+
 			_versions = null;
 			_failed = false;
 		}
@@ -88,7 +89,7 @@ namespace MiniIT.Snipe
 				_versions = null;
 				loaded = await LoadAll(false);
 			}
-			
+
 			_analyticsTracker.TrackEvent($"TablesLoader - " + (loaded ? "Loaded" : "Failed"));
 
 			return loaded;
@@ -106,7 +107,9 @@ namespace MiniIT.Snipe
 			_cancellation = new CancellationTokenSource();
 			CancellationToken cancellationToken = _cancellation.Token;
 
-			_versions = await _versionsLoader.Load(loadExternal, cancellationToken);
+			IHttpClient httpClient = loadExternal ? HttpClientFactory.Create() : null;
+
+			_versions = await _versionsLoader.Load(httpClient, cancellationToken);
 
 			if (cancellationToken.IsCancellationRequested || _loadingItems == null)
 			{
@@ -117,17 +120,23 @@ namespace MiniIT.Snipe
 			var tasks = new List<UniTask>(_loadingItems.Count);
 			foreach (var item in _loadingItems)
 			{
-				tasks.Add(LoadTable(item, cancellationToken));
+				tasks.Add(LoadTable(item, httpClient, cancellationToken));
 			}
 
 			await UniTask.WhenAll(tasks);
 
+			if (httpClient is IDisposable disposableHttpClient)
+			{
+				disposableHttpClient.Dispose();
+			}
+
+			_cancellation?.Dispose();
 			_cancellation = null;
 
 			return !_failed;
 		}
 
-		private async UniTask LoadTable(TablesLoaderItem loaderItem, CancellationToken cancellationToken)
+		private async UniTask LoadTable(TablesLoaderItem loaderItem, IHttpClient httpClient, CancellationToken cancellationToken)
 		{
 			bool loaded = false;
 			bool cancelled = false;
@@ -144,7 +153,7 @@ namespace MiniIT.Snipe
 				{
 					long version = 0;
 					_versions?.TryGetValue(loaderItem.Name, out version);
-					loaded = await LoadTableAsync(loaderItem, version, cancellationToken);
+					loaded = await LoadTableAsync(loaderItem, httpClient, version, cancellationToken);
 				}
 			}
 			catch (OperationCanceledException)
@@ -178,7 +187,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async UniTask<bool> LoadTableAsync(TablesLoaderItem loaderItem, long version, CancellationToken cancellationToken)
+		private async UniTask<bool> LoadTableAsync(TablesLoaderItem loaderItem, IHttpClient httpClient, long version, CancellationToken cancellationToken)
 		{
 			if (cancellationToken.IsCancellationRequested)
 			{
@@ -219,6 +228,7 @@ namespace MiniIT.Snipe
 			return await LoadTableAsync(loaderItem.Table,
 				SnipeTable.LoadingLocation.Network,
 				new SnipeTableWebLoader().LoadAsync(
+					httpClient,
 					loaderItem.WrapperType,
 					loaderItem.Table.GetItems(),
 					loaderItem.Name,

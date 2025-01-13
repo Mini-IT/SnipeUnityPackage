@@ -48,7 +48,7 @@ namespace MiniIT.Snipe
 					return null;
 				}
 
-				string responseMessage = await response.GetContentAsync();
+				string responseMessage = await response.GetStringContentAsync();
 				_logger.LogTrace($"loader response: {responseMessage}");
 
 				var fullResponse = (Dictionary<string, object>)JSON.Parse(responseMessage);

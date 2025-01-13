@@ -18,9 +18,15 @@ namespace MiniIT.Http
 			_response = response;
 		}
 
-		public UniTask<string> GetContentAsync()
+		public UniTask<string> GetStringContentAsync()
 		{
 			string content = _response.DataAsText;
+			return UniTask.FromResult(content);
+		}
+
+		public UniTask<byte[]> GetBinaryContentAsync()
+		{
+			byte[] content = _response.Data;
 			return UniTask.FromResult(content);
 		}
 
