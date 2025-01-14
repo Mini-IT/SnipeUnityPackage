@@ -1,11 +1,6 @@
 
 namespace MiniIT.Http
 {
-	public interface IHttpClientFactory
-	{
-		IHttpClient CreateHttpClient();
-	}
-
 	public class DefaultHttpClientFactory : IHttpClientFactory
 	{
 		public static IHttpClientFactory Instance { get; } = new DefaultHttpClientFactory();

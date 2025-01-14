@@ -12,13 +12,4 @@ namespace MiniIT.Http
 		UniTask<IHttpClientResponse> PostJson(Uri uri, string content);
 		UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content);
 	}
-
-	public interface IHttpClientResponse : IDisposable
-	{
-		long ResponseCode { get; }
-		bool IsSuccess { get; }
-		string Error { get; }
-		UniTask<string> GetStringContentAsync();
-		UniTask<byte[]> GetBinaryContentAsync();
-	}
 }
