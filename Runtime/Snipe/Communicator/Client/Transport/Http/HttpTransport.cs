@@ -43,7 +43,7 @@ namespace MiniIT.Snipe
 
 				_baseUrl = GetBaseUrl();
 
-				_client ??= HttpClientFactory.Create();
+				_client ??= DefaultHttpClientFactory.Instance.CreateHttpClient();
 			}
 
 			SendHandshake();

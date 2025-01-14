@@ -1,9 +1,16 @@
 
 namespace MiniIT.Http
 {
-	public static class HttpClientFactory
+	public interface IHttpClientFactory
 	{
-		public static IHttpClient Create()
+		IHttpClient CreateHttpClient();
+	}
+
+	public class DefaultHttpClientFactory : IHttpClientFactory
+	{
+		public static IHttpClientFactory Instance { get; } = new DefaultHttpClientFactory();
+
+		public IHttpClient CreateHttpClient()
 		{
 #if BEST_HTTP
 			return new BestHttpClient();
