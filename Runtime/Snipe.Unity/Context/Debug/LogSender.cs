@@ -4,6 +4,7 @@ using System.Net;
 using UnityEngine;
 using Cysharp.Threading.Tasks;
 using System.IO;
+using MiniIT.Http;
 using UnityEngine.Networking;
 
 #if ZSTRING
@@ -49,50 +50,40 @@ namespace MiniIT.Snipe.Internal
 
 			string line = null;
 
+			IHttpClient httpClient = SnipeServices.HttpClientFactory.CreateHttpClient();
+			httpClient.SetAuthToken(apiKey);
+			IHttpClientResponse response = null;
+
 			while (!file.EndOfStream)
 			{
 				string content = GetPortionContent(file, ref line, connectionId, userId, appVersion, appPlatform);
 
 				try
 				{
-					using (var request = UnityWebRequest.Post(url, content, "application/json"))
-					{
-						request.SetRequestHeader("Authorization", "Bearer " + apiKey);
-						await request.SendWebRequest();
-
-						try
-						{
-							statusCode = (HttpStatusCode)request.responseCode;
-						}
-						catch (Exception)
-						{
-							statusCode = (request.result == UnityWebRequest.Result.Success) ?
-								HttpStatusCode.OK :
-								HttpStatusCode.BadRequest;
-						}
-
-						if (request.result != UnityWebRequest.Result.Success)
-						{
-							succeeded = false;
-							DebugLogger.Log($"[{nameof(LogSender)}] Failed posting log. Result code = {(int)statusCode} {statusCode} " + request.error);
-							break;
-						}
-					}
+					response = await httpClient.PostJson(new Uri(url), content);
+					statusCode = (HttpStatusCode)response.ResponseCode;
 				}
 				catch (Exception ex)
 				{
+					succeeded = (response != null && response.IsSuccess);
+
+					if (!succeeded)
+					{
+						DebugLogger.LogError($"[{nameof(LogSender)}] Error posting log portion: {ex}");
+						break;
+					}
+
+					statusCode = HttpStatusCode.OK;
+				}
+
+				if (!response.IsSuccess)
+				{
 					succeeded = false;
-					statusCode = HttpStatusCode.BadRequest;
-					DebugLogger.LogError($"[{nameof(LogSender)}] Error posting log portion: {ex}");
+					DebugLogger.Log($"[{nameof(LogSender)}] Failed posting log. Result code = {(int)statusCode} {statusCode} " + response.Error);
 					break;
 				}
 
 				DebugLogger.Log($"[{nameof(LogSender)}] Send log portion result code = {(int)statusCode} {statusCode}");
-
-				if (!succeeded)
-				{
-					break;
-				}
 			}
 
 			if (succeeded)
