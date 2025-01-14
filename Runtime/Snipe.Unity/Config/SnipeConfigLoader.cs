@@ -36,7 +36,7 @@ namespace MiniIT.Snipe
 
 			Dictionary<string, object> config = null;
 
-			IHttpClient httpClient = DefaultHttpClientFactory.Instance.CreateHttpClient();
+			IHttpClient httpClient = SnipeServices.HttpClientFactory.CreateHttpClient();
 
 			try
 			{

@@ -107,7 +107,7 @@ namespace MiniIT.Snipe
 			_cancellation = new CancellationTokenSource();
 			CancellationToken cancellationToken = _cancellation.Token;
 
-			IHttpClient httpClient = loadExternal ? DefaultHttpClientFactory.Instance.CreateHttpClient() : null;
+			IHttpClient httpClient = loadExternal ? SnipeServices.HttpClientFactory.CreateHttpClient() : null;
 
 			_versions = await _versionsLoader.Load(httpClient, cancellationToken);
 

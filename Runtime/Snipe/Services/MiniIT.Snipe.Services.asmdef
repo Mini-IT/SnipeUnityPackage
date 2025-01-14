@@ -5,7 +5,8 @@
         "MiniIT.Storage.SharedPrefs",
         "MiniIT.Snipe.Logging",
         "MiniIT.Snipe.PackageInfo",
-        "fastJSON"
+        "fastJSON",
+        "MiniIT.HttpClient.Abstraction"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

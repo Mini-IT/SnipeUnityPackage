@@ -12,8 +12,7 @@
         "MiniIT.AlterTask",
         "fastJSON",
         "UniTask",
-        "MiniIT.HttpClient.Abstraction",
-        "MiniIT.HttpClient"
+        "MiniIT.HttpClient.Abstraction"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

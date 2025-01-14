@@ -7,9 +7,7 @@
         "MiniIT.Snipe.PackageInfo",
         "MiniIT.Logging",
         "MiniIT.Framework.Utilities",
-        "MiniIT.HttpClient",
         "MiniIT.HttpClient.Abstraction",
-        "MiniIT.HttpClient.Unity",
         "fastJSON",
         "UniTask"
     ],
