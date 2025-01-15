@@ -15,7 +15,9 @@
         "kcp2k",
         "ZString",
         "fastJSON",
-        "UniTask"
+        "UniTask",
+        "com.Tivadar.Best.WebSockets",
+        "com.Tivadar.Best.HTTP"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -29,6 +31,11 @@
             "name": "com.cysharp.zstring",
             "expression": "2.0.0",
             "define": "ZSTRING"
+        },
+        {
+            "name": "com.tivadar.best.websockets",
+            "expression": "3.0.0",
+            "define": "BEST_WEBSOCKET"
         }
     ],
     "noEngineReferences": true

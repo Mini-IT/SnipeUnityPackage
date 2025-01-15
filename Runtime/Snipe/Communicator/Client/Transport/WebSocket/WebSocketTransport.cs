@@ -66,10 +66,12 @@ namespace MiniIT.Snipe
 #if WEBGL_ENVIRONMENT
 			_webSocket = new WebSocketJSWrapper();
 #else
-			if (_config.WebSocketImplementation == SnipeConfig.WebSocketImplementations.ClientWebSocket)
-				_webSocket = new WebSocketClientWrapper();
-			else
-				_webSocket = new WebSocketSharpWrapper();
+			_webSocket = _config.WebSocketImplementation switch
+			{
+				SnipeConfig.WebSocketImplementations.ClientWebSocket => new WebSocketClientWrapper(),
+				SnipeConfig.WebSocketImplementations.BestWebSocket => new WebSocketClientWrapper(),
+				_ => new WebSocketClientWrapper(),
+			};
 #endif
 
 			_webSocket.OnConnectionOpened += OnWebSocketConnected;
