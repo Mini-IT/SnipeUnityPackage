@@ -218,30 +218,7 @@ namespace MiniIT.Snipe
 				await _messageSerializationSemaphore.WaitAsync();
 				semaphoreOccupied = true;
 
-				var msg_data = await AlterTask.Run(() => _messageSerializer.Serialize(ref _messageSerializationBuffer, message));
-
-				if (_config.CompressionEnabled && msg_data.Count >= _config.MinMessageBytesToCompress) // compression needed
-				{
-					await AlterTask.Run(() =>
-					{
-						_logger.LogTrace("compress message");
-						//_logger.LogTrace("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
-
-						ArraySegment<byte> compressed = _messageCompressor.Compress(msg_data);
-
-						//_logger.LogTrace("Compressed:   " + BitConverter.ToString(compressed.Array, compressed.Offset, compressed.Count));
-
-						result = new byte[compressed.Count + 2];
-						result[0] = COMPRESSED_HEADER[0];
-						result[1] = COMPRESSED_HEADER[1];
-						Array.ConstrainedCopy(compressed.Array, compressed.Offset, result, 2, compressed.Count);
-					});
-				}
-				else // compression not needed
-				{
-					result = new byte[msg_data.Count];
-					Array.ConstrainedCopy(msg_data.Array, msg_data.Offset, result, 0, msg_data.Count);
-				}
+				result = await AlterTask.Run(() => InternalSerializeMessage(message));
 			}
 			finally
 			{
@@ -254,17 +231,46 @@ namespace MiniIT.Snipe
 			return result;
 		}
 
-		protected void ProcessWebSocketMessage(byte[] raw_data)
+		private byte[] InternalSerializeMessage(SnipeObject message)
 		{
-			if (raw_data.Length < 2)
+			byte[] result = null;
+
+			var msgData = _messageSerializer.Serialize(message);
+
+			if (_config.CompressionEnabled && msgData.Length >= _config.MinMessageBytesToCompress) // compression needed
+			{
+				_logger.LogTrace("compress message");
+				//_logger.LogTrace("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
+
+				byte[] compressed = _messageCompressor.Compress(msgData);
+
+				//_logger.LogTrace("Compressed:   " + BitConverter.ToString(compressed.Array, compressed.Offset, compressed.Count));
+
+				result = new byte[compressed.Length + 2];
+				result[0] = COMPRESSED_HEADER[0];
+				result[1] = COMPRESSED_HEADER[1];
+				Array.ConstrainedCopy(compressed, 0, result, 2, compressed.Length);
+			}
+			else // compression not needed
+			{
+				result = new byte[msgData.Length];
+				msgData.CopyTo(result);
+			}
+
+			return result;
+		}
+
+		protected void ProcessWebSocketMessage(byte[] rawData)
+		{
+			if (rawData.Length < 2)
 				return;
 
 			StopCheckConnection();
 
-			ProcessMessage(raw_data);
+			ProcessMessage(rawData);
 		}
 
-		private async void ProcessMessage(byte[] raw_data)
+		private async void ProcessMessage(byte[] rawData)
 		{
 			_logger.LogTrace("ProcessWebSocketMessage"); //   " + BitConverter.ToString(raw_data, 0, raw_data.Length));
 
@@ -276,7 +282,7 @@ namespace MiniIT.Snipe
 				await _messageProcessingSemaphore.WaitAsync();
 				semaphoreOccupied = true;
 
-				message = await AlterTask.Run(() => ReadMessage(raw_data));
+				message = await AlterTask.Run(() => ReadMessage(rawData));
 			}
 			finally
 			{
@@ -299,7 +305,8 @@ namespace MiniIT.Snipe
 			bool compressed = (buffer[0] == COMPRESSED_HEADER[0] && buffer[1] == COMPRESSED_HEADER[1]);
 			if (compressed)
 			{
-				var decompressed = _messageCompressor.Decompress(new ArraySegment<byte>(buffer, 2, buffer.Length - 2));
+				var compressedData = new ArraySegment<byte>(buffer, 2, buffer.Length - 2);
+				var decompressed = _messageCompressor.Decompress(compressedData);
 				return MessagePackDeserializer.Parse(decompressed) as SnipeObject;
 			}
 			else // uncompressed
