@@ -2,7 +2,7 @@
     "name": "MiniIT.Snipe.Services",
     "rootNamespace": "",
     "references": [
-        "MiniIT.Snipe.SharedPrefs",
+        "MiniIT.Storage.SharedPrefs",
         "MiniIT.Snipe.Logging",
         "MiniIT.Snipe.PackageInfo",
         "fastJSON"

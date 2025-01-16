@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using MiniIT.Snipe.SharedPrefs;
+using MiniIT.Storage;
 using MiniIT.Threading;
 using MiniIT.Utils;
 
@@ -93,6 +93,7 @@ namespace MiniIT.Snipe
 		protected readonly List<AuthBinding> _bindings;
 
 		protected int _loginAttempt;
+		private bool _registering = false;
 
 		protected readonly SnipeConfig _config;
 		protected readonly SnipeAnalyticsTracker _analytics;
@@ -156,9 +157,89 @@ namespace MiniIT.Snipe
 			JustRegistered = false;
 			_loginAttempt = 0;
 
+			_communicator.MessageReceived -= OnMessageReceived;
+			_communicator.MessageReceived += OnMessageReceived;
+
 			if (AutoLogin)
 			{
 				Authorize();
+			}
+		}
+
+		private void OnMessageReceived(string messagetype, string errorcode, SnipeObject data, int requestid)
+		{
+			if (messagetype == SnipeMessageTypes.USER_LOGIN)
+			{
+				OnLogin(errorcode, data);
+			}
+		}
+
+		private void OnLogin(string errorCode, SnipeObject data)
+		{
+			switch (errorCode)
+			{
+				case SnipeErrorCodes.OK:
+				case SnipeErrorCodes.ALREADY_LOGGED_IN:
+					OnLoginSucceeded(data);
+					break;
+
+				case SnipeErrorCodes.NO_SUCH_USER:
+				case SnipeErrorCodes.LOGIN_DATA_WRONG:
+					string authUidKey = SnipePrefs.GetAuthUID(_config.ContextId);
+					string authKeyKey = SnipePrefs.GetAuthKey(_config.ContextId);
+					_sharedPrefs.DeleteKey(authUidKey);
+					_sharedPrefs.DeleteKey(authKeyKey);
+					RegisterAndLogin();
+					break;
+
+				case SnipeErrorCodes.USER_ONLINE:
+				case SnipeErrorCodes.LOGOUT_IN_PROGRESS:
+					if (_loginAttempt < 4)
+					{
+						DelayedAuthorize();
+					}
+					else
+					{
+						Disconnect();
+					}
+					break;
+
+				case SnipeErrorCodes.GAME_SERVERS_OFFLINE:
+				default: // unexpected error code
+					_logger.LogError($"({_communicator.InstanceId}) {SnipeMessageTypes.USER_LOGIN} - Unexpected error code: {errorCode}");
+					Disconnect();
+					break;
+			}
+		}
+
+		private void Disconnect()
+		{
+			_communicator.MessageReceived -= OnMessageReceived;
+			_communicator.Disconnect();
+		}
+
+		private void OnLoginSucceeded(SnipeObject data)
+		{
+			UserID = data.SafeGetValue<int>("id");
+
+			if (data.TryGetValue("name", out string username))
+			{
+				UserName = username;
+			}
+
+			if (!_registering)
+			{
+				StartBindings();
+			}
+
+			AutoLogin = true;
+			_loginAttempt = 0;
+
+			_communicator.MessageReceived -= OnMessageReceived;
+
+			if (!_registering)
+			{
+				RaiseLoginSucceededEvent();
 			}
 		}
 
@@ -184,57 +265,19 @@ namespace MiniIT.Snipe
 				data["flagCanPack"] = true;
 			}
 
-			var stopwatch = Stopwatch.StartNew();
+			long startTimespamp = Stopwatch.GetTimestamp();
 
 			RunAuthRequest(() => new UnauthorizedRequest(_communicator, SnipeMessageTypes.USER_LOGIN, data)
-				.Request((error_code, response) =>
+				.Request((errorCode, response) =>
 				{
-					stopwatch?.Stop();
+					var elapsed = TimeSpan.FromTicks(Stopwatch.GetTimestamp() - startTimespamp);
 
 					_analytics.TrackEvent(SnipeMessageTypes.USER_LOGIN, new SnipeObject()
 					{
-						["request_time"] = stopwatch?.ElapsedMilliseconds,
+						["request_time"] = elapsed.TotalMilliseconds,
 					});
 
-					switch (error_code)
-					{
-						case SnipeErrorCodes.OK:
-						case SnipeErrorCodes.ALREADY_LOGGED_IN:
-							FillUserIdentity(response);
-
-							StartBindings();
-
-							AutoLogin = true;
-							_loginAttempt = 0;
-
-							RaiseLoginSucceededEvent();
-							break;
-
-						case SnipeErrorCodes.NO_SUCH_USER:
-						case SnipeErrorCodes.LOGIN_DATA_WRONG:
-							_sharedPrefs.DeleteKey(authUidKey);
-							_sharedPrefs.DeleteKey(authKeyKey);
-							RegisterAndLogin();
-							break;
-
-						case SnipeErrorCodes.USER_ONLINE:
-						case SnipeErrorCodes.LOGOUT_IN_PROGRESS:
-							if (_loginAttempt < 4)
-							{
-								DelayedAuthorize();
-							}
-							else
-							{
-								_communicator.Disconnect();
-							}
-							break;
-
-						case SnipeErrorCodes.GAME_SERVERS_OFFLINE:
-						default: // unexpected error code
-							_logger.LogError($"({_communicator.InstanceId}) {SnipeMessageTypes.USER_LOGIN} - Unexpected error code: {error_code}");
-							_communicator.Disconnect();
-							break;
-					}
+					// See also `OnLogin` method
 				})
 			);
 
@@ -286,13 +329,17 @@ namespace MiniIT.Snipe
 				data["flagCanPack"] = true;
 			}
 
+			_registering = true;
+
 			RunAuthRequest(() => new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN)
 				.Request(data, (error_code, response) =>
 				{
+					_registering = false;
+
 					if (error_code == SnipeErrorCodes.OK)
 					{
 						//ClearAllBindings();
-						FillUserIdentity(response);
+						//FillUserIdentity(response);
 						SetAuthData(response.SafeGetString("uid"), response.SafeGetString("password"));
 
 						JustRegistered = response.SafeGetValue<bool>("registrationDone", false);
