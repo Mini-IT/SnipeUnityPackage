@@ -7,6 +7,7 @@ namespace MiniIT.Snipe.Api
 	{
 		public string name;
 		public string stringID;
+		public string note;
 		public List<SnipeTableGraphNode> nodes;
 		//public List<SnipeTableGraphLine> lines;
 	}
