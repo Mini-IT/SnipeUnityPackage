@@ -9,10 +9,10 @@
         "MiniIT.AdvertisingIdFetcher",
         "MiniIT.Framework.StreamingAssetsReader",
         "MiniIT.Framework.Social",
+        "MiniIT.HttpClient.Abstraction",
         "MiniIT.AlterTask",
         "fastJSON",
-        "UniTask",
-        "MiniIT.HttpClient.Abstraction"
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
