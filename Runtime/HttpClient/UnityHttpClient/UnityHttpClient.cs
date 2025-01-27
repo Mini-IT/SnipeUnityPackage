@@ -8,7 +8,7 @@ namespace MiniIT.Http
 {
 	public class UnityHttpClient : IHttpClient
 	{
-		string _authToken;
+		private string _authToken;
 
 		public void Reset()
 		{
