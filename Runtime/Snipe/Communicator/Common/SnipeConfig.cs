@@ -31,6 +31,7 @@ namespace MiniIT.Snipe
 		{
 			WebSocketSharp,
 			ClientWebSocket,
+			BestWebSocket,
 		}
 		public WebSocketImplementations WebSocketImplementation = WebSocketImplementations.WebSocketSharp;
 

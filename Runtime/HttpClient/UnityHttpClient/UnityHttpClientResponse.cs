@@ -1,5 +1,4 @@
 using Cysharp.Threading.Tasks;
-using MiniIT.Threading;
 using UnityEngine.Networking;
 
 namespace MiniIT.Http
@@ -21,9 +20,15 @@ namespace MiniIT.Http
 			Error = unityWebRequest.error;
 		}
 
-		public UniTask<string> GetContentAsync()
+		public UniTask<string> GetStringContentAsync()
 		{
 			string content = _unityWebRequest?.downloadHandler?.text;
+			return UniTask.FromResult(content);
+		}
+
+		public UniTask<byte[]> GetBinaryContentAsync()
+		{
+			byte[] content = _unityWebRequest?.downloadHandler?.data;
 			return UniTask.FromResult(content);
 		}
 

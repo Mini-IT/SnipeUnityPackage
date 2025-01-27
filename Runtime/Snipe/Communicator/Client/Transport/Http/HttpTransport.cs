@@ -43,7 +43,7 @@ namespace MiniIT.Snipe
 
 				_baseUrl = GetBaseUrl();
 
-				_client ??= HttpClientFactory.Create();
+				_client ??= SnipeServices.HttpClientFactory.CreateHttpClient();
 			}
 
 			SendHandshake();
@@ -196,7 +196,7 @@ namespace MiniIT.Snipe
 
 				_logger.LogTrace($"<<< request ({uri}) - {requestType}");
 
-				using (var response = await _client.PostJsonAsync(uri, json))
+				using (var response = await _client.PostJson(uri, json))
 				{
 					// response.StatusCode:
 					//   200 - ok
@@ -208,7 +208,7 @@ namespace MiniIT.Snipe
 
 					if (response.IsSuccess)
 					{
-						responseMessage = await response.GetContentAsync();
+						responseMessage = await response.GetStringContentAsync();
 					}
 					else if (response.ResponseCode != 429) // HttpStatusCode.TooManyRequests
 					{
@@ -328,7 +328,7 @@ namespace MiniIT.Snipe
 
 				_logger.LogTrace($"<<< request ({uri})");
 
-				using (var response = await _client.GetAsync(uri))
+				using (var response = await _client.Get(uri))
 				{
 					_logger.LogTrace($">>> response {uri} ({response.ResponseCode}) {response.Error}");
 
