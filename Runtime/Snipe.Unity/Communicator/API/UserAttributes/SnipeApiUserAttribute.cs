@@ -249,7 +249,21 @@ namespace MiniIT.Snipe.Api
 		{
 			var requests = _syncronizer.GetRequests(false);
 
-			if (requests == null || !requests.TryFlush(out List<SnipeObject> attrs, out List<SetCallback> callbacks))
+			if (requests == null)
+			{
+				return;
+			}
+
+			if (requests.TryFlushSingle(out string key, out object val, out SetCallback callback))
+			{
+				var req = _snipeApi.CreateRequest("attr.set", new SnipeObject() { ["key"] = key, ["val"] = val });
+				req?.Request((errorCode, responseData) => callback?.Invoke(errorCode,
+					responseData.SafeGetString("key"),
+					responseData.SafeGetValue<object>("val")));
+				return;
+			}
+
+			if (!requests.TryFlush(out List<SnipeObject> attrs, out List<SetCallback> callbacks))
 			{
 				return;
 			}

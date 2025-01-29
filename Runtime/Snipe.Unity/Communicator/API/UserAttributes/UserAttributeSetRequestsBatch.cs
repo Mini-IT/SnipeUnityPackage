@@ -6,18 +6,17 @@ namespace MiniIT.Snipe.Api
 {
 	public class UserAttributeSetRequestsBatch
 	{
-		public class SetRequest
+		private class SetRequest
 		{
 			internal object _value;
 			internal SetCallback _callback;
 		}
-		
-		protected readonly Dictionary<string, SetRequest> _setRequests = new Dictionary<string, SetRequest>();
+
+		private readonly Dictionary<string, SetRequest> _setRequests = new Dictionary<string, SetRequest>();
 
 		public void AddSetRequest(string key, object val, SetCallback callback = null)
 		{
-			SetRequest request;
-			if (!_setRequests.TryGetValue(key, out request))
+			if (!_setRequests.TryGetValue(key, out SetRequest request))
 			{
 				request = new SetRequest();
 				_setRequests.Add(key, request);
@@ -27,6 +26,25 @@ namespace MiniIT.Snipe.Api
 			{
 				request._callback += callback;
 			}
+		}
+
+		public bool TryFlushSingle(out string key, out object val, out SetCallback callback)
+		{
+			if (_setRequests.Count == 1)
+			{
+				foreach (var item in _setRequests)
+				{
+					key = item.Key;
+					val = item.Value._value;
+					callback = item.Value._callback;
+					return true;
+				}
+			}
+
+			key = null;
+			val = null;
+			callback = null;
+			return false;
 		}
 
 		public bool TryFlush(out List<SnipeObject> attrs, out List<SetCallback> callbacks)
