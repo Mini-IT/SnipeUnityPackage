@@ -12,10 +12,19 @@ namespace MiniIT.Snipe.Api
 		private readonly RequestFactoryMethod _requestFactory;
 		private readonly List<SnipeApiModule> _modules;
 
-		protected internal AbstractSnipeApiService(SnipeCommunicator communicator, RequestFactoryMethod requestFactory)
+		protected internal AbstractSnipeApiService(SnipeCommunicator communicator, AuthSubsystem auth)
 		{
 			_communicator = communicator;
-			_requestFactory = requestFactory;
+
+			_requestFactory = (string messageType, SnipeObject data) =>
+			{
+				if (communicator.BatchMode && !communicator.LoggedIn)
+				{
+					return new UnauthorizedRequest(communicator, messageType, data);
+				}
+				return new SnipeCommunicatorRequest(communicator, auth, messageType, data);
+			};
+
 			_modules = new List<SnipeApiModule>();
 
 			InitMergeableRequestTypes();

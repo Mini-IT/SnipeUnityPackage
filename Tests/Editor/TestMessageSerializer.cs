@@ -41,7 +41,7 @@ public class TestMessageSerializer
 		}
 
 		// Single WebSocketTransport instance
-		var transport = new WebSocketTransport(new SnipeConfig(""), null);
+		var transport = new WebSocketTransport(new SnipeConfig(0), null);
 		result = Task.Run(async () => await TestWSMessageSerializerAsync(data, transport)).GetAwaiter().GetResult();
 		Assert.AreEqual(serialized.Count, result.Count);
 		for (int i = 0; i < data.Count; i++)
@@ -57,10 +57,10 @@ public class TestMessageSerializer
 		{
 			result.Add(null);
 		}
-		
+
 		List<Task> tasks = new List<Task>(data.Count);
 
-		transport ??= new WebSocketTransport(new SnipeConfig(""), null);
+		transport ??= new WebSocketTransport(new SnipeConfig(0), null);
 		for (int i = 0; i < data.Count; i++)
 		{
 			int index = i;
@@ -89,11 +89,41 @@ public class TestMessageSerializer
 		return data;
 	}
 
-	// A UnityTest behaves like a coroutine in Play Mode. In Edit Mode you can use
-	// `yield return null;` to skip a frame.
-	//[UnityTest]
-	//public IEnumerator TestMessageSerializerWithEnumeratorPasses()
-	//{
-	//    yield return null;
-	//}
+	[Test]
+	public void TestMessageSerializerException()
+	{
+		var data = new SnipeObject()
+		{
+			["value"] = 1000,
+			["errorCode"] = "ok",
+			["json"] = "{\"id\":2,\"field\":\"fildvalue\"}",
+		};
+		var message = new SnipeObject()
+		{
+			["id"] = 11,
+			["name"] = "SomeName",
+			["data"] = data,
+		};
+
+		_ = MessagePackSerializer.Serialize(message);
+
+		data["unsupported"] = new CustomUnsupportedData();
+
+		Assert.Catch<MessagePackSerializationUnsupportedTypeException>(() =>
+		{
+			_ = MessagePackSerializer.Serialize(message);
+		});
+
+		_ = MessagePackSerializer.Serialize(message, false);
+	}
+
+	class CustomUnsupportedData
+	{
+		public string Value { get; }
+
+		public CustomUnsupportedData()
+		{
+			Value = Guid.NewGuid().ToString();
+		}
+	}
 }

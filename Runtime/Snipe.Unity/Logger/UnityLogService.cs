@@ -5,6 +5,6 @@ namespace MiniIT.Snipe.Logging.Unity
 {
 	public class UnityLogService : AbstractLogService
 	{
-		protected override ILoggerFactory CreateLoggerFactory() => new UnityLoggerFactory();
+		protected override ILoggerFactory CreateLoggerFactory() => UnityLoggerFactory.Default;
 	}
 }

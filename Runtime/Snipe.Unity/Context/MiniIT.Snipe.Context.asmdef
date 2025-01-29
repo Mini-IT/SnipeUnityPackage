@@ -7,7 +7,10 @@
         "MiniIT.SnipeCommunicator.Unity",
         "MiniIT.Snipe.Logging",
         "MiniIT.Snipe.Services",
-        "MiniIT.Snipe.Unity"
+        "MiniIT.Snipe.Unity",
+        "MiniIT.AlterTask",
+        "UniTask",
+        "ZString"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -16,6 +19,12 @@
     "precompiledReferences": [],
     "autoReferenced": true,
     "defineConstraints": [],
-    "versionDefines": [],
+    "versionDefines": [
+        {
+            "name": "com.cysharp.zstring",
+            "expression": "2.0.0",
+            "define": "ZSTRING"
+        }
+    ],
     "noEngineReferences": false
 }

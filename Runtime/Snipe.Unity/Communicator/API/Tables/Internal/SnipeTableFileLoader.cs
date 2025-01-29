@@ -1,49 +1,53 @@
 using System;
 using System.Collections;
 using System.IO;
-using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace MiniIT.Snipe.Tables
 {
 	public static class SnipeTableFileLoader
 	{
-		public static async Task<bool> LoadAsync(Type wrapperType, IDictionary items, string table_name, long version)
+		public static async UniTask<bool> LoadAsync(Type wrapperType, IDictionary items, string tableName, long version)
 		{
 			bool loaded = false;
-			string file_path = GetFilePath(table_name, version);
-			
+			string file_path = GetFilePath(tableName, version);
+
 			if (!string.IsNullOrEmpty(file_path) && File.Exists(file_path))
 			{
 				using (var read_stream = new FileStream(file_path, FileMode.Open))
 				{
+#if UNITY_WEBGL
+					if (SnipeTableGZipReader.TryRead(wrapperType, items, read_stream))
+#else
 					if (await SnipeTableGZipReader.TryReadAsync(wrapperType, items, read_stream))
+#endif
 					{
 						loaded = true;
-						SnipeServices.LogService.GetLogger("SnipeTable").LogTrace($"Table ready (from cache) - {table_name}");
+						SnipeServices.LogService.GetLogger("SnipeTable").LogTrace("Table ready (from cache) - {tableName}", tableName);
 					}
 					else
 					{
-						SnipeServices.LogService.GetLogger("SnipeTable").LogTrace($"Failed to read file - {table_name}");
+						SnipeServices.LogService.GetLogger("SnipeTable").LogTrace("Failed to read file - {tableName}", tableName);
 					}
 				}
 			}
 
 			return loaded;
 		}
-		
-		private static string GetFilePath(string table_name, long version)
+
+		private static string GetFilePath(string tableName, long version)
 		{
 			if (version <= 0 && Directory.Exists(TablesLoader.GetCacheDirectoryPath()))
 			{
-				var files = Directory.EnumerateFiles(TablesLoader.GetCacheDirectoryPath(), $"*{table_name}.json.gz");
+				var files = Directory.EnumerateFiles(TablesLoader.GetCacheDirectoryPath(), $"*{tableName}.json.gz");
 				foreach (var file in files)
 				{
 					return file;
 				}
 			}
-			
-			return TablesLoader.GetCachePath(table_name, version);
+
+			return TablesLoader.GetCachePath(tableName, version);
 		}
 	}
 }

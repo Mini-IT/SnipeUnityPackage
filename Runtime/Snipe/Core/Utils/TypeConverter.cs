@@ -57,7 +57,7 @@ namespace MiniIT
 			foreach (var item in collection)
 			{
 				if (targetType != null)
-					list.Add(System.Convert.ChangeType(item, targetType));
+					list.Add(System.Convert.ChangeType(item, targetType, CultureInfo.InvariantCulture));
 				else
 					list.Add(item);
 			}

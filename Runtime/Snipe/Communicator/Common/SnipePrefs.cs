@@ -1,18 +1,29 @@
-﻿
+﻿using System.Runtime.CompilerServices;
+
 namespace MiniIT.Snipe
 {
-	public class SnipePrefs
+	public static class SnipePrefs
 	{
 		private const string PREFIX = "com.miniit.snipe.";
 
-		public static string GetLoginUserID(string contextId) => PREFIX + contextId + "LoginUserID";
+		public static string GetLoginUserID(int contextID)
+			=> GetPrefixedString(contextID, "LoginUserID");
 
-		public static string GetAuthUID(string contextId) => PREFIX + contextId + "AuthUID";
-		public static string GetAuthKey(string contextId) => PREFIX + contextId + "AuthKey";
+		public static string GetAuthUID(int contextID)
+			=> GetPrefixedString(contextID, "AuthUID");
+		public static string GetAuthKey(int contextID)
+			=> GetPrefixedString(contextID, "AuthKey");
 
-		public static string GetAuthBindDone(string contextId) => PREFIX + contextId + "AuthBinded_";
+		public static string GetAuthBindDone(int contextID)
+			=> GetPrefixedString(contextID, "AuthBinded_");
 		
-		public static string GetUdpUrlIndex(string contextId) => PREFIX + contextId + "UdpUrlIndex";
-		public static string GetWebSocketUrlIndex(string contextId) => PREFIX + contextId + "WebSocketUrlIndex";
+		public static string GetUdpUrlIndex(int contextID)
+			=> GetPrefixedString(contextID, "UdpUrlIndex");
+		public static string GetWebSocketUrlIndex(int contextID)
+			=> GetPrefixedString(contextID, "WebSocketUrlIndex");
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private static string GetPrefixedString(int contextID, string value)
+			=> PREFIX + (contextID != 0 ? contextID.ToString() : "") + value;
 	}
 }

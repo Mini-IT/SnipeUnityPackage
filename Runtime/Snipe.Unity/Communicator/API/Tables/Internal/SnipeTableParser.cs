@@ -7,7 +7,7 @@ using MiniIT.Snipe.Api;
 
 namespace MiniIT.Snipe.Tables
 {
-	public class SnipeTableParser
+	public static class SnipeTableParser
 	{
 		public static void Parse(Type wrapperType, IDictionary items, string json)
 		{
@@ -71,7 +71,7 @@ namespace MiniIT.Snipe.Tables
 			{
 				return value;
 			}
-			
+
 			if (value is Dictionary<string, object> nestedObj)
 			{
 				return ParseInternal(targetType, nestedObj);

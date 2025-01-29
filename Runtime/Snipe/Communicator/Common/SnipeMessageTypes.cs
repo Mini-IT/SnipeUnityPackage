@@ -5,6 +5,7 @@ namespace MiniIT.Snipe
 	{
 		public const string USER_LOGIN = "user.login";
 		public const string AUTH_BIND = "auth.bind";
+		public const string AUTH_CONNECT = "auth.connect";
 		public const string AUTH_EXISTS = "auth.exists";
 		public const string AUTH_REGISTER = "auth.register";
 		public const string AUTH_RESTORE = "auth.restore";

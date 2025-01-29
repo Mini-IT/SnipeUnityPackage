@@ -1,94 +1,14 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using MiniIT.Snipe.Unity;
 
 namespace MiniIT.Snipe
 {
 	public class SnipeContext : IDisposable
 	{
-		#region static
-
 		/// <summary>
-		/// An instance of <see cref="SnipeContext"/> that uses an empty string as a <see cref="Id"/>
+		/// The player's context identifier. The <see cref="Default"/> context id is 0,
+		/// but you can use any int values to get different concurrently running contexts.
 		/// </summary>
-		public static SnipeContext Default => GetInstance();
-
-		/// <summary>
-		/// All <see cref="SnipeContext"/>s that have been created. This may include disposed contexts
-		/// </summary>
-		public static IEnumerable<SnipeContext> All => s_instances.Values;
-
-		private static readonly Dictionary<string, SnipeContext> s_instances = new Dictionary<string, SnipeContext>();
-		private static readonly object s_instancesLock = new object();
-
-		/// <summary>
-		/// Create or retrieve a <see cref="SnipeContext"/> for the given <see cref="Id"/>.
-		/// There is only one instance of a context per <see cref="Id"/>.
-		/// </summary>
-		/// <param name="id">A named code that represents a player slot on the device. The <see cref="Default"/> context uses an empty string. </param>
-		/// <param name="initialize">Create and initialize a new instance if no existing one is found or reinitialize the old one if it was stopped.</param>
-		/// <returns>A reference to the <see cref="SnipeContext"/> instance, corresponding to the specified <paramref name="id"/>.
-		/// Can return <c>null</c> if <paramref name="initialize"/> is set to <c>false</c></returns>
-		public static SnipeContext GetInstance(string id = null, bool initialize = true)
-			=> GetInstance<SnipeContext>(id, initialize);
-
-		protected static TContext GetInstance<TContext>(string id = null, bool initialize = true) where TContext : SnipeContext
-		{
-			id ??= string.Empty;
-			TContext context = null;
-
-			lock (s_instancesLock)
-			{
-				// there should only be one context per instance id.
-				if (s_instances.TryGetValue(id, out SnipeContext existingContext))
-				{
-					if (existingContext is TContext apiContext)
-					{
-						context = apiContext;
-
-						if (!context.IsDisposed)
-						{
-							initialize = false;
-						}
-					}
-					else
-					{
-						throw new InvalidCastException($"Unable to cast {nameof(SnipeContext)} of type '{existingContext.GetType()}' to type '{typeof(TContext)}'");
-					}
-				}
-
-				if (initialize)
-				{
-					if (context == null)
-					{
-						BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
-						ConstructorInfo[] constructors = typeof(TContext).GetConstructors(flags);
-						ConstructorInfo constructor = constructors.FirstOrDefault(c => c.GetParameters().Length == 0);
-
-						if (constructor == null)
-						{
-							throw new Exception($"No parameterless constructor found for type '{typeof(TContext)}'");
-						}
-
-						context = (TContext)constructor.Invoke(new object[] { });
-					}
-					context.Initialize(id);
-					s_instances[id] = context;
-				}
-			}
-
-			return context;
-		}
-
-		#endregion static
-
-		/// <summary>
-		/// The player's context identifier. The <see cref="Default"/> context uses an empty string,
-		/// but you can use values like "Player1" and "Player2" to get two different concurrently running contexts.
-		/// </summary>
-		public string Id { get; private set; }
+		public int Id { get; }
 
 		/// <summary>
 		/// If the <see cref="Dispose"/> method has been run, this property will return true.
@@ -97,17 +17,28 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public bool IsDisposed { get; private set; }
 
-		public SnipeConfig Config { get; private set; }
-		public SnipeCommunicator Communicator { get; private set; }
-		public UnityAuthSubsystem Auth { get; private set; }
-		public LogReporter LogReporter { get; private set; }
+		public SnipeConfig Config { get; }
+		public SnipeCommunicator Communicator { get; }
+		public AuthSubsystem Auth { get; }
+		public LogReporter LogReporter { get; }
 
-		public bool IsDefault => string.IsNullOrEmpty(Id);
+		public bool IsDefault => Id == 0;
 
 		/// <summary>
 		/// Protected constructor. Use <see cref="Default"/> or <see cref="GetInstance(string)"/> to get an instance
 		/// </summary>
-		protected SnipeContext() { }
+		protected SnipeContext(int id, SnipeConfig config, SnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter)
+		{
+			Id = id;
+			Config = config;
+			Communicator = communicator;
+			Auth = auth;
+
+			logReporter.SetSnipeContext(this);
+			LogReporter = logReporter;
+
+			UnityTerminator.AddTarget(this);
+		}
 
 		/// <summary>
 		/// After a context has been disposed with the <see cref="Dispose"/> method, this method can restart the instance.
@@ -115,7 +46,7 @@ namespace MiniIT.Snipe
 		/// If the context hasn't been disposed, this method won't do anything meaningful.
 		/// </summary>
 		/// <returns>The same context instance</returns>
-		public SnipeContext Start() => GetInstance(Id);
+		//public void Start() => Construct(); //GetInstance(Id);
 
 		/// <summary>
 		/// Tear down a <see cref="SnipeContext"/> and notify all internal services that the context should be destroyed.
@@ -132,40 +63,8 @@ namespace MiniIT.Snipe
 
 			IsDisposed = true;
 
-			if (Communicator != null)
-			{
-				Communicator.Dispose();
-				Communicator = null;
-			}
-
-			if (LogReporter != null)
-			{
-				LogReporter.Dispose();
-				LogReporter = null;
-			}
-		}
-
-		protected virtual void Initialize(string id)
-		{
-			Id = id;
-			IsDisposed = false;
-
-			if (Communicator != null)
-			{
-				return;
-			}
-
-			if (!SnipeServices.IsInitialized)
-			{
-				SnipeServices.Initialize(new UnitySnipeServicesFactory());
-			}
-
-			Config = new SnipeConfig(Id);
-			Communicator = new SnipeCommunicator(Config);
-			Auth = new UnityAuthSubsystem(Communicator, Config);
-			LogReporter = new LogReporter(this);
-
-			UnityTerminator.Run();
+			Communicator?.Dispose();
+			LogReporter?.Dispose();
 		}
 
 		public AbstractCommunicatorRequest CreateRequest(string messageType, SnipeObject data)

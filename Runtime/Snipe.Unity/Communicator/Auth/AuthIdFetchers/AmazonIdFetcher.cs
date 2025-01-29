@@ -1,5 +1,6 @@
 ﻿using System;
-using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
+using MiniIT.Threading;
 
 namespace MiniIT.Snipe.Unity
 {
@@ -26,18 +27,18 @@ namespace MiniIT.Snipe.Unity
 
 			if (wait_initialization && string.IsNullOrEmpty(Value))
 			{
-				Task.Run(() => WaitForInitialization(callback));
+				WaitForInitialization(callback).Forget();
 				return;
 			}
 
 			callback?.Invoke(Value);
 		}
 
-		private async Task WaitForInitialization(Action<string> callback)
+		private async UniTaskVoid WaitForInitialization(Action<string> callback)
 		{
 			while (string.IsNullOrEmpty(Value))
 			{
-				await Task.Delay(100);
+				await AlterTask.Delay(100);
 			}
 			callback?.Invoke(Value);
 		}

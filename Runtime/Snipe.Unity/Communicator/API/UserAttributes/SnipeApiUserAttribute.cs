@@ -2,12 +2,14 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
+using MiniIT.Threading;
 
 namespace MiniIT.Snipe.Api
 {
 	public abstract class SnipeApiUserAttribute
 	{
+		public static TimeSpan RequestDelay = TimeSpan.FromMilliseconds(900);
+
 		public delegate void SetCallback(string errorCode, string key, object value);
 		
 		public string Key => _key;
@@ -137,10 +139,7 @@ namespace MiniIT.Snipe.Api
 
 	public class SnipeApiUserAttribute<TAttrValue> : SnipeApiReadOnlyUserAttribute<TAttrValue>, IDisposable
 	{
-		// TODO: Move to more externaly available place
-		public static TimeSpan RequestDelay = TimeSpan.FromMilliseconds(900);
-
-		protected static readonly SemaphoreSlim _setRequestsSemaphore = new SemaphoreSlim(1, 1);
+		protected static readonly AlterSemaphore _setRequestsSemaphore = new AlterSemaphore(1, 1);
 		protected static UserAttributeSetRequestsBatch _requests;
 		protected static CancellationTokenSource _setRequestsCancellation;
 
@@ -170,9 +169,12 @@ namespace MiniIT.Snipe.Api
 
 		protected async void AddSetRequest(object val, SetCallback callback = null)
 		{
+			bool semaphoreOccupied = false;
+
 			try
 			{
 				await _setRequestsSemaphore.WaitAsync();
+				semaphoreOccupied = true;
 
 				_requests ??= new UserAttributeSetRequestsBatch();
 				_requests.AddSetRequest(_key, val, callback);
@@ -185,7 +187,10 @@ namespace MiniIT.Snipe.Api
 			}
 			finally
 			{
-				_setRequestsSemaphore.Release();
+				if (semaphoreOccupied)
+				{
+					_setRequestsSemaphore.Release();
+				}
 			}
 		}
 
@@ -193,16 +198,19 @@ namespace MiniIT.Snipe.Api
 		{
 			try
 			{
-				await Task.Delay(RequestDelay, cancellationToken);
+				await AlterTask.Delay(RequestDelay, cancellationToken);
 			}
 			catch (OperationCanceledException)
 			{
 				return;
 			}
 
+			bool semaphoreOccupied = false;
+
 			try
 			{
 				await _setRequestsSemaphore.WaitAsync(cancellationToken);
+				semaphoreOccupied = true;
 
 				_setRequestsCancellation?.Dispose();
 				_setRequestsCancellation = null;
@@ -211,11 +219,14 @@ namespace MiniIT.Snipe.Api
 			}
 			catch (OperationCanceledException)
 			{
-				return;
+				// Ignore
 			}
 			finally
 			{
-				_setRequestsSemaphore.Release();
+				if (semaphoreOccupied)
+				{
+					_setRequestsSemaphore.Release();
+				}
 			}
 		}
 

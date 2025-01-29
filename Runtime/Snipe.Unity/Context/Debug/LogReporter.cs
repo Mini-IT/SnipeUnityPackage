@@ -1,223 +1,170 @@
-using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Net;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using MiniIT.Snipe;
-using UnityEngine;
-using System.Linq;
-
-#if ZSTRING
-using Cysharp.Text;
+#if UNITY_WEBGL
+#define SINGLE_THREAD
 #endif
+
+using System;
+using MiniIT.Snipe;
+using MiniIT.Snipe.Internal;
+using MiniIT.Threading;
+using UnityEngine;
+using Cysharp.Threading.Tasks;
+using System.IO;
+using System.Text;
 
 namespace MiniIT
 {
 	public class LogReporter : IDisposable
 	{
-		internal class LogRecord
-		{
-			internal long _time;
-			internal string _type;
-			internal string _message;
-			internal string _stackTrace;
-		}
+		private const int MIN_BYTES_TO_FLUSH = 4096;
 
-		private const int MAX_CHUNK_LENGTH = 200 * 1024;
+		private static readonly AlterSemaphore s_semaphore;
 
+		private static string s_filePath;
+		private static FileStream s_file;
+		private static int s_bytesWritten;
 		private SnipeContext _snipeContext;
-		private bool _running = false;
-
-		private HttpClient _httpClient;
-
-		private static readonly List<LogRecord> _log = new List<LogRecord>();
-		private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
 
 		static LogReporter()
 		{
+			s_semaphore = new AlterSemaphore(1, 1);
 			Application.logMessageReceivedThreaded += OnLogMessageReceived;
+			CreateNewFile();
 		}
 
-		public LogReporter(SnipeContext snipeContext)
+		private static void CreateNewFile()
+		{
+			s_file?.Close();
+
+			long ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+			s_filePath = Path.Combine(UnityEngine.Application.temporaryCachePath, $"log{ts}.txt");
+			s_file = File.Open(s_filePath, FileMode.OpenOrCreate, FileAccess.Write);
+			s_bytesWritten = 0;
+
+			DebugLogger.Log($"[{nameof(LogReporter)}] New temp log file created: " + s_filePath);
+		}
+
+		internal void SetSnipeContext(SnipeContext snipeContext)
 		{
 			_snipeContext = snipeContext;
 		}
 
-		public async Task<bool> SendAsync()
+		public async UniTask<bool> SendAsync()
 		{
-			string apiKey = _snipeContext.Config.ClientKey;
-			string url = _snipeContext.Config.LogReporterUrl;
+			bool result = false;
+			string filepath = null;
 
-			if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(url))
-			{
-				DebugLogWarning($"[{nameof(LogReporter)}] Invalid apiKey or url");
-				return false;
-			}
-			
+			bool semaphoreOccupied = false;
+
 			try
 			{
-				await _semaphore.WaitAsync();
-				
-				if (_running)
-				{
-					DebugLogWarning($"[{nameof(LogReporter)}] Already running");
-					return false;
-				}
-				_running = true;
+				await s_semaphore.WaitAsync();
+				semaphoreOccupied = true;
+
+				filepath = s_filePath;
+				CreateNewFile();
+			}
+			catch (Exception ex)
+			{
+				DebugLogger.LogError($"[{nameof(LogReporter)}] " + ex.ToString());
 			}
 			finally
 			{
-				_semaphore.Release();
+				if (semaphoreOccupied)
+				{
+					s_semaphore.Release();
+				}
 			}
 
-			int connectionId = 0;
-			int userId = 0;
-			if (_snipeContext?.Communicator != null)
+			StreamReader file = null;
+
+			try
 			{
-				int.TryParse(_snipeContext.Communicator.ConnectionId, out connectionId);
-				userId = _snipeContext.Auth?.UserID ?? 0;
+				file = File.OpenText(filepath);
+				var sender = new LogSender(_snipeContext);
+				result = await sender.SendAsync(file);
 			}
-			string appVersion = Application.version;
-			RuntimePlatform appPlatform = Application.platform;
-
-			bool succeeded = true;
-			HttpStatusCode statusCode = default;
-
-			_httpClient ??= new HttpClient();
-			_httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-
-			for (int startIndex = 0; startIndex < _log.Count;)
+			finally
 			{
-				string content;
-				try
-				{
-					await _semaphore.WaitAsync();
-					content = await Task.Run(() => GetPortionContent(ref startIndex, connectionId, userId, appVersion, appPlatform));
-				}
-				catch (Exception ex)
-				{
-					succeeded = false;
-					statusCode = HttpStatusCode.BadRequest;
-					DebugLogError($"[{nameof(LogReporter)}] - Error getting log portion: {ex}");
-					break;
-				}
-				finally
-				{
-					_semaphore.Release();
-				}
-					
-				var requestContent = new StringContent(content, Encoding.UTF8, "application/json");
+				file?.Dispose();
 
-				try
+				if (!string.IsNullOrEmpty(filepath) && File.Exists(filepath))
 				{
-					var result = await _httpClient.PostAsync(url, requestContent);
-
-					statusCode = result.StatusCode;
-
-					if (!result.IsSuccessStatusCode)
+					try
 					{
-						succeeded = false;
-						break;
+						File.Delete(filepath);
+						DebugLogger.Log($"[{nameof(LogReporter)}] Temp log file deleted " + filepath);
+					}
+					catch (Exception e)
+					{
+						DebugLogger.LogError($"[{nameof(LogReporter)}] Failed deleting temp log file: " + e.ToString());
 					}
 				}
-				catch (Exception ex)
-				{
-					succeeded = false;
-					statusCode = HttpStatusCode.BadRequest;
-					DebugLogError($"[{nameof(LogReporter)}] - Error posting log portion: {ex}");
-					break;
-				}
 			}
 
-			DebugLog($"[{nameof(LogReporter)}] - Send result code = {(int)statusCode} {statusCode}");
-
-			if (succeeded)
-			{
-				DebugLog($"[{nameof(LogReporter)}] - Sent successfully. UserId = {userId}, ConnectionId = {connectionId}");
-
-				try
-				{
-					await _semaphore.WaitAsync();
-					
-					_log.Clear();
-				}
-				finally
-				{
-					_running = false;
-					_semaphore.Release();
-				}
-			}
-
-			return succeeded;
+			return result;
 		}
 
-		private string GetPortionContent(ref int startIndex, int connectionId, int userId, string version, RuntimePlatform platform)
+		private static void OnLogMessageReceived(string condition, string stackTrace, LogType type)
 		{
-#if ZSTRING
-			ursing var content = ZString.CreateStringBuilder(true);
-			content.Append("{");
-#else
-			var content = new StringBuilder("{");
-#endif
-			content.Append($"\"connectionID\":{connectionId},");
-			content.Append($"\"userID\":{userId},");
-			content.Append($"\"version\":\"{version}\",");
-			content.Append($"\"platform\":\"{platform}\",");
-			content.Append("\"list\":[");
-
-			bool linesAdded = false;
-			while (startIndex < _log.Count)
-			{
-				var item = _log[startIndex];
-				
-				string line = $"{{\"time\":{item._time},\"level\":\"{item._type}\",\"msg\":\"{Escape(item._message)}\",\"stack\":\"{Escape(item._stackTrace)}\"}}";
-				if (linesAdded && content.Length + line.Length > MAX_CHUNK_LENGTH)
-				{
-					break;
-				}
-
-				if (linesAdded)
-				{
-					content.Append(",");
-				}
-				content.Append(line);
-
-				startIndex++;
-				linesAdded = true;
-			}
-
-			content.Append("]}");
-			return content.ToString();
+			ProcessLogMessageAsync(condition, stackTrace, type).Forget();
 		}
 
-		private static async void OnLogMessageReceived(string condition, string stackTrace, LogType type)
+		private static async UniTaskVoid ProcessLogMessageAsync(string condition, string stackTrace, LogType type)
 		{
+			bool semaphoreOccupied = false;
+
 			try
 			{
-				await _semaphore.WaitAsync();
-				
-				_log.Add(new LogRecord()
+				await s_semaphore.WaitAsync();
+				semaphoreOccupied = true;
+
+				if (s_file != null && s_file.CanWrite)
 				{
-					_time = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-					_type = type.ToString(),
-					_message = condition,
-					_stackTrace = stackTrace,
-				});
+					long ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+					string json = GetLogRecordJson(ts, type, condition, stackTrace);
+					byte[] bytes = Encoding.UTF8.GetBytes(json + "\n");
+
+#if SINGLE_THREAD
+					s_file.Write(bytes, 0, bytes.Length);
+#else
+					await s_file.WriteAsync(bytes, 0, bytes.Length);
+#endif
+
+					s_bytesWritten += bytes.Length;
+					if (s_bytesWritten >= MIN_BYTES_TO_FLUSH)
+					{
+						s_bytesWritten = 0;
+#if SINGLE_THREAD
+						s_file.Flush();
+#else
+						await s_file.FlushAsync();
+#endif
+					}
+				}
 			}
 			finally
 			{
-				_semaphore.Release();
+				if (semaphoreOccupied)
+				{
+					s_semaphore.Release();
+				}
 			}
+		}
+
+		private static string GetLogRecordJson(long time, LogType type, string message, string stackTrace)
+		{
+			return string.Format("{{\"time\":{0},\"level\":\"{1}\",\"msg\":\"{2}\",\"stack\":\"{3}\"}}",
+				time,
+				type,
+				Escape(message),
+				Escape(stackTrace));
 		}
 
 		// https://stackoverflow.com/a/14087738
 		private static string Escape(string input)
 		{
-			StringBuilder literal = new StringBuilder(input.Length + 2);
-			foreach (var c in input)
+			var literal = new StringBuilder(input.Length + 2);
+			foreach (char c in input)
 			{
 				switch (c)
 				{
@@ -250,44 +197,21 @@ namespace MiniIT
 
 		public void Dispose()
 		{
-			if (_httpClient != null)
-			{
-				try
-				{
-					_httpClient.Dispose();
-				}
-				catch (Exception) { }
+			s_file?.Dispose();
+			s_file = null;
 
-				_httpClient = null;
+			try
+			{
+				if (File.Exists(s_filePath))
+				{
+					File.Delete(s_filePath);
+					DebugLogger.Log($"[{nameof(LogReporter)}] File {s_filePath} deleted");
+				}
+			}
+			catch (Exception e)
+			{
+				DebugLogger.LogError($"[{nameof(LogReporter)}] Failed to delete {s_filePath}: " + e.ToString());
 			}
 		}
-
-		#region DebugLog
-
-		private void DebugLog(string text)
-		{
-			var stackType = Application.GetStackTraceLogType(LogType.Log);
-			Application.SetStackTraceLogType(LogType.Log, StackTraceLogType.ScriptOnly);
-			Debug.Log(text);
-			Application.SetStackTraceLogType(LogType.Log, stackType);
-		}
-
-		private void DebugLogWarning(string text)
-		{
-			var stackType = Application.GetStackTraceLogType(LogType.Warning);
-			Application.SetStackTraceLogType(LogType.Warning, StackTraceLogType.ScriptOnly);
-			Debug.LogWarning(text);
-			Application.SetStackTraceLogType(LogType.Warning, stackType);
-		}
-
-		private void DebugLogError(string text)
-		{
-			var stackType = Application.GetStackTraceLogType(LogType.Error);
-			Application.SetStackTraceLogType(LogType.Error, StackTraceLogType.ScriptOnly);
-			Debug.LogError(text);
-			Application.SetStackTraceLogType(LogType.Error, stackType);
-		}
-
-		#endregion
 	}
 }

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using MiniIT.Snipe.Debugging;
 
 namespace MiniIT.Snipe
 {
@@ -7,21 +8,26 @@ namespace MiniIT.Snipe
 		public bool IsEnabled { get; set; } = true;
 
 		private ISnipeCommunicatorAnalyticsTracker _externalTracker;
+		private readonly ISnipeErrorsTracker _errorsTracker;
 
-		private Dictionary<string, SnipeAnalyticsTracker> _trackers;
+		private Dictionary<int, SnipeAnalyticsTracker> _trackers;
 		private readonly object _trackersLock = new object();
 
-		public SnipeAnalyticsTracker GetTracker(string contextId = null)
+		public SnipeAnalyticsService(ISnipeErrorsTracker errorsTracker = null)
 		{
-			contextId ??= string.Empty;
+			_errorsTracker = errorsTracker;
+		}
+
+		public SnipeAnalyticsTracker GetTracker(int contextId = 0)
+		{
 			SnipeAnalyticsTracker tracker;
 
 			lock (_trackersLock)
 			{
-				_trackers ??= new Dictionary<string, SnipeAnalyticsTracker>();
+				_trackers ??= new Dictionary<int, SnipeAnalyticsTracker>(1);
 				if (!_trackers.TryGetValue(contextId, out tracker))
 				{
-					tracker = new SnipeAnalyticsTracker(this, contextId);
+					tracker = new SnipeAnalyticsTracker(this, contextId, _errorsTracker);
 					_trackers[contextId] = tracker;
 					tracker.SetExternalTracker(_externalTracker);
 				}

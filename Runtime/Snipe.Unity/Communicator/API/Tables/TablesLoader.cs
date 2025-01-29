@@ -2,9 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
-using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.Snipe.Tables;
+using MiniIT.Threading;
 using MiniIT.Unity;
 
 namespace MiniIT.Snipe
@@ -16,7 +17,9 @@ namespace MiniIT.Snipe
 		private Dictionary<string, long> _versions = null;
 
 		private CancellationTokenSource _cancellation;
-		private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(MAX_LOADERS_COUNT);
+
+		private readonly AlterSemaphore _semaphore = new AlterSemaphore(MAX_LOADERS_COUNT);
+
 		private bool _failed = false;
 
 		private HashSet<TablesLoaderItem> _loadingItems; 
@@ -62,7 +65,7 @@ namespace MiniIT.Snipe
 			_loadingItems.Add(new TablesLoaderItem(typeof(SnipeTableItemsListWrapper<TItem>), table, name));
 		}
 
-		public async Task<bool> Load(CancellationToken cancellationToken = default)
+		public async UniTask<bool> Load(CancellationToken cancellationToken = default)
 		{
 			bool fallbackEnabled = (TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceExternal);
 			bool loadExternal = (TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceBuiltIn);
@@ -91,7 +94,7 @@ namespace MiniIT.Snipe
 			return loaded;
 		}
 
-		private async Task<bool> LoadAll(bool loadExternal)
+		private async UniTask<bool> LoadAll(bool loadExternal)
 		{
 			StopLoading();
 
@@ -103,7 +106,7 @@ namespace MiniIT.Snipe
 			_cancellation = new CancellationTokenSource();
 			CancellationToken cancellationToken = _cancellation.Token;
 
-			_versions = await _versionsLoader.Load(cancellationToken, loadExternal);
+			_versions = await _versionsLoader.Load(loadExternal, cancellationToken);
 
 			if (cancellationToken.IsCancellationRequested || _loadingItems == null)
 			{
@@ -111,28 +114,31 @@ namespace MiniIT.Snipe
 			}
 
 			_failed = false;
-			var tasks = new List<Task>(_loadingItems.Count);
+			var tasks = new List<UniTask>(_loadingItems.Count);
 			foreach (var item in _loadingItems)
 			{
 				tasks.Add(LoadTable(item, cancellationToken));
 			}
 
-			await Task.WhenAll(tasks);
+			await UniTask.WhenAll(tasks);
 
 			_cancellation = null;
 
 			return !_failed;
 		}
 
-		private async Task LoadTable(TablesLoaderItem loaderItem, CancellationToken cancellationToken)
+		private async UniTask LoadTable(TablesLoaderItem loaderItem, CancellationToken cancellationToken)
 		{
 			bool loaded = false;
 			bool cancelled = false;
 			Exception exception = null;
 
+			bool semaphoreOccupied = false;
+
 			try
 			{
 				await _semaphore.WaitAsync(cancellationToken);
+				semaphoreOccupied = true;
 
 				if (!cancellationToken.IsCancellationRequested)
 				{
@@ -152,7 +158,10 @@ namespace MiniIT.Snipe
 			}
 			finally
 			{
-				_semaphore.Release();
+				if(semaphoreOccupied)
+				{
+					_semaphore.Release();
+				}
 			}
 
 			if (!loaded && !_failed)
@@ -169,15 +178,15 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async Task<bool> LoadTableAsync(TablesLoaderItem loaderItem, long version, CancellationToken cancellationToken)
+		private async UniTask<bool> LoadTableAsync(TablesLoaderItem loaderItem, long version, CancellationToken cancellationToken)
 		{
 			if (cancellationToken.IsCancellationRequested)
 			{
-				_logger.LogTrace($"Failed to load table - {loaderItem.Name}   (task canceled)");
+				_logger.LogTrace("Failed to load table - {0}   (task canceled)", loaderItem.Name);
 				return false;
 			}
 
-			_logger.LogTrace($"LoadTask start - {loaderItem.Name}");
+			_logger.LogTrace("LoadTask start - {0}", loaderItem.Name);
 
 			// Try to load from cache
 			if (await LoadTableAsync(loaderItem.Table,
@@ -217,7 +226,7 @@ namespace MiniIT.Snipe
 					cancellationToken));
 		}
 
-		private async Task<bool> LoadTableAsync(SnipeTable table, SnipeTable.LoadingLocation loadingLocation, Task<bool> task)
+		private async UniTask<bool> LoadTableAsync(SnipeTable table, SnipeTable.LoadingLocation loadingLocation, UniTask<bool> task)
 		{
 			bool loaded = await task;
 			if (loaded)

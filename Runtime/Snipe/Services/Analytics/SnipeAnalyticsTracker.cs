@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
+using MiniIT.Snipe.Debugging;
 
 namespace MiniIT.Snipe
 {
 	public class SnipeAnalyticsTracker
 	{
 		public bool IsEnabled => _analyticsService.IsEnabled;
-		
+
 		#region Analytics Properties
 
 		public TimeSpan PingTime { get; set; }
@@ -25,18 +26,20 @@ namespace MiniIT.Snipe
 		#endregion
 
 		private ISnipeCommunicatorAnalyticsTracker _externalTracker;
+		private readonly ISnipeErrorsTracker _errorsTracker;
 
 		private string _userId = null;
 		private string _debugId = null;
 		private readonly object _userIdLock = new object();
-		private readonly string _contextId;
+		private readonly int _contextId;
 		private readonly SnipeAnalyticsService _analyticsService;
 		private readonly IMainThreadRunner _mainThreadRunner;
 
-		internal SnipeAnalyticsTracker(SnipeAnalyticsService analyticsService, string contextId)
+		internal SnipeAnalyticsTracker(SnipeAnalyticsService analyticsService, int contextId, ISnipeErrorsTracker errorsTracker)
 		{
 			_analyticsService = analyticsService;
 			_contextId = contextId;
+			_errorsTracker = errorsTracker;
 			_mainThreadRunner = SnipeServices.MainThreadRunner;
 		}
 
@@ -52,14 +55,14 @@ namespace MiniIT.Snipe
 		private bool CheckReady()
 		{
 			bool ready = _externalTracker != null && _externalTracker.IsInitialized && IsEnabled;
-			
+
 			if (ready)
 			{
 				lock (_userIdLock)
 				{
 					if (!string.IsNullOrEmpty(_userId))
 					{
-						if (string.IsNullOrEmpty(_contextId)) // Default context only
+						if (_contextId == 0) // Default context only
 						{
 							_externalTracker.SetUserId(_userId);
 						}
@@ -68,13 +71,12 @@ namespace MiniIT.Snipe
 
 					if (!string.IsNullOrEmpty(_debugId))
 					{
-						string prefix = string.IsNullOrEmpty(_contextId) ? "" : $"{_contextId} ";
+						string prefix = (_contextId == 0) ? "" : $"{_contextId} ";
 						_externalTracker.SetUserProperty(prefix + "debugID", _debugId);
 						_debugId = null;
 					}
 				}
 			}
-			
 			return ready;
 		}
 
@@ -85,7 +87,7 @@ namespace MiniIT.Snipe
 			_debugId = id;
 			CheckReady();
 		}
-		
+
 		public void SetUserId(string uid)
 		{
 			_userId = uid;
@@ -150,7 +152,7 @@ namespace MiniIT.Snipe
 				properties["event_type"] = name;
 				properties["snipe_package_version"] = PackageInfo.VERSION_NAME;
 
-				if (!string.IsNullOrEmpty(_contextId))
+				if (_contextId != 0)
 					properties["sinpe_context"] = _contextId;
 
 				if (PingTime.TotalMilliseconds > 0)
@@ -165,48 +167,52 @@ namespace MiniIT.Snipe
 				});
 			}
 		}
-		public void TrackEvent(string name, string property_name, object property_value)
+		public void TrackEvent(string name, string propertyName, object propertyValue)
 		{
 			if (CheckReady())
 			{
 				var properties = new Dictionary<string, object>(3)
 				{
-					[property_name] = property_value
+					[propertyName] = propertyValue
 				};
 				TrackEvent(name, properties);
 			}
 		}
-		public void TrackEvent(string name, object property_value)
+		public void TrackEvent(string name, object propertyValue)
 		{
 			if (CheckReady())
 			{
 				var properties = new Dictionary<string, object>(3)
 				{
-					["value"] = property_value
+					["value"] = propertyValue
 				};
 				TrackEvent(name, properties);
 			}
 		}
-		
-		public void TrackErrorCodeNotOk(string message_type, string error_code, IDictionary<string, object> data)
+
+		public void TrackErrorCodeNotOk(string messageType, string errorCode, IDictionary<string, object> data)
 		{
-			if (CheckReady() && _externalTracker.CheckErrorCodeTracking(message_type, error_code))
+			if (!CheckReady() || !_externalTracker.CheckErrorCodeTracking(messageType, errorCode))
 			{
-				var properties = new Dictionary<string, object>(5)
-				{
-					["message_type"] = message_type,
-					["error_code"] = error_code,
-					["data"] = data != null ? fastJSON.JSON.ToJSON(data) : null
-				};
-				TrackEvent(EVENT_ERROR_CODE_NOT_OK, properties);
+				return;
 			}
+
+			var properties = new Dictionary<string, object>(5)
+			{
+				["message_type"] = messageType,
+				["error_code"] = errorCode,
+				["data"] = data != null ? fastJSON.JSON.ToJSON(data) : null,
+			};
+			TrackEvent(EVENT_ERROR_CODE_NOT_OK, properties);
+
+			_errorsTracker?.TrackNotOk(properties);
 		}
-		
+
 		public void TrackError(string name, Exception exception = null, IDictionary<string, object> properties = null)
 		{
 			if (CheckReady())
 			{
-				if (!string.IsNullOrEmpty(_contextId))
+				if (_contextId != 0)
 				{
 					properties ??= new Dictionary<string, object>();
 					properties["sinpe_context"] = _contextId;
@@ -218,7 +224,7 @@ namespace MiniIT.Snipe
 				});
 			}
 		}
-		
+
 		#endregion
 
 		#region Constants
@@ -238,10 +244,10 @@ namespace MiniIT.Snipe
 		public const string EVENT_SINGLE_REQUEST_CLIENT_CONNECTED = "SingleRequestClient Connected";
 		public const string EVENT_SINGLE_REQUEST_CLIENT_DISCONNECTED = "SingleRequestClient Disconnected";
 		public const string EVENT_SINGLE_REQUEST_RESPONSE = "SingleRequestClient Response";
-		
+
 		private const string EVENT_ERROR_CODE_NOT_OK = "ErrorCode not ok";
-		
+
 		#endregion Constants
-		
+
 	}
 }

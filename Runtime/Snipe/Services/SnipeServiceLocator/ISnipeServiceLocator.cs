@@ -1,6 +1,6 @@
 using System;
 using MiniIT.Snipe.Logging;
-using MiniIT.Snipe.SharedPrefs;
+using MiniIT.Storage;
 
 namespace MiniIT.Snipe
 {
@@ -11,6 +11,7 @@ namespace MiniIT.Snipe
 		ISnipeAnalyticsService Analytics { get; }
 		IMainThreadRunner MainThreadRunner { get; }
 		IApplicationInfo ApplicationInfo { get; }
+		IStopwatchFactory FuzzyStopwatchFactory { get; }
 	}
 
 	public interface ISnipeServiceLocatorFactory
@@ -20,5 +21,6 @@ namespace MiniIT.Snipe
 		ISnipeAnalyticsService CreateAnalyticsService();
 		IMainThreadRunner CreateMainThreadRunner();
 		IApplicationInfo CreateApplicationInfo();
+		IStopwatchFactory CreateFuzzyStopwatchFactory();
 	}
 }

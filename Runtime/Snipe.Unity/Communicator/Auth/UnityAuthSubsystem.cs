@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 
 namespace MiniIT.Snipe.Unity
 {
@@ -29,10 +29,12 @@ namespace MiniIT.Snipe.Unity
 			}
 #endif
 
+#if UNITY_ANDROID
 			if (FindBinding<AmazonBinding>(false) == null)
 			{
 				_bindings.Add(new AmazonBinding(_communicator, this, _config));
 			}
+#endif
 		}
 
 		protected override async void RegisterAndLogin()
@@ -46,7 +48,7 @@ namespace MiniIT.Snipe.Unity
 
 			if (_bindings.Count > 0)
 			{
-				var tasks = new List<Task>(2);
+				var tasks = new List<UniTask>(2);
 
 				foreach (AuthBinding binding in _bindings)
 				{
@@ -56,7 +58,7 @@ namespace MiniIT.Snipe.Unity
 					}
 				}
 
-				await Task.WhenAll(tasks.ToArray());
+				await UniTask.WhenAll(tasks.ToArray());
 			}
 
 			RequestRegisterAndLogin(providers);
