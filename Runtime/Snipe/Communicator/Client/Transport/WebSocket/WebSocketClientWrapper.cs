@@ -115,9 +115,12 @@ namespace MiniIT.Snipe
 		{
 			while (webSocket.State == WebSocketState.Open && !cancellation.IsCancellationRequested)
 			{
+				bool semaphoreOccupied = false;
+
 				try
 				{
 					await _sendSemaphore.WaitAsync(cancellation);
+					semaphoreOccupied = true;
 
 					if (cancellation.IsCancellationRequested)
 						break;
@@ -134,7 +137,10 @@ namespace MiniIT.Snipe
 				}
 				finally
 				{
-					_sendSemaphore.Release();
+					if (semaphoreOccupied)
+					{
+						_sendSemaphore.Release();
+					}
 				}
 
 				await Task.Delay(50);
@@ -147,9 +153,12 @@ namespace MiniIT.Snipe
 
 			while (webSocket.State == WebSocketState.Open && !cancellation.IsCancellationRequested)
 			{
+				bool semaphoreOccupied = false;
+
 				try
 				{
 					await _readSemaphore.WaitAsync(cancellation);
+					semaphoreOccupied = true;
 
 					if (cancellation.IsCancellationRequested)
 						break;
@@ -164,7 +173,9 @@ namespace MiniIT.Snipe
 					}
 
 					if (cancellation.IsCancellationRequested)
+					{
 						break;
+					}
 
 					// data portion received
 					int totalMessageLength = receivedMessageLength + result.Count;
@@ -189,7 +200,10 @@ namespace MiniIT.Snipe
 				}
 				finally
 				{
-					_readSemaphore.Release();
+					if (semaphoreOccupied)
+					{
+						_readSemaphore.Release();
+					}
 				}
 
 				if (receivedMessageLength == 0)

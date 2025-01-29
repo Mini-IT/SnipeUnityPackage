@@ -1,12 +1,13 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
-using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using MiniIT.Threading;
+using UnityEngine.Networking;
 
 namespace MiniIT.Snipe.Tables
 {
@@ -23,7 +24,7 @@ namespace MiniIT.Snipe.Tables
 			_logger = SnipeServices.LogService.GetLogger(nameof(TablesVersionsLoader));
 		}
 
-		public async Task<Dictionary<string, long>> Load(CancellationToken cancellationToken, bool loadExternal)
+		public async UniTask<Dictionary<string, long>> Load(bool loadExternal, CancellationToken cancellationToken)
 		{
 			Dictionary<string, long> versions = null;
 
@@ -36,12 +37,15 @@ namespace MiniIT.Snipe.Tables
 			{
 				if (cancellationToken.IsCancellationRequested)
 				{
-					_logger.LogTrace($"LoadVersion task canceled");
+					_logger.LogTrace("LoadVersion task canceled");
 				}
 				else
 				{
-					_logger.LogTrace($"LoadVersion Failed. Trying to use the built-in ones");
-					_analyticsTracker.TrackEvent("Tables - LoadVersion Failed");
+					if (loadExternal)
+					{
+						_logger.LogTrace("LoadVersion Failed. Trying to use the built-in ones");
+						_analyticsTracker.TrackEvent("Tables - LoadVersion Failed");
+					}
 
 					versions = await LoadBuiltIn();
 				}
@@ -50,7 +54,7 @@ namespace MiniIT.Snipe.Tables
 			return versions;
 		}
 
-		private async Task<Dictionary<string, long>> LoadFromWeb(CancellationToken cancellationToken)
+		private async UniTask<Dictionary<string, long>> LoadFromWeb(CancellationToken cancellationToken)
 		{
 			Dictionary<string, long> versions = null;
 
@@ -61,91 +65,87 @@ namespace MiniIT.Snipe.Tables
 				{
 					try
 					{
-						await Task.Delay(500, cancellationToken);
+						await AlterTask.Delay(500, cancellationToken);
 					}
 					catch (OperationCanceledException)
 					{
-						_logger.LogTrace($"LoadVersion task canceled");
+						_logger.LogTrace("LoadVersion task canceled");
 						break;
 					}
 				}
 
 				string url = GetVersionsUrl();
 
-				_logger.LogTrace($"LoadVersion ({retries_count}) " + url);
-				
+				_logger.LogTrace("LoadVersion ({count}) {url}", retries_count, url);
+
 				try
 				{
-					var webRequest = WebRequest.Create(new Uri(url));
-					var loadTask = webRequest.GetResponseAsync();
-					if (await Task.WhenAny(loadTask, Task.Delay(1000, cancellationToken)) == loadTask)
+					using var webRequest = UnityWebRequest.Get(url);
+					webRequest.timeout = 1;
+					webRequest.downloadHandler = new DownloadHandlerBuffer();
+					var loadingOperation = webRequest.SendWebRequest();
+					using var loadingResult = await loadingOperation;
+
+					if (loadingResult.isDone)
 					{
-						using (HttpWebResponse response = (HttpWebResponse)loadTask.Result)
+						if (loadingResult.result == UnityWebRequest.Result.Success)
 						{
-							string json = null;
-							using (var reader = new StreamReader(response.GetResponseStream()))
+							string json = loadingResult.downloadHandler.text;
+							versions = ParseVersionsJson(json);
+
+							if (versions == null)
 							{
-								json = reader.ReadToEnd();
-							}
-
-							if (!string.IsNullOrEmpty(json))
-							{
-								versions = ParseVersionsJson(json);
-
-								if (versions == null)
+								_analyticsTracker.TrackEvent("Tables - LoadVersion Failed to prase versions json", new SnipeObject()
 								{
-									_analyticsTracker.TrackEvent("Tables - LoadVersion Failed to prase versions json", new SnipeObject()
-									{
-										["url"] = url,
-										["json"] = json,
-									});
-								}
-								else
-								{
-									_logger.LogTrace($"LoadVersion done - {versions.Count} items");
-								}
-
-								break;
+									["url"] = url,
+									["json"] = json,
+								});
 							}
 							else
 							{
-								_analyticsTracker.TrackEvent("Tables - LoadVersion Failed to load url", new SnipeObject()
-								{
-									["HttpStatus"] = response.StatusCode,
-									["HttpStatusCode"] = (int)response.StatusCode,
-									["url"] = url,
-								});
+								_logger.LogTrace("LoadVersion done - {count} items", versions.Count);
+							}
 
-								if (response.StatusCode == HttpStatusCode.NotFound)
-								{
-									// HTTP Status: 404
-									// It is useless to retry loading
-									_logger.LogTrace($"LoadVersion StatusCode = {response.StatusCode} - will not rety");
-									break;
-								}
+							break;
+						}
+						else
+						{
+							_analyticsTracker.TrackEvent("Tables - LoadVersion Failed to load url", new SnipeObject()
+							{
+								["HttpStatus"] = loadingResult.responseCode,
+								["HttpStatusCode"] = (int)loadingResult.responseCode,
+								["url"] = url,
+							});
+
+							if (loadingResult.responseCode == (long)HttpStatusCode.NotFound)
+							{
+								// HTTP Status: 404
+								// It is useless to retry loading
+								_logger.LogTrace("LoadVersion StatusCode = {code} - will not rety", loadingResult.responseCode);
+								break;
 							}
 						}
 					}
 				}
 				catch (Exception e) when (e is AggregateException ae && ae.InnerException is HttpRequestException)
 				{
-					_logger.LogTrace($"LoadVersion HttpRequestException - network is unreachable - will not rety. {e}");
+					_logger.LogTrace("LoadVersion HttpRequestException - network is unreachable - will not rety. {e}", e);
 					break;
 				}
 				catch (Exception e) when (e is OperationCanceledException ||
 						e is AggregateException ae && ae.InnerException is OperationCanceledException)
 				{
-					_logger.LogTrace($"LoadVersion - TaskCanceled");
+					_logger.LogTrace("LoadVersion - TaskCanceled");
 					break;
 				}
 				catch (Exception e)
 				{
-					_logger.LogTrace($"LoadVersion - Exception: {e}");
+					_logger.LogTrace("LoadVersion - Exception: {e}", e);
 				}
-				
+
 				if (cancellationToken.IsCancellationRequested)
 				{
-					_logger.LogTrace($"LoadVersion task canceled");
+					_logger.LogTrace("LoadVersion task canceled");
 					break;
 				}
 			}
@@ -153,11 +153,11 @@ namespace MiniIT.Snipe.Tables
 			return versions;
 		}
 
-		private async Task<Dictionary<string, long>> LoadBuiltIn()
+		private async UniTask<Dictionary<string, long>> LoadBuiltIn()
 		{
 			while (_builtInTablesListService.Items == null)
 			{
-				await Task.Delay(50);
+				await AlterTask.Delay(50);
 			}
 
 			var versions = new Dictionary<string, long>(_builtInTablesListService.Items.Count);
@@ -169,9 +169,9 @@ namespace MiniIT.Snipe.Tables
 			return versions;
 		}
 
-		private string GetVersionsUrl()
+		private static string GetVersionsUrl()
 		{
-			return $"{TablesConfig.GetTablesPath(true)}version.json";
+			return TablesConfig.GetTablesPath(true) + "version.json";
 		}
 
 		private Dictionary<string, long> ParseVersionsJson(string json)
@@ -192,7 +192,7 @@ namespace MiniIT.Snipe.Tables
 				return versions;
 			}
 
-			_logger.LogTrace($"Faield to prase versions json");
+			_logger.LogTrace("Faield to prase versions json");
 			return null;
 		}
 	}

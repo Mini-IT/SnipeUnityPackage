@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace MiniIT.Snipe
 {
-	public class TablesConfig
+	public static class TablesConfig
 	{
 		public enum VersionsResolution
 		{
@@ -18,12 +18,12 @@ namespace MiniIT.Snipe
 		public static IReadOnlyList<string> TablesUrls => _tablesUrls;
 
 		private static List<string> _tablesUrls = new List<string>();
-		private static int _tablesUrlIndex = 0;
+		private static int _tablesUrlIndex = -1;
 
 		public static void ResetTablesUrls()
 		{
 			_tablesUrls.Clear();
-			_tablesUrlIndex = 0;
+			_tablesUrlIndex = -1;
 		}
 
 		public static void AddTableUrl(string url)

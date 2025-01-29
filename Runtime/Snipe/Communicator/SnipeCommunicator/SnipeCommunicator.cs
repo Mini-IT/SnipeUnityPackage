@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using MiniIT.Threading;
 using MiniIT.Utils;
 
 namespace MiniIT.Snipe
@@ -283,7 +283,7 @@ namespace MiniIT.Snipe
 
 			try
 			{
-				await Task.Delay(delay, cancellation);
+				await AlterTask.Delay(delay, cancellation);
 			}
 			catch (Exception)
 			{
@@ -341,7 +341,11 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception) { }
 
-			Client = null;
+			if (Client != null)
+			{
+				Client.Dispose();
+				Client = null;
+			}
 		}
 		
 		public void DisposeRequests()

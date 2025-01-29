@@ -1,3 +1,9 @@
+#if UNITY_WEBGL && !UNITY_EDITOR
+#define WEBGL_ENVIRONMENT
+#endif
+
+#if !WEBGL_ENVIRONMENT
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -162,3 +168,5 @@ namespace MiniIT.Snipe
 	}
 
 }
+
+#endif

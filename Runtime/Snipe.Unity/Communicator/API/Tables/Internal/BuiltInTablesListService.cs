@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.Unity;
 
@@ -18,7 +18,7 @@ namespace MiniIT.Snipe.Tables
 		public IReadOnlyList<BuiltInTablesListItem> Items => _items;
 		private List<BuiltInTablesListItem> _items;
 
-		public async Task InitializeAsync(CancellationToken cancellationToken = default)
+		public async UniTask InitializeAsync(CancellationToken cancellationToken = default)
 		{
 			_items = await ReadBuiltInTablesVersions(cancellationToken);
 		}
@@ -48,7 +48,7 @@ namespace MiniIT.Snipe.Tables
 			return false;
 		}
 
-		private async Task<List<BuiltInTablesListItem>> ReadBuiltInTablesVersions(CancellationToken cancellationToken)
+		private async UniTask<List<BuiltInTablesListItem>> ReadBuiltInTablesVersions(CancellationToken cancellationToken)
 		{
 			var result = new List<BuiltInTablesListItem>();
 

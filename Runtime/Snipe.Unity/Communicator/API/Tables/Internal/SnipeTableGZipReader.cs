@@ -2,13 +2,13 @@ using System;
 using System.Collections;
 using System.IO;
 using System.IO.Compression;
-using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 
 namespace MiniIT.Snipe.Tables
 {
-	public class SnipeTableGZipReader
+	public static class SnipeTableGZipReader
 	{
-		public static async Task<bool> TryReadAsync(Type wrapperType, IDictionary items, Stream stream)
+		public static async UniTask<bool> TryReadAsync(Type wrapperType, IDictionary items, Stream stream)
 		{
 			try
 			{
@@ -21,13 +21,38 @@ namespace MiniIT.Snipe.Tables
 			return true;
 		}
 
-		public static async Task ReadAsync(Type wrapperType, IDictionary items, Stream stream)
+		public static bool TryRead(Type wrapperType, IDictionary items, Stream stream)
+		{
+			try
+			{
+				Read(wrapperType, items, stream);
+			}
+			catch (Exception)
+			{
+				return false;
+			}
+			return true;
+		}
+
+		public static async UniTask ReadAsync(Type wrapperType, IDictionary items, Stream stream)
 		{
 			using (GZipStream gzip = new GZipStream(stream, CompressionMode.Decompress, true))
 			{
 				using (StreamReader reader = new StreamReader(gzip))
 				{
 					string json = await reader.ReadToEndAsync();
+					SnipeTableParser.Parse(wrapperType, items, json);
+				}
+			}
+		}
+
+		public static void Read(Type wrapperType, IDictionary items, Stream stream)
+		{
+			using (GZipStream gzip = new GZipStream(stream, CompressionMode.Decompress, true))
+			{
+				using (StreamReader reader = new StreamReader(gzip))
+				{
+					string json = reader.ReadToEnd();
 					SnipeTableParser.Parse(wrapperType, items, json);
 				}
 			}

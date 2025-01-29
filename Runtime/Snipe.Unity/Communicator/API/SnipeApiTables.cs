@@ -1,17 +1,18 @@
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
+using MiniIT.Threading;
 
 namespace MiniIT.Snipe.Api
 {
 	public class SnipeApiTables
 	{
-		public bool Loading => _loadingTask?.IsCompleted ?? false;
+		public bool Loading => _loading;
 
 		private readonly HashSet<SnipeTable> _tables;
 		private readonly TablesLoader _loader;
 		private readonly object _lock = new object();
-		private Task<bool> _loadingTask;
+		private bool _loading = false;
 
 		public SnipeApiTables()
 		{
@@ -41,15 +42,20 @@ namespace MiniIT.Snipe.Api
 			}
 		}
 
-		public async Task Load(bool restart = false)
+		public async UniTask Load(bool restart = false)
 		{
-			Task<bool> task = null;
+			bool startLoading = false;
 
 			lock (_lock)
 			{
+				if (_tables.Count == 0)
+				{
+					return;
+				}
+
 				if (restart)
 				{
-					_loadingTask = null;
+					_loading = false;
 					_loader.Reset();
 				}
 				else if (Loaded)
@@ -57,17 +63,22 @@ namespace MiniIT.Snipe.Api
 					return;
 				}
 
-				task = _loadingTask ??= _loader.Load();
+				if (!_loading)
+				{
+					_loading = true;
+					startLoading = true;
+				}
 			}
 
-			await task;
-
-			lock (_lock)
+			if (startLoading)
 			{
-				if (task == _loadingTask)
-				{
-					_loadingTask = null;
-				}
+				_ = await _loader.Load();
+				_loading = false;
+			}
+			
+			while (_loading)
+			{
+				await AlterTask.Delay(100);
 			}
 		}
 
@@ -78,7 +89,9 @@ namespace MiniIT.Snipe.Api
 				lock (_lock)
 				{
 					if (_tables.Count == 0)
+					{
 						return true;
+					}
 					
 					foreach (var table in _tables)
 					{
@@ -100,7 +113,9 @@ namespace MiniIT.Snipe.Api
 				lock (_lock)
 				{
 					if (_tables.Count == 0)
+					{
 						return false;
+					}
 					
 					foreach (var table in _tables)
 					{

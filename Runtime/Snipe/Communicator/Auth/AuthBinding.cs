@@ -1,6 +1,6 @@
 ﻿using System;
 using Microsoft.Extensions.Logging;
-using MiniIT.Snipe.SharedPrefs;
+using MiniIT.Storage;
 
 namespace MiniIT.Snipe
 {
@@ -65,7 +65,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 			_started = true;
-			
+
 			_logger.LogTrace("Start");
 			if (Fetcher != null && !IsBindDone)
 			{
@@ -93,9 +93,8 @@ namespace MiniIT.Snipe
 				InvokeBindResultCallback(SnipeErrorCodes.OK);// IsBindDone ? SnipeErrorCodes.OK : SnipeErrorCodes.NOT_INITIALIZED);
 				return;
 			}
-
-			string auth_login = _sharedPrefs.GetString(SnipePrefs.GetAuthUID(_config.ContextId));
-			string auth_token = _sharedPrefs.GetString(SnipePrefs.GetAuthKey(_config.ContextId));
+			string auth_login = GetInternalAuthLogin();
+			string auth_token = GetInternalAuthToken();
 			string uid = GetUserId();
 
 			if (string.IsNullOrEmpty(auth_login) ||
@@ -107,7 +106,7 @@ namespace MiniIT.Snipe
 
 			var data = new SnipeObject()
 			{
-				["ckey"] = _config.ClientKey,
+				["ckey"] = GetClientKey(),
 				["provider"] = ProviderId,
 				["login"] = uid,
 				["loginInt"] = auth_login,
@@ -133,12 +132,19 @@ namespace MiniIT.Snipe
 
 		public string GetUserId()
 		{
-			return GetContextBoundUserId(Fetcher?.Value ?? "");
+			return Fetcher?.Value ?? "";
 		}
 
-		private string GetContextBoundUserId(string uid)
+		protected string GetClientKey() => _config.ClientKey;
+
+		protected string GetInternalAuthToken()
 		{
-			return _config.ContextId + uid;
+			return _sharedPrefs.GetString(SnipePrefs.GetAuthKey(_config.ContextId));
+		}
+
+		protected string GetInternalAuthLogin()
+		{
+			return _sharedPrefs.GetString(SnipePrefs.GetAuthUID(_config.ContextId));
 		}
 
 		protected virtual string GetAuthToken()
@@ -173,7 +179,7 @@ namespace MiniIT.Snipe
 					{
 						string auth_login = response_data.SafeGetString("uid");
 						string auth_token = response_data.SafeGetString("password");
-						
+
 						if (!string.IsNullOrEmpty(auth_login) && !string.IsNullOrEmpty(auth_token))
 						{
 							_sharedPrefs.SetString(SnipePrefs.GetAuthUID(_config.ContextId), auth_login);
@@ -182,7 +188,7 @@ namespace MiniIT.Snipe
 
 						SetBindDoneFlag(true);
 					}
-					
+
 					callback?.Invoke(error_code);
 				});
 		}
@@ -197,8 +203,6 @@ namespace MiniIT.Snipe
 
 		protected virtual void CheckAuthExists(string user_id, CheckAuthExistsCallback callback = null)
 		{
-			user_id = GetContextBoundUserId(user_id);
-
 			_logger.LogTrace($"({ProviderId}) CheckAuthExists {user_id}");
 
 			SnipeObject data = new SnipeObject()
@@ -272,7 +276,7 @@ namespace MiniIT.Snipe
 				_bindResultCallback = null;
 			}
 		}
-		
+
 		private void SetBindDoneFlag(bool value)
 		{
 			if (value == IsBindDone)

@@ -7,7 +7,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
-using System.Linq;
 
 namespace MiniIT
 {
@@ -67,7 +66,7 @@ namespace MiniIT
 			else if (obj is string || obj is char)
 			{
 				string_builder.Append("\"");
-				string convert = EscapeCommas(Convert.ToString(obj));
+				string convert = EscapeCommas(Convert.ToString(obj, CultureInfo.InvariantCulture));
 				// убираем из данных '\' и '"'
 				convert = convert.Replace("\\", "\\\\");
 				convert = convert.Replace("\"", "\\\"");

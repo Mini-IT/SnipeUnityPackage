@@ -1,13 +1,10 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
-using System.Net;
-using System.Net.Http;
-using System.Text;
 using Cysharp.Threading.Tasks;
 using fastJSON;
-using UnityEngine;
+using UnityEngine.Networking;
+using Microsoft.Extensions.Logging;
 
 namespace MiniIT.Snipe
 {
@@ -16,12 +13,14 @@ namespace MiniIT.Snipe
 		private readonly string _projectID;
 		private readonly string _url;
 		private readonly IApplicationInfo _appInfo;
+		private readonly ILogger _logger;
 
 		public SnipeConfigLoader(string projectID, IApplicationInfo appInfo)
 		{
 			_projectID = projectID;
 			_appInfo = appInfo;
 			_url = "https://config.snipe.dev/api/v1/configStrings";
+			_logger = SnipeServices.LogService.GetLogger<SnipeConfigLoader>();
 		}
 
 		public async UniTask<Dictionary<string, object>> Load()
@@ -35,65 +34,42 @@ namespace MiniIT.Snipe
 				$"\"packageVersion\":\"{PackageInfo.VERSION_CODE}\"" +
 				"}";
 
-#if UNITY_EDITOR
-			Debug.Log($"Load config with params: {requestParamsJson}");
-#endif
-
-			HttpWebResponse response = null;
 			Dictionary<string, object> config = null;
 
 			try
 			{
-				var request = WebRequest.CreateHttp(_url);
-				request.Method = "POST";
-				var content = await request.GetRequestStreamAsync();
-				content.Write(Encoding.UTF8.GetBytes(requestParamsJson));
-				var loadTask = request.GetResponseAsync();
-				await loadTask;
+				using var request = UnityWebRequest.Post(_url, requestParamsJson, "application/json");
+				request.downloadHandler = new DownloadHandlerBuffer();
+				var response = await request.SendWebRequest().ToUniTask();
 
-				if (loadTask.IsFaulted || loadTask.IsCanceled)
+				if (response.result != UnityWebRequest.Result.Success)
 				{
-					Debug.Log($"[{nameof(SnipeConfigLoader)}] loader failed");
+					_logger.LogTrace($"loader failed. {response.error}");
 					return config;
 				}
 
-				response = (HttpWebResponse)loadTask.Result;
-				if (response == null)
-				{
-					Debug.Log($"[{nameof(SnipeConfigLoader)}] loader failed - http response is null");
-					return config;
-				}
-				if (!new HttpResponseMessage(response.StatusCode).IsSuccessStatusCode)
-				{
-					Debug.Log($"[{nameof(SnipeConfigLoader)}] loader failed - {(int)response.StatusCode} {response.StatusCode}");
-					return config;
-				}
+				string responseMessage = response.downloadHandler.text;
+				_logger.LogTrace($"loader response: {responseMessage}");
 
-				using (var reader = new StreamReader(response.GetResponseStream()))
+				var fullResponse = (Dictionary<string, object>)JSON.Parse(responseMessage);
+				if (fullResponse != null)
 				{
-					string responseMessage = await reader.ReadToEndAsync();
-					Debug.Log($"[{nameof(SnipeConfigLoader)}] loader response: {responseMessage}");
-
-					var fullResponse = (Dictionary<string, object>)JSON.Parse(responseMessage);
-					if (fullResponse != null)
+					if (fullResponse.TryGetValue("data", out var responseData))
 					{
-						if (fullResponse.TryGetValue("data", out var responseData))
-						{
-							config = (Dictionary<string, object>)responseData;
-						}
+						config = (Dictionary<string, object>)responseData;
+					}
 
-						// Inject AB-tests
-						// "abTests":[{"id":1,"stringID":"testString","variantID":1}]
-						if (fullResponse.TryGetValue("abTests", out var testsList) && testsList is IEnumerable tests)
+					// Inject AB-tests
+					// "abTests":[{"id":1,"stringID":"testString","variantID":1}]
+					if (fullResponse.TryGetValue("abTests", out var testsList) && testsList is IEnumerable tests)
+					{
+						foreach (var testData in tests)
 						{
-							foreach (var testData in tests)
+							if (testData is IDictionary<string, object> test &&
+								test.TryGetValue("stringID", out var testStringID) &&
+								test.TryGetValue("variantID", out var testVariantID))
 							{
-								if (testData is IDictionary<string, object> test &&
-									test.TryGetValue("stringID", out var testStringID) &&
-									test.TryGetValue("variantID", out var testVariantID))
-								{
-									config[$"test_{testStringID}"] = $"test_{testStringID}_Variant{testVariantID}";
-								}
+								config[$"test_{testStringID}"] = $"test_{testStringID}_Variant{testVariantID}";
 							}
 						}
 					}
@@ -102,11 +78,7 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception e)
 			{
-				Debug.Log($"[{nameof(SnipeConfigLoader)}] loader failed: {e}");
-			}
-			finally
-			{
-				response?.Dispose();
+				_logger.LogTrace($"loader failed: {e}");
 			}
 
 			return config;

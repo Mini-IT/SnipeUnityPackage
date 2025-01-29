@@ -2,11 +2,12 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 
 namespace MiniIT.Snipe
 {
-	public partial class SnipeClient
+	public class SnipeClient : IDisposable
 	{
 		public const int SNIPE_VERSION = 6;
 		public const int MAX_BATCH_SIZE = 5;
@@ -31,10 +32,10 @@ namespace MiniIT.Snipe
 
 		public string ConnectionId { get; private set; }
 
-		private Stopwatch _connectionStopwatch;
+		private long _connectionStartTimestamp;
 		
-		private Stopwatch _serverReactionStopwatch;
-		public TimeSpan CurrentRequestElapsed => _serverReactionStopwatch?.Elapsed ?? new TimeSpan(0);
+		private long _serverReactionStartTimestamp;
+		public TimeSpan CurrentRequestElapsed => GetElapsedTime(_serverReactionStartTimestamp);
 		
 		private bool _batchMode = false;
 		public bool BatchMode
@@ -69,6 +70,7 @@ namespace MiniIT.Snipe
 
 		private readonly SnipeConfig _config;
 		private readonly SnipeAnalyticsTracker _analytics;
+		private readonly ResponseMonitor _responseMonitor;
 		private readonly IMainThreadRunner _mainThreadRunner;
 		private readonly ILogger _logger;
 
@@ -76,6 +78,7 @@ namespace MiniIT.Snipe
 		{
 			_config = config;
 			_analytics = SnipeServices.Analytics.GetTracker(config.ContextId);
+			_responseMonitor = new ResponseMonitor(_analytics);
 			_mainThreadRunner = SnipeServices.MainThreadRunner;
 			_logger = SnipeServices.LogService.GetLogger(nameof(SnipeClient));
 		}
@@ -84,10 +87,12 @@ namespace MiniIT.Snipe
 		{
 			_transportFactoriesQueue.Clear();
 
+#if !UNITY_WEBGL
 			if (_config.CheckUdpAvailable())
 			{
 				_transportFactoriesQueue.Enqueue(CreateKcpTransport);
 			}
+#endif
 
 			if (_config.CheckWebSocketAvailable())
 			{
@@ -128,7 +133,7 @@ namespace MiniIT.Snipe
 
 			_transport ??= transportFactory.Invoke();
 
-			_connectionStopwatch = Stopwatch.StartNew();
+			_connectionStartTimestamp = Stopwatch.GetTimestamp();
 			_transport.Connect();
 		}
 
@@ -140,7 +145,7 @@ namespace MiniIT.Snipe
 
 			transport.ConnectionOpenedHandler = (Transport t) =>
 			{
-				_analytics.UdpConnectionTime = _connectionStopwatch.Elapsed;
+				_analytics.UdpConnectionTime = GetElapsedTime(_connectionStartTimestamp);
 				OnTransportConnectionOpened(t);
 			};
 
@@ -183,8 +188,7 @@ namespace MiniIT.Snipe
 
 		private void OnTransportConnectionOpened(Transport transport)
 		{
-			_connectionStopwatch?.Stop();
-			_analytics.ConnectionEstablishmentTime = _connectionStopwatch?.Elapsed ?? TimeSpan.Zero;
+			_analytics.ConnectionEstablishmentTime = GetElapsedTime(_connectionStartTimestamp);
 
 			_mainThreadRunner.RunInMainThread(() =>
 			{
@@ -249,11 +253,10 @@ namespace MiniIT.Snipe
 			_loggedIn = false;
 			ConnectionId = "";
 			
-			_connectionStopwatch?.Stop();
 			_analytics.PingTime = TimeSpan.Zero;
 			_analytics.ServerReaction = TimeSpan.Zero;
 
-			StopResponseMonitoring();
+			_responseMonitor.Stop();
 
 			if (_transport != null)
 			{
@@ -340,17 +343,9 @@ namespace MiniIT.Snipe
 			
 			_transport.SendMessage(message);
 
-			if (_serverReactionStopwatch != null)
-			{
-				_serverReactionStopwatch.Reset();
-				_serverReactionStopwatch.Start();
-			}
-			else
-			{
-				_serverReactionStopwatch = Stopwatch.StartNew();
-			}
+			_serverReactionStartTimestamp = Stopwatch.GetTimestamp();
 
-			AddResponseMonitoringItem(_requestId, message.SafeGetString("t"));
+			_responseMonitor.Add(_requestId, message.SafeGetString("t"));
 		}
 
 		private void DoSendBatch(List<SnipeObject> messages)
@@ -370,10 +365,9 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			if (_serverReactionStopwatch != null)
+			if (_serverReactionStartTimestamp > 0)
 			{
-				_serverReactionStopwatch.Stop();
-				_analytics.ServerReaction = _serverReactionStopwatch.Elapsed;
+				_analytics.ServerReaction = GetElapsedTime(_serverReactionStartTimestamp);
 			}
 
 			string messageType = message.SafeGetString("t");
@@ -382,7 +376,7 @@ namespace MiniIT.Snipe
 			int ackID = message.SafeGetValue<int>("ackID");
 			SnipeObject responseData = message.SafeGetValue<SnipeObject>("data");
 
-			RemoveResponseMonitoringItem(requestID, messageType);
+			_responseMonitor.Remove(requestID, messageType);
 
 			if (_logger.IsEnabled(LogLevel.Trace))
 			{
@@ -517,6 +511,20 @@ namespace MiniIT.Snipe
 					DoSendBatch(messages);
 				}
 			}
+		}
+
+		// Stopwatch.GetElapsedTime() is added only in .NET 7+
+		// Here is a custom implementation
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private static TimeSpan GetElapsedTime(long startTS)
+		{
+			return (startTS > 0) ? TimeSpan.FromTicks(Stopwatch.GetTimestamp() - startTS) : TimeSpan.Zero;
+		}
+
+		public void Dispose()
+		{
+			Disconnect(false);
+			_responseMonitor.Dispose();
 		}
 	}
 }
