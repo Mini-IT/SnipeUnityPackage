@@ -11,7 +11,7 @@ namespace MiniIT.Snipe.Api
 		public static TimeSpan RequestDelay = TimeSpan.FromMilliseconds(900);
 
 		public delegate void SetCallback(string errorCode, string key, object value);
-		
+
 		public string Key => _key;
 
 		protected readonly AbstractSnipeApiService _snipeApi;
@@ -139,9 +139,7 @@ namespace MiniIT.Snipe.Api
 
 	public class SnipeApiUserAttribute<TAttrValue> : SnipeApiReadOnlyUserAttribute<TAttrValue>, IDisposable
 	{
-		protected static readonly AlterSemaphore _setRequestsSemaphore = new AlterSemaphore(1, 1);
-		protected static UserAttributeSetRequestsBatch _requests;
-		protected static CancellationTokenSource _setRequestsCancellation;
+		private readonly SnipeApiUserAttributeSyncronizer _syncronizer = SnipeApiUserAttributeSyncronizer.Instance;
 
 		public SnipeApiUserAttribute(AbstractSnipeApiService snipeApi, string key)
 			: base(snipeApi, key) { }
@@ -173,23 +171,23 @@ namespace MiniIT.Snipe.Api
 
 			try
 			{
-				await _setRequestsSemaphore.WaitAsync();
+				await _syncronizer.Semaphore.WaitAsync();
 				semaphoreOccupied = true;
 
-				_requests ??= new UserAttributeSetRequestsBatch();
-				_requests.AddSetRequest(_key, val, callback);
+				var requests = _syncronizer.GetRequests(true);
+				requests.AddSetRequest(_key, val, callback);
 
-				if (_setRequestsCancellation == null)
+				if (_syncronizer.Cancellation == null)
 				{
-					_setRequestsCancellation = new CancellationTokenSource();
-					DelayedSendSetRequests(_setRequestsCancellation.Token);
+					_syncronizer.Cancellation = new CancellationTokenSource();
+					DelayedSendSetRequests(_syncronizer.Cancellation.Token);
 				}
 			}
 			finally
 			{
 				if (semaphoreOccupied)
 				{
-					_setRequestsSemaphore.Release();
+					_syncronizer.Semaphore.Release();
 				}
 			}
 		}
@@ -209,11 +207,11 @@ namespace MiniIT.Snipe.Api
 
 			try
 			{
-				await _setRequestsSemaphore.WaitAsync(cancellationToken);
+				await _syncronizer.Semaphore.WaitAsync(cancellationToken);
 				semaphoreOccupied = true;
 
-				_setRequestsCancellation?.Dispose();
-				_setRequestsCancellation = null;
+				_syncronizer.Cancellation?.Dispose();
+				_syncronizer.Cancellation = null;
 
 				FlushRequests();
 			}
@@ -225,14 +223,16 @@ namespace MiniIT.Snipe.Api
 			{
 				if (semaphoreOccupied)
 				{
-					_setRequestsSemaphore.Release();
+					_syncronizer.Semaphore.Release();
 				}
 			}
 		}
 
 		private void FlushRequests()
 		{
-			if (!_requests.TryFlush(out List<SnipeObject> attrs, out List<SetCallback> callbacks))
+			var requests = _syncronizer.GetRequests(false);
+
+			if (requests == null || !requests.TryFlush(out List<SnipeObject> attrs, out List<SetCallback> callbacks))
 			{
 				return;
 			}
@@ -242,7 +242,7 @@ namespace MiniIT.Snipe.Api
 				["data"] = attrs,
 			});
 
-			request?.Request((error_code, response_data) =>
+			request?.Request((errorCode, responseData) =>
 			{
 				if (callbacks == null)
 				{
@@ -251,28 +251,56 @@ namespace MiniIT.Snipe.Api
 
 				foreach (var callback in callbacks)
 				{
-					callback?.Invoke(error_code,
-						response_data.SafeGetString("key"),
-						response_data["val"]);
+					callback?.Invoke(errorCode,
+						responseData.SafeGetString("key"),
+						responseData["val"]);
 				}
 			});
 		}
 
 		public void Dispose()
 		{
-			if (_setRequestsCancellation != null)
-			{
-				_setRequestsCancellation.Cancel();
-				_setRequestsCancellation.Dispose();
-				_setRequestsCancellation= null;
-			}
-
-			_requests?.TryFlush(out _, out _);
+			_syncronizer.Clear();
 		}
 
 		public static implicit operator TAttrValue(SnipeApiUserAttribute<TAttrValue> attr)
 		{
 			return attr._value;
+		}
+	}
+
+	internal class SnipeApiUserAttributeSyncronizer
+	{
+		public static SnipeApiUserAttributeSyncronizer Instance { get; } = new SnipeApiUserAttributeSyncronizer();
+
+		private SnipeApiUserAttributeSyncronizer()
+		{
+		}
+
+		public AlterSemaphore Semaphore { get; } = new AlterSemaphore(1, 1);
+		public CancellationTokenSource Cancellation { get; set; }
+
+		private UserAttributeSetRequestsBatch _requests;
+
+		public UserAttributeSetRequestsBatch GetRequests(bool create)
+		{
+			if (_requests == null && create)
+			{
+				_requests = new UserAttributeSetRequestsBatch();
+			}
+			return _requests;
+		}
+
+		public void Clear()
+		{
+			if (Cancellation != null)
+			{
+				Cancellation.Cancel();
+				Cancellation.Dispose();
+				Cancellation= null;
+			}
+
+			_requests?.TryFlush(out _, out _);
 		}
 	}
 }
