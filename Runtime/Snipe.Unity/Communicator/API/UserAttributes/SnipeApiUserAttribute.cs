@@ -8,7 +8,7 @@ namespace MiniIT.Snipe.Api
 {
 	public abstract class SnipeApiUserAttribute
 	{
-		public static TimeSpan RequestDelay = TimeSpan.FromMilliseconds(900);
+		public static TimeSpan RequestDelay { get; set; } = TimeSpan.FromMilliseconds(900);
 
 		public delegate void SetCallback(string errorCode, string key, object value);
 
@@ -65,7 +65,11 @@ namespace MiniIT.Snipe.Api
 		private static bool AreCollectionsEqual(ICollection collectionA, ICollection collectionB)
 		{
 			if (collectionA.Count != collectionB.Count)
+			{
 				return false;
+			}
+
+			bool areEqual = true;
 
 			IEnumerator enumeratorA = collectionA.GetEnumerator();
 			IEnumerator enumeratorB = collectionB.GetEnumerator();
@@ -73,10 +77,23 @@ namespace MiniIT.Snipe.Api
 			while (enumeratorA.MoveNext() && enumeratorB.MoveNext())
 			{
 				if (!AreEqual(enumeratorA.Current, enumeratorB.Current))
-					return false;
+				{
+					areEqual = false;
+					break;
+				}
 			}
 
-			return true;
+			if (enumeratorA is IDisposable disposableA)
+			{
+				disposableA.Dispose();
+			}
+
+			if (enumeratorB is IDisposable disposableB)
+			{
+				disposableB.Dispose();
+			}
+
+			return areEqual;
 		}
 	}
 
