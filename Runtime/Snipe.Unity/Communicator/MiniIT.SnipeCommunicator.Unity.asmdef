@@ -11,7 +11,8 @@
         "MiniIT.Framework.Social",
         "MiniIT.AlterTask",
         "fastJSON",
-        "UniTask"
+        "UniTask",
+        "Nutaku.Unity"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
