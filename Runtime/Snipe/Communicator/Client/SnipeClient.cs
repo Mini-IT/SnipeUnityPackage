@@ -11,7 +11,7 @@ namespace MiniIT.Snipe
 	{
 		public const int SNIPE_VERSION = 6;
 		public const int MAX_BATCH_SIZE = 5;
-		
+
 		public delegate void MessageReceivedHandler(string message_type, string error_code, SnipeObject data, int request_id);
 		public event MessageReceivedHandler MessageReceived;
 		public event Action ConnectionOpened;
@@ -33,10 +33,10 @@ namespace MiniIT.Snipe
 		public string ConnectionId { get; private set; }
 
 		private long _connectionStartTimestamp;
-		
+
 		private long _serverReactionStartTimestamp;
 		public TimeSpan CurrentRequestElapsed => GetElapsedTime(_serverReactionStartTimestamp);
-		
+
 		private bool _batchMode = false;
 		public bool BatchMode
 		{
@@ -252,7 +252,7 @@ namespace MiniIT.Snipe
 		{
 			_loggedIn = false;
 			ConnectionId = "";
-			
+
 			_analytics.PingTime = TimeSpan.Zero;
 			_analytics.ServerReaction = TimeSpan.Zero;
 
@@ -335,12 +335,12 @@ namespace MiniIT.Snipe
 			{
 				return;
 			}
-			
+
 			if (_logger.IsEnabled(LogLevel.Trace))
 			{
 				_logger.LogTrace("SendRequest - {0}", message.ToJSONString());
 			}
-			
+
 			_transport.SendMessage(message);
 
 			_serverReactionStartTimestamp = Stopwatch.GetTimestamp();
@@ -458,6 +458,16 @@ namespace MiniIT.Snipe
 
 		private void InvokeMessageReceived(string messageType, string errorCode, int requestId, SnipeObject responseData)
 		{
+			if (messageType == SnipeMessageTypes.AB_ENTER && errorCode == SnipeErrorCodes.OK)
+			{
+				_mainThreadRunner.RunInMainThread(() =>
+				{
+					string name = responseData.SafeGetString("stringID");
+					string variant = responseData.SafeGetString("variant");
+					_analytics.TrackABEnter(name, variant);
+				});
+			}
+
 			if (MessageReceived != null)
 			{
 				_mainThreadRunner.RunInMainThread(() =>
