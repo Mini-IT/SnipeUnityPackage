@@ -15,17 +15,19 @@ namespace MiniIT.Snipe
 
 		public const string ATTR_GET = "attr.get";
 		public const string ATTR_GET_MULTI = "attr.getMulti";
-		
+
 		public const string AUTH_REGISTER_AND_LOGIN = "auth.registerAndLogin";
-		
+
 		public const string ACTION_RUN = "action.run";
-		
+
 		public const string PREFIX_ROOM = "room.";
 		public const string ROOM_JOIN = "room.join";
 		public const string ROOM_DEAD = "room.dead";
 		public const string ROOM_LEAVE = "room.leave";
-		
+
 		public const string LOGIC_GET = "logic.get";
 		public const string LOGIC_INC_VAR = "logic.incVar";
+
+		public const string AB_ENTER = "ab.enter";
 	}
 }

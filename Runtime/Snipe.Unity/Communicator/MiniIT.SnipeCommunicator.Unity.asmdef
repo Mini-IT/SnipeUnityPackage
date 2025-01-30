@@ -12,7 +12,8 @@
         "MiniIT.HttpClient.Abstraction",
         "MiniIT.AlterTask",
         "fastJSON",
-        "UniTask"
+        "UniTask",
+        "Nutaku.Unity"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
