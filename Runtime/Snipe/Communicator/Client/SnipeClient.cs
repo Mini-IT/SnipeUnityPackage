@@ -22,7 +22,7 @@ namespace MiniIT.Snipe
 
 		private Transport _transport;
 
-		protected bool _loggedIn = false;
+		private bool _loggedIn = false;
 
 		public bool Connected => _transport != null && _transport.Connected;
 		public bool LoggedIn { get { return _loggedIn && Connected; } }
@@ -37,34 +37,34 @@ namespace MiniIT.Snipe
 		private long _serverReactionStartTimestamp;
 		public TimeSpan CurrentRequestElapsed => GetElapsedTime(_serverReactionStartTimestamp);
 
-		private bool _batchMode = false;
 		public bool BatchMode
 		{
-			get => _batchMode;
+			get => _batchedRequests != null;
 			set
 			{
-				if (value != _batchMode)
+				if (value == BatchMode)
 				{
-					_batchMode = value;
-					if (_batchMode)
-					{
-						_batchedRequests ??= new ConcurrentQueue<SnipeObject>();
-					}
-					else
-					{
-						FlushBatchedRequests();
-						_batchedRequests = null;
-					}
-
-					_logger.LogTrace($"BatchMode = {value}");
+					return;
 				}
+
+				if (value)
+				{
+					_batchedRequests ??= new ConcurrentQueue<SnipeObject>();
+				}
+				else
+				{
+					FlushBatchedRequests();
+					_batchedRequests = null;
+				}
+
+				_logger.LogTrace($"BatchMode = {value}");
 			}
 		}
 
 		private ConcurrentQueue<SnipeObject> _batchedRequests;
 		private readonly object _batchLock = new object();
 
-		private Queue<Func<Transport>> _transportFactoriesQueue = new Queue<Func<Transport>>(3);
+		private readonly Queue<Func<Transport>> _transportFactoriesQueue = new Queue<Func<Transport>>(3);
 
 		private int _requestId = 0;
 
@@ -314,7 +314,7 @@ namespace MiniIT.Snipe
 
 			if (BatchMode)
 			{
-				_batchedRequests.Enqueue(message);
+				_batchedRequests!.Enqueue(message);
 
 				if (_batchedRequests.Count >= MAX_BATCH_SIZE)
 				{
@@ -458,16 +458,6 @@ namespace MiniIT.Snipe
 
 		private void InvokeMessageReceived(string messageType, string errorCode, int requestId, SnipeObject responseData)
 		{
-			if (messageType == SnipeMessageTypes.AB_ENTER && errorCode == SnipeErrorCodes.OK)
-			{
-				_mainThreadRunner.RunInMainThread(() =>
-				{
-					string name = responseData.SafeGetString("stringID");
-					string variant = responseData.SafeGetString("variant");
-					_analytics.TrackABEnter(name, variant);
-				});
-			}
-
 			if (MessageReceived != null)
 			{
 				_mainThreadRunner.RunInMainThread(() =>
@@ -495,31 +485,36 @@ namespace MiniIT.Snipe
 
 		private void FlushBatchedRequests()
 		{
-			if (_batchedRequests == null || _batchedRequests.IsEmpty)
-			{
-				return;
-			}
+			ReadOnlySpan<SnipeObject> queue;
 
 			lock (_batchLock)
 			{
-				if (_batchedRequests.Count == 1)
+				if (_batchedRequests == null || _batchedRequests.IsEmpty)
 				{
-					if (_batchedRequests.TryDequeue(out SnipeObject message))
-					{
-						DoSendRequest(message);
-					}
+					return;
 				}
-				else
-				{
-					List<SnipeObject> messages = new List<SnipeObject>(_batchedRequests.Count);
-					while (_batchedRequests.TryDequeue(out SnipeObject message))
-					{
-						messages.Add(message);
 
-						_logger.LogTrace("Request batched - {0}", message.ToJSONString());
-					}
-					DoSendBatch(messages);
+				// local copy for thread safety
+				queue = _batchedRequests.ToArray();
+				_batchedRequests.Clear();
+			}
+
+			if (queue.Length == 1)
+			{
+				DoSendRequest(queue[0]);
+			}
+			else
+			{
+				var messages = new List<SnipeObject>(queue.Length);
+
+				for (int i = 0; i < queue.Length; i++)
+				{
+					var message = queue[i];
+					messages.Add(message);
+					_logger.LogTrace("Request batched - {0}", message.ToJSONString());
 				}
+
+				DoSendBatch(messages);
 			}
 		}
 

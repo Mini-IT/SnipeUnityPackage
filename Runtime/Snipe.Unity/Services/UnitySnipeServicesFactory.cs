@@ -1,3 +1,4 @@
+using MiniIT.Http;
 using MiniIT.Snipe.Logging;
 using MiniIT.Snipe.Logging.Unity;
 using MiniIT.Storage;
@@ -15,5 +16,6 @@ namespace MiniIT.Snipe.Unity
 		public virtual IMainThreadRunner CreateMainThreadRunner() => new MainThreadRunner();
 		public virtual IApplicationInfo CreateApplicationInfo() => new UnityApplicationInfo();
 		public virtual IStopwatchFactory CreateFuzzyStopwatchFactory() => new FuzzyStopwatchFactory();
+		public virtual IHttpClientFactory CreateHttpClientFactory() => new DefaultHttpClientFactory();
 	}
 }

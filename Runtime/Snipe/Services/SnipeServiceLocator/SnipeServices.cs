@@ -1,5 +1,6 @@
 using System;
 using Microsoft.Extensions.Logging;
+using MiniIT.Http;
 using MiniIT.Snipe.Logging;
 using MiniIT.Storage;
 
@@ -15,6 +16,7 @@ namespace MiniIT.Snipe
 		public static IMainThreadRunner MainThreadRunner => s_locator.MainThreadRunner;
 		public static IApplicationInfo ApplicationInfo => s_locator.ApplicationInfo;
 		public static IStopwatchFactory FuzzyStopwatchFactory => s_locator.FuzzyStopwatchFactory;
+		public static IHttpClientFactory HttpClientFactory => s_locator.HttpClientFactory;
 
 		#endregion
 
