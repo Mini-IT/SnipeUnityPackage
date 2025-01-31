@@ -1,12 +1,11 @@
 
-using System;
 using System.Collections.Generic;
 
 namespace MiniIT.Snipe.Api
 {
 	public abstract class AbstractSnipeApiService
 	{
-		public delegate AbstractCommunicatorRequest RequestFactoryMethod(string messageType, SnipeObject data);
+		public delegate AbstractCommunicatorRequest RequestFactoryMethod(string messageType, SnipeObject data = null);
 
 		protected readonly SnipeCommunicator _communicator;
 		private readonly RequestFactoryMethod _requestFactory;
@@ -30,9 +29,9 @@ namespace MiniIT.Snipe.Api
 			InitMergeableRequestTypes();
 		}
 
-		public AbstractCommunicatorRequest CreateRequest(string message_type, SnipeObject data = null)
+		public AbstractCommunicatorRequest CreateRequest(string messageType, SnipeObject data = null)
 		{
-			return _requestFactory.Invoke(message_type, data);
+			return _requestFactory.Invoke(messageType, data);
 		}
 
 		public void SubscribeOnMessageReceived(SnipeCommunicator.MessageReceivedHandler handler)
