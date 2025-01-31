@@ -81,7 +81,15 @@ namespace MiniIT.Snipe
 			AlterTask.RunAndForget(() =>
 			{
 				_analytics.ConnectionUrl = url;
-				_webSocket.Connect(url);
+
+				try
+				{
+					_webSocket.Connect(url);
+				}
+				catch (Exception e)
+				{
+					_logger.LogTrace("Failed to connect to {url} - {error}", url, e);
+				}
 			});
 		}
 
