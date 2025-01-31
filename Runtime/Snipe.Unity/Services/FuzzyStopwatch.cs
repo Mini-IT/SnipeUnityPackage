@@ -8,6 +8,6 @@ namespace MiniIT.Snipe.Unity
 
 	public class FuzzyStopwatchFactory : IStopwatchFactory
 	{
-		public virtual IStopwatch Create() => new FuzzyStopwatch();
+		public IStopwatch Create() => new FuzzyStopwatch();
 	}
 }
