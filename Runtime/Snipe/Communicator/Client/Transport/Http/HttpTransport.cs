@@ -340,12 +340,26 @@ namespace MiniIT.Snipe
 			}
 			catch (HttpRequestException httpException)
 			{
-				_logger.LogError(httpException, httpException.ToString());
+				if (_connectionEstablished)
+				{
+					_logger.LogError(httpException, httpException.ToString());
+				}
+				else
+				{
+					_logger.LogTrace("SendHandshake error: " + httpException);
+				}
 				InternalDisconnect();
 			}
 			catch (Exception e)
 			{
-				_logger.LogError(e, "Request failed {0}", e.ToString());
+				if (_connectionEstablished)
+				{
+					_logger.LogError(e, "Request failed {0}", e.ToString());
+				}
+				else
+				{
+					_logger.LogTrace("SendHandshake error: " + e);
+				}
 			}
 			finally
 			{

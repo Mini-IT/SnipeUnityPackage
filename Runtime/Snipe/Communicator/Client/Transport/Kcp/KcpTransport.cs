@@ -47,8 +47,17 @@ namespace MiniIT.Snipe
 				lock (_lock)
 				{
 					var address = _config.GetUdpAddress();
-					_analytics.ConnectionUrl = $"{address.Host}:{address.Port}";
-					_kcpConnection.Connect(address.Host, address.Port, 3000, 5000);
+					string url = $"{address.Host}:{address.Port}";
+					_analytics.ConnectionUrl = url;
+
+					try
+					{
+						_kcpConnection.Connect(address.Host, address.Port, 3000, 5000);
+					}
+					catch (Exception e)
+					{
+						_logger.LogTrace("Failed to connect to {url} - {error}", url, e);
+					}
 				}
 			});
 
