@@ -294,7 +294,7 @@ namespace MiniIT.Snipe
 
 		protected abstract void RegisterAndLogin();
 
-		protected async UniTask FetchLoginId(string provider, AuthIdFetcher fetcher, List<SnipeObject> providers)
+		protected async UniTask FetchLoginId(string provider, AuthIdFetcher fetcher, List<SnipeObject> providers, bool contextIdPrefix)
 		{
 			bool done = false;
 
@@ -302,10 +302,15 @@ namespace MiniIT.Snipe
 			{
 				if (!string.IsNullOrEmpty(uid))
 				{
+					if (contextIdPrefix)
+					{
+						uid = _config.ContextId + uid;
+					}
+
 					providers.Add(new SnipeObject()
 					{
 						["provider"] = provider,
-						["login"] = _config.ContextId + uid,
+						["login"] = uid,
 					});
 				}
 				done = true;
@@ -339,7 +344,7 @@ namespace MiniIT.Snipe
 					if (error_code == SnipeErrorCodes.OK)
 					{
 						//ClearAllBindings();
-						//FillUserIdentity(response);
+						
 						SetAuthData(response.SafeGetString("uid"), response.SafeGetString("password"));
 
 						JustRegistered = response.SafeGetValue<bool>("registrationDone", false);
@@ -374,16 +379,6 @@ namespace MiniIT.Snipe
 					}
 				})
 			);
-		}
-
-		private void FillUserIdentity(SnipeObject response)
-		{
-			UserID = response.SafeGetValue<int>("id");
-
-			if (response.TryGetValue("name", out string username))
-			{
-				UserName = username;
-			}
 		}
 
 		private void RunAuthRequest(Action action)

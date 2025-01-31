@@ -43,7 +43,7 @@ namespace MiniIT.Snipe
 
 				_baseUrl = GetBaseUrl();
 
-				_client ??= HttpClientFactory.Create();
+				_client ??= SnipeServices.HttpClientFactory.CreateHttpClient();
 			}
 
 			SendHandshake();
@@ -77,7 +77,7 @@ namespace MiniIT.Snipe
 			DoSendRequest(message);
 		}
 
-		public override void SendBatch(List<SnipeObject> messages)
+		public override void SendBatch(IList<SnipeObject> messages)
 		{
 			if (messages.Count == 1)
 			{
@@ -101,7 +101,7 @@ namespace MiniIT.Snipe
 			return new Uri(url);
 		}
 
-		private void OnClientConnected() 
+		private void OnClientConnected()
 		{
 			_logger.LogTrace("OnClientConnected");
 
@@ -196,7 +196,7 @@ namespace MiniIT.Snipe
 
 				_logger.LogTrace($"<<< request ({uri}) - {requestType}");
 
-				using (var response = await _client.PostJsonAsync(uri, json))
+				using (var response = await _client.PostJson(uri, json))
 				{
 					// response.StatusCode:
 					//   200 - ok
@@ -208,7 +208,7 @@ namespace MiniIT.Snipe
 
 					if (response.IsSuccess)
 					{
-						responseMessage = await response.GetContentAsync();
+						responseMessage = await response.GetStringContentAsync();
 					}
 					else if (response.ResponseCode != 429) // HttpStatusCode.TooManyRequests
 					{
@@ -242,7 +242,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void DoSendBatch(List<SnipeObject> messages)
+		private void DoSendBatch(IList<SnipeObject> messages)
 		{
 			var batch = new SnipeObject()
 			{
@@ -294,7 +294,7 @@ namespace MiniIT.Snipe
 				["id"] = -1,
 			};
 
-			while (cancellation != null && !cancellation.IsCancellationRequested && Connected)
+			while (!cancellation.IsCancellationRequested && Connected)
 			{
 				try
 				{
@@ -328,7 +328,7 @@ namespace MiniIT.Snipe
 
 				_logger.LogTrace($"<<< request ({uri})");
 
-				using (var response = await _client.GetAsync(uri))
+				using (var response = await _client.Get(uri))
 				{
 					_logger.LogTrace($">>> response {uri} ({response.ResponseCode}) {response.Error}");
 
@@ -340,12 +340,26 @@ namespace MiniIT.Snipe
 			}
 			catch (HttpRequestException httpException)
 			{
-				_logger.LogError(httpException, httpException.ToString());
+				if (_connectionEstablished)
+				{
+					_logger.LogError(httpException, httpException.ToString());
+				}
+				else
+				{
+					_logger.LogTrace("SendHandshake error: " + httpException);
+				}
 				InternalDisconnect();
 			}
 			catch (Exception e)
 			{
-				_logger.LogError(e, "Request failed {0}", e.ToString());
+				if (_connectionEstablished)
+				{
+					_logger.LogError(e, "Request failed {0}", e.ToString());
+				}
+				else
+				{
+					_logger.LogTrace("SendHandshake error: " + e);
+				}
 			}
 			finally
 			{

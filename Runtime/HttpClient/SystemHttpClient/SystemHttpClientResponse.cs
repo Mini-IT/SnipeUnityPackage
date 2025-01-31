@@ -18,9 +18,14 @@ namespace MiniIT.Http
 			Error = $"{(int)response.StatusCode} {response.StatusCode}";
 		}
 
-		public async UniTask<string> GetContentAsync()
+		public async UniTask<string> GetStringContentAsync()
 		{
 			return await _response.Content.ReadAsStringAsync();
+		}
+
+		public async UniTask<byte[]> GetBinaryContentAsync()
+		{
+			return await _response.Content.ReadAsByteArrayAsync();
 		}
 
 		public void Dispose()

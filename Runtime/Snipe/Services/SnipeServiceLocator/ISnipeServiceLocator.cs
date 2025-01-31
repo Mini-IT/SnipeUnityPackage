@@ -1,4 +1,5 @@
 using System;
+using MiniIT.Http;
 using MiniIT.Snipe.Logging;
 using MiniIT.Storage;
 
@@ -12,6 +13,7 @@ namespace MiniIT.Snipe
 		IMainThreadRunner MainThreadRunner { get; }
 		IApplicationInfo ApplicationInfo { get; }
 		IStopwatchFactory FuzzyStopwatchFactory { get; }
+		IHttpClientFactory HttpClientFactory { get; }
 	}
 
 	public interface ISnipeServiceLocatorFactory
@@ -22,5 +24,6 @@ namespace MiniIT.Snipe
 		IMainThreadRunner CreateMainThreadRunner();
 		IApplicationInfo CreateApplicationInfo();
 		IStopwatchFactory CreateFuzzyStopwatchFactory();
+		IHttpClientFactory CreateHttpClientFactory();
 	}
 }
