@@ -205,7 +205,7 @@ namespace MiniIT.Snipe
 					//   429 - {"errorCode":"rateLimit"}
 					//   500 - {"errorCode":"requestTimeout"}
 
-					_logger.LogTrace($">>> response {requestType} ({response.ResponseCode}) {response.Error}");
+					_logger.LogTrace($">>> response - {requestId} - {requestType} ({response.ResponseCode}) {response.Error}");
 
 					if (response.IsSuccess)
 					{
