@@ -14,6 +14,8 @@ namespace MiniIT.Snipe
 	{
 		private const string API_PATH = "api/v1/request/";
 
+		private static readonly SnipeObject s_pingMessage = new SnipeObject() { ["t"] = "server.ping", ["id"] = -1 };
+
 		public override bool Started => _connected;
 		public override bool Connected => _connected;
 		public override bool ConnectionEstablished => _connectionEstablished;
@@ -288,18 +290,11 @@ namespace MiniIT.Snipe
 
 		private async void HeartbeatTask(CancellationToken cancellation)
 		{
-			int milliseconds = (int)_heartbeatInterval.TotalMilliseconds;
-			var message = new SnipeObject()
-			{
-				["t"] = "server.ping",
-				["id"] = -1,
-			};
-
 			while (!cancellation.IsCancellationRequested && Connected)
 			{
 				try
 				{
-					await AlterTask.Delay(milliseconds, cancellation);
+					await AlterTask.Delay(_heartbeatInterval, cancellation);
 				}
 				catch (OperationCanceledException)
 				{
@@ -308,7 +303,7 @@ namespace MiniIT.Snipe
 
 				if (!cancellation.IsCancellationRequested && Connected)
 				{
-					SendMessage(message);
+					SendMessage(s_pingMessage);
 				}
 			}
 		}
