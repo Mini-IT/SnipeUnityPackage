@@ -181,6 +181,7 @@ namespace MiniIT.Snipe
 		private async void DoSendRequest(SnipeObject message)
 		{
 			string requestType = message.SafeGetString("t");
+			int requestId = message.SafeGetValue<int>("id");
 			string json = message.ToJSONString(); // Don't use FastJSON because the message can contain custom classes for attr.setMulty for example
 
 			string responseMessage = null;
@@ -194,7 +195,7 @@ namespace MiniIT.Snipe
 
 				var uri = new Uri(_baseUrl, requestType);
 
-				_logger.LogTrace($"<<< request ({uri}) - {requestType}");
+				_logger.LogTrace($"<<< request ({uri}) - {requestId} - {requestType}");
 
 				using (var response = await _client.PostJson(uri, json))
 				{
