@@ -17,11 +17,11 @@ namespace MiniIT.Snipe.Unity
 		public string PersistentDataPath { get; }
 		public string StreamingAssetsPath { get; }
 
-#region ISystemInfo
-		string DeviceManufacturer { get; }
-		string OperatingSystemFamily { get; }
-		Version OperatingSystemVersion { get; }
-#endregion ISystemInfo
+#if SYSTEM_INFO
+		public string DeviceManufacturer { get; }
+		public string OperatingSystemFamily { get; }
+		public Version OperatingSystemVersion { get; }
+#endif
 
 		public UnityApplicationInfo()
 		{
