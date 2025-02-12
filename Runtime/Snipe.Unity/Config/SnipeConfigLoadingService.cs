@@ -20,7 +20,7 @@ namespace MiniIT.Snipe
 		public Dictionary<string, object> Config => _config;
 
 		private Dictionary<string, object> _config;
-		private bool _loading = false;
+		private bool Loading => _loadingCancellation != default;
 
 		private SnipeConfigLoader _loader;
 		private readonly string _projectID;
@@ -45,7 +45,7 @@ namespace MiniIT.Snipe
 				return _config;
 			}
 
-			if (_loading)
+			if (Loading)
 			{
 				await UniTask.WaitWhile(() => _config == null, PlayerLoopTiming.Update, cancellationToken);
 				return _config;
@@ -59,8 +59,6 @@ namespace MiniIT.Snipe
 
 			_loadingCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 			var loadingToken = _loadingCancellation.Token;
-
-			_loading = true;
 
 			if (_loader == null)
 			{
@@ -76,7 +74,9 @@ namespace MiniIT.Snipe
 			}
 
 			_config = await _loader.Load(loadedAdditionalParams);
-			_loading = false;
+
+			_loadingCancellation.Dispose();
+			_loadingCancellation = null;
 
 			return _config;
 		}
@@ -87,7 +87,6 @@ namespace MiniIT.Snipe
 			_loadingCancellation.Dispose();
 			_loadingCancellation = null;
 			_config = null;
-			_loading = false;
 		}
 	}
 }
