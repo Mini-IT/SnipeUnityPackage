@@ -14,6 +14,8 @@ namespace MiniIT.Snipe
 	{
 		private const string API_PATH = "api/v1/request/";
 
+		private static readonly SnipeObject s_pingMessage = new SnipeObject() { ["t"] = "server.ping", ["id"] = -1 };
+
 		public override bool Started => _connected;
 		public override bool Connected => _connected;
 		public override bool ConnectionEstablished => _connectionEstablished;
@@ -43,7 +45,7 @@ namespace MiniIT.Snipe
 
 				_baseUrl = GetBaseUrl();
 
-				_client ??= HttpClientFactory.Create();
+				_client ??= SnipeServices.HttpClientFactory.CreateHttpClient();
 			}
 
 			SendHandshake();
@@ -77,7 +79,7 @@ namespace MiniIT.Snipe
 			DoSendRequest(message);
 		}
 
-		public override void SendBatch(List<SnipeObject> messages)
+		public override void SendBatch(IList<SnipeObject> messages)
 		{
 			if (messages.Count == 1)
 			{
@@ -101,7 +103,7 @@ namespace MiniIT.Snipe
 			return new Uri(url);
 		}
 
-		private void OnClientConnected() 
+		private void OnClientConnected()
 		{
 			_logger.LogTrace("OnClientConnected");
 
@@ -181,6 +183,7 @@ namespace MiniIT.Snipe
 		private async void DoSendRequest(SnipeObject message)
 		{
 			string requestType = message.SafeGetString("t");
+			int requestId = message.SafeGetValue<int>("id");
 			string json = message.ToJSONString(); // Don't use FastJSON because the message can contain custom classes for attr.setMulty for example
 
 			string responseMessage = null;
@@ -194,9 +197,9 @@ namespace MiniIT.Snipe
 
 				var uri = new Uri(_baseUrl, requestType);
 
-				_logger.LogTrace($"<<< request ({uri}) - {requestType}");
+				_logger.LogTrace($"<<< request ({uri}) - {requestId} - {requestType}");
 
-				using (var response = await _client.PostJsonAsync(uri, json))
+				using (var response = await _client.PostJson(uri, json))
 				{
 					// response.StatusCode:
 					//   200 - ok
@@ -204,11 +207,11 @@ namespace MiniIT.Snipe
 					//   429 - {"errorCode":"rateLimit"}
 					//   500 - {"errorCode":"requestTimeout"}
 
-					_logger.LogTrace($">>> response {requestType} ({response.ResponseCode}) {response.Error}");
+					_logger.LogTrace($">>> response - {requestId} - {requestType} ({response.ResponseCode}) {response.Error}");
 
 					if (response.IsSuccess)
 					{
-						responseMessage = await response.GetContentAsync();
+						responseMessage = await response.GetStringContentAsync();
 					}
 					else if (response.ResponseCode != 429) // HttpStatusCode.TooManyRequests
 					{
@@ -242,7 +245,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void DoSendBatch(List<SnipeObject> messages)
+		private void DoSendBatch(IList<SnipeObject> messages)
 		{
 			var batch = new SnipeObject()
 			{
@@ -287,18 +290,11 @@ namespace MiniIT.Snipe
 
 		private async void HeartbeatTask(CancellationToken cancellation)
 		{
-			int milliseconds = (int)_heartbeatInterval.TotalMilliseconds;
-			var message = new SnipeObject()
-			{
-				["t"] = "server.ping",
-				["id"] = -1,
-			};
-
-			while (cancellation != null && !cancellation.IsCancellationRequested && Connected)
+			while (!cancellation.IsCancellationRequested && Connected)
 			{
 				try
 				{
-					await AlterTask.Delay(milliseconds, cancellation);
+					await AlterTask.Delay(_heartbeatInterval, cancellation);
 				}
 				catch (OperationCanceledException)
 				{
@@ -307,7 +303,7 @@ namespace MiniIT.Snipe
 
 				if (!cancellation.IsCancellationRequested && Connected)
 				{
-					SendMessage(message);
+					SendMessage(s_pingMessage);
 				}
 			}
 		}
@@ -328,7 +324,7 @@ namespace MiniIT.Snipe
 
 				_logger.LogTrace($"<<< request ({uri})");
 
-				using (var response = await _client.GetAsync(uri))
+				using (var response = await _client.Get(uri))
 				{
 					_logger.LogTrace($">>> response {uri} ({response.ResponseCode}) {response.Error}");
 
@@ -340,12 +336,26 @@ namespace MiniIT.Snipe
 			}
 			catch (HttpRequestException httpException)
 			{
-				_logger.LogError(httpException, httpException.ToString());
+				if (_connectionEstablished)
+				{
+					_logger.LogError(httpException, httpException.ToString());
+				}
+				else
+				{
+					_logger.LogTrace("SendHandshake error: " + httpException);
+				}
 				InternalDisconnect();
 			}
 			catch (Exception e)
 			{
-				_logger.LogError(e, "Request failed {0}", e.ToString());
+				if (_connectionEstablished)
+				{
+					_logger.LogError(e, "Request failed {0}", e.ToString());
+				}
+				else
+				{
+					_logger.LogTrace("SendHandshake error: " + e);
+				}
 			}
 			finally
 			{

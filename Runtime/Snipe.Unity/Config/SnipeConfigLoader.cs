@@ -3,8 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using fastJSON;
-using UnityEngine;
-using UnityEngine.Networking;
+using Microsoft.Extensions.Logging;
+using MiniIT.Http;
 
 namespace MiniIT.Snipe
 {
@@ -13,12 +13,14 @@ namespace MiniIT.Snipe
 		private readonly string _projectID;
 		private readonly string _url;
 		private readonly IApplicationInfo _appInfo;
+		private readonly ILogger _logger;
 
 		public SnipeConfigLoader(string projectID, IApplicationInfo appInfo)
 		{
 			_projectID = projectID;
 			_appInfo = appInfo;
 			_url = "https://config.snipe.dev/api/v1/configStrings";
+			_logger = SnipeServices.LogService.GetLogger<SnipeConfigLoader>();
 		}
 
 		public async UniTask<Dictionary<string, object>> Load(Dictionary<string, object> additionalParams = null)
@@ -27,20 +29,20 @@ namespace MiniIT.Snipe
 
 			Dictionary<string, object> config = null;
 
+			IHttpClient httpClient = SnipeServices.HttpClientFactory.CreateHttpClient();
+
 			try
 			{
-				using var request = UnityWebRequest.Post(_url, requestParamsJson, "application/json");
-				request.downloadHandler = new DownloadHandlerBuffer();
-				var response = await request.SendWebRequest().ToUniTask();
+				var response = await httpClient.PostJson(new Uri(_url), requestParamsJson);
 
-				if (response.result != UnityWebRequest.Result.Success)
+				if (!response.IsSuccess)
 				{
-					Debug.Log($"[{nameof(SnipeConfigLoader)}] loader failed. {response.error}");
-					return config;
+					_logger.LogTrace($"loader failed. {response.Error}");
+					return null;
 				}
 
-				string responseMessage = response.downloadHandler.text;
-				Debug.Log($"[{nameof(SnipeConfigLoader)}] loader response: {responseMessage}");
+				string responseMessage = await response.GetStringContentAsync();
+				_logger.LogTrace($"loader response: {responseMessage}");
 
 				var fullResponse = (Dictionary<string, object>)JSON.Parse(responseMessage);
 				if (fullResponse != null)
@@ -52,13 +54,15 @@ namespace MiniIT.Snipe
 
 					// Inject AB-tests
 					// "abTests":[{"id":1,"stringID":"testString","variantID":1}]
-					if (fullResponse.TryGetValue("abTests", out var testsList) && testsList is IEnumerable tests)
+					if (config != null &&
+					    fullResponse.TryGetValue("abTests", out var testsList) &&
+					    testsList is IEnumerable tests)
 					{
 						foreach (var testData in tests)
 						{
 							if (testData is IDictionary<string, object> test &&
-								test.TryGetValue("stringID", out var testStringID) &&
-								test.TryGetValue("variantID", out var testVariantID))
+							    test.TryGetValue("stringID", out var testStringID) &&
+							    test.TryGetValue("variantID", out var testVariantID))
 							{
 								config[$"test_{testStringID}"] = $"test_{testStringID}_Variant{testVariantID}";
 							}
@@ -69,7 +73,14 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception e)
 			{
-				Debug.Log($"[{nameof(SnipeConfigLoader)}] loader failed: {e}");
+				_logger.LogTrace($"loader failed: {e}");
+			}
+			finally
+			{
+				if (httpClient is IDisposable disposable)
+				{
+					disposable.Dispose();
+				}
 			}
 
 			return config;

@@ -7,18 +7,16 @@ namespace MiniIT.Snipe
 	public class SnipeMessageCompressor
 	{
 		private byte[] _decompressionBuffer;
-		
-		public ArraySegment<byte> Compress(ArraySegment<byte> msg_data)
-		{
-			using (var stream = new MemoryStream())
-			{
-				using (var deflate = new DeflateStream(stream, CompressionLevel.Fastest))
-				{
-					deflate.Write(msg_data.Array, msg_data.Offset, msg_data.Count);
-				}
 
-				return new ArraySegment<byte>(stream.ToArray());
+		public byte[] Compress(ReadOnlySpan<byte> msgData)
+		{
+			using var stream = new MemoryStream();
+			using (var deflate = new DeflateStream(stream, CompressionLevel.Fastest))
+			{
+				deflate.Write(msgData);
 			}
+
+			return stream.ToArray();
 		}
 
 		public ArraySegment<byte> Decompress(ArraySegment<byte> compressed)
@@ -29,19 +27,26 @@ namespace MiniIT.Snipe
 			{
 				using (var deflate = new DeflateStream(stream, CompressionMode.Decompress))
 				{
-					const int portion_size = 1024;
+					const int PORTION_SIZE = 1024;
+
 					while (deflate.CanRead)
 					{
 						if (_decompressionBuffer == null)
-							_decompressionBuffer = new byte[portion_size];
-						else if (_decompressionBuffer.Length < length + portion_size)
-							Array.Resize(ref _decompressionBuffer, length + portion_size);
+						{
+							_decompressionBuffer = new byte[PORTION_SIZE];
+						}
+						else if (_decompressionBuffer.Length < length + PORTION_SIZE)
+						{
+							Array.Resize(ref _decompressionBuffer, length + PORTION_SIZE);
+						}
 
-						int bytes_read = deflate.Read(_decompressionBuffer, length, portion_size);
-						if (bytes_read == 0)
+						int bytesRead = deflate.Read(_decompressionBuffer, length, PORTION_SIZE);
+						if (bytesRead == 0)
+						{
 							break;
+						}
 
-						length += bytes_read;
+						length += bytesRead;
 					}
 				}
 			}

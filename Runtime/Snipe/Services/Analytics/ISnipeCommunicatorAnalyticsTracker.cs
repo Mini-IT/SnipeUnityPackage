@@ -6,7 +6,7 @@ namespace MiniIT.Snipe
 	public interface ISnipeCommunicatorAnalyticsTracker
 	{
 		bool IsInitialized { get; }
-		
+
 		void SetUserId(string uid);
 		void SetUserProperty(string name, string value);
 		void SetUserProperty(string name, int value);
@@ -19,10 +19,12 @@ namespace MiniIT.Snipe
 		void TrackEvent(string name, IDictionary<string, object> properties = null);
 		//void TrackEvent(string name, string property_name, object property_value);
 		//void TrackEvent(string name, object property_value);
-		
+
 		void TrackError(string name, Exception exception = null, IDictionary<string, object> properties = null);
-		
+
+		void TrackABEnter(string name, string variant);
+
 		// Used for excluding some messages or error codes from analytics tracking
-		bool CheckErrorCodeTracking(string message_type, string error_code);
+		bool CheckErrorCodeTracking(string messageType, string errorCode);
 	}
 }

@@ -1,6 +1,7 @@
 using System;
+using MiniIT.Http;
 using MiniIT.Snipe.Logging;
-using MiniIT.Snipe.SharedPrefs;
+using MiniIT.Storage;
 
 namespace MiniIT.Snipe
 {
@@ -12,6 +13,7 @@ namespace MiniIT.Snipe
 		public IMainThreadRunner MainThreadRunner => _mainThreadRunner;
 		public IApplicationInfo ApplicationInfo => _applicationInfo;
 		public IStopwatchFactory FuzzyStopwatchFactory => _fuzzyStopwatchFactory ??= _factory.CreateFuzzyStopwatchFactory();
+		public IHttpClientFactory HttpClientFactory => _httpClientFactory ??= _factory.CreateHttpClientFactory();
 
 		private ISharedPrefs _sharedPrefs;
 		private ILogService _logService;
@@ -19,6 +21,7 @@ namespace MiniIT.Snipe
 		private readonly IMainThreadRunner _mainThreadRunner;
 		private readonly IApplicationInfo _applicationInfo;
 		private IStopwatchFactory _fuzzyStopwatchFactory;
+		private IHttpClientFactory _httpClientFactory;
 
 		private readonly ISnipeServiceLocatorFactory _factory;
 
