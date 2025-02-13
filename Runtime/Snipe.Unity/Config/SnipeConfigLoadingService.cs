@@ -31,8 +31,11 @@ namespace MiniIT.Snipe
 
 		public void Dispose()
 		{
-			_loadingCancellation?.Cancel();
-			_loadingCancellation?.Dispose();
+			if (_loadingCancellation != null)
+			{
+				_loadingCancellation.Dispose();
+				_loadingCancellation = null;
+			}
 		}
 
 		public async UniTask<Dictionary<string, object>> Load(Dictionary<string, object> loadedAdditionalParams, CancellationToken cancellationToken = default)
@@ -72,7 +75,7 @@ namespace MiniIT.Snipe
 
 			_config = await _loader.Load(loadedAdditionalParams);
 
-			_loadingCancellation.Dispose();
+			_loadingCancellation?.Dispose();
 			_loadingCancellation = null;
 
 			return _config;
@@ -80,9 +83,13 @@ namespace MiniIT.Snipe
 
 		public void Reset()
 		{
-			_loadingCancellation.Cancel();
-			_loadingCancellation.Dispose();
-			_loadingCancellation = null;
+			if (_loadingCancellation != null)
+			{
+				_loadingCancellation.Cancel();
+				_loadingCancellation.Dispose();
+				_loadingCancellation = null;
+			}
+
 			_config = null;
 		}
 	}
