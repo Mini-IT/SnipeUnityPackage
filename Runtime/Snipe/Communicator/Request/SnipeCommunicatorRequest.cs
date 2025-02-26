@@ -10,7 +10,7 @@ namespace MiniIT.Snipe
 		private ILogger _logger;
 
 		private readonly AuthSubsystem _authSubsystem;
-		
+
 		public SnipeCommunicatorRequest(SnipeCommunicator communicator,
 			AuthSubsystem authSubsystem,
 			string messageType = null,
@@ -39,17 +39,16 @@ namespace MiniIT.Snipe
 			{
 				WaitingForRoomJoined = true;
 			}
-			
-			_communicator.ConnectionFailed -= OnConnectionClosed;
-			_communicator.ConnectionFailed += OnConnectionClosed;
-			
+
+			SubscribeDisconnectionEvents();
+
 			if ((_callback != null || WaitingForRoomJoined) && MessageType != SnipeMessageTypes.ROOM_LEAVE)
 			{
 				_waitingForResponse = true;
 				_communicator.MessageReceived -= OnMessageReceived;
 				_communicator.MessageReceived += OnMessageReceived;
 			}
-			
+
 			if (!WaitingForRoomJoined)
 			{
 				DoSendRequest();
@@ -58,7 +57,7 @@ namespace MiniIT.Snipe
 
 		protected override void OnWillReconnect()
 		{
-			_communicator.ConnectionSucceeded -= OnCommunicatorReady;
+			_communicator.ConnectionEstablished -= OnCommunicatorReady;
 			_authSubsystem.LoginSucceeded -= OnCommunicatorReady;
 			_communicator.MessageReceived -= OnMessageReceived;
 
@@ -78,16 +77,16 @@ namespace MiniIT.Snipe
 		{
 			if (_communicator == null)
 				return;
-			
+
 			if (WaitingForRoomJoined && _communicator.RoomJoined == true)
 			{
 				GetLogger().LogTrace($"OnMessageReceived - Room joined. Send {MessageType}, id = {_requestId}");
-				
+
 				WaitingForRoomJoined = false;
 				DoSendRequest();
 				return;
 			}
-			
+
 			base.OnMessageReceived(message_type, error_code, response_data, request_id);
 		}
 

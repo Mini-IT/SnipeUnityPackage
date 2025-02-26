@@ -104,7 +104,7 @@ namespace MiniIT.Snipe
 		public AuthSubsystem(SnipeCommunicator communicator, SnipeConfig config)
 		{
 			_communicator = communicator;
-			_communicator.ConnectionSucceeded += OnConnectionSucceeded;
+			_communicator.ConnectionEstablished += OnConnectionEstablished;
 
 			_config = config;
 			_analytics = SnipeServices.Analytics.GetTracker(_config.ContextId);
@@ -152,7 +152,7 @@ namespace MiniIT.Snipe
 			Authorize();
 		}
 
-		protected void OnConnectionSucceeded()
+		protected void OnConnectionEstablished()
 		{
 			JustRegistered = false;
 			_loginAttempt = 0;

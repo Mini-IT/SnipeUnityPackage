@@ -74,7 +74,7 @@ namespace MiniIT.Snipe
 				CalendarManager = new CalendarManager(calendarTable, serverTimeZone);
 			}
 
-			Communicator.ConnectionSucceeded += OnCommunicatorConnected;
+			Communicator.ConnectionEstablished += OnCommunicatorConnected;
 		}
 
 		public AbstractSnipeApiService GetSnipeApiService() => _api;
@@ -111,7 +111,7 @@ namespace MiniIT.Snipe
 
 			if (Communicator != null)
 			{
-				Communicator.ConnectionSucceeded -= OnCommunicatorConnected;
+				Communicator.ConnectionEstablished -= OnCommunicatorConnected;
 			}
 
 			base.Dispose();
