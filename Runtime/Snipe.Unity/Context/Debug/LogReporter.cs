@@ -24,6 +24,8 @@ namespace MiniIT
 		private static int s_bytesWritten;
 		private SnipeContext _snipeContext;
 
+		private static bool s_canWrite = true;
+
 		static LogReporter()
 		{
 			s_semaphore = new AlterSemaphore(1, 1);
@@ -36,11 +38,11 @@ namespace MiniIT
 			s_file?.Close();
 
 			long ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-			s_filePath = Path.Combine(UnityEngine.Application.temporaryCachePath, $"log{ts}.txt");
+			s_filePath = Path.Combine(Application.temporaryCachePath, $"log{ts}.txt");
 			s_file = File.Open(s_filePath, FileMode.OpenOrCreate, FileAccess.Write);
 			s_bytesWritten = 0;
 
-			DebugLogger.Log($"[{nameof(LogReporter)}] New temp log file created: " + s_filePath);
+			DebugLogger.Log($"[{nameof(LogReporter)}] New temp log file created: {s_filePath}");
 		}
 
 		internal void SetSnipeContext(SnipeContext snipeContext)
@@ -50,6 +52,11 @@ namespace MiniIT
 
 		public async UniTask<bool> SendAsync()
 		{
+			if (!s_canWrite)
+			{
+				return false;
+			}
+
 			bool result = false;
 			string filepath = null;
 
@@ -65,7 +72,7 @@ namespace MiniIT
 			}
 			catch (Exception ex)
 			{
-				DebugLogger.LogError($"[{nameof(LogReporter)}] " + ex.ToString());
+				DebugLogger.LogError($"[{nameof(LogReporter)}] {ex}");
 			}
 			finally
 			{
@@ -106,6 +113,12 @@ namespace MiniIT
 
 		private static void OnLogMessageReceived(string condition, string stackTrace, LogType type)
 		{
+			if (!s_canWrite)
+			{
+				StaticDispose();
+				return;
+			}
+
 			ProcessLogMessageAsync(condition, stackTrace, type).Forget();
 		}
 
@@ -141,6 +154,11 @@ namespace MiniIT
 #endif
 					}
 				}
+			}
+			catch (Exception)
+			{
+				s_canWrite = false;
+				StaticDispose();
 			}
 			finally
 			{
@@ -197,6 +215,11 @@ namespace MiniIT
 
 		public void Dispose()
 		{
+			StaticDispose();
+		}
+
+		private static void StaticDispose()
+		{
 			s_file?.Dispose();
 			s_file = null;
 
@@ -210,8 +233,10 @@ namespace MiniIT
 			}
 			catch (Exception e)
 			{
-				DebugLogger.LogError($"[{nameof(LogReporter)}] Failed to delete {s_filePath}: " + e.ToString());
+				DebugLogger.LogError($"[{nameof(LogReporter)}] Failed to delete {s_filePath}: {e}");
 			}
+
+			Application.logMessageReceivedThreaded -= OnLogMessageReceived;
 		}
 	}
 }
