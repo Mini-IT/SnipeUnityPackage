@@ -49,7 +49,7 @@ namespace MiniIT.Snipe
 		public event Action PreDestroy;
 
 		public string ConnectionId => Client?.ConnectionId;
-		public TimeSpan CurrentRequestElapsed => Client?.CurrentRequestElapsed ?? new TimeSpan(0);
+		public TimeSpan CurrentRequestElapsed => Client?.CurrentRequestElapsed ?? TimeSpan.Zero;
 
 		internal SnipeClient Client { get; private set; }
 
