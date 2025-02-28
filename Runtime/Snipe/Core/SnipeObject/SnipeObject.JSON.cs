@@ -71,7 +71,7 @@ namespace MiniIT
 			else if (obj is string str)
 			{
 				string_builder.Append('"');
-				// escape '\' и '"'
+				// escape '\' and '"'
 				str = str.Replace("\\", "\\\\");
 				str = str.Replace("\"", "\\\"");
 				string_builder.Append(str);
