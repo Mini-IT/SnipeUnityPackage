@@ -290,7 +290,7 @@ namespace MiniIT.Snipe
 		{
 			_safeEventRaiser ??= new SafeEventRaiser((handler, e) =>
 			{
-				_logger.LogTrace($"({InstanceId}) RaiseEvent - Error in the handler {handler?.Method?.Name}: {e}");
+				_logger.LogError($"({InstanceId}) RaiseEvent - Error in the handler {handler?.Method?.Name}: {e}");
 			});
 
 			_safeEventRaiser.RaiseEvent(eventDelegate, args);
