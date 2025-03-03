@@ -8,14 +8,14 @@ namespace MiniIT.Snipe.Api
 	{
 		private readonly Dictionary<string, SnipeApiUserAttribute> _attributes;
 		private readonly object _attributesLock = new object();
-		
+
 		public SnipeApiUserAttributes(AbstractSnipeApiService snipeApiService)
 		{
 			_attributes = new Dictionary<string, SnipeApiUserAttribute>();
 
 			snipeApiService.SubscribeOnMessageReceived(OnMessageReceived);
 		}
-		
+
 		protected AttrType RegisterAttribute<AttrType>(AttrType attr) where AttrType : SnipeApiUserAttribute
 		{
 			lock (_attributesLock)
@@ -48,7 +48,7 @@ namespace MiniIT.Snipe.Api
 			}
 		}
 
-		private void OnMessageReceived(string message_type, string error_code, SnipeObject data, int request_id)
+		private void OnMessageReceived(string message_type, string error_code, IDictionary<string, object> data, int request_id)
 		{
 			switch (message_type)
 			{
@@ -68,7 +68,7 @@ namespace MiniIT.Snipe.Api
 			{
 				lock (_attributesLock)
 				{
-					foreach (SnipeObject o in list)
+					foreach (IDictionary<string, object> o in list)
 					{
 						string key = o.SafeGetString("key");
 						if (_attributes.TryGetValue(key, out SnipeApiUserAttribute attr))

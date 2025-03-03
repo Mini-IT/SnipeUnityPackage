@@ -14,7 +14,7 @@ namespace MiniIT.Snipe
 	{
 		private const string API_PATH = "api/v1/request/";
 
-		private static readonly SnipeObject s_pingMessage = new SnipeObject() { ["t"] = "server.ping", ["id"] = -1 };
+		private static readonly Dictionary<string, object> s_pingMessage = new () { ["t"] = "server.ping", ["id"] = -1 };
 
 		public override bool Started => _connected;
 		public override bool Connected => _connected;
@@ -74,12 +74,12 @@ namespace MiniIT.Snipe
 			_connectionEstablished = false;
 		}
 
-		public override void SendMessage(SnipeObject message)
+		public override void SendMessage(IDictionary<string, object> message)
 		{
 			DoSendRequest(message);
 		}
 
-		public override void SendBatch(IList<SnipeObject> messages)
+		public override void SendBatch(IList<IDictionary<string, object>> messages)
 		{
 			if (messages.Count == 1)
 			{
@@ -112,30 +112,33 @@ namespace MiniIT.Snipe
 
 		private void ProcessMessage(string json)
 		{
-			var message = SnipeObject.FromJSONString(json);
+			var message = JsonUtility.ParseDictionary(json);
 
-			if (message != null)
+			if (message == null)
 			{
-				if (message.SafeGetString("t") == "server.responses")
+				_logger.LogError("ProcessMessage: message is null. Json = " + json);
+				return;
+			}
+
+			if (message.SafeGetString("t") == "server.responses")
+			{
+				if (message.TryGetValue("data", out var innerData))
 				{
-					if (message.TryGetValue("data", out var innerData))
+					if (innerData is IList innerMessages)
 					{
-						if (innerData is IList innerMessages)
-						{
-							ProcessBatchInnerMessages(innerMessages);
-						}
-						else if (innerData is IDictionary<string, object> dataDict &&
-							dataDict.TryGetValue("list", out var dataList) &&
-							dataList is IList innerList)
-						{
-							ProcessBatchInnerMessages(innerList);
-						}
+						ProcessBatchInnerMessages(innerMessages);
+					}
+					else if (innerData is IDictionary<string, object> dataDict &&
+					         dataDict.TryGetValue("list", out var dataList) &&
+					         dataList is IList innerList)
+					{
+						ProcessBatchInnerMessages(innerList);
 					}
 				}
-				else // single message
-				{
-					InternalProcessMessage(message);
-				}
+			}
+			else // single message
+			{
+				InternalProcessMessage(message);
 			}
 		}
 
@@ -143,23 +146,23 @@ namespace MiniIT.Snipe
 		{
 			foreach (var innerMessage in innerMessages)
 			{
-				if (innerMessage is SnipeObject message)
+				if (innerMessage is IDictionary<string, object> message)
 				{
 					InternalProcessMessage(message);
 				}
 			}
 		}
 
-		private void InternalProcessMessage(SnipeObject message)
+		private void InternalProcessMessage(IDictionary<string, object> message)
 		{
 			ExtractAuthToken(message);
 			MessageReceivedHandler?.Invoke(message);
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private void ExtractAuthToken(SnipeObject message)
+		private void ExtractAuthToken(IDictionary<string, object> message)
 		{
-			_logger.LogTrace(message.ToJSONString());
+			_logger.LogTrace(JsonUtility.ToJson(message));
 
 			if (message.SafeGetString("t") == "user.login")
 			{
@@ -167,7 +170,7 @@ namespace MiniIT.Snipe
 
 				if (!message.TryGetValue("token", out token))
 				{
-					if (message.TryGetValue<SnipeObject>("data", out var data))
+					if (message.TryGetValue<IDictionary<string, object>>("data", out var data))
 					{
 						data.TryGetValue("token", out token);
 					}
@@ -180,11 +183,11 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async void DoSendRequest(SnipeObject message)
+		private async void DoSendRequest(IDictionary<string, object> message)
 		{
 			string requestType = message.SafeGetString("t");
 			int requestId = message.SafeGetValue<int>("id");
-			string json = message.ToJSONString(); // Don't use FastJSON because the message can contain custom classes for attr.setMulty for example
+			string json = JsonUtility.ToJson(message); // ??? Don't use FastJSON because the message can contain custom classes for attr.setMulty for example
 
 			string responseMessage = null;
 
@@ -197,7 +200,7 @@ namespace MiniIT.Snipe
 
 				var uri = new Uri(_baseUrl, requestType);
 
-				_logger.LogTrace($"<<< request ({uri}) - {requestId} - {requestType}");
+				_logger.LogTrace($"<<< request ({uri}) - {requestId} - {requestType} - {json}");
 
 				using (var response = await _client.PostJson(uri, json))
 				{
@@ -212,6 +215,7 @@ namespace MiniIT.Snipe
 					if (response.IsSuccess)
 					{
 						responseMessage = await response.GetStringContentAsync();
+						_logger.LogTrace(responseMessage);
 					}
 					else if (response.ResponseCode != 429) // HttpStatusCode.TooManyRequests
 					{
@@ -245,13 +249,13 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void DoSendBatch(IList<SnipeObject> messages)
+		private void DoSendBatch(IList<IDictionary<string, object>> messages)
 		{
-			var batch = new SnipeObject()
+			var batch = new Dictionary<string, object>()
 			{
 				["t"] = "server.batch",
 				["id"] = -100,
-				["data"] = new SnipeObject()
+				["data"] = new Dictionary<string, object>()
 				{
 					["list"] = messages,
 				}

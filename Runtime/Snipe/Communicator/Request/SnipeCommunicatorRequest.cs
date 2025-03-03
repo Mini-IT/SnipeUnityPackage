@@ -1,4 +1,5 @@
 ﻿
+using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 
 namespace MiniIT.Snipe
@@ -14,7 +15,7 @@ namespace MiniIT.Snipe
 		public SnipeCommunicatorRequest(SnipeCommunicator communicator,
 			AuthSubsystem authSubsystem,
 			string messageType = null,
-			SnipeObject data = null)
+			IDictionary<string, object> data = null)
 			: base(communicator, messageType, data)
 		{
 			_authSubsystem = authSubsystem;
@@ -63,7 +64,8 @@ namespace MiniIT.Snipe
 
 			if (_communicator.AllowRequestsToWaitForLogin)
 			{
-				GetLogger().LogTrace($"Waiting for login - {MessageType} - {Data?.ToJSONString()}");
+				string dataJson = Data != null ? JsonUtility.ToJson(Data) : null;
+				GetLogger().LogTrace($"Waiting for login - {MessageType} - {dataJson}");
 
 				_authSubsystem.LoginSucceeded += OnCommunicatorReady;
 			}
@@ -73,7 +75,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		protected override void OnMessageReceived(string message_type, string error_code, SnipeObject response_data, int request_id)
+		protected override void OnMessageReceived(string message_type, string error_code, IDictionary<string, object> response_data, int request_id)
 		{
 			if (_communicator == null)
 				return;

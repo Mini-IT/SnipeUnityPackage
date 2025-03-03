@@ -1,8 +1,10 @@
 
+using System.Collections.Generic;
+
 namespace MiniIT
 {
 	public interface ISnipeObjectConvertable
 	{
-		SnipeObject ConvertToSnipeObject();
+		IDictionary<string, object> ConvertToSnipeObject();
 	}
 }

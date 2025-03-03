@@ -12,7 +12,7 @@ namespace MiniIT.Snipe
 		public const int SNIPE_VERSION = 6;
 		public const int MAX_BATCH_SIZE = 5;
 
-		public delegate void MessageReceivedHandler(string message_type, string error_code, SnipeObject data, int request_id);
+		public delegate void MessageReceivedHandler(string message_type, string error_code, IDictionary<string, object> data, int request_id);
 		public event MessageReceivedHandler MessageReceived;
 		public event Action ConnectionOpened;
 		public event Action ConnectionClosed;
@@ -49,7 +49,7 @@ namespace MiniIT.Snipe
 
 				if (value)
 				{
-					_batchedRequests ??= new ConcurrentQueue<SnipeObject>();
+					_batchedRequests ??= new ConcurrentQueue<IDictionary<string, object>>();
 				}
 				else
 				{
@@ -61,7 +61,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private ConcurrentQueue<SnipeObject> _batchedRequests;
+		private ConcurrentQueue<IDictionary<string, object>> _batchedRequests;
 		private readonly object _batchLock = new object();
 
 		private readonly Queue<Func<Transport>> _transportFactoriesQueue = new Queue<Func<Transport>>(3);
@@ -270,14 +270,14 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		public int SendRequest(string messageType, SnipeObject data)
+		public int SendRequest(string messageType, IDictionary<string, object> data)
 		{
 			if (!Connected)
 			{
 				return 0;
 			}
 
-			var message = new SnipeObject() { ["t"] = messageType };
+			var message = new Dictionary<string, object>() { ["t"] = messageType };
 
 			if (data != null)
 			{
@@ -287,7 +287,7 @@ namespace MiniIT.Snipe
 			return SendRequest(message);
 		}
 
-		public int SendRequest(SnipeObject message)
+		public int SendRequest(IDictionary<string, object> message)
 		{
 			if (!Connected || message == null)
 			{
@@ -297,18 +297,18 @@ namespace MiniIT.Snipe
 			int requestId = ++_requestId;
 			message["id"] = requestId;
 
-			SnipeObject data = null;
+			IDictionary<string, object> data = null;
 
 			if (!_loggedIn && (_batchedRequests == null || _batchedRequests.IsEmpty))
 			{
-				data = message["data"] as SnipeObject ?? new SnipeObject();
+				data = message["data"] as IDictionary<string, object> ?? new Dictionary<string, object>();
 				data["ckey"] = _config.ClientKey;
 				message["data"] = data;
 			}
 
 			if (_config.DebugId != null)
 			{
-				data ??= message["data"] as SnipeObject ?? new SnipeObject();
+				data ??= message["data"] as Dictionary<string, object> ?? new Dictionary<string, object>();
 				data["debugID"] = _config.DebugId;
 			}
 
@@ -329,7 +329,7 @@ namespace MiniIT.Snipe
 			return requestId;
 		}
 
-		private void DoSendRequest(SnipeObject message)
+		private void DoSendRequest(IDictionary<string, object> message)
 		{
 			if (!Connected || message == null)
 			{
@@ -338,7 +338,7 @@ namespace MiniIT.Snipe
 
 			if (_logger.IsEnabled(LogLevel.Trace))
 			{
-				_logger.LogTrace("SendRequest - {0}", message.ToJSONString());
+				_logger.LogTrace("SendRequest - {0}", JsonUtility.ToJson(message));
 			}
 
 			_transport.SendMessage(message);
@@ -348,7 +348,7 @@ namespace MiniIT.Snipe
 			_responseMonitor.Add(_requestId, message.SafeGetString("t"));
 		}
 
-		private void DoSendBatch(List<SnipeObject> messages)
+		private void DoSendBatch(List<IDictionary<string, object>> messages)
 		{
 			if (!Connected || messages == null || messages.Count == 0)
 				return;
@@ -358,7 +358,7 @@ namespace MiniIT.Snipe
 			_transport.SendBatch(messages);
 		}
 
-		private void ProcessMessage(SnipeObject message)
+		private void ProcessMessage(IDictionary<string, object> message)
 		{
 			if (message == null)
 			{
@@ -374,13 +374,14 @@ namespace MiniIT.Snipe
 			string errorCode = message.SafeGetString("errorCode");
 			int requestID = message.SafeGetValue<int>("id");
 			int ackID = message.SafeGetValue<int>("ackID");
-			SnipeObject responseData = message.SafeGetValue<SnipeObject>("data");
+			IDictionary<string, object> responseData = message.SafeGetValue<IDictionary<string, object>>("data");
 
 			_responseMonitor.Remove(requestID, messageType);
 
 			if (_logger.IsEnabled(LogLevel.Trace))
 			{
-				_logger.LogTrace("[{0}] ProcessMessage - {1} - {2} {3} {4}", ConnectionId, requestID, messageType, errorCode, responseData?.ToFastJSONString());
+				string dataJson = responseData != null ? JsonUtility.ToJson(responseData) : null;
+				_logger.LogTrace("[{0}] ProcessMessage - {1} - {2} {3} {4}", ConnectionId, requestID, messageType, errorCode, dataJson);
 			}
 
 			if (!_loggedIn && messageType == SnipeMessageTypes.USER_LOGIN)
@@ -392,11 +393,11 @@ namespace MiniIT.Snipe
 
 			if (ackID > 0)
 			{
-				SendRequest("ack.ack", new SnipeObject() { ["ackID"] = ackID });
+				SendRequest("ack.ack", new Dictionary<string, object>() { ["ackID"] = ackID });
 			}
 		}
 
-		private void ProcessLoginResponse(string errorCode, SnipeObject responseData)
+		private void ProcessLoginResponse(string errorCode, IDictionary<string, object> responseData)
 		{
 			if (errorCode == SnipeErrorCodes.OK || errorCode == SnipeErrorCodes.ALREADY_LOGGED_IN)
 			{
@@ -456,7 +457,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void InvokeMessageReceived(string messageType, string errorCode, int requestId, SnipeObject responseData)
+		private void InvokeMessageReceived(string messageType, string errorCode, int requestId, IDictionary<string, object> responseData)
 		{
 			if (MessageReceived != null)
 			{
@@ -464,7 +465,8 @@ namespace MiniIT.Snipe
 				{
 					try
 					{
-						MessageReceived?.Invoke(messageType, errorCode, responseData, requestId);
+						// TODO: Remove IDictionary<string, object> wrapper
+						MessageReceived?.Invoke(messageType, errorCode, new Dictionary<string, object>(responseData), requestId);
 					}
 					catch (Exception e)
 					{
@@ -485,7 +487,7 @@ namespace MiniIT.Snipe
 
 		private void FlushBatchedRequests()
 		{
-			ReadOnlySpan<SnipeObject> queue;
+			ReadOnlySpan<IDictionary<string, object>> queue;
 
 			lock (_batchLock)
 			{
@@ -505,13 +507,13 @@ namespace MiniIT.Snipe
 			}
 			else
 			{
-				var messages = new List<SnipeObject>(queue.Length);
+				var messages = new List<IDictionary<string, object>>(queue.Length);
 
 				for (int i = 0; i < queue.Length; i++)
 				{
 					var message = queue[i];
 					messages.Add(message);
-					_logger.LogTrace("Request batched - {0}", message.ToJSONString());
+					_logger.LogTrace("Request batched - {0}", JsonUtility.ToJson(message));
 				}
 
 				DoSendBatch(messages);

@@ -59,7 +59,7 @@ namespace MiniIT.Snipe.Tables
 				return result;
 			}
 
-			var wrapper = SnipeObject.FromFastJSONString(json);
+			var wrapper = JsonUtility.ParseDictionary(json);
 			if (wrapper?["tables"] is IList list)
 			{
 				foreach (var loadedItem in list)

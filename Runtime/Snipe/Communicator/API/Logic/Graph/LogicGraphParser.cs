@@ -11,13 +11,13 @@ namespace MiniIT.Snipe.Api
 			_table = table;
 		}
 
-		public bool TryParse(SnipeObject data, out LogicGraph graph)
+		public bool TryParse(IDictionary<string, object> data, out LogicGraph graph)
 		{
 			int id = data.SafeGetValue<int>("id");
 
 			if (_table.TryGetValue(id, out var tableItem))
 			{
-				data.TryGetValue("state", out SnipeObject stateData);
+				data.TryGetValue("state", out IDictionary<string, object> stateData);
 				TryParseGraphStete(stateData, out LogicGraphState graphState);
 				graph = new LogicGraph(id, tableItem, graphState);
 				return true;
@@ -27,7 +27,7 @@ namespace MiniIT.Snipe.Api
 			return false;
 		}
 
-		private bool TryParseGraphStete(SnipeObject data, out LogicGraphState state)
+		private bool TryParseGraphStete(IDictionary<string, object> data, out LogicGraphState state)
 		{
 			if (data == null)
 			{
@@ -39,7 +39,7 @@ namespace MiniIT.Snipe.Api
 			string errorCode = data.SafeGetString("errorCode");
 			IDictionary<string, object> nodeVars = null;
 
-			if (data["vars"] is SnipeObject dataVars)
+			if (data["vars"] is IDictionary<string, object> dataVars)
 			{
 				nodeVars = dataVars;
 			}

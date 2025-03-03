@@ -46,8 +46,8 @@ namespace MiniIT.Snipe
 		private WebSocketWrapper _webSocket = null;
 		private readonly object _lock = new object();
 
-		private ConcurrentQueue<SnipeObject> _sendMessages;
-		private ConcurrentQueue<IList<SnipeObject>> _batchMessages;
+		private ConcurrentQueue<IDictionary<string, object>> _sendMessages;
+		private ConcurrentQueue<IList<IDictionary<string, object>>> _batchMessages;
 
 		private bool _connected;
 		private bool _loggedIn;
@@ -151,7 +151,7 @@ namespace MiniIT.Snipe
 			ConnectionClosedHandler?.Invoke(this);
 		}
 
-		public override void SendMessage(SnipeObject message)
+		public override void SendMessage(IDictionary<string, object> message)
 		{
 			if (_sendMessages == null)
 			{
@@ -160,11 +160,11 @@ namespace MiniIT.Snipe
 			_sendMessages!.Enqueue(message);
 		}
 
-		public override void SendBatch(IList<SnipeObject> messages)
+		public override void SendBatch(IList<IDictionary<string, object>> messages)
 		{
 			lock (_lock)
 			{
-				_batchMessages ??= new ConcurrentQueue<IList<SnipeObject>>();
+				_batchMessages ??= new ConcurrentQueue<IList<IDictionary<string, object>>>();
 				_batchMessages.Enqueue(messages);
 
 				if (_sendMessages == null)
@@ -174,7 +174,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async void DoSendRequest(SnipeObject message)
+		private async void DoSendRequest(IDictionary<string, object> message)
 		{
 			byte[] data = await SerializeMessage(message);
 
@@ -189,7 +189,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async void DoSendBatch(IList<SnipeObject> messages)
+		private async void DoSendBatch(IList<IDictionary<string, object>> messages)
 		{
 			byte[][] data = new byte[messages.Count][];
 			int length = 2; // 2 bytes for batch header
@@ -216,7 +216,7 @@ namespace MiniIT.Snipe
 		}
 
 		// [Testable]
-		internal async UniTask<byte[]> SerializeMessage(SnipeObject message)
+		internal async UniTask<byte[]> SerializeMessage(IDictionary<string, object> message)
 		{
 			byte[] result = null;
 
@@ -239,7 +239,7 @@ namespace MiniIT.Snipe
 			return result;
 		}
 
-		private byte[] InternalSerializeMessage(SnipeObject message)
+		private byte[] InternalSerializeMessage(IDictionary<string, object> message)
 		{
 			byte[] result = null;
 
@@ -282,7 +282,7 @@ namespace MiniIT.Snipe
 		{
 			_logger.LogTrace("ProcessWebSocketMessage"); //   " + BitConverter.ToString(raw_data, 0, raw_data.Length));
 
-			SnipeObject message;
+			IDictionary<string, object> message;
 
 			bool semaphoreOccupied = false;
 			try
@@ -308,18 +308,18 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private SnipeObject ReadMessage(byte[] buffer)
+		private IDictionary<string, object> ReadMessage(byte[] buffer)
 		{
 			bool compressed = (buffer[0] == COMPRESSED_HEADER[0] && buffer[1] == COMPRESSED_HEADER[1]);
 			if (compressed)
 			{
 				var compressedData = new ArraySegment<byte>(buffer, 2, buffer.Length - 2);
 				var decompressed = _messageCompressor.Decompress(compressedData);
-				return MessagePackDeserializer.Parse(decompressed) as SnipeObject;
+				return MessagePackDeserializer.Parse(decompressed) as IDictionary<string, object>;
 			}
 			else // uncompressed
 			{
-				return MessagePackDeserializer.Parse(buffer) as SnipeObject;
+				return MessagePackDeserializer.Parse(buffer) as IDictionary<string, object>;
 			}
 		}
 
@@ -333,11 +333,11 @@ namespace MiniIT.Snipe
 
 #if NET5_0_OR_GREATER
 			if (_sendMessages == null)
-				_sendMessages = new ConcurrentQueue<SnipeObject>();
+				_sendMessages = new ConcurrentQueue<IDictionary<string, object>>();
 			else
 				_sendMessages.Clear();
 #else
-			_sendMessages = new ConcurrentQueue<SnipeObject>();
+			_sendMessages = new ConcurrentQueue<IDictionary<string, object>>();
 #endif
 
 			_sendTaskCancellation = new CancellationTokenSource();

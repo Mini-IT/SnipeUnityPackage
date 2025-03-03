@@ -16,7 +16,7 @@ namespace MiniIT.Snipe
 		private const int RETRY_INIT_CLIENT_MAX_DELAY = 10000; // ms
 		private const int RETRY_INIT_CLIENT_RANDOM_DELAY = 500; // ms
 
-		public delegate void MessageReceivedHandler(string messageType, string errorCode, SnipeObject data, int requestId);
+		public delegate void MessageReceivedHandler(string messageType, string errorCode, IDictionary<string, object> data, int requestId);
 
 		/// <summary>
 		/// Connection successfully establisched
@@ -239,7 +239,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void OnMessageReceived(string message_type, string error_code, SnipeObject data, int request_id)
+		private void OnMessageReceived(string message_type, string error_code, IDictionary<string, object> data, int request_id)
 		{
 			// _logger.LogTrace($"({INSTANCE_ID}) [{Client?.ConnectionId}] OnMessageReceived {request_id} {message_type} {error_code} " + (data != null ? data.ToJSONString() : "null"));
 
@@ -402,13 +402,13 @@ namespace MiniIT.Snipe
 
 		private void AnalyticsTrackConnectionSucceeded()
 		{
-			var data = Client.UdpClientConnected ? new SnipeObject()
+			var data = Client.UdpClientConnected ? new Dictionary<string, object>()
 			{
 				["connection_type"] = "udp",
 				["connection_time"] = _analytics.UdpConnectionTime.TotalMilliseconds,
 				["connection_url"] = _analytics.ConnectionUrl,
 			} :
-			new SnipeObject()
+			new Dictionary<string, object>()
 			{
 				["connection_type"] = "websocket",
 				["connection_time"] = _analytics.ConnectionEstablishmentTime.TotalMilliseconds,
@@ -432,7 +432,7 @@ namespace MiniIT.Snipe
 			if (!_analytics.ConnectionEventsEnabled)
 				return;
 
-			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_DISCONNECTED, new SnipeObject()
+			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_DISCONNECTED, new Dictionary<string, object>()
 			{
 				//["communicator"] = this.name,
 				["connection_id"] = Client?.ConnectionId,
@@ -452,7 +452,7 @@ namespace MiniIT.Snipe
 			if (!_analytics.ConnectionEventsEnabled)
 				return;
 
-			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_DISCONNECTED + " UDP", new SnipeObject()
+			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_DISCONNECTED + " UDP", new Dictionary<string, object>()
 			{
 				["connection_type"] = "udp",
 				["connection_time"] = _analytics.UdpConnectionTime.TotalMilliseconds,

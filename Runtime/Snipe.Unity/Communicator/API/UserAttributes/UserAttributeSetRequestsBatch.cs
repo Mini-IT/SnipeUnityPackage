@@ -47,7 +47,7 @@ namespace MiniIT.Snipe.Api
 			return false;
 		}
 
-		public bool TryFlush(out List<SnipeObject> attrs, out List<SetCallback> callbacks)
+		public bool TryFlush(out List<IDictionary<string, object>> attrs, out List<SetCallback> callbacks)
 		{
 			if (_setRequests.Count <= 0)
 			{
@@ -56,12 +56,12 @@ namespace MiniIT.Snipe.Api
 				return false;
 			}
 
-			attrs = new List<SnipeObject>(_setRequests.Count);
+			attrs = new List<IDictionary<string, object>>(_setRequests.Count);
 			callbacks = new List<SetCallback>(_setRequests.Count);
 
 			foreach (var req in _setRequests)
 			{
-				attrs.Add(new SnipeObject()
+				attrs.Add(new Dictionary<string, object>()
 				{
 					["key"] = req.Key,
 					["val"] = req.Value._value,

@@ -256,19 +256,19 @@ namespace MiniIT.Snipe.Api
 
 			if (requests.TryFlushSingle(out string key, out object val, out SetCallback callback))
 			{
-				var req = _snipeApi.CreateRequest("attr.set", new SnipeObject() { ["key"] = key, ["val"] = val });
+				var req = _snipeApi.CreateRequest("attr.set", new Dictionary<string, object>() { ["key"] = key, ["val"] = val });
 				req?.Request((errorCode, responseData) => callback?.Invoke(errorCode,
 					responseData.SafeGetString("key"),
 					responseData.SafeGetValue<object>("val")));
 				return;
 			}
 
-			if (!requests.TryFlush(out List<SnipeObject> attrs, out List<SetCallback> callbacks))
+			if (!requests.TryFlush(out List<IDictionary<string, object>> attrs, out List<SetCallback> callbacks))
 			{
 				return;
 			}
 
-			var request = _snipeApi.CreateRequest("attr.setMulti", new SnipeObject()
+			var request = _snipeApi.CreateRequest("attr.setMulti", new Dictionary<string, object>()
 			{
 				["data"] = attrs,
 			});

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace MiniIT.Snipe
 {
@@ -67,7 +68,7 @@ namespace MiniIT.Snipe
 			LogReporter?.Dispose();
 		}
 
-		public AbstractCommunicatorRequest CreateRequest(string messageType, SnipeObject data)
+		public AbstractCommunicatorRequest CreateRequest(string messageType, IDictionary<string, object> data)
 		{
 			if (Communicator.BatchMode && !Communicator.LoggedIn)
 			{

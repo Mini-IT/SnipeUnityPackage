@@ -83,7 +83,7 @@ namespace MiniIT.Snipe
 		/// </summary>
 		//public void InitializeFromJSON(string json_string)
 		//{
-		//	Initialize(SnipeObject.FromJSONString(json_string));
+		//	Initialize(IDictionary<string, object>.FromJSONString(json_string));
 		//}
 
 		/// <summary>
@@ -302,7 +302,7 @@ namespace MiniIT.Snipe
 		/*
 		private void ParseOld(IDictionary<string, object> data)
 		{
-			_project.ClientKey = SnipeObject.SafeGetString(data, "client_key").Trim();
+			_project.ClientKey = IDictionary<string, object>.SafeGetString(data, "client_key").Trim();
 
 			if (ServerWebSocketUrls == null)
 				ServerWebSocketUrls = new List<string>();
@@ -324,7 +324,7 @@ namespace MiniIT.Snipe
 			if (ServerWebSocketUrls.Count < 1)
 			{
 				// "service_websocket" field for backward compatibility
-				var service_url = SnipeObject.SafeGetString(data, "service_websocket");
+				var service_url = IDictionary<string, object>.SafeGetString(data, "service_websocket");
 				if (!string.IsNullOrWhiteSpace(service_url))
 				{
 					ServerWebSocketUrls.Add(service_url.Trim());
@@ -354,8 +354,8 @@ namespace MiniIT.Snipe
 
 				var address = new UdpAddress()
 				{
-					Host = SnipeObject.SafeGetString(data, "server_udp_address").Trim(),
-					Port = SnipeObject.SafeGetValue<ushort>(data, "server_udp_port"),
+					Host = IDictionary<string, object>.SafeGetString(data, "server_udp_address").Trim(),
+					Port = IDictionary<string, object>.SafeGetValue<ushort>(data, "server_udp_port"),
 				};
 
 				if (address.Port > 0 && !string.IsNullOrWhiteSpace(address.Host))
@@ -364,14 +364,14 @@ namespace MiniIT.Snipe
 				}
 			}
 
-			if (SnipeObject.TryGetValue(data, "server_http_address", out string httpUrl))
+			if (IDictionary<string, object>.TryGetValue(data, "server_http_address", out string httpUrl))
 			{
 				if (!string.IsNullOrWhiteSpace(httpUrl) && httpUrl.StartsWith("http"))
 				{
 					ServerHttpUrl = httpUrl;
 				}
 
-				if (SnipeObject.TryGetValue(data, "server_http_heartbeat_seconds", out int heartbeatInterval))
+				if (IDictionary<string, object>.TryGetValue(data, "server_http_heartbeat_seconds", out int heartbeatInterval))
 				{
 					HttpHeartbeatInterval = TimeSpan.FromSeconds(heartbeatInterval);
 				}
@@ -475,7 +475,7 @@ namespace MiniIT.Snipe
 
 		private void InitializeAppInfo()
 		{
-			var appInfo = new SnipeObject()
+			var appInfo = new Dictionary<string, object>()
 			{
 				["identifier"] = _applicationInfo.ApplicationIdentifier,
 				["version"] = _applicationInfo.ApplicationVersion,
@@ -492,7 +492,7 @@ namespace MiniIT.Snipe
 				appInfo["osVersion"] = $"{systemInfo.OperatingSystemVersion.Major}.{systemInfo.OperatingSystemVersion.Minor}";
 			}
 
-			AppInfo = appInfo.ToJSONString();
+			AppInfo = JsonUtility.ToJson(appInfo);
 
 			DebugId = GenerateDebugId();
 			SnipeServices.Analytics.GetTracker(ContextId).SetDebugId(DebugId);

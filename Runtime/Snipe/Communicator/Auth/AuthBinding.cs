@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using MiniIT.Storage;
 
@@ -104,7 +105,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			var data = new SnipeObject()
+			var data = new Dictionary<string, object>()
 			{
 				["ckey"] = GetClientKey(),
 				["provider"] = ProviderId,
@@ -125,7 +126,7 @@ namespace MiniIT.Snipe
 
 			FillExtraParameters(data);
 
-			_logger.LogTrace($"({ProviderId}) send user.bind " + data.ToJSONString());
+			_logger.LogTrace($"({ProviderId}) send user.bind " + JsonUtility.ToJson(data));
 			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_BIND, data)
 				.Request(OnBindResponse);
 		}
@@ -152,7 +153,7 @@ namespace MiniIT.Snipe
 			return "";
 		}
 
-		protected virtual void FillExtraParameters(SnipeObject data)
+		protected virtual void FillExtraParameters(IDictionary<string, object> data)
 		{
 		}
 
@@ -162,7 +163,7 @@ namespace MiniIT.Snipe
 		/// <param name="callback">Parameter is <c>errorCode</c></param>
 		public void ResetAuth(Action<string> callback)
 		{
-			SnipeObject data = new SnipeObject()
+			IDictionary<string, object> data = new Dictionary<string, object>()
 			{
 				["ckey"] = _config.ClientKey,
 				["provider"] = ProviderId,
@@ -173,7 +174,7 @@ namespace MiniIT.Snipe
 			FillExtraParameters(data);
 
 			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_RESET, data)
-				.Request((string error_code, SnipeObject response_data) =>
+				.Request((string error_code, IDictionary<string, object> response_data) =>
 				{
 					if (error_code == SnipeErrorCodes.OK)
 					{
@@ -205,7 +206,7 @@ namespace MiniIT.Snipe
 		{
 			_logger.LogTrace($"({ProviderId}) CheckAuthExists {user_id}");
 
-			SnipeObject data = new SnipeObject()
+			IDictionary<string, object> data = new Dictionary<string, object>()
 			{
 				["ckey"] = _config.ClientKey,
 				["provider"] = ProviderId,
@@ -222,7 +223,7 @@ namespace MiniIT.Snipe
 				.Request((error_code, response_data) => OnCheckAuthExistsResponse(error_code, response_data, callback));
 		}
 
-		protected virtual void OnBindResponse(string error_code, SnipeObject data)
+		protected virtual void OnBindResponse(string error_code, IDictionary<string, object> data)
 		{
 			_logger.LogTrace($"({ProviderId}) OnBindResponse - {error_code}");
 
@@ -235,7 +236,7 @@ namespace MiniIT.Snipe
 			InvokeBindResultCallback(error_code);
 		}
 
-		protected void OnCheckAuthExistsResponse(string error_code, SnipeObject data, CheckAuthExistsCallback callback)
+		protected void OnCheckAuthExistsResponse(string error_code, IDictionary<string, object> data, CheckAuthExistsCallback callback)
 		{
 			bool account_exists = (error_code == SnipeErrorCodes.OK);
 			//	AccountExists = (error_code == SnipeErrorCodes.OK);

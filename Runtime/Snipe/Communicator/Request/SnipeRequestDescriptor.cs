@@ -1,15 +1,17 @@
+using System.Collections.Generic;
+
 namespace MiniIT.Snipe
 {
 	public class SnipeRequestDescriptor
 	{
 		public string MessageType;
-		public SnipeObject Data;
-		
-		public static implicit operator SnipeRequestDescriptor(string message_type)
+		public IDictionary<string, object> Data;
+
+		public static implicit operator SnipeRequestDescriptor(string messageType)
 		{
 			return new SnipeRequestDescriptor()
 			{
-				MessageType = message_type,
+				MessageType = messageType,
 			};
 		}
 	}

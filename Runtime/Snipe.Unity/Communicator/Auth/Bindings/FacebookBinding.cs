@@ -1,6 +1,7 @@
 ﻿#if SNIPE_FACEBOOK
 
 using System;
+using System.Collections.Generic;
 using Facebook.Unity;
 
 namespace MiniIT.Snipe.Unity
@@ -23,11 +24,11 @@ namespace MiniIT.Snipe.Unity
 				return AccessToken.CurrentAccessToken.TokenString;
 			}
 #endif
-			
+
 			return "";
 		}
 
-		protected override void FillExtraParameters(SnipeObject data)
+		protected override void FillExtraParameters(IDictionary<string, object> data)
 		{
 #if MINIIT_SOCIAL_CORE_1_1
 			if (MiniIT.Social.FacebookProvider.InstanceInitialized && MiniIT.Social.FacebookProvider.Instance.IsTrackingLimited)
@@ -65,7 +66,7 @@ namespace MiniIT.Snipe.Unity
 				return;
 			}
 
-			var data = new SnipeObject()
+			var data = new Dictionary<string, object>()
 			{
 				["ckey"] = GetClientKey(),
 				["provider"] = ProviderId,
@@ -79,7 +80,7 @@ namespace MiniIT.Snipe.Unity
 
 			//_logger.LogTrace($"({ProviderId}) send user.bind " + data.ToJSONString());
 			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_CONNECT, data)
-				.Request((string errorCode, SnipeObject data) =>
+				.Request((string errorCode, IDictionary<string, object> data) =>
 				{
 					callback?.Invoke(this, errorCode);
 				});

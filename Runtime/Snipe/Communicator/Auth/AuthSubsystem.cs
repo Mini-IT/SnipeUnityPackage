@@ -166,7 +166,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void OnMessageReceived(string messagetype, string errorcode, SnipeObject data, int requestid)
+		private void OnMessageReceived(string messagetype, string errorcode, IDictionary<string, object> data, int requestid)
 		{
 			if (messagetype == SnipeMessageTypes.USER_LOGIN)
 			{
@@ -174,7 +174,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void OnLogin(string errorCode, SnipeObject data)
+		private void OnLogin(string errorCode, IDictionary<string, object> data)
 		{
 			switch (errorCode)
 			{
@@ -218,7 +218,7 @@ namespace MiniIT.Snipe
 			_communicator.Disconnect();
 		}
 
-		private void OnLoginSucceeded(SnipeObject data)
+		private void OnLoginSucceeded(IDictionary<string, object> data)
 		{
 			UserID = data.SafeGetValue<int>("id");
 
@@ -255,7 +255,7 @@ namespace MiniIT.Snipe
 				return false;
 			}
 
-			SnipeObject data = _config.LoginParameters != null ? new SnipeObject(_config.LoginParameters) : new SnipeObject();
+			IDictionary<string, object> data = _config.LoginParameters != null ? new Dictionary<string, object>(_config.LoginParameters) : new Dictionary<string, object>();
 			data["login"] = login;
 			data["auth"] = password;
 			FillCommonAuthRequestParameters(data);
@@ -272,7 +272,7 @@ namespace MiniIT.Snipe
 				{
 					var elapsed = TimeSpan.FromTicks(Stopwatch.GetTimestamp() - startTimespamp);
 
-					_analytics.TrackEvent(SnipeMessageTypes.USER_LOGIN, new SnipeObject()
+					_analytics.TrackEvent(SnipeMessageTypes.USER_LOGIN, new Dictionary<string, object>()
 					{
 						["request_time"] = elapsed.TotalMilliseconds,
 					});
@@ -284,7 +284,7 @@ namespace MiniIT.Snipe
 			return true;
 		}
 
-		private void FillCommonAuthRequestParameters(SnipeObject data)
+		private void FillCommonAuthRequestParameters(IDictionary<string, object> data)
 		{
 			data["version"] = SnipeClient.SNIPE_VERSION;
 			data["appInfo"] = _config.AppInfo;
@@ -294,7 +294,7 @@ namespace MiniIT.Snipe
 
 		protected abstract void RegisterAndLogin();
 
-		protected async UniTask FetchLoginId(string provider, AuthIdFetcher fetcher, List<SnipeObject> providers, bool contextIdPrefix)
+		protected async UniTask FetchLoginId(string provider, AuthIdFetcher fetcher, List<IDictionary<string, object>> providers, bool contextIdPrefix)
 		{
 			bool done = false;
 
@@ -307,7 +307,7 @@ namespace MiniIT.Snipe
 						uid = _config.ContextId + uid;
 					}
 
-					providers.Add(new SnipeObject()
+					providers.Add(new Dictionary<string, object>()
 					{
 						["provider"] = provider,
 						["login"] = uid,
@@ -322,9 +322,9 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		protected void RequestRegisterAndLogin(List<SnipeObject> providers)
+		protected void RequestRegisterAndLogin(List<IDictionary<string, object>> providers)
 		{
-			SnipeObject data = _config.LoginParameters != null ? new SnipeObject(_config.LoginParameters) : new SnipeObject();
+			IDictionary<string, object> data = _config.LoginParameters != null ? new Dictionary<string, object>(_config.LoginParameters) : new Dictionary<string, object>();
 			data["ckey"] = _config.ClientKey;
 			data["auths"] = providers;
 			FillCommonAuthRequestParameters(data);
@@ -344,7 +344,7 @@ namespace MiniIT.Snipe
 					if (error_code == SnipeErrorCodes.OK)
 					{
 						//ClearAllBindings();
-						
+
 						SetAuthData(response.SafeGetString("uid"), response.SafeGetString("password"));
 
 						JustRegistered = response.SafeGetValue<bool>("registrationDone", false);
@@ -353,7 +353,7 @@ namespace MiniIT.Snipe
 						{
 							for (int i = 0; i < list.Count; i++)
 							{
-								var item = list[i] as SnipeObject;
+								var item = list[i] as IDictionary<string, object>;
 								if (item != null)
 								{
 									string provider = item.SafeGetString("provider");
@@ -424,7 +424,7 @@ namespace MiniIT.Snipe
 			}
 
 			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_RESTORE)
-				.Request(new SnipeObject()
+				.Request(new Dictionary<string, object>()
 				{
 					["ckey"] = _config.ClientKey,
 					["token"] = token,
