@@ -13,7 +13,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void TestWSMessageSerializerMultithread()
 		{
 			const int THREADS_COUNT = 40;
-			List<SnipeObject> data = new List<SnipeObject>(THREADS_COUNT);
+			List<IDictionary<string, object>> data = new List<IDictionary<string, object>>(THREADS_COUNT);
 			List<byte[]> serialized = new List<byte[]>(THREADS_COUNT);
 
 			if (!SnipeServices.IsInitialized)
@@ -50,7 +50,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			}
 		}
 
-		private async Task<List<byte[]>> TestWSMessageSerializerAsync(List<SnipeObject> data,
+		private async Task<List<byte[]>> TestWSMessageSerializerAsync(List<IDictionary<string, object>> data,
 			WebSocketTransport transport = null)
 		{
 			List<byte[]> result = new List<byte[]>(data.Count);
@@ -73,9 +73,9 @@ namespace MiniIT.Snipe.Tests.Editor
 			return result;
 		}
 
-		private SnipeObject GenerateRandomSnipeObject()
+		private IDictionary<string, object> GenerateRandomSnipeObject()
 		{
-			SnipeObject data = new SnipeObject();
+			IDictionary<string, object> data = new Dictionary<string, object>();
 			int intFieldsCount = 5;
 			int stringFieldsCount = UnityEngine.Random.Range(2, 10);
 			for (int i = 0; i < intFieldsCount; i++)
@@ -95,11 +95,11 @@ namespace MiniIT.Snipe.Tests.Editor
 		[Test]
 		public void TestMessageSerializerException()
 		{
-			var data = new SnipeObject()
+			var data = new Dictionary<string, object>()
 			{
 				["value"] = 1000, ["errorCode"] = "ok", ["json"] = "{\"id\":2,\"field\":\"fildvalue\"}",
 			};
-			var message = new SnipeObject() { ["id"] = 11, ["name"] = "SomeName", ["data"] = data, };
+			var message = new Dictionary<string, object>() { ["id"] = 11, ["name"] = "SomeName", ["data"] = data, };
 
 			var serializer = new MessagePackSerializer(4096, true);
 			_ = serializer.Serialize(message);
@@ -118,11 +118,11 @@ namespace MiniIT.Snipe.Tests.Editor
 		[Test]
 		public void TestMessageSerializerOffset()
 		{
-			var data = new SnipeObject()
+			var data = new Dictionary<string, object>()
 			{
 				["value"] = 1000, ["errorCode"] = "ok", ["json"] = "{\"id\":2,\"field\":\"fildvalue\"}",
 			};
-			var message = new SnipeObject() { ["id"] = 11, ["name"] = "SomeName", ["data"] = data, };
+			var message = new Dictionary<string, object>() { ["id"] = 11, ["name"] = "SomeName", ["data"] = data, };
 
 			const int OFFSET = 4;
 			var serializer = new MessagePackSerializer(4096);
@@ -136,11 +136,11 @@ namespace MiniIT.Snipe.Tests.Editor
 		[Test]
 		public void TestMessageSerializerDeserialize()
 		{
-			var data = new SnipeObject()
+			var data = new Dictionary<string, object>()
 			{
 				["value"] = 1000, ["errorCode"] = "ok", ["json"] = "{\"id\":2,\"field\":\"fildvalue\"}",
 			};
-			var message = new SnipeObject() { ["id"] = 11, ["name"] = "SomeName", ["data"] = data, };
+			var message = new Dictionary<string, object>() { ["id"] = 11, ["name"] = "SomeName", ["data"] = data, };
 
 			var serializer = new MessagePackSerializer(4096);
 			var serizlized = serializer.Serialize(message).ToArray();
@@ -152,11 +152,11 @@ namespace MiniIT.Snipe.Tests.Editor
 		[Test]
 		public void TestSmallBuffer()
 		{
-			var data = new SnipeObject()
+			var data = new Dictionary<string, object>()
 			{
 				["value"] = 1000, ["errorCode"] = "ok", ["json"] = "{\"id\":2,\"field\":\"fildvalue\"}",
 			};
-			var message = new SnipeObject() { ["id"] = 11, ["name"] = "SomeName", ["data"] = data, };
+			var message = new Dictionary<string, object>() { ["id"] = 11, ["name"] = "SomeName", ["data"] = data, };
 
 			var serializer = new MessagePackSerializer(4096);
 			var serizlized = serializer.Serialize(message).ToArray();
