@@ -304,7 +304,7 @@ namespace MiniIT.Snipe
 
 		public override bool Equals(object obj) => obj is AbstractCommunicatorRequest request
 			&& string.Equals(request.MessageType, MessageType, StringComparison.Ordinal)
-			&& SnipeObject.ContentEquals(request.Data, Data);
+			&& request.Data.ContentEquals(Data);
 
 		public override int GetHashCode()
 		{

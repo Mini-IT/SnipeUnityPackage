@@ -1,25 +1,23 @@
 
 //  JSON support
 
-
-using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Globalization;
-using System.Text;
 
 namespace MiniIT
 {
+	public static class SnipeObjectFastJsonExtensions
+	{
+		public static string ToFastJSONString(this IDictionary<string, object> dictionary)
+		{
+			return fastJSON.JSON.ToJSON(dictionary);
+		}
+	}
+
 	public partial class SnipeObject
 	{
-		public string ToFastJSONString()
+		public static SnipeObject FromFastJSONString(string input)
 		{
-			return fastJSON.JSON.ToJSON(this);
-		}
-
-		public static SnipeObject FromFastJSONString(string input_string)
-		{
-			var decoded = fastJSON.JSON.Parse(input_string);
+			var decoded = fastJSON.JSON.Parse(input);
 			if (decoded is Dictionary<string, object> dict)
 				return new SnipeObject(dict);
 			else

@@ -68,8 +68,8 @@ namespace MiniIT.Snipe.Tables
 					{
 						var resultItem = new BuiltInTablesListItem()
 						{
-							name = SnipeObject.SafeGetString(item, "name"),
-							version = SnipeObject.SafeGetValue<long>(item, "version"),
+							name = item.SafeGetString("name"),
+							version = item.SafeGetValue<long>("version"),
 						};
 
 						if (resultItem.version != 0 && !string.IsNullOrEmpty(resultItem.name))

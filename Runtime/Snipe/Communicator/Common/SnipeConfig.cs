@@ -222,25 +222,25 @@ namespace MiniIT.Snipe
 
 		private void ParseNew(IDictionary<string, object> data)
 		{
-			if (SnipeObject.TryGetValue(data, "snipeUdpHost", out string udpHost) && !string.IsNullOrEmpty(udpHost) &&
-				SnipeObject.TryGetValue(data, "snipeUdpPort", out string udpPort) && ushort.TryParse(udpPort, out ushort port))
+			if (data.TryGetValue("snipeUdpHost", out string udpHost) && !string.IsNullOrEmpty(udpHost) &&
+			    data.TryGetValue("snipeUdpPort", out string udpPort) && ushort.TryParse(udpPort, out ushort port))
 			{
 				ServerUdpUrls.Clear();
 				ServerUdpUrls.Add(new UdpAddress() { Host = udpHost, Port = port });
 			}
 
-			if (SnipeObject.TryGetValue(data, "snipeHttpUrl", out string httpUrl) && !string.IsNullOrEmpty(httpUrl))
+			if (data.TryGetValue("snipeHttpUrl", out string httpUrl) && !string.IsNullOrEmpty(httpUrl))
 			{
 				ServerHttpUrl = httpUrl;
 			}
 
-			if (SnipeObject.TryGetValue(data, "snipeWssUrl", out object wssUrl))
+			if (data.TryGetValue("snipeWssUrl", out object wssUrl))
 			{
 				List<string> outputList = ServerWebSocketUrls;
 				ParseWebSocketUrls(outputList, wssUrl);
 			}
 
-			if (SnipeObject.TryGetValue(data, "snipeDev", out bool dev))
+			if (data.TryGetValue("snipeDev", out bool dev))
 			{
 				_project.Mode = dev ? SnipeProjectMode.Dev : SnipeProjectMode.Live;
 			}
@@ -433,7 +433,7 @@ namespace MiniIT.Snipe
 			{
 				if (logReporterField is IDictionary<string, object> logReporterSection)
 				{
-					LogReporterUrl = SnipeObject.SafeGetString(logReporterSection, "url").Trim();
+					LogReporterUrl = logReporterSection.SafeGetString("url").Trim();
 				}
 				else if (logReporterField is string logReporterString)
 				{
@@ -448,7 +448,7 @@ namespace MiniIT.Snipe
 						var dict = (Dictionary<string, object>)JSON.Parse(logReporterString);
 						if (dict != null)
 						{
-							LogReporterUrl = SnipeObject.SafeGetString(dict, "url").Trim();
+							LogReporterUrl = dict.SafeGetString("url").Trim();
 						}
 					}
 				}
@@ -460,12 +460,12 @@ namespace MiniIT.Snipe
 			if (data.TryGetValue("compression", out var compression_field) &&
 				compression_field is IDictionary<string, object> compression)
 			{
-				CompressionEnabled = SnipeObject.SafeGetValue<bool>(compression, "enabled");
+				CompressionEnabled = compression.SafeGetValue<bool>("enabled");
 
 				if (CompressionEnabled)
 				{
-					if (SnipeObject.TryGetValue(compression, "min_size", out int minSize) ||
-						SnipeObject.TryGetValue(compression, "minSize", out minSize))
+					if (compression.TryGetValue("min_size", out int minSize) ||
+						compression.TryGetValue("minSize", out minSize))
 					{
 						MinMessageBytesToCompress = minSize;
 					}
