@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace MiniIT.Snipe.Api
 {
 	[System.Serializable]
-	public class UserBadge : ISnipeObjectConvertable
+	public class UserBadge : IMapConvertible
 	{
 		public int id;
 		public string stringID;
@@ -36,7 +36,7 @@ namespace MiniIT.Snipe.Api
 			return new UserBadge(data);
 		}
 
-		public IDictionary<string, object> ConvertToSnipeObject()
+		public IDictionary<string, object> ToMap()
 		{
 			return new Dictionary<string, object>()
 			{

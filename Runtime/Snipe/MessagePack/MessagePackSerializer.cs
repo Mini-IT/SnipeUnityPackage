@@ -82,8 +82,8 @@ namespace MiniIT.MessagePack
 				case IList list:
 					WirteArray(ref bufferSpan, list);
 					break;
-				case ISnipeObjectConvertable soc:
-					WriteMap(ref bufferSpan, soc.ConvertToSnipeObject());
+				case IMapConvertible soc:
+					WriteMap(ref bufferSpan, soc.ToMap());
 					break;
 				default:
 					WriteInternalValueType(ref bufferSpan, val);
