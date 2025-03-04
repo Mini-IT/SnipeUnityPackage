@@ -348,7 +348,6 @@ namespace MiniIT.Snipe
 				{
 					_logger.LogTrace("SendHandshake error: " + httpException);
 				}
-				InternalDisconnect();
 			}
 			catch (Exception e)
 			{
@@ -367,6 +366,11 @@ namespace MiniIT.Snipe
 				{
 					_sendSemaphore.Release();
 				}
+			}
+
+			if (!_connected)
+			{
+				InternalDisconnect();
 			}
 		}
 
