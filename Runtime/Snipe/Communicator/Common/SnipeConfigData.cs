@@ -35,8 +35,8 @@ namespace MiniIT.Snipe.Configuration
 		public string ProjectName;
 		public WebSocketImplementations WebSocketImplementation = WebSocketImplementations.BestWebSocket;
 		public bool AutoJoinRoom;
-		public List<string> ServerWebSocketUrls;
-		public List<UdpAddress> ServerUdpUrls;
+		public List<string> ServerWebSocketUrls = new List<string>();
+		public List<UdpAddress> ServerUdpUrls = new List<UdpAddress>();
 		public string ServerHttpUrl;
 
 		/// <summary>
