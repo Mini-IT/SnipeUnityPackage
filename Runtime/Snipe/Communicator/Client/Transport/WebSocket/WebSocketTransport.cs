@@ -11,6 +11,7 @@ using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.MessagePack;
 using MiniIT.Threading;
+using MiniIT.Snipe.Configuration;
 
 namespace MiniIT.Snipe
 {
@@ -68,8 +69,8 @@ namespace MiniIT.Snipe
 #else
 			_webSocket = _config.WebSocketImplementation switch
 			{
-				SnipeConfig.WebSocketImplementations.ClientWebSocket => new WebSocketClientWrapper(),
-				SnipeConfig.WebSocketImplementations.BestWebSocket => new WebSocketClientWrapper(),
+				WebSocketImplementations.ClientWebSocket => new WebSocketClientWrapper(),
+				WebSocketImplementations.BestWebSocket => new WebSocketClientWrapper(),
 				_ => new WebSocketClientWrapper(),
 			};
 #endif

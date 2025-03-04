@@ -93,12 +93,12 @@ namespace MiniIT.Snipe
 		private readonly IMainThreadRunner _mainThreadRunner;
 		private readonly ILogger _logger;
 
-		public SnipeCommunicator(SnipeConfig config)
+		public SnipeCommunicator(int contextId, SnipeConfig config)
 		{
 			_config = config;
 
 			_mainThreadRunner = SnipeServices.MainThreadRunner;
-			_analytics = SnipeServices.Analytics.GetTracker(config.ContextId);
+			_analytics = SnipeServices.Analytics.GetTracker(contextId);
 			_logger = SnipeServices.LogService.GetLogger(nameof(SnipeCommunicator));
 
 			_logger.LogTrace($"PACKAGE VERSION: {PackageInfo.VERSION_NAME}");
