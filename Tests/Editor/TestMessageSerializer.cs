@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using MiniIT.MessagePack;
+using MiniIT.Snipe.Configuration;
 using MiniIT.Snipe.Unity;
 
 namespace MiniIT.Snipe.Tests.Editor
@@ -41,7 +42,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			}
 
 			// Single WebSocketTransport instance
-			var transport = new WebSocketTransport(new SnipeConfig(0), null);
+			var transport = new WebSocketTransport(new SnipeConfig(0, new SnipeConfigData()), null);
 			result = Task.Run(async () => await TestWSMessageSerializerAsync(data, transport)).GetAwaiter().GetResult();
 			Assert.AreEqual(serialized.Count, result.Count);
 			for (int i = 0; i < data.Count; i++)
@@ -61,7 +62,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			List<Task> tasks = new List<Task>(data.Count);
 
-			transport ??= new WebSocketTransport(new SnipeConfig(0), null);
+			transport ??= new WebSocketTransport(new SnipeConfig(0, new SnipeConfigData()), null);
 			for (int i = 0; i < data.Count; i++)
 			{
 				int index = i;

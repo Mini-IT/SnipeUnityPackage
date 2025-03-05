@@ -186,7 +186,7 @@ namespace MiniIT.Snipe.Configuration
 		}
 
 		// [Testable]
-		private static void ParseWebSocketUrls(List<string> outputList, object wssUrl)
+		internal static void ParseWebSocketUrls(List<string> outputList, object wssUrl)
 		{
 			if (wssUrl is IList wssUrlList && wssUrlList.Count > 0)
 			{

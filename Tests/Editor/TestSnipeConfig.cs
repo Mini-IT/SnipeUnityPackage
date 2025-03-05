@@ -1,10 +1,6 @@
-using System;
-using System.Collections;
 using System.Collections.Generic;
 using NUnit.Framework;
-using UnityEngine;
-using UnityEngine.TestTools;
-using MiniIT.Snipe;
+using MiniIT.Snipe.Configuration;
 
 namespace MiniIT.Snipe.Tests.Editor
 {
@@ -48,7 +44,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			List<string> outputList = new List<string>();
 			object wssUrl = new List<string>();
-			SnipeConfig.ParseWebSocketUrls(outputList, wssUrl);
+			SnipeConfigBuilder.ParseWebSocketUrls(outputList, wssUrl);
 			Assert.AreEqual(0, outputList.Count);
 		}
 
@@ -57,7 +53,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			List<string> outputList = new List<string>();
 			object wssUrl = new List<string> { "wss://test1.com", "wss://test2.com" };
-			SnipeConfig.ParseWebSocketUrls(outputList, wssUrl);
+			SnipeConfigBuilder.ParseWebSocketUrls(outputList, wssUrl);
 			Assert.AreEqual(2, outputList.Count);
 		}
 
@@ -66,7 +62,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			List<string> outputList = new List<string>();
 			object wssUrl = new List<string> { "test1.com", "wss://test2.com" };
-			SnipeConfig.ParseWebSocketUrls(outputList, wssUrl);
+			SnipeConfigBuilder.ParseWebSocketUrls(outputList, wssUrl);
 			Assert.AreEqual(1, outputList.Count);
 		}
 
@@ -75,7 +71,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			List<string> outputList = new List<string>();
 			object wssUrl = "wss://test.com";
-			SnipeConfig.ParseWebSocketUrls(outputList, wssUrl);
+			SnipeConfigBuilder.ParseWebSocketUrls(outputList, wssUrl);
 			Assert.AreEqual(1, outputList.Count);
 		}
 
@@ -84,7 +80,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			List<string> outputList = new List<string>();
 			object wssUrl = "wSs://test.com";
-			SnipeConfig.ParseWebSocketUrls(outputList, wssUrl);
+			SnipeConfigBuilder.ParseWebSocketUrls(outputList, wssUrl);
 			Assert.AreEqual(1, outputList.Count);
 		}
 
@@ -93,7 +89,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			List<string> outputList = new List<string>();
 			object wssUrl = "invalid_url";
-			SnipeConfig.ParseWebSocketUrls(outputList, wssUrl);
+			SnipeConfigBuilder.ParseWebSocketUrls(outputList, wssUrl);
 			Assert.AreEqual(0, outputList.Count);
 		}
 	}
