@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using MiniIT.Snipe.Configuration;
 
 namespace MiniIT.Snipe
 {
@@ -17,11 +18,16 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public bool IsDisposed { get; private set; }
 
+		public string ProjectName => _config.ProjectName;
+		public bool IsDev => _config.Project.Mode == SnipeProjectMode.Dev;
+
 		public SnipeCommunicator Communicator { get; }
 		public AuthSubsystem Auth { get; }
 		public LogReporter LogReporter { get; }
 
 		public bool IsDefault => Id == 0;
+
+		private readonly SnipeConfig _config;
 
 		/// <summary>
 		/// Protected constructor. Use <see cref="Default"/> or <see cref="GetInstance(string)"/> to get an instance
@@ -31,6 +37,8 @@ namespace MiniIT.Snipe
 			Id = id;
 			Communicator = communicator;
 			Auth = auth;
+
+			_config = config;
 
 			logReporter.SetSnipeContext(this, config);
 			LogReporter = logReporter;
