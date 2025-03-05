@@ -1,13 +1,8 @@
 using MiniIT.Snipe.Configuration;
 using MiniIT.Snipe.Unity;
 
-namespace MiniIT.Snipe
+namespace MiniIT.Snipe.Api
 {
-	public interface ISnipeContextFactory
-	{
-		SnipeContext CreateContext(int id);
-	}
-
 	public abstract class AbstractSnipeApiContextFactory : ISnipeContextFactory
 	{
 		private readonly SnipeConfigBuilder _configBuilder;

@@ -1,9 +1,21 @@
 using System;
 using System.Collections.Generic;
+using MiniIT.Snipe.Api;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeManager
+	public interface ISnipeContextProvider
+	{
+		bool TryGetContext(int id, out SnipeContext context);
+		SnipeContext GetContext(int id);
+	}
+
+	public interface ISnipeTablesProvider
+	{
+		SnipeApiTables GetTables();
+	}
+
+	public class SnipeManager : ISnipeContextProvider, ISnipeTablesProvider
 	{
 		#region Singleton
 
@@ -21,7 +33,7 @@ namespace MiniIT.Snipe
 		private static SnipeManager s_instance;
 		private static readonly object s_instanceLock = new object();
 
-		// Private constructor prevents creation of instances other than the singleton
+		// Private constructor prevents the creation of instances other than the singleton.
 		private SnipeManager() { }
 
 		#endregion
@@ -29,10 +41,12 @@ namespace MiniIT.Snipe
 		private readonly Dictionary<int, SnipeContext> _contexts = new Dictionary<int, SnipeContext>();
 
 		private ISnipeContextFactory _contextFactory;
+		private SnipeApiTables _tables;
 
-		public void SetContextFactory(ISnipeContextFactory contextFactory)
+		public void Initialize(ISnipeContextFactory contextFactory, ISnipeApiTablesFactory tablesFactory)
 		{
 			_contextFactory = contextFactory;
+			_tables = tablesFactory.CreateSnipeApiTables();
 		}
 
 		public bool TryGetContext(int id, out SnipeContext context)
@@ -55,6 +69,15 @@ namespace MiniIT.Snipe
 			context = _contextFactory.CreateContext(id);
 			_contexts[id] = context;
 			return context;
+		}
+
+		public SnipeApiTables GetTables()
+		{
+			if (_tables == null)
+			{
+				throw new NullReferenceException("Snipe tables factory is null");
+			}
+			return _tables;
 		}
 	}
 }
