@@ -18,20 +18,20 @@ namespace MiniIT.Snipe.Internal
 		private const int MAX_CHUNK_LENGTH = 200 * 1024;
 
 		private readonly SnipeContext _snipeContext;
-		private readonly SnipeConfig _snipeConfig;
+		private readonly string _apiKey;
+		private readonly string _url;
 
 		public LogSender(SnipeContext snipeContext, SnipeConfig snipeConfig)
 		{
 			_snipeContext = snipeContext;
-			_snipeConfig = snipeConfig;
+
+			_apiKey = snipeConfig.ClientKey;
+			_url = snipeConfig.LogReporterUrl;
 		}
 
 		internal async UniTask<bool> SendAsync(StreamReader file)
 		{
-			string apiKey = _snipeConfig.ClientKey;
-			string url = _snipeConfig.LogReporterUrl;
-
-			if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(url))
+			if (string.IsNullOrEmpty(_apiKey) || string.IsNullOrEmpty(_url))
 			{
 				DebugLogger.LogWarning($"[{nameof(LogSender)}] Invalid apiKey or url");
 				return false;
@@ -53,7 +53,7 @@ namespace MiniIT.Snipe.Internal
 			string line = null;
 
 			IHttpClient httpClient = SnipeServices.HttpClientFactory.CreateHttpClient();
-			httpClient.SetAuthToken(apiKey);
+			httpClient.SetAuthToken(_apiKey);
 			IHttpClientResponse response = null;
 
 			while (!file.EndOfStream)
@@ -62,7 +62,7 @@ namespace MiniIT.Snipe.Internal
 
 				try
 				{
-					response = await httpClient.PostJson(new Uri(url), content);
+					response = await httpClient.PostJson(new Uri(_url), content);
 					statusCode = (HttpStatusCode)response.ResponseCode;
 				}
 				catch (Exception ex)
