@@ -1,0 +1,9 @@
+*.meta
+**/*.meta
+**/.gitignore
+**/.git
+**/.github
+**/.vscode
+**/.idea
+**/.DS_Store
+**/.vscode
