@@ -5,19 +5,26 @@ namespace MiniIT.Snipe
 {
 	public interface ISnipeContextFactory
 	{
-		SnipeContext CreateContext(int id, SnipeConfigBuilder config);
+		SnipeContext CreateContext(int id);
 	}
 
 	public abstract class AbstractSnipeApiContextFactory : ISnipeContextFactory
 	{
-		public SnipeContext CreateContext(int id, SnipeConfigBuilder configBuilder)
+		private readonly SnipeConfigBuilder _configBuilder;
+
+		protected AbstractSnipeApiContextFactory(SnipeConfigBuilder configBuilder)
+		{
+			_configBuilder = configBuilder;
+		}
+
+		public SnipeContext CreateContext(int id)
 		{
 			if (!SnipeServices.IsInitialized)
 			{
 				SnipeServices.Initialize(new UnitySnipeServicesFactory());
 			}
 
-			var config = configBuilder.Build(id);
+			var config = _configBuilder.Build(id);
 
 			var communicator = new SnipeCommunicator(id, config);
 			var auth = new UnityAuthSubsystem(communicator, config);
