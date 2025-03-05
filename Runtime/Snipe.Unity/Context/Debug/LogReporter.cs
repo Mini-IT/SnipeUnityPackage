@@ -23,6 +23,7 @@ namespace MiniIT
 		private static FileStream s_file;
 		private static int s_bytesWritten;
 		private SnipeContext _snipeContext;
+		private SnipeConfig _snipeConfig;
 
 		private static bool s_canWrite = true;
 
@@ -45,9 +46,10 @@ namespace MiniIT
 			DebugLogger.Log($"[{nameof(LogReporter)}] New temp log file created: {s_filePath}");
 		}
 
-		internal void SetSnipeContext(SnipeContext snipeContext)
+		internal void SetSnipeContext(SnipeContext snipeContext, SnipeConfig snipeConfig)
 		{
 			_snipeContext = snipeContext;
+			_snipeConfig = snipeConfig;
 		}
 
 		public async UniTask<bool> SendAsync()
@@ -87,7 +89,7 @@ namespace MiniIT
 			try
 			{
 				file = File.OpenText(filepath);
-				var sender = new LogSender(_snipeContext);
+				var sender = new LogSender(_snipeContext, _snipeConfig);
 				result = await sender.SendAsync(file);
 			}
 			finally

@@ -17,7 +17,6 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public bool IsDisposed { get; private set; }
 
-		internal SnipeConfig Config { get; }
 		public SnipeCommunicator Communicator { get; }
 		public AuthSubsystem Auth { get; }
 		public LogReporter LogReporter { get; }
@@ -30,11 +29,10 @@ namespace MiniIT.Snipe
 		protected SnipeContext(int id, SnipeConfig config, SnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter)
 		{
 			Id = id;
-			Config = config;
 			Communicator = communicator;
 			Auth = auth;
 
-			logReporter.SetSnipeContext(this);
+			logReporter.SetSnipeContext(this, config);
 			LogReporter = logReporter;
 
 			UnityTerminator.AddTarget(this);

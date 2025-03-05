@@ -18,16 +18,18 @@ namespace MiniIT.Snipe.Internal
 		private const int MAX_CHUNK_LENGTH = 200 * 1024;
 
 		private readonly SnipeContext _snipeContext;
+		private readonly SnipeConfig _snipeConfig;
 
-		public LogSender(SnipeContext snipeContext)
+		public LogSender(SnipeContext snipeContext, SnipeConfig snipeConfig)
 		{
 			_snipeContext = snipeContext;
+			_snipeConfig = snipeConfig;
 		}
 
 		internal async UniTask<bool> SendAsync(StreamReader file)
 		{
-			string apiKey = _snipeContext.Config.ClientKey;
-			string url = _snipeContext.Config.LogReporterUrl;
+			string apiKey = _snipeConfig.ClientKey;
+			string url = _snipeConfig.LogReporterUrl;
 
 			if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(url))
 			{
