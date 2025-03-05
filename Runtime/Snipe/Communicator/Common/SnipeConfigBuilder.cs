@@ -13,11 +13,6 @@ namespace MiniIT.Snipe.Configuration
 		public SnipeConfigBuilder SetProjectInfo(SnipeProjectInfo projectInfo)
 		{
 			_data.ProjectInfo = projectInfo;
-
-			_data.ProjectName = (projectInfo.Mode == SnipeProjectMode.Dev) ?
-				$"{projectInfo.ProjectID}_dev" :
-				$"{projectInfo.ProjectID}_live";
-
 			return this;
 		}
 

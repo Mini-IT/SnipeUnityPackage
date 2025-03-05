@@ -32,7 +32,6 @@ namespace MiniIT.Snipe.Configuration
 	public class SnipeConfigData
 	{
 		public SnipeProjectInfo ProjectInfo;
-		public string ProjectName;
 		public WebSocketImplementations WebSocketImplementation = WebSocketImplementations.BestWebSocket;
 		public bool AutoJoinRoom;
 		public List<string> ServerWebSocketUrls = new List<string>();

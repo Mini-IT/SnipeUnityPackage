@@ -74,8 +74,11 @@ namespace MiniIT.Snipe
 				InitializeDefaultTablesConfigLive();
 			}
 
-			InitializeUrlIndices();
+			ProjectName = (_data.ProjectInfo.Mode == SnipeProjectMode.Dev) ?
+				$"{_data.ProjectInfo.ProjectID}_dev" :
+				$"{_data.ProjectInfo.ProjectID}_live";
 
+			InitializeUrlIndices();
 			InitializeAppInfo();
 		}
 
