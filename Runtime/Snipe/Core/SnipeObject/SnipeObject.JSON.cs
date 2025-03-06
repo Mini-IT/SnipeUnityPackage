@@ -7,7 +7,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
-using System.Linq;
 
 namespace MiniIT
 {
@@ -36,7 +35,7 @@ namespace MiniIT
 			ConvertToJSONString(obj, ref string_builder);
 			return string_builder.ToString();
 		}
-		
+
 		protected static void ConvertToJSONString(object obj, ref StringBuilder string_builder)
 		{
 			bool add_comma;
@@ -64,20 +63,24 @@ namespace MiniIT
 
 				string_builder.Append("}");
 			}
-			else if (obj is string || obj is char)
+			else if (obj is char c)
 			{
-				string_builder.Append("\"");
-				string convert = EscapeCommas(Convert.ToString(obj));
-				// убираем из данных '\' и '"'
-				convert = convert.Replace("\\", "\\\\");
-				convert = convert.Replace("\"", "\\\"");
-				string_builder.Append(convert);
-				string_builder.Append("\"");
+				ReadOnlySpan<char> span = stackalloc [] { '"', c, '"' };
+				string_builder.Append(span);
+			}
+			else if (obj is string str)
+			{
+				string_builder.Append('"');
+				// escape '\' and '"'
+				str = str.Replace("\\", "\\\\");
+				str = str.Replace("\"", "\\\"");
+				string_builder.Append(str);
+				string_builder.Append('"');
 			}
 			else if (obj is IEnumerable)
 			{
 				string_builder.Append("[");
-				
+
 				add_comma = false;
 				foreach (object value in (IEnumerable)obj)
 				{
@@ -85,14 +88,14 @@ namespace MiniIT
 						string_builder.Append(",");
 					else
 						add_comma = true;
-					
+
 					ConvertToJSONString(value, ref string_builder);
 				}
-				
+
 				string_builder.Append("]");
 			}
 			else if (obj != null && obj.GetType().IsPrimitive)
-			{  
+			{
 				string_builder.Append( Convert.ToString(obj, CultureInfo.InvariantCulture).ToLower() );
 			}
 			else if (obj is ISnipeObjectConvertable convertable)
@@ -173,13 +176,6 @@ namespace MiniIT
 		}
 		*/
 
-		protected static string EscapeCommas(string input)
-		{
-			return input.Replace("\"", "\\\"");
-		}
-
-
-
 		#endregion
 	}
 
@@ -190,13 +186,13 @@ namespace MiniIT
 	class JSONDecoder
 	{
 		private bool strict;
-		
+
 		/** The value that will get parsed from the JSON string */
 		private object value;
-		
+
 		/** The tokenizer designated to read the JSON string */
 		private JSONTokenizer tokenizer;
-		
+
 		/** The current token from the tokenizer */
 		private JSONToken token;
 
@@ -214,7 +210,7 @@ namespace MiniIT
 		{
 			return value;
 		}
-		
+
 		private JSONToken nextToken()
 		{
 			return token = tokenizer.getNextToken();
@@ -260,7 +256,7 @@ namespace MiniIT
 				// read in the value and add it to the array
 				a.Add ( parseValue() );
 				// after the value there should be a ] or a ,
-				nextToken();			
+				nextToken();
 				if ( token.type == JSONTokenType.RIGHT_BRACKET )
 				{
 					// we're done reading the array, so return it
@@ -314,7 +310,7 @@ namespace MiniIT
 				if ( !strict && token.type == JSONTokenType.COMMA )
 				{
 					// move past the comma
-					nextToken();				
+					nextToken();
 					// check to see if we're reached the end of the object
 					if ( token.type == JSONTokenType.RIGHT_BRACE )
 					{
@@ -348,13 +344,13 @@ namespace MiniIT
 						if ( token.type == JSONTokenType.RIGHT_BRACE )
 						{
 							// // we're done reading the object, so return it
-							return o;						
+							return o;
 						}
 						else if ( token.type == JSONTokenType.COMMA )
 						{
 							// skip past the comma and read another member
 							nextToken();
-							
+
 							// Allow objects to have a comma after the last member
 							// if the decoder is not in strict mode
 							if ( !strict )
@@ -371,7 +367,7 @@ namespace MiniIT
 							tokenizer.parseError( "Expecting } or , but found " + token.value );
 						}
 					}
-					else 
+					else
 					{
 						tokenizer.parseError( "Expecting : but found " + token.value );
 					}
@@ -446,7 +442,7 @@ namespace MiniIT
 		public JSONTokenType type;
 		/** value of the token */
 		public object value;
-		
+
 		/**
 		 * Creates a new JSONToken with a specific token type and value.
 		 *
@@ -483,7 +479,7 @@ namespace MiniIT
 		private int loc;
 		/** The current character in the JSON string during parsing */
 		private char ch;
-		
+
 		private bool strict;
 
 		public JSONTokenizer(string s, bool strict)
@@ -503,12 +499,12 @@ namespace MiniIT
 		public JSONToken getNextToken()
 		{
 			JSONToken token = null;
-			// skip any whitespace / comments since the last 
+			// skip any whitespace / comments since the last
 			// token was read
 			skipIgnored();
 			// examine the new character and see what we have...
 			switch ( ch )
-			{			
+			{
 				case '{':
 					token = new JSONToken(JSONTokenType.LEFT_BRACE,'{');
 					nextChar();
@@ -584,7 +580,7 @@ namespace MiniIT
 				case '"': // the start of a string
 					token = readString();
 					break;
-				default: 
+				default:
 					// see if we can read a number
 					if ( isDigit( ch ) || ch == '-' )
 					{
@@ -602,7 +598,7 @@ namespace MiniIT
 						parseError( "Unexpected " + ch + " encountered" );
 					}
 					break;
-			}		
+			}
 			return token;
 		}
 
@@ -621,14 +617,14 @@ namespace MiniIT
 			// advance past the first "
 			nextChar();
 			while ( ch != '"' && ch != 0 )
-			{							
+			{
 				//trace(ch);
 				// unescape the escape sequences in the string
 				if ( ch == '\\' )
-				{		
+				{
 					// get the next character so we know what
 					// to unescape
-					nextChar();				
+					nextChar();
 					switch ( ch )
 					{
 						case '"': // quotation mark
@@ -638,7 +634,7 @@ namespace MiniIT
 							str += "/";
 							break;
 						case '\\':	// reverse solidus
-							str += '\\';				
+							str += '\\';
 							break;
 						case 'n':	// newline
 							str += '\n';
@@ -652,7 +648,7 @@ namespace MiniIT
 						case 'u':
 							// convert a unicode escape sequence
 							// to it's character value - expecting
-							// 4 hex digits						
+							// 4 hex digits
 							// save the characters as a string we'll convert to an int
 							string hexValue = "";
 							// try to find 4 hex characters
@@ -678,30 +674,30 @@ namespace MiniIT
 							// pass it through
 							str += '\\' + ch;
 							break;
-					}				
+					}
 				}
 				else
 				{
 					// didn't have to unescape, so add the character to the string
-					str += ch;				
-				}			
+					str += ch;
+				}
 				// move to the next character
-				nextChar();			
+				nextChar();
 			}
-			
+
 			// we read past the end of the string without closing it, which
 			// is a parse error
 			if ( ch == 0 )
 			{
 				parseError( "Unterminated string literal" );
-			}		
+			}
 			// move past the closing " in the input string
-			nextChar();		
+			nextChar();
 			// the token for the string we'll try to read
 			JSONToken token = new JSONToken();
 			token.type = JSONTokenType.STRING;
 			// attach to the string to the token so we can return it
-			token.value = str;		
+			token.value = str;
 			return token;
 		}
 
@@ -710,7 +706,7 @@ namespace MiniIT
 		 * Attempts to read a number from the input string.  Places
 		 * the character location at the first character after the
 		 * number.
-		 * 
+		 *
 		 * @return The JSONToken with the number value if a number could
 		 * 		be read.  Throws an error otherwise.
 		 */
@@ -718,24 +714,24 @@ namespace MiniIT
 		{
 			// the string to accumulate the number characters
 			// into that we'll convert to a number at the end
-			string input = "";		
+			string input = "";
 			// check for a negative number
 			if ( ch == '-' )
 			{
 				input += '-';
 				nextChar();
-			}		
+			}
 			// the number must start with a digit
 			if ( !isDigit( ch ) )
 			{
 				parseError( "Expecting a digit" );
-			}		
+			}
 			// 0 can only be the first digit if it
 			// is followed by a decimal point
 			if ( ch == '0' )
 			{
 				input += ch;
-				nextChar();			
+				nextChar();
 				// make sure no other digits come after 0
 				if ( isDigit( ch ) )
 				{
@@ -779,7 +775,7 @@ namespace MiniIT
 					input += ch;
 					nextChar();
 				}
-			}		
+			}
 			// check for a decimal value
 			if ( ch == '.' )
 			{
@@ -903,7 +899,7 @@ namespace MiniIT
 		{
 			int originalLoc;
 			// keep trying to skip whitespace and comments as long
-			// as we keep advancing past the original location 
+			// as we keep advancing past the original location
 			do
 			{
 				originalLoc = loc;
@@ -925,7 +921,7 @@ namespace MiniIT
 				nextChar();
 				switch ( ch )
 				{
-					case '/': // single-line comment, read through end of line					
+					case '/': // single-line comment, read through end of line
 						// Loop over the characters until we find
 						// a newline or until there's no more characters left
 						do
@@ -958,7 +954,7 @@ namespace MiniIT
 								// move along, looking if the next character is a *
 								nextChar();
 							}
-							// when we're here we've read past the end of 
+							// when we're here we've read past the end of
 							// the string without finding a closing */, so error
 							if ( ch == 0 )
 							{
@@ -971,7 +967,7 @@ namespace MiniIT
 						parseError( "Unexpected \"" + ch + "\" encountered (expecting '/' or '*' )" );
 						break;
 				}
-			}		
+			}
 		}
 
 		/**
@@ -980,15 +976,15 @@ namespace MiniIT
 		 * whitespace.
 		 */
 		private void skipWhite()
-		{		
-			// As long as there are spaces in the input 
+		{
+			// As long as there are spaces in the input
 			// stream, advance the current location pointer
 			// past them
 			while ( isWhiteSpace( ch ) ) {
 				nextChar();
-			}		
+			}
 		}
-		
+
 		/**
 		 * Determines if a character is whitespace or not.
 		 *
@@ -999,7 +995,7 @@ namespace MiniIT
 		{
 			return ( ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' );
 		}
-		
+
 		/**
 		 * Determines if a character is a digit [0-9].
 		 *
@@ -1009,7 +1005,7 @@ namespace MiniIT
 		{
 			return ( ch >= '0' && ch <= '9' );
 		}
-		
+
 		/**
 		 * Determines if a character is a digit [0-9].
 		 *
