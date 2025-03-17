@@ -314,7 +314,7 @@ namespace MiniIT.Snipe
 		{
 			string fileName = Path.GetFileName(filePath.Substring(0, filePath.Length - extension.Length));
 
-			int underscoreIndex = fileName.IndexOf("_");
+			int underscoreIndex = fileName.IndexOf('_');
 			if (underscoreIndex < 1)
 			{
 				name = null;
