@@ -37,7 +37,7 @@ namespace MiniIT.Snipe
 
 		protected readonly SnipeCommunicator _communicator;
 		private readonly AuthSubsystem _authSubsystem;
-		private readonly SnipeConfig _config;
+		protected readonly SnipeConfig _config;
 		private readonly ISharedPrefs _sharedPrefs;
 		private readonly ILogger _logger;
 

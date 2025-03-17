@@ -49,7 +49,7 @@ namespace MiniIT.Snipe.Unity
 			}
 
 			string pass = GetAuthToken();
-			if (!string.IsNullOrEmpty(pass))
+			if (string.IsNullOrEmpty(pass))
 			{
 				callback?.Invoke(this, SnipeErrorCodes.WRONG_TOKEN);
 				return;
@@ -72,7 +72,7 @@ namespace MiniIT.Snipe.Unity
 				["provider"] = ProviderId,
 				["login"] = uid,
 				["auth"] = pass,
-				["connectLogin"] = binding.GetUserId(),
+				["connectLogin"] = _config.ContextId + binding.GetUserId(),
 				["connectProvider"] = binding.ProviderId,
 			};
 
