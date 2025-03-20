@@ -1,13 +1,9 @@
 {
-    "name": "MiniIT.Snipe.Services",
-    "rootNamespace": "MiniIT.Snipe",
+    "name": "MiniIT.Snipe.Diagnostics",
+	"rootNamespace": "MiniIT.Snipe.Diagnostics",
     "references": [
-        "MiniIT.Storage.SharedPrefs",
-        "MiniIT.Snipe.Logging",
-        "MiniIT.Snipe.PackageInfo",
-		"MiniIT.Snipe.Diagnostics",
-        "MiniIT.HttpClient.Abstraction",
-        "fastJSON"
+		"MiniIT.Snipe.Logging",
+		"Microsoft.Extensions.Logging.Abstractions"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

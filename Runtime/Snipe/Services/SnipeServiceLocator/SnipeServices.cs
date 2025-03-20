@@ -1,6 +1,7 @@
 using System;
 using Microsoft.Extensions.Logging;
 using MiniIT.Http;
+using MiniIT.Snipe.Diagnostics;
 using MiniIT.Snipe.Logging;
 using MiniIT.Storage;
 
@@ -18,11 +19,13 @@ namespace MiniIT.Snipe
 		public static IStopwatchFactory FuzzyStopwatchFactory => s_locator.FuzzyStopwatchFactory;
 		public static IHttpClientFactory HttpClientFactory => s_locator.HttpClientFactory;
 
+		public static IDiagnosticsService Diagnostics => s_locator.Diagnostics;
+
 		#endregion
 
 		public static bool IsInitialized => s_locator != null;
 
-		private static ISnipeServiceLocator s_locator;
+		private static SnipeServiceLocator s_locator;
 
 		public static void Initialize(ISnipeServiceLocatorFactory factory)
 		{
