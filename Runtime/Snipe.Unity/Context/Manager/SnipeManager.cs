@@ -41,12 +41,14 @@ namespace MiniIT.Snipe
 		private readonly Dictionary<int, SnipeContext> _contexts = new Dictionary<int, SnipeContext>();
 
 		private ISnipeContextFactory _contextFactory;
+		private ISnipeApiTablesFactory _tablesFactory;
 		private SnipeApiTables _tables;
 
 		public void Initialize(ISnipeContextFactory contextFactory, ISnipeApiTablesFactory tablesFactory)
 		{
 			_contextFactory = contextFactory;
-			_tables = tablesFactory.CreateSnipeApiTables();
+			_tablesFactory = tablesFactory;
+			_ = GetContext(0); // create default context
 		}
 
 		public bool TryGetContext(int id, out SnipeContext context)
@@ -75,7 +77,12 @@ namespace MiniIT.Snipe
 		{
 			if (_tables == null)
 			{
-				throw new NullReferenceException("Snipe tables factory is null");
+				if (_tablesFactory == null)
+				{
+					throw new NullReferenceException("Snipe tables factory is null");
+				}
+
+				_tables = _tablesFactory.CreateSnipeApiTables();
 			}
 			return _tables;
 		}
