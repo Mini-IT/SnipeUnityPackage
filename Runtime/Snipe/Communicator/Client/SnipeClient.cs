@@ -238,7 +238,7 @@ namespace MiniIT.Snipe
 				}
 				catch (Exception e)
 				{
-					_diagnostics.LogTrace("ConnectionClosed invocation error: {0}", e);
+					_diagnostics.LogWarning("ConnectionClosed invocation error: {0}", e);
 					_analytics.TrackError("ConnectionClosed invocation error", e);
 				}
 			});
