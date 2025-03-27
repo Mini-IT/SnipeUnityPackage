@@ -31,8 +31,9 @@ public class TestMessageSerializer
 			serialized.Add(MessagePackSerializer.Serialize(obj));
 		}
 
-		// Unique WebSocketTransport instances 
-		List<byte[]> result = Task.Run(async () => await TestWSMessageSerializerAsync(data)).GetAwaiter().GetResult();
+		// Unique WebSocketTransport instances
+		var config = new SnipeConfig(0);
+		List<byte[]> result = Task.Run(async () => await TestWSMessageSerializerAsync(data, config)).GetAwaiter().GetResult();
 
 		Assert.AreEqual(serialized.Count, result.Count);
 		for (int i = 0; i < data.Count; i++)
@@ -50,7 +51,13 @@ public class TestMessageSerializer
 		}
 	}
 
-	private async Task<List<byte[]>> TestWSMessageSerializerAsync(List<SnipeObject> data, WebSocketTransport transport = null)
+	private async Task<List<byte[]>> TestWSMessageSerializerAsync(List<SnipeObject> data, SnipeConfig config)
+	{
+		var transport = new WebSocketTransport(config, null);
+		return await TestWSMessageSerializerAsync(data, transport);
+	}
+
+	private async Task<List<byte[]>> TestWSMessageSerializerAsync(List<SnipeObject> data, WebSocketTransport transport)
 	{
 		List<byte[]> result = new List<byte[]>(data.Count);
 		for (int i = 0; i < data.Count; i++)
@@ -60,7 +67,6 @@ public class TestMessageSerializer
 
 		List<Task> tasks = new List<Task>(data.Count);
 
-		transport ??= new WebSocketTransport(new SnipeConfig(0), null);
 		for (int i = 0; i < data.Count; i++)
 		{
 			int index = i;
