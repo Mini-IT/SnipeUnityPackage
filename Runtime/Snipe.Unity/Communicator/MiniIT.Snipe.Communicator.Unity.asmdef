@@ -1,6 +1,6 @@
 {
-    "name": "MiniIT.SnipeCommunicator.Unity",
-    "rootNamespace": "",
+    "name": "MiniIT.Snipe.Communicator.Unity",
+    "rootNamespace": "MiniIT.Snipe",
     "references": [
         "MiniIT.Snipe.Core",
         "MiniIT.Snipe.Communicator",
