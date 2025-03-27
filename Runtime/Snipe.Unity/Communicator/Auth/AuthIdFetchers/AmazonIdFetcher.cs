@@ -6,6 +6,8 @@ namespace MiniIT.Snipe.Unity
 {
 	public class AmazonIdFetcher : AuthIdFetcher
 	{
+		public static AuthIdObserver Observer { get; } = new AuthIdObserver();
+
 		public override void Fetch(bool wait_initialization, Action<string> callback = null)
 		{
 			//Debug.LogTrace($"[AmazonIdFetcher] Fetch. Value = {Value}");
@@ -25,6 +27,11 @@ namespace MiniIT.Snipe.Unity
 			//	}
 			//}
 
+			if (CheckValueValid(Observer.Value))
+			{
+				Value = Observer.Value;
+			}
+
 			if (wait_initialization && string.IsNullOrEmpty(Value))
 			{
 				WaitForInitialization(callback).Forget();
@@ -39,16 +46,20 @@ namespace MiniIT.Snipe.Unity
 			while (string.IsNullOrEmpty(Value))
 			{
 				await AlterTask.Delay(100);
+
+				if (CheckValueValid(Observer.Value))
+				{
+					Value = Observer.Value;
+					break;
+				}
 			}
+
 			callback?.Invoke(Value);
 		}
 
 		public void SetValue(string value)
 		{
-			if (CheckValueValid(value))
-				Value = value;
-			else
-				Value = "";
+			Value = CheckValueValid(value) ? value : "";
 		}
 
 		private static bool CheckValueValid(string value)
