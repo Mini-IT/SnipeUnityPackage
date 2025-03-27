@@ -23,6 +23,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			}
 
 			var serializer = new MessagePackSerializer(4096);
+			var config = new SnipeConfig(0, new SnipeConfigData());
 
 			for (int i = 0; i < THREADS_COUNT; i++)
 			{
@@ -32,7 +33,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			}
 
 			// Unique WebSocketTransport instances
-			List<byte[]> result = Task.Run(async () => await TestWSMessageSerializerAsync(data)).GetAwaiter()
+			List<byte[]> result = Task.Run(async () => await TestWSMessageSerializerAsync(data, config)).GetAwaiter()
 				.GetResult();
 
 			Assert.AreEqual(serialized.Count, result.Count);
@@ -42,7 +43,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			}
 
 			// Single WebSocketTransport instance
-			var transport = new WebSocketTransport(new SnipeConfig(0, new SnipeConfigData()), null);
+			var transport = new WebSocketTransport(config, null);
 			result = Task.Run(async () => await TestWSMessageSerializerAsync(data, transport)).GetAwaiter().GetResult();
 			Assert.AreEqual(serialized.Count, result.Count);
 			for (int i = 0; i < data.Count; i++)
@@ -51,8 +52,14 @@ namespace MiniIT.Snipe.Tests.Editor
 			}
 		}
 
+		private async Task<List<byte[]>> TestWSMessageSerializerAsync(List<IDictionary<string, object>> data, SnipeConfig config)
+		{
+			var transport = new WebSocketTransport(config, null);
+			return await TestWSMessageSerializerAsync(data, transport);
+		}
+
 		private async Task<List<byte[]>> TestWSMessageSerializerAsync(List<IDictionary<string, object>> data,
-			WebSocketTransport transport = null)
+			WebSocketTransport transport)
 		{
 			List<byte[]> result = new List<byte[]>(data.Count);
 			for (int i = 0; i < data.Count; i++)
@@ -62,7 +69,6 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			List<Task> tasks = new List<Task>(data.Count);
 
-			transport ??= new WebSocketTransport(new SnipeConfig(0, new SnipeConfigData()), null);
 			for (int i = 0; i < data.Count; i++)
 			{
 				int index = i;
