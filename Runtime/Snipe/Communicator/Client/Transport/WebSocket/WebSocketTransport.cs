@@ -133,6 +133,8 @@ namespace MiniIT.Snipe
 
 		private void OnWebSocketConnected()
 		{
+			_connected = true;
+			
 			_logger.LogTrace("OnWebSocketConnected");
 
 			ConnectionOpenedHandler?.Invoke(this);

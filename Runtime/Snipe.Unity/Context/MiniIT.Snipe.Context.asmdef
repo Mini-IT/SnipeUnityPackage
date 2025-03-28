@@ -4,7 +4,7 @@
     "references": [
         "MiniIT.Snipe.Core",
         "MiniIT.Snipe.Communicator",
-        "MiniIT.SnipeCommunicator.Unity",
+        "MiniIT.Snipe.Communicator.Unity",
         "MiniIT.Snipe.Logging",
         "MiniIT.Snipe.Services",
         "MiniIT.Snipe.Unity",
