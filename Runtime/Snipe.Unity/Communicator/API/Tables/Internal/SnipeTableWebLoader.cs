@@ -1,11 +1,12 @@
 using System;
 using System.Collections;
 using System.IO;
+using System.Net;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using MiniIT.Http;
 using MiniIT.Threading;
-using UnityEngine.Networking;
 
 namespace MiniIT.Snipe.Tables
 {
@@ -13,15 +14,19 @@ namespace MiniIT.Snipe.Tables
 	{
 		private const int WEB_REQUEST_TIMEOUT_SECONDS = 3;
 
-		private ILogger _logger;
+		private readonly ILogger _logger;
 
-		public async UniTask<bool> LoadAsync(Type wrapperType, IDictionary items, string tableName, long version, CancellationToken cancellation)
+		public SnipeTableWebLoader()
+		{
+			_logger = SnipeServices.LogService.GetLogger("SnipeTable");
+		}
+
+		public async UniTask<bool> LoadAsync(IHttpClient httpClient, Type wrapperType, IDictionary items, string tableName, long version, CancellationToken cancellation)
 		{
 			bool loaded = false;
 
 			string url = GetTableUrl(tableName, version);
 
-			_logger ??= SnipeServices.LogService.GetLogger("SnipeTable");
 			_logger.LogTrace("Loading table " + url);
 
 			int retry = 0;
@@ -41,7 +46,7 @@ namespace MiniIT.Snipe.Tables
 
 				retry++;
 
-				var stream = await InternalLoad(tableName, url, cancellation);
+				var stream = await InternalLoad(httpClient, tableName, url, cancellation);
 				if (stream == null)
 				{
 					continue;
@@ -78,15 +83,11 @@ namespace MiniIT.Snipe.Tables
 			return loaded;
 		}
 
-		private async UniTask<MemoryStream> InternalLoad(string tableName, string url, CancellationToken cancellation)
+		private async UniTask<MemoryStream> InternalLoad(IHttpClient httpClient, string tableName, string url, CancellationToken cancellation)
 		{
 			try
 			{
-				using var webRequest = UnityWebRequest.Get(url);
-				webRequest.timeout = WEB_REQUEST_TIMEOUT_SECONDS;
-				webRequest.downloadHandler = new DownloadHandlerBuffer();
-				var loadingOperation = webRequest.SendWebRequest();
-				using var loadingResult = await loadingOperation;
+				using var loadingResult = await httpClient.Get(new Uri(url), TimeSpan.FromSeconds(WEB_REQUEST_TIMEOUT_SECONDS));
 
 				if (cancellation.IsCancellationRequested)
 				{
@@ -94,25 +95,22 @@ namespace MiniIT.Snipe.Tables
 					return null;
 				}
 
-				if (!loadingResult.isDone)
+				// if (!loadingResult.IsSuccess)
+				// {
+				// 	_logger.LogTrace("Failed to load table - {tableName}   (timeout)", tableName);
+				// 	return null;
+				// }
+
+				if (!loadingResult.IsSuccess)
 				{
-					_logger.LogTrace("Failed to load table - {tableName}   (timeout)", tableName);
+					long responseCode = loadingResult.ResponseCode;
+					_logger.LogTrace("Failed to load table - {tableName}   (loader failed) {code} {codename} - {error}", tableName, responseCode, (HttpStatusCode)responseCode, loadingResult.Error);
 					return null;
 				}
 
-				if (!string.IsNullOrEmpty(loadingResult.error))
-				{
-					_logger.LogTrace("Failed to load table - {tableName}   (loader failed) {error}", tableName, loadingResult.error);
-					return null;
-				}
+				byte[] responseData = await loadingResult.GetBinaryContentAsync();
 
-				if (loadingResult.result != UnityWebRequest.Result.Success)
-				{
-					_logger.LogTrace($"Failed to load table - {tableName}   (loader failed) - {(int)loadingResult.responseCode} {loadingResult.responseCode}");
-					return null;
-				}
-
-				var stream = new MemoryStream(loadingResult.downloadHandler.data);
+				var stream = new MemoryStream(responseData);
 				stream.Position = 0;
 				return stream;
 			}
@@ -124,9 +122,9 @@ namespace MiniIT.Snipe.Tables
 			return null;
 		}
 
-		private static string GetTableUrl(string table_name, long version)
+		private static string GetTableUrl(string tableName, long version)
 		{
-			return $"{TablesConfig.GetTablesPath()}{version}_{table_name}.json.gz";
+			return $"{TablesConfig.GetTablesPath()}{version}_{tableName}.json.gz";
 		}
 	}
 }

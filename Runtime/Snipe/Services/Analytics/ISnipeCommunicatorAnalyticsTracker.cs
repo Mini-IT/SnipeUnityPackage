@@ -22,6 +22,8 @@ namespace MiniIT.Snipe
 
 		void TrackError(string name, Exception exception = null, IDictionary<string, object> properties = null);
 
+		void TrackABEnter(string name, string variant);
+
 		// Used for excluding some messages or error codes from analytics tracking
 		bool CheckErrorCodeTracking(string messageType, string errorCode);
 	}

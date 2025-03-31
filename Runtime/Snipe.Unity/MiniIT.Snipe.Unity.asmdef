@@ -6,7 +6,9 @@
         "MiniIT.Snipe.Logging",
         "MiniIT.Logging",
         "MiniIT.Storage.SharedPrefs",
-        "MiniIT.Framework.Utilities"
+        "MiniIT.Framework.Utilities",
+        "MiniIT.HttpClient.Abstraction",
+        "MiniIT.HttpClient"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

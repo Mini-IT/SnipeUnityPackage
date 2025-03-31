@@ -6,6 +6,7 @@ namespace MiniIT.Snipe
 	public class BaseSnipeApiContext : SnipeContext
 	{
 		public LogicManager LogicManager { get; }
+		public GraphLogicManager GraphManager { get; }
 		public BadgesManager BadgesManager { get; }
 		public CalendarManager CalendarManager { get; }
 
@@ -23,6 +24,12 @@ namespace MiniIT.Snipe
 			if (logicTable != null)
 			{
 				LogicManager = new LogicManager(Communicator, CreateRequest, logicTable);
+			}
+
+			var graphsTable = tables.GetTable<SnipeTableGraphsItem>();
+			if (graphsTable != null)
+			{
+				GraphManager = new GraphLogicManager(Communicator, CreateRequest, graphsTable);
 			}
 
 			var badgesTable = tables.GetTable<SnipeTableBadgesItem>();
@@ -68,7 +75,7 @@ namespace MiniIT.Snipe
 			{
 				disposableTables.Dispose();
 			}
-			
+
 			if (Communicator != null)
 			{
 				Communicator.ConnectionSucceeded -= OnCommunicatorConnected;

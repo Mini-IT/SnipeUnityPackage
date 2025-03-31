@@ -7,16 +7,9 @@ namespace MiniIT.Http
 	{
 		void Reset();
 		void SetAuthToken(string token);
-		UniTask<IHttpClientResponse> GetAsync(Uri uri);
-		UniTask<IHttpClientResponse> PostJsonAsync(Uri uri, string content);
-		UniTask<IHttpClientResponse> PostAsync(Uri uri, string name, byte[] content);
-	}
-
-	public interface IHttpClientResponse : IDisposable
-	{
-		long ResponseCode { get; }
-		bool IsSuccess { get; }
-		string Error { get; }
-		UniTask<string> GetContentAsync();
+		UniTask<IHttpClientResponse> Get(Uri uri);
+		UniTask<IHttpClientResponse> Get(Uri uri, TimeSpan timeout);
+		UniTask<IHttpClientResponse> PostJson(Uri uri, string content);
+		UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content);
 	}
 }

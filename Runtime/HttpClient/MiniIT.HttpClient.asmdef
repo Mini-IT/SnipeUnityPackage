@@ -4,6 +4,7 @@
     "references": [
         "MiniIT.HttpClient.Abstraction",
         "MiniIT.HttpClient.Unity",
+		"com.Tivadar.Best.HTTP",
         "UniTask"
     ],
     "includePlatforms": [],
@@ -13,6 +14,12 @@
     "precompiledReferences": [],
     "autoReferenced": true,
     "defineConstraints": [],
-    "versionDefines": [],
+    "versionDefines": [
+		{
+			"name": "com.tivadar.best.http",
+			"expression": "3.0.0",
+			"define": "BEST_HTTP"
+		}
+	],
     "noEngineReferences": false
 }

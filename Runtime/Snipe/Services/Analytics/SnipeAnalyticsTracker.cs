@@ -101,6 +101,7 @@ namespace MiniIT.Snipe
 				_externalTracker.SetUserProperty(name, value);
 			}
 		}
+
 		public void SetUserProperty(string name, int value)
 		{
 			if (CheckReady())
@@ -108,6 +109,7 @@ namespace MiniIT.Snipe
 				_externalTracker.SetUserProperty(name, value);
 			}
 		}
+
 		public void SetUserProperty(string name, float value)
 		{
 			if (CheckReady())
@@ -115,6 +117,7 @@ namespace MiniIT.Snipe
 				_externalTracker.SetUserProperty(name, value);
 			}
 		}
+
 		public void SetUserProperty(string name, double value)
 		{
 			if (CheckReady())
@@ -122,6 +125,7 @@ namespace MiniIT.Snipe
 				_externalTracker.SetUserProperty(name, value);
 			}
 		}
+
 		public void SetUserProperty(string name, bool value)
 		{
 			if (CheckReady())
@@ -129,6 +133,7 @@ namespace MiniIT.Snipe
 				_externalTracker.SetUserProperty(name, value);
 			}
 		}
+
 		public void SetUserProperty<T>(string name, IList<T> value)
 		{
 			if (CheckReady())
@@ -136,6 +141,7 @@ namespace MiniIT.Snipe
 				_externalTracker.SetUserProperty(name, value);
 			}
 		}
+
 		public void SetUserProperty(string name, IDictionary<string, object> value)
 		{
 			if (CheckReady())
@@ -167,6 +173,7 @@ namespace MiniIT.Snipe
 				});
 			}
 		}
+
 		public void TrackEvent(string name, string propertyName, object propertyValue)
 		{
 			if (CheckReady())
@@ -178,6 +185,7 @@ namespace MiniIT.Snipe
 				TrackEvent(name, properties);
 			}
 		}
+
 		public void TrackEvent(string name, object propertyValue)
 		{
 			if (CheckReady())
@@ -210,18 +218,28 @@ namespace MiniIT.Snipe
 
 		public void TrackError(string name, Exception exception = null, IDictionary<string, object> properties = null)
 		{
+			if (!CheckReady())
+			{
+				return;
+			}
+
+			if (_contextId != 0)
+			{
+				properties ??= new Dictionary<string, object>();
+				properties["sinpe_context"] = _contextId;
+			}
+
+			_mainThreadRunner.RunInMainThread(() =>
+			{
+				_externalTracker.TrackError(name, exception, properties);
+			});
+		}
+
+		public void TrackABEnter(string name, string variant)
+		{
 			if (CheckReady())
 			{
-				if (_contextId != 0)
-				{
-					properties ??= new Dictionary<string, object>();
-					properties["sinpe_context"] = _contextId;
-				}
-
-				_mainThreadRunner.RunInMainThread(() =>
-				{
-					_externalTracker.TrackError(name, exception, properties);
-				});
+				_externalTracker.TrackABEnter(name, variant);
 			}
 		}
 
