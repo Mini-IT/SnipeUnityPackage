@@ -11,6 +11,8 @@ namespace MiniIT.Http
 {
 	public class BestHttpClient : IHttpClient
 	{
+		private readonly TimeSpan _defaultConnectTimeout = TimeSpan.FromSeconds(4);
+
 		private string _authToken;
 
 		public void Reset()
@@ -26,6 +28,7 @@ namespace MiniIT.Http
 		public async UniTask<IHttpClientResponse> Get(Uri uri)
 		{
 			var request = HTTPRequest.CreateGet(uri);
+			request.TimeoutSettings.ConnectTimeout = _defaultConnectTimeout;
 			await request.Send();
 			return new BestHttpClientResponse(request.Response);
 		}
@@ -51,6 +54,7 @@ namespace MiniIT.Http
 			var data = System.Text.Encoding.UTF8.GetBytes(json);
 			request.UploadSettings.UploadStream = new MemoryStream(data);
 
+			request.TimeoutSettings.ConnectTimeout = _defaultConnectTimeout;
 			await request.Send();
 			return new BestHttpClientResponse(request.Response);
 		}
@@ -67,6 +71,7 @@ namespace MiniIT.Http
 			request.UploadSettings.UploadStream = new MultipartFormDataStream()
 				.AddField(name, content);
 
+			request.TimeoutSettings.ConnectTimeout = _defaultConnectTimeout;
 			await request.Send();
 			return new BestHttpClientResponse(request.Response);
 		}
