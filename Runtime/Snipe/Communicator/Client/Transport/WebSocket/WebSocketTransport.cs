@@ -74,6 +74,12 @@ namespace MiniIT.Snipe
 			};
 #endif
 
+			Info = new TransportInfo()
+			{
+				Protocol = TransportProtocol.WebSocket,
+				ClientImplementation = _webSocket.GetType().Name,
+			};
+
 			_webSocket.OnConnectionOpened += OnWebSocketConnected;
 			_webSocket.OnConnectionClosed += OnWebSocketClosed;
 			_webSocket.ProcessMessage += ProcessWebSocketMessage;
@@ -133,7 +139,7 @@ namespace MiniIT.Snipe
 		private void OnWebSocketConnected()
 		{
 			_connected = true;
-			
+
 			_logger.LogTrace("OnWebSocketConnected");
 
 			ConnectionOpenedHandler?.Invoke(this);

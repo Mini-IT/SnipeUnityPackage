@@ -10,12 +10,12 @@ namespace MiniIT.Snipe
 	public sealed class SnipeCommunicator : IDisposable
 	{
 		public readonly int InstanceId = new System.Random().Next();
-		
+
 		private const int RETRY_INIT_CLIENT_DELAY = 500; // ms
 		private const int RETRY_INIT_CLIENT_MIN_DELAY = 500; // ms
 		private const int RETRY_INIT_CLIENT_MAX_DELAY = 10000; // ms
 		private const int RETRY_INIT_CLIENT_RANDOM_DELAY = 500; // ms
-		
+
 		public delegate void MessageReceivedHandler(string messageType, string errorCode, SnipeObject data, int requestId);
 		public delegate void ConnectionSucceededHandler();
 		public delegate void ConnectionFailedHandler(bool willRestore = false);
@@ -25,7 +25,7 @@ namespace MiniIT.Snipe
 		public event ConnectionFailedHandler ConnectionFailed;
 		public event MessageReceivedHandler MessageReceived;
 		public event PreDestroyHandler PreDestroy;
-		
+
 		public string ConnectionId => Client?.ConnectionId;
 		public TimeSpan CurrentRequestElapsed => Client?.CurrentRequestElapsed ?? new TimeSpan(0);
 
@@ -35,7 +35,7 @@ namespace MiniIT.Snipe
 
 		public int RestoreConnectionAttempts = 3;
 		private int _restoreConnectionAttempt;
-		
+
 		private List<AbstractCommunicatorRequest> _requests;
 		public List<AbstractCommunicatorRequest> Requests => _requests ??= new List<AbstractCommunicatorRequest>();
 
@@ -44,7 +44,7 @@ namespace MiniIT.Snipe
 		public bool Connected => Client != null && Client.Connected;
 
 		public bool LoggedIn => Client != null && Client.LoggedIn;
-		
+
 		private bool? _roomJoined = null;
 		public bool? RoomJoined => (Client != null && Client.LoggedIn) ? _roomJoined : null;
 
@@ -70,7 +70,7 @@ namespace MiniIT.Snipe
 		private readonly SnipeAnalyticsTracker _analytics;
 		private readonly IMainThreadRunner _mainThreadRunner;
 		private readonly ILogger _logger;
-		
+
 		public SnipeCommunicator(SnipeConfig config)
 		{
 			_config = config;
@@ -81,17 +81,17 @@ namespace MiniIT.Snipe
 
 			_logger.LogTrace($"PACKAGE VERSION: {PackageInfo.VERSION_NAME}");
 		}
-		
+
 		/// <summary>
 		/// Should be called from the main Unity thread
 		/// </summary>
 		public void Start()
 		{
 			//_mainThreadRunner.SetMainThread();
-			
+
 			InitClient();
 		}
-		
+
 		private void InitClient()
 		{
 			if (_delayedInitCancellation != null)
@@ -121,10 +121,12 @@ namespace MiniIT.Snipe
 				{
 					_disconnecting = false;
 					Client.Connect();
-					
+
+					var transportInfo = Client.GetTransportInfo();
+
 					_mainThreadRunner.RunInMainThread(() =>
 					{
-						AnalyticsTrackStartConnection();
+						AnalyticsTrackStartConnection(transportInfo);
 					});
 				}
 			}
@@ -157,43 +159,49 @@ namespace MiniIT.Snipe
 			_disconnecting = false;
 			_analytics.ConnectionEventsEnabled = true;
 
-			_mainThreadRunner.RunInMainThread(() =>
-			{
-				AnalyticsTrackConnectionSucceeded();
-				RaiseEvent(ConnectionSucceeded);
-			});
-		}
-		
-		private void OnClientConnectionClosed()
-		{
-			_logger.LogTrace($"({InstanceId}) [{Client?.ConnectionId}] Client connection closed");
-			
-			_roomJoined = null;
+			var transportInfo = Client.GetTransportInfo();
 
 			_mainThreadRunner.RunInMainThread(() =>
 			{
-				AnalyticsTrackConnectionFailed();
+				AnalyticsTrackConnectionSucceeded(transportInfo);
+				RaiseEvent(ConnectionSucceeded);
+			});
+		}
+
+		private void OnClientConnectionClosed()
+		{
+			_logger.LogTrace($"({InstanceId}) [{Client?.ConnectionId}] Client connection closed");
+
+			_roomJoined = null;
+
+			var transportInfo = Client?.GetTransportInfo() ?? default;
+
+			_mainThreadRunner.RunInMainThread(() =>
+			{
+				AnalyticsTrackConnectionFailed(transportInfo);
 				OnConnectionFailed();
 			});
 		}
-		
+
 		private void OnClientUdpConnectionFailed()
 		{
+			var transportInfo = Client?.GetTransportInfo() ?? default;
+
 			_mainThreadRunner.RunInMainThread(() =>
 			{
-				AnalyticsTrackUdpConnectionFailed();
+				AnalyticsTrackUdpConnectionFailed(transportInfo);
 			});
 		}
-		
+
 		// Main thread
 		private void OnConnectionFailed()
-		{	
+		{
 			//ClearMainThreadActionsQueue();
 
 			if (_restoreConnectionAttempt < RestoreConnectionAttempts && !_disconnecting)
 			{
 				RaiseEvent(ConnectionFailed, true);
-				
+
 				_restoreConnectionAttempt++;
 				_logger.LogTrace($"({InstanceId}) Attempt to restore connection {_restoreConnectionAttempt}");
 
@@ -237,7 +245,7 @@ namespace MiniIT.Snipe
 				_roomJoined = false;
 				DisposeRoomRequests();
 			}
-			
+
 			if (MessageReceived != null)
 			{
 				_mainThreadRunner.RunInMainThread(() =>
@@ -245,7 +253,7 @@ namespace MiniIT.Snipe
 					RaiseEvent(MessageReceived, message_type, error_code, data, request_id);
 				});
 			}
-			
+
 			if (error_code != SnipeErrorCodes.OK)
 			{
 				_mainThreadRunner.RunInMainThread(() =>
@@ -268,9 +276,9 @@ namespace MiniIT.Snipe
 
 			_safeEventRaiser.RaiseEvent(eventDelegate, args);
 		}
-		
+
 		#endregion
-		
+
 		private async void DelayedInitClient(CancellationToken cancellation)
 		{
 			_logger.LogTrace($"({InstanceId}) WaitAndInitClient - start delay");
@@ -301,7 +309,7 @@ namespace MiniIT.Snipe
 		public void DisposeRoomRequests()
 		{
 			_logger.LogTrace($"({InstanceId}) DisposeRoomRequests");
-			
+
 			List<AbstractCommunicatorRequest> room_requests = null;
 			foreach (var request in Requests)
 			{
@@ -347,11 +355,11 @@ namespace MiniIT.Snipe
 				Client = null;
 			}
 		}
-		
+
 		public void DisposeRequests()
 		{
 			_logger.LogTrace($"({InstanceId}) DisposeRequests");
-			
+
 			if (_requests != null)
 			{
 				var temp_requests = _requests;
@@ -365,15 +373,18 @@ namespace MiniIT.Snipe
 
 		#region Analytics
 
-		private void AnalyticsTrackStartConnection()
+		private void AnalyticsTrackStartConnection(TransportInfo transportInfo)
 		{
 			if (!_analytics.ConnectionEventsEnabled)
 				return;
 
-			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_START_CONNECTION);
+			var properties = new Dictionary<string, object>(2);
+			FillTransportInfo(properties, transportInfo);
+
+			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_START_CONNECTION, properties);
 		}
-		
-		private void AnalyticsTrackConnectionSucceeded()
+
+		private void AnalyticsTrackConnectionSucceeded(TransportInfo transportInfo)
 		{
 			var data = Client.UdpClientConnected ? new SnipeObject()
 			{
@@ -386,53 +397,66 @@ namespace MiniIT.Snipe
 				["connection_type"] = "websocket",
 				["connection_time"] = _analytics.ConnectionEstablishmentTime.TotalMilliseconds,
 				["connection_url"] = _analytics.ConnectionUrl,
-				
+
 				["ws tcp client connection"] = _analytics.WebSocketTcpClientConnectionTime.TotalMilliseconds,
 				["ws ssl auth"] = _analytics.WebSocketSslAuthenticateTime.TotalMilliseconds,
 				["ws upgrade request"] = _analytics.WebSocketHandshakeTime.TotalMilliseconds,
 				["ws misc"] = _analytics.ConnectionEstablishmentTime.TotalMilliseconds <= 0 ? 0:
-					_analytics.ConnectionEstablishmentTime.TotalMilliseconds - 
+					_analytics.ConnectionEstablishmentTime.TotalMilliseconds -
 					_analytics.WebSocketTcpClientConnectionTime.TotalMilliseconds -
 					_analytics.WebSocketSslAuthenticateTime.TotalMilliseconds -
 					_analytics.WebSocketHandshakeTime.TotalMilliseconds,
 			};
-			
+
+			FillTransportInfo(data, transportInfo);
+
 			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_CONNECTED, data);
 		}
-		
-		private void AnalyticsTrackConnectionFailed()
+
+		private void AnalyticsTrackConnectionFailed(TransportInfo transportInfo)
 		{
 			if (!_analytics.ConnectionEventsEnabled)
 				return;
 
-			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_DISCONNECTED, new SnipeObject()
+			var properties = new SnipeObject()
 			{
 				//["communicator"] = this.name,
 				["connection_id"] = Client?.ConnectionId,
 				//["disconnect_reason"] = Client?.DisconnectReason,
 				//["check_connection_message"] = Client?.CheckConnectionMessageType,
 				["connection_url"] = _analytics.ConnectionUrl,
-				
 				["ws tcp client connection"] = _analytics.WebSocketTcpClientConnectionTime.TotalMilliseconds,
 				["ws ssl auth"] = _analytics.WebSocketSslAuthenticateTime.TotalMilliseconds,
 				["ws upgrade request"] = _analytics.WebSocketHandshakeTime.TotalMilliseconds,
 				["ws disconnect reason"] = _analytics.WebSocketDisconnectReason,
-			});
+			};
+			FillTransportInfo(properties, transportInfo);
+
+			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_DISCONNECTED, properties);
 		}
-		
-		private void AnalyticsTrackUdpConnectionFailed()
+
+		private void AnalyticsTrackUdpConnectionFailed(TransportInfo transportInfo)
 		{
 			if (!_analytics.ConnectionEventsEnabled)
 				return;
 
-			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_DISCONNECTED + " UDP", new SnipeObject()
+			var properties = new SnipeObject()
 			{
 				["connection_type"] = "udp",
 				["connection_time"] = _analytics.UdpConnectionTime.TotalMilliseconds,
 				["connection_url"] = _analytics.ConnectionUrl,
-			});
+			};
+			FillTransportInfo(properties, transportInfo);
+
+			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_DISCONNECTED + " UDP", properties);
 		}
-		
+
+		private static void FillTransportInfo(IDictionary<string, object> properties, TransportInfo transportInfo)
+		{
+			properties["transport_protocol"] = transportInfo.Protocol.ToString();
+			properties["transport_implementation"] = transportInfo.ClientImplementation;
+		}
+
 		#endregion Analytics
 	}
 }
