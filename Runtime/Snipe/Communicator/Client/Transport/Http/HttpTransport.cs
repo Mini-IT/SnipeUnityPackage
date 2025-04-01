@@ -46,6 +46,12 @@ namespace MiniIT.Snipe
 				_baseUrl = GetBaseUrl();
 
 				_client ??= SnipeServices.HttpClientFactory.CreateHttpClient();
+
+				Info = new TransportInfo()
+				{
+					Protocol = TransportProtocol.Http,
+					ClientImplementation = _client.GetType().Name,
+				};
 			}
 
 			SendHandshake();

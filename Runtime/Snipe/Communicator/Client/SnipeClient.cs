@@ -107,6 +107,8 @@ namespace MiniIT.Snipe
 			StartNextTransport();
 		}
 
+		public TransportInfo GetTransportInfo() => _transport?.Info ?? default;
+
 		private bool StartNextTransport()
 		{
 #if NET_STANDARD_2_1
