@@ -23,6 +23,11 @@ namespace MiniIT.Snipe
 		internal KcpTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
 			: base(config, analytics)
 		{
+			Info = new TransportInfo()
+			{
+				Protocol = TransportProtocol.Kcp,
+				ClientImplementation = "kcp"
+			};
 		}
 
 		public override void Connect()

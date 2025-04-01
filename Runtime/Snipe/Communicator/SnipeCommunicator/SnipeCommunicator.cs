@@ -144,9 +144,11 @@ namespace MiniIT.Snipe
 					_disconnecting = false;
 					Client.Connect();
 
+					var transportInfo = Client.GetTransportInfo();
+
 					_mainThreadRunner.RunInMainThread(() =>
 					{
-						AnalyticsTrackStartConnection();
+						AnalyticsTrackStartConnection(transportInfo);
 					});
 				}
 			}
@@ -179,9 +181,11 @@ namespace MiniIT.Snipe
 			_disconnecting = false;
 			_analytics.ConnectionEventsEnabled = true;
 
+			var transportInfo = Client.GetTransportInfo();
+
 			_mainThreadRunner.RunInMainThread(() =>
 			{
-				AnalyticsTrackConnectionSucceeded();
+				AnalyticsTrackConnectionSucceeded(transportInfo);
 				ConnectionEstablished?.Invoke();
 			});
 		}
@@ -192,18 +196,22 @@ namespace MiniIT.Snipe
 
 			_roomJoined = null;
 
+			var transportInfo = Client?.GetTransportInfo() ?? default;
+
 			_mainThreadRunner.RunInMainThread(() =>
 			{
-				AnalyticsTrackConnectionFailed();
+				AnalyticsTrackConnectionFailed(transportInfo);
 				OnConnectionFailed();
 			});
 		}
 
 		private void OnClientUdpConnectionFailed()
 		{
+			var transportInfo = Client?.GetTransportInfo() ?? default;
+
 			_mainThreadRunner.RunInMainThread(() =>
 			{
-				AnalyticsTrackUdpConnectionFailed();
+				AnalyticsTrackUdpConnectionFailed(transportInfo);
 			});
 		}
 
@@ -392,15 +400,18 @@ namespace MiniIT.Snipe
 
 		#region Analytics
 
-		private void AnalyticsTrackStartConnection()
+		private void AnalyticsTrackStartConnection(TransportInfo transportInfo)
 		{
 			if (!_analytics.ConnectionEventsEnabled)
 				return;
 
-			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_START_CONNECTION);
+			var properties = new Dictionary<string, object>(2);
+			FillTransportInfo(properties, transportInfo);
+
+			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_START_CONNECTION, properties);
 		}
 
-		private void AnalyticsTrackConnectionSucceeded()
+		private void AnalyticsTrackConnectionSucceeded(TransportInfo transportInfo)
 		{
 			var data = Client.UdpClientConnected ? new Dictionary<string, object>()
 			{
@@ -424,40 +435,53 @@ namespace MiniIT.Snipe
 					_analytics.WebSocketHandshakeTime.TotalMilliseconds,
 			};
 
+			FillTransportInfo(data, transportInfo);
+
 			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_CONNECTED, data);
 		}
 
-		private void AnalyticsTrackConnectionFailed()
+		private void AnalyticsTrackConnectionFailed(TransportInfo transportInfo)
 		{
 			if (!_analytics.ConnectionEventsEnabled)
 				return;
 
-			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_DISCONNECTED, new Dictionary<string, object>()
+			var properties = new Dictionary<string, object>()
 			{
 				//["communicator"] = this.name,
 				["connection_id"] = Client?.ConnectionId,
 				//["disconnect_reason"] = Client?.DisconnectReason,
 				//["check_connection_message"] = Client?.CheckConnectionMessageType,
 				["connection_url"] = _analytics.ConnectionUrl,
-
 				["ws tcp client connection"] = _analytics.WebSocketTcpClientConnectionTime.TotalMilliseconds,
 				["ws ssl auth"] = _analytics.WebSocketSslAuthenticateTime.TotalMilliseconds,
 				["ws upgrade request"] = _analytics.WebSocketHandshakeTime.TotalMilliseconds,
 				["ws disconnect reason"] = _analytics.WebSocketDisconnectReason,
-			});
+			};
+			FillTransportInfo(properties, transportInfo);
+
+			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_DISCONNECTED, properties);
 		}
 
-		private void AnalyticsTrackUdpConnectionFailed()
+		private void AnalyticsTrackUdpConnectionFailed(TransportInfo transportInfo)
 		{
 			if (!_analytics.ConnectionEventsEnabled)
 				return;
 
-			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_DISCONNECTED + " UDP", new Dictionary<string, object>()
+			var properties = new Dictionary<string, object>()
 			{
 				["connection_type"] = "udp",
 				["connection_time"] = _analytics.UdpConnectionTime.TotalMilliseconds,
 				["connection_url"] = _analytics.ConnectionUrl,
-			});
+			};
+			FillTransportInfo(properties, transportInfo);
+
+			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_DISCONNECTED + " UDP", properties);
+		}
+
+		private static void FillTransportInfo(IDictionary<string, object> properties, TransportInfo transportInfo)
+		{
+			properties["transport_protocol"] = transportInfo.Protocol.ToString();
+			properties["transport_implementation"] = transportInfo.ClientImplementation;
 		}
 
 		#endregion Analytics
