@@ -153,16 +153,16 @@ namespace MiniIT.Snipe.Configuration
 
 		private void ParseNew(IDictionary<string, object> data)
 		{
-			if (data.TryGetValue("snipeUdpHost", out string udpHost) && !string.IsNullOrEmpty(udpHost) &&
-			    data.TryGetValue("snipeUdpPort", out string udpPort) && ushort.TryParse(udpPort, out ushort port))
+			if (data.TryGetValue("snipeUdpHost", out string udpHost) && !string.IsNullOrWhiteSpace(udpHost) &&
+			    data.TryGetValue("snipeUdpPort", out string udpPort) && ushort.TryParse(udpPort.Trim(), out ushort port))
 			{
 				_data.ServerUdpUrls.Clear();
-				_data.ServerUdpUrls.Add(new UdpAddress() { Host = udpHost, Port = port });
+				_data.ServerUdpUrls.Add(new UdpAddress() { Host = udpHost.Trim(), Port = port });
 			}
 
-			if (data.TryGetValue("snipeHttpUrl", out string httpUrl) && !string.IsNullOrEmpty(httpUrl))
+			if (data.TryGetValue("snipeHttpUrl", out string httpUrl) && !string.IsNullOrWhiteSpace(httpUrl))
 			{
-				_data.ServerHttpUrl = httpUrl;
+				_data.ServerHttpUrl = httpUrl.Trim();
 			}
 
 			if (data.TryGetValue("snipeWssUrl", out object wssUrl))
@@ -187,8 +187,9 @@ namespace MiniIT.Snipe.Configuration
 			{
 				SetWebSocketUrls(outputList, wssUrlList);
 			}
-			else if (wssUrl is string wssUrlString && !string.IsNullOrEmpty(wssUrlString))
+			else if (wssUrl is string wssUrlString && !string.IsNullOrWhiteSpace(wssUrlString))
 			{
+				wssUrlString = wssUrlString.Trim();
 				string lowerUrl = wssUrlString.ToLower();
 
 				if (lowerUrl.StartsWith('['))
@@ -222,9 +223,13 @@ namespace MiniIT.Snipe.Configuration
 
 			foreach (var listItem in wssUrlList)
 			{
-				if (listItem is string url && !string.IsNullOrEmpty(url) && url.ToLower().StartsWith("wss://"))
+				if (listItem is string url && !string.IsNullOrWhiteSpace(url))
 				{
-					outputList.Add(url);
+					url = url.Trim();
+					if (url.ToLower().StartsWith("wss://"))
+					{
+						outputList.Add(url);
+					}
 				}
 			}
 		}
@@ -260,19 +265,23 @@ namespace MiniIT.Snipe.Configuration
 
 		private void ParseCompressionSection(IDictionary<string, object> data)
 		{
-			if (data.TryGetValue("compression", out var compression_field) &&
-				compression_field is IDictionary<string, object> compression)
+			if (!data.TryGetValue("compression", out var compressionField) ||
+			    compressionField is not IDictionary<string, object> compression)
 			{
-				_data.CompressionEnabled = compression.SafeGetValue<bool>("enabled");
+				return;
+			}
+			
+			_data.CompressionEnabled = compression.SafeGetValue<bool>("enabled");
 
-				if (_data.CompressionEnabled)
-				{
-					if (compression.TryGetValue("min_size", out int minSize) ||
-						compression.TryGetValue("minSize", out minSize))
-					{
-						_data.MinMessageBytesToCompress = minSize;
-					}
-				}
+			if (!_data.CompressionEnabled)
+			{
+				return;
+			}
+
+			if (compression.TryGetValue("min_size", out int minSize) ||
+			    compression.TryGetValue("minSize", out minSize))
+			{
+				_data.MinMessageBytesToCompress = minSize;
 			}
 		}
 	}
