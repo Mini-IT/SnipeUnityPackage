@@ -15,7 +15,7 @@ namespace MiniIT.Snipe.Unity
 			_logger = SnipeServices.LogService.GetLogger(nameof(DeviceIdFetcher));
 		}
 
-		public override void Fetch(bool wait_initialization, Action<string> callback = null)
+		public override void Fetch(bool _, Action<string> callback = null)
 		{
 			if (string.IsNullOrEmpty(Value))
 			{
@@ -23,15 +23,12 @@ namespace MiniIT.Snipe.Unity
 				{
 					Value = SystemInfo.deviceUniqueIdentifier;
 
-					if (string.IsNullOrEmpty(Value))
+					_logger.LogTrace($"[DeviceIdFetcher] Value = {Value}");
+
+					if (Value.Length > 64)
 					{
-						Value = SystemInfo.deviceUniqueIdentifier;
-						_logger.LogTrace($"[DeviceIdFetcher] Value = {Value}");
-						if (Value.Length > 64)
-						{
-							Value = GetHashString(Value);
-							_logger.LogTrace($"[DeviceIdFetcher] Value Hash = {Value}");
-						}
+						Value = GetHashString(Value);
+						_logger.LogTrace($"[DeviceIdFetcher] Value Hash = {Value}");
 					}
 				}
 				else
@@ -40,6 +37,7 @@ namespace MiniIT.Snipe.Unity
 					// TODO: generate device id using custom algorithm
 				}
 			}
+
 			callback?.Invoke(Value);
 		}
 
