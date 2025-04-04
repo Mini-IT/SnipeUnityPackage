@@ -41,7 +41,9 @@ namespace MiniIT.Snipe
 			lock (_lock)
 			{
 				if (Connected)
+				{
 					return;
+				}
 
 				_baseUrl = GetBaseUrl();
 
