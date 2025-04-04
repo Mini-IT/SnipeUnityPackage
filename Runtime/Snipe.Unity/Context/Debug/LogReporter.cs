@@ -38,7 +38,7 @@ namespace MiniIT
 		{
 			s_file?.Close();
 
-			long ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+			long ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 			s_filePath = Path.Combine(Application.temporaryCachePath, $"log{ts}.txt");
 			s_file = File.Open(s_filePath, FileMode.OpenOrCreate, FileAccess.Write);
 			s_bytesWritten = 0;
@@ -92,20 +92,31 @@ namespace MiniIT
 				var sender = new LogSender(_snipeContext, _snipeConfig);
 				result = await sender.SendAsync(file);
 			}
+			catch (Exception ex)
+			{
+				DebugLogger.LogError($"[{nameof(LogReporter)}] {ex}");
+			}
 			finally
 			{
-				file?.Dispose();
+				try
+				{
+					file?.Dispose();
+				}
+				catch (Exception)
+				{
+					// Ignore
+				}
 
 				if (!string.IsNullOrEmpty(filepath) && File.Exists(filepath))
 				{
 					try
 					{
 						File.Delete(filepath);
-						DebugLogger.Log($"[{nameof(LogReporter)}] Temp log file deleted " + filepath);
+						DebugLogger.Log($"[{nameof(LogReporter)}] Temp log file deleted {filepath}");
 					}
 					catch (Exception e)
 					{
-						DebugLogger.LogError($"[{nameof(LogReporter)}] Failed deleting temp log file: " + e.ToString());
+						DebugLogger.LogError($"[{nameof(LogReporter)}] Failed deleting temp log file: {e}");
 					}
 				}
 			}
