@@ -76,9 +76,10 @@ namespace MiniIT.Snipe
 			_connected = false;
 			_started = false;
 
+			StopHeartbeat();
+
 			_client?.Reset();
 
-			StopHeartbeat();
 			ConnectionClosedHandler?.Invoke(this);
 
 			// It's important to keep the value during ConnectionClosedHandler invocation
