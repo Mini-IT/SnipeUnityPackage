@@ -16,7 +16,7 @@ namespace MiniIT.Snipe
 
 		private static readonly SnipeObject s_pingMessage = new SnipeObject() { ["t"] = "server.ping", ["id"] = -1 };
 
-		public override bool Started => _connected;
+		public override bool Started => _started;
 		public override bool Connected => _connected;
 		public override bool ConnectionEstablished => _connectionEstablished;
 
@@ -25,6 +25,7 @@ namespace MiniIT.Snipe
 		private TimeSpan _heartbeatInterval;
 
 		private Uri _baseUrl;
+		private bool _started;
 		private bool _connected;
 		private bool _connectionEstablished = false;
 		private readonly object _lock = new object();
@@ -40,10 +41,11 @@ namespace MiniIT.Snipe
 		{
 			lock (_lock)
 			{
-				if (Connected)
+				if (Started)
 				{
 					return;
 				}
+				_started = true;
 
 				_baseUrl = GetBaseUrl();
 
@@ -72,10 +74,12 @@ namespace MiniIT.Snipe
 		private void InternalDisconnect()
 		{
 			_connected = false;
+			_started = false;
+
+			StopHeartbeat();
 
 			_client?.Reset();
 
-			StopHeartbeat();
 			ConnectionClosedHandler?.Invoke(this);
 
 			// It's important to keep the value during ConnectionClosedHandler invocation
@@ -171,9 +175,7 @@ namespace MiniIT.Snipe
 
 			if (message.SafeGetString("t") == "user.login")
 			{
-				string token = null;
-
-				if (!message.TryGetValue("token", out token))
+				if (!message.TryGetValue("token", out string token))
 				{
 					if (message.TryGetValue<SnipeObject>("data", out var data))
 					{
@@ -203,9 +205,16 @@ namespace MiniIT.Snipe
 				await _sendSemaphore.WaitAsync();
 				semaphoreOccupied = true;
 
+				// During awaiting the semaphore a disconnect could happen - check it
+				if (!_connected)
+				{
+					_sendSemaphore.Release();
+					return;
+				}
+
 				var uri = new Uri(_baseUrl, requestType);
 
-				_logger.LogTrace($"<<< request ({uri}) - {requestId} - {requestType}");
+				_logger.LogTrace($"<<< request ({uri}) - {requestId} - {requestType} - {json}");
 
 				using (var response = await _client.PostJson(uri, json))
 				{
@@ -220,6 +229,7 @@ namespace MiniIT.Snipe
 					if (response.IsSuccess)
 					{
 						responseMessage = await response.GetStringContentAsync();
+						_logger.LogTrace(responseMessage);
 					}
 					else if (response.ResponseCode != 429) // HttpStatusCode.TooManyRequests
 					{
