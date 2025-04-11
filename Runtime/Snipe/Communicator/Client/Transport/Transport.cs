@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using Microsoft.Extensions.Logging;
 using MiniIT.MessagePack;
+using MiniIT.Snipe.Diagnostics;
 using MiniIT.Threading;
 
 namespace MiniIT.Snipe
@@ -33,13 +33,13 @@ namespace MiniIT.Snipe
 
 		protected readonly SnipeConfig _config;
 		protected readonly SnipeAnalyticsTracker _analytics;
-		protected readonly ILogger _logger;
+		protected readonly IDiagnosticsChannel _diagnostics;
 
 		internal Transport(SnipeConfig config, SnipeAnalyticsTracker analytics)
 		{
 			_config = config;
 			_analytics = analytics;
-			_logger = SnipeServices.LogService.GetLogger(GetType().Name);
+			_diagnostics = SnipeServices.Diagnostics.GetChannel(GetType().Name);
 		}
 
 		public abstract void Connect();

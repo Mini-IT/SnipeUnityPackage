@@ -20,11 +20,11 @@ namespace MiniIT.Snipe
 
 		private WebSocket _webSocket = null;
 		private readonly object _lock = new object();
-		private readonly ILogger _logger;
+		private readonly IDiagnosticsChannel _diagnostics;
 
 		public WebSocketJSWrapper()
 		{
-			_logger = SnipeServices.LogService.GetLogger(nameof(WebSocketJSWrapper));
+			_diagnostics = SnipeServices.Diagnostics.GetChannel(nameof(WebSocketJSWrapper));
 		}
 
 		public override void Connect(string url)
@@ -65,7 +65,7 @@ namespace MiniIT.Snipe
 
 		protected void OnWebSocketClosed(WebSocketCloseCode code)
 		{
-			_logger.LogTrace($"OnWebSocketClosed: code = {code}");
+			_diagnostics.LogTrace($"OnWebSocketClosed: code = {code}");
 
 			Disconnect();
 
@@ -79,7 +79,7 @@ namespace MiniIT.Snipe
 
 		protected void OnWebSocketError(string errMsg)
 		{
-			_logger.LogTrace($"OnWebSocketError: {errMsg}");
+			_diagnostics.LogTrace($"OnWebSocketError: {errMsg}");
 		}
 
 		public override void SendRequest(byte[] bytes)

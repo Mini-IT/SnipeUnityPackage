@@ -117,7 +117,7 @@ namespace MiniIT.Snipe
 
 		private void OnClientConnected()
 		{
-			_logger.LogTrace("OnClientConnected");
+			_diagnostics.LogTrace("OnClientConnected");
 
 			ConnectionOpenedHandler?.Invoke(this);
 		}
@@ -128,7 +128,7 @@ namespace MiniIT.Snipe
 
 			if (message == null)
 			{
-				_logger.LogError("ProcessMessage: message is null. Json = " + json);
+				_diagnostics.LogError("ProcessMessage: message is null. Json = " + json);
 				return;
 			}
 
@@ -174,7 +174,7 @@ namespace MiniIT.Snipe
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private void ExtractAuthToken(IDictionary<string, object> message)
 		{
-			_logger.LogTrace(JsonUtility.ToJson(message));
+			_diagnostics.LogTrace(JsonUtility.ToJson(message));
 
 			if (message.SafeGetString("t") == "user.login")
 			{
@@ -217,7 +217,7 @@ namespace MiniIT.Snipe
 
 				var uri = new Uri(_baseUrl, requestType);
 
-				_logger.LogTrace($"<<< request ({uri}) - {requestId} - {requestType} - {json}");
+				_diagnostics.LogTrace($"<<< request ({uri}) - {requestId} - {requestType} - {json}");
 
 				using (var response = await _client.PostJson(uri, json))
 				{
@@ -227,12 +227,12 @@ namespace MiniIT.Snipe
 					//   429 - {"errorCode":"rateLimit"}
 					//   500 - {"errorCode":"requestTimeout"}
 
-					_logger.LogTrace($">>> response - {requestId} - {requestType} ({response.ResponseCode}) {response.Error}");
+					_diagnostics.LogTrace($">>> response - {requestId} - {requestType} ({response.ResponseCode}) {response.Error}");
 
 					if (response.IsSuccess)
 					{
 						responseMessage = await response.GetStringContentAsync();
-						_logger.LogTrace(responseMessage);
+						_diagnostics.LogTrace(responseMessage);
 					}
 					else if (response.ResponseCode != 429) // HttpStatusCode.TooManyRequests
 					{
@@ -242,12 +242,12 @@ namespace MiniIT.Snipe
 			}
 			catch (HttpRequestException httpException)
 			{
-				_logger.LogError(httpException, httpException.ToString());
+				_diagnostics.LogError(httpException, httpException.ToString());
 				InternalDisconnect();
 			}
 			catch (Exception e)
 			{
-				_logger.LogError(e, "Request failed {0}", e.ToString());
+				_diagnostics.LogError(e, "Request failed {0}", e.ToString());
 			}
 
 			try
@@ -343,11 +343,11 @@ namespace MiniIT.Snipe
 				string url = _config.GetHttpAddress();
 				var uri = new Uri(new Uri(url), "test_connect.html");
 
-				_logger.LogTrace($"<<< request ({uri})");
+				_diagnostics.LogTrace($"<<< request ({uri})");
 
 				using (var response = await _client.Get(uri))
 				{
-					_logger.LogTrace($">>> response {uri} ({response.ResponseCode}) {response.Error}");
+					_diagnostics.LogTrace($">>> response {uri} ({response.ResponseCode}) {response.Error}");
 
 					if (response.IsSuccess)
 					{
@@ -359,22 +359,22 @@ namespace MiniIT.Snipe
 			{
 				if (_connectionEstablished)
 				{
-					_logger.LogError(httpException, httpException.ToString());
+					_diagnostics.LogError(httpException, httpException.ToString());
 				}
 				else
 				{
-					_logger.LogTrace("SendHandshake error: " + httpException);
+					_diagnostics.LogTrace("SendHandshake error: " + httpException);
 				}
 			}
 			catch (Exception e)
 			{
 				if (_connectionEstablished)
 				{
-					_logger.LogError(e, "Request failed {0}", e.ToString());
+					_diagnostics.LogError(e, "Request failed {0}", e.ToString());
 				}
 				else
 				{
-					_logger.LogTrace("SendHandshake error: " + e);
+					_diagnostics.LogTrace("SendHandshake error: " + e);
 				}
 			}
 			finally
