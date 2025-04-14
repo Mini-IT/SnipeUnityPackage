@@ -4,7 +4,8 @@
     "references": [
         "MiniIT.HttpClient.Abstraction",
         "MiniIT.HttpClient.Unity",
-		"com.Tivadar.Best.HTTP",
+        "com.Tivadar.Best.HTTP",
+        "com.Tivadar.Best.TLSSecurity",
         "UniTask"
     ],
     "includePlatforms": [],
@@ -15,11 +16,16 @@
     "autoReferenced": true,
     "defineConstraints": [],
     "versionDefines": [
-		{
-			"name": "com.tivadar.best.http",
-			"expression": "3.0.0",
-			"define": "BEST_HTTP"
-		}
-	],
+        {
+            "name": "com.tivadar.best.http",
+            "expression": "3.0.0",
+            "define": "BEST_HTTP"
+        },
+        {
+            "name": "com.tivadar.best.tlssecurity",
+            "expression": "3.0.0",
+            "define": "BEST_HTTP_TLS"
+        }
+    ],
     "noEngineReferences": false
 }
