@@ -1,11 +1,19 @@
 #if BEST_HTTP
 
+#if BEST_HTTP_TLS && (!UNITY_WEBGL || UNITY_EDITOR)
+#define TLS_SUPPORTED
+#endif
+
 using System;
 using System.IO;
 using Best.HTTP;
 using Best.HTTP.Request.Authenticators;
 using Best.HTTP.Request.Upload.Forms;
 using Cysharp.Threading.Tasks;
+
+#if TLS_SUPPORTED
+using Best.TLSSecurity;
+#endif
 
 namespace MiniIT.Http
 {
@@ -14,6 +22,13 @@ namespace MiniIT.Http
 		private readonly TimeSpan _defaultConnectTimeout = TimeSpan.FromSeconds(4);
 
 		private string _authToken;
+
+#if TLS_SUPPORTED
+		public BestHttpClient()
+		{
+			TLSSecurity.Setup();
+		}
+#endif
 
 		public void Reset()
 		{
