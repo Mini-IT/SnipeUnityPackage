@@ -41,7 +41,10 @@ namespace MiniIT.Snipe
 
 		public readonly HashSet<SnipeRequestDescriptor> MergeableRequestTypes = new HashSet<SnipeRequestDescriptor>();
 
-		public bool Connected => Client != null && Client.Connected;
+		public bool Connected => Client?.Connected ?? false;
+		public bool ConnectedKcp => Client?.UdpClientConnected ?? false;
+		public bool ConnectedWebSocket => Client?.WebSocketConnected ?? false;
+		public bool ConnectedHttp => Client?.HttpClientConnected ?? false;
 
 		public bool LoggedIn => Client != null && Client.LoggedIn;
 
