@@ -7,7 +7,7 @@ namespace MiniIT.Snipe.Diagnostics
 	public class DiagnosticsChannel : IDiagnosticsChannel
 	{
 		private readonly ILogger _logger;
-		private readonly List<DiagnosticsScope> _scopes;
+		private readonly Dictionary<int, DiagnosticsScope> _scopes;
 
 		private DiagnosticsScope _currentScope;
 
@@ -15,9 +15,9 @@ namespace MiniIT.Snipe.Diagnostics
 		{
 			_logger = logger;
 			_currentScope = new DiagnosticsScope(0);
-			_scopes = new List<DiagnosticsScope>()
+			_scopes = new Dictionary<int, DiagnosticsScope>(1)
 			{
-				_currentScope
+				[_currentScope.Id] = _currentScope
 			};
 		}
 
@@ -39,7 +39,18 @@ namespace MiniIT.Snipe.Diagnostics
 		public IDisposable BeginScope<TState>(TState state) where TState : notnull
 		{
 			int id = state.GetHashCode();
-			_currentScope = new DiagnosticsScope(id);
+
+			if (_scopes.TryGetValue(id, out var scope))
+			{
+				_currentScope = scope;
+			}
+			else
+			{
+				scope = new DiagnosticsScope(id);
+				_scopes[id] = scope;
+				_currentScope = scope;
+			}
+
 			return _currentScope; //_logger.BeginScope(state);
 		}
 
@@ -50,7 +61,7 @@ namespace MiniIT.Snipe.Diagnostics
 			_currentScope = null;
 			foreach (var scope in _scopes)
 			{
-				scope.Dispose();
+				scope.Value.Dispose();
 			}
 			_scopes.Clear();
 		}
