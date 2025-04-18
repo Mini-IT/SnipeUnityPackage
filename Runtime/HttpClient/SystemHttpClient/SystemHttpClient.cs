@@ -34,10 +34,10 @@ namespace MiniIT.Http
 
 		public async UniTask<IHttpClientResponse> Get(Uri uri, TimeSpan timeout)
 		{
-			TimeSpan prevTimepot = _httpClient.Timeout;
+			TimeSpan prevTimeout = _httpClient.Timeout;
 			_httpClient.Timeout = timeout;
 			HttpResponseMessage response = await _httpClient.GetAsync(uri);
-			_httpClient.Timeout = prevTimepot;
+			_httpClient.Timeout = prevTimeout;
 			return new SystemHttpClientResponse(response);
 		}
 
