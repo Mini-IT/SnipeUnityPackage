@@ -288,7 +288,7 @@ namespace MiniIT.Snipe
 		private async void DelayedInitClient(CancellationToken cancellation)
 		{
 			_logger.LogTrace($"({InstanceId}) WaitAndInitClient - start delay");
-			
+
 			Random random = new Random();
 			int delay = RETRY_INIT_CLIENT_DELAY * _restoreConnectionAttempt + random.Next(RETRY_INIT_CLIENT_RANDOM_DELAY);
 			if (delay < RETRY_INIT_CLIENT_MIN_DELAY)
@@ -310,7 +310,7 @@ namespace MiniIT.Snipe
 			}
 
 			_logger.LogTrace($"({InstanceId}) WaitAndInitClient - delay finished");
-			
+
 			InitClient();
 		}
 
@@ -383,11 +383,19 @@ namespace MiniIT.Snipe
 
 		void IRoomStateListener.OnRoomJoined()
 		{
-			// TODO: Increase HttpTransport heardbeat rate
+			if (Client.GetTransport() is HttpTransport httpTransport)
+			{
+				httpTransport.IntensiveHeartbeat = true;
+			}
 		}
 
 		void IRoomStateListener.OnRoomLeft()
 		{
+			if (Client.GetTransport() is HttpTransport httpTransport)
+			{
+				httpTransport.IntensiveHeartbeat = false;
+			}
+
 			DisposeRoomRequests();
 		}
 
