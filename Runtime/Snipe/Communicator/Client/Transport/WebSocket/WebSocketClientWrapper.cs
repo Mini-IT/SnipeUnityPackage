@@ -135,6 +135,10 @@ namespace MiniIT.Snipe
 				{
 					Disconnect($"Send exception: {e}");
 				}
+				catch (OperationCanceledException)
+				{
+					break;
+				}
 				finally
 				{
 					if (semaphoreOccupied)
@@ -197,6 +201,10 @@ namespace MiniIT.Snipe
 				catch (WebSocketException e)
 				{
 					Disconnect($"Receive exception: {e}");
+				}
+				catch (OperationCanceledException)
+				{
+					break;
 				}
 				finally
 				{
