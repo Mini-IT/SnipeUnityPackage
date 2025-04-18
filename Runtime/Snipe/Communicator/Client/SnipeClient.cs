@@ -20,10 +20,6 @@ namespace MiniIT.Snipe
 		public event Action<string> LoginFailed;
 		public event Action UdpConnectionFailed;
 
-		private Transport _transport;
-
-		private bool _loggedIn = false;
-
 		public bool Connected => _transport != null && _transport.Connected;
 		public bool LoggedIn => _loggedIn && Connected;
 		public bool WebSocketConnected => Connected && _transport is WebSocketTransport;
@@ -31,6 +27,10 @@ namespace MiniIT.Snipe
 		public bool HttpClientConnected => Connected && _transport is HttpTransport;
 
 		public string ConnectionId { get; private set; }
+
+		private Transport _transport;
+
+		private bool _loggedIn = false;
 
 		private long _connectionStartTimestamp;
 
@@ -106,6 +106,8 @@ namespace MiniIT.Snipe
 
 			StartNextTransport();
 		}
+
+		public Transport GetTransport() => _transport;
 
 		public TransportInfo GetTransportInfo() => _transport?.Info ?? default;
 
