@@ -6,12 +6,12 @@ namespace MiniIT.Snipe.Diagnostics
 {
 	public class DiagnosticsScope : IDisposable
 	{
-		public EventId EventId { get; }
+		public int Id { get; }
 		public IList<DiagnosticsMessage> Messages { get; }
 
-		public DiagnosticsScope(EventId eventId)
+		public DiagnosticsScope(int id)
 		{
-			EventId = eventId;
+			Id = id;
 			Messages = new List<DiagnosticsMessage>();
 		}
 

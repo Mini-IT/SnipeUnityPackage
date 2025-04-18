@@ -14,7 +14,7 @@ namespace MiniIT.Snipe.Diagnostics
 		public DiagnosticsChannel(ILogger logger)
 		{
 			_logger = logger;
-			_currentScope = new DiagnosticsScope(new EventId(0));
+			_currentScope = new DiagnosticsScope(0);
 			_scopes = new List<DiagnosticsScope>()
 			{
 				_currentScope
@@ -38,8 +38,8 @@ namespace MiniIT.Snipe.Diagnostics
 
 		public IDisposable BeginScope<TState>(TState state) where TState : notnull
 		{
-			string name = state?.ToString();
-			_currentScope = new DiagnosticsScope(new EventId(_currentScope.EventId.Id, name));
+			int id = state.GetHashCode();
+			_currentScope = new DiagnosticsScope(id);
 			return _currentScope; //_logger.BeginScope(state);
 		}
 
