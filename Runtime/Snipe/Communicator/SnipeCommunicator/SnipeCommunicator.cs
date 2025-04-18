@@ -248,25 +248,23 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void OnMessageReceived(string message_type, string error_code, IDictionary<string, object> data, int request_id)
+		private void OnMessageReceived(string messageType, string errorCode, IDictionary<string, object> data, int requestID)
 		{
-			// _logger.LogTrace($"({INSTANCE_ID}) [{Client?.ConnectionId}] OnMessageReceived {request_id} {message_type} {error_code} " + (data != null ? data.ToJSONString() : "null"));
-
-			_roomStateObserver.OnMessageReceived(message_type, error_code);
+			_roomStateObserver.OnMessageReceived(messageType, errorCode);
 
 			if (MessageReceived != null)
 			{
 				_mainThreadRunner.RunInMainThread(() =>
 				{
-					RaiseEvent(MessageReceived, message_type, error_code, data, request_id);
+					RaiseEvent(MessageReceived, messageType, errorCode, data, requestID);
 				});
 			}
 
-			if (error_code != SnipeErrorCodes.OK)
+			if (errorCode != SnipeErrorCodes.OK)
 			{
 				_mainThreadRunner.RunInMainThread(() =>
 				{
-					_analytics.TrackErrorCodeNotOk(message_type, error_code, data);
+					_analytics.TrackErrorCodeNotOk(messageType, errorCode, data);
 				});
 			}
 		}
@@ -290,6 +288,7 @@ namespace MiniIT.Snipe
 		private async void DelayedInitClient(CancellationToken cancellation)
 		{
 			_logger.LogTrace($"({InstanceId}) WaitAndInitClient - start delay");
+			
 			Random random = new Random();
 			int delay = RETRY_INIT_CLIENT_DELAY * _restoreConnectionAttempt + random.Next(RETRY_INIT_CLIENT_RANDOM_DELAY);
 			if (delay < RETRY_INIT_CLIENT_MIN_DELAY)
@@ -311,6 +310,7 @@ namespace MiniIT.Snipe
 			}
 
 			_logger.LogTrace($"({InstanceId}) WaitAndInitClient - delay finished");
+			
 			InitClient();
 		}
 
@@ -318,18 +318,18 @@ namespace MiniIT.Snipe
 		{
 			_logger.LogTrace($"({InstanceId}) DisposeRoomRequests");
 
-			List<AbstractCommunicatorRequest> room_requests = null;
+			List<AbstractCommunicatorRequest> roomRequests = null;
 			foreach (var request in Requests)
 			{
 				if (request != null && request.MessageType.StartsWith(SnipeMessageTypes.PREFIX_ROOM))
 				{
-					room_requests ??= new List<AbstractCommunicatorRequest>();
-					room_requests.Add(request);
+					roomRequests ??= new List<AbstractCommunicatorRequest>();
+					roomRequests.Add(request);
 				}
 			}
-			if (room_requests != null)
+			if (roomRequests != null)
 			{
-				foreach (var request in room_requests)
+				foreach (var request in roomRequests)
 				{
 					request?.Dispose();
 				}
@@ -370,9 +370,9 @@ namespace MiniIT.Snipe
 
 			if (_requests != null)
 			{
-				var temp_requests = _requests;
+				var tempRequests = _requests;
 				_requests = null;
-				foreach (var request in temp_requests)
+				foreach (var request in tempRequests)
 				{
 					request?.Dispose();
 				}
