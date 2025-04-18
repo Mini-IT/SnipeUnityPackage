@@ -7,7 +7,7 @@ using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
-	public sealed class SnipeCommunicator : IDisposable
+	public sealed class SnipeCommunicator : IRoomStateListener, IDisposable
 	{
 		public readonly int InstanceId = new System.Random().Next();
 
@@ -53,7 +53,7 @@ namespace MiniIT.Snipe
 
 		internal SnipeClient Client { get; private set; }
 
-		public bool AllowRequestsToWaitForLogin = true;
+		public bool AllowRequestsToWaitForLogin { get; set; } = true;
 
 		public int RestoreConnectionAttempts = 3;
 		private int _restoreConnectionAttempt;
@@ -64,11 +64,9 @@ namespace MiniIT.Snipe
 		public readonly HashSet<SnipeRequestDescriptor> MergeableRequestTypes = new HashSet<SnipeRequestDescriptor>();
 
 		public bool Connected => Client != null && Client.Connected;
-
 		public bool LoggedIn => Client != null && Client.LoggedIn;
 
-		private bool? _roomJoined = null;
-		public bool? RoomJoined => (Client != null && Client.LoggedIn) ? _roomJoined : null;
+		public bool? RoomJoined => (Client == null) ? null : (Client.LoggedIn && _roomStateObserver.State == RoomState.Joined);
 
 		public bool BatchMode
 		{
@@ -91,6 +89,7 @@ namespace MiniIT.Snipe
 		private readonly SnipeConfig _config;
 		private readonly SnipeAnalyticsTracker _analytics;
 		private readonly IMainThreadRunner _mainThreadRunner;
+		private readonly RoomStateObserver _roomStateObserver;
 		private readonly ILogger _logger;
 
 		public SnipeCommunicator(int contextId, SnipeConfig config)
@@ -100,6 +99,8 @@ namespace MiniIT.Snipe
 			_mainThreadRunner = SnipeServices.MainThreadRunner;
 			_analytics = SnipeServices.Analytics.GetTracker(contextId);
 			_logger = SnipeServices.LogService.GetLogger(nameof(SnipeCommunicator));
+
+			_roomStateObserver = new RoomStateObserver(this);
 
 			_logger.LogTrace($"PACKAGE VERSION: {PackageInfo.VERSION_NAME}");
 		}
@@ -158,7 +159,7 @@ namespace MiniIT.Snipe
 		{
 			_logger.LogTrace($"({InstanceId}) Disconnect");
 
-			_roomJoined = null;
+			_roomStateObserver.Reset();
 			_disconnecting = true;
 
 			if (_delayedInitCancellation != null)
@@ -194,7 +195,7 @@ namespace MiniIT.Snipe
 		{
 			_logger.LogTrace($"({InstanceId}) [{Client?.ConnectionId}] Client connection closed");
 
-			_roomJoined = null;
+			_roomStateObserver.Reset();
 
 			var transportInfo = Client?.GetTransportInfo() ?? default;
 
@@ -247,45 +248,23 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void OnMessageReceived(string message_type, string error_code, IDictionary<string, object> data, int request_id)
+		private void OnMessageReceived(string messageType, string errorCode, IDictionary<string, object> data, int requestID)
 		{
-			// _logger.LogTrace($"({INSTANCE_ID}) [{Client?.ConnectionId}] OnMessageReceived {request_id} {message_type} {error_code} " + (data != null ? data.ToJSONString() : "null"));
-
-			//if (message_type == SnipeMessageTypes.USER_LOGIN) // handled in AuthSubsystem
-			//{
-			//}
-			//else
-			if (message_type == SnipeMessageTypes.ROOM_JOIN)
-			{
-				if (error_code == SnipeErrorCodes.OK || error_code == SnipeErrorCodes.ALREADY_IN_ROOM)
-				{
-					_roomJoined = true;
-				}
-				else
-				{
-					_roomJoined = false;
-					DisposeRoomRequests();
-				}
-			}
-			else if (message_type == SnipeMessageTypes.ROOM_DEAD)
-			{
-				_roomJoined = false;
-				DisposeRoomRequests();
-			}
+			_roomStateObserver.OnMessageReceived(messageType, errorCode);
 
 			if (MessageReceived != null)
 			{
 				_mainThreadRunner.RunInMainThread(() =>
 				{
-					RaiseEvent(MessageReceived, message_type, error_code, data, request_id);
+					RaiseEvent(MessageReceived, messageType, errorCode, data, requestID);
 				});
 			}
 
-			if (error_code != SnipeErrorCodes.OK)
+			if (errorCode != SnipeErrorCodes.OK)
 			{
 				_mainThreadRunner.RunInMainThread(() =>
 				{
-					_analytics.TrackErrorCodeNotOk(message_type, error_code, data);
+					_analytics.TrackErrorCodeNotOk(messageType, errorCode, data);
 				});
 			}
 		}
@@ -309,6 +288,7 @@ namespace MiniIT.Snipe
 		private async void DelayedInitClient(CancellationToken cancellation)
 		{
 			_logger.LogTrace($"({InstanceId}) WaitAndInitClient - start delay");
+
 			Random random = new Random();
 			int delay = RETRY_INIT_CLIENT_DELAY * _restoreConnectionAttempt + random.Next(RETRY_INIT_CLIENT_RANDOM_DELAY);
 			if (delay < RETRY_INIT_CLIENT_MIN_DELAY)
@@ -330,6 +310,7 @@ namespace MiniIT.Snipe
 			}
 
 			_logger.LogTrace($"({InstanceId}) WaitAndInitClient - delay finished");
+
 			InitClient();
 		}
 
@@ -337,18 +318,18 @@ namespace MiniIT.Snipe
 		{
 			_logger.LogTrace($"({InstanceId}) DisposeRoomRequests");
 
-			List<AbstractCommunicatorRequest> room_requests = null;
+			List<AbstractCommunicatorRequest> roomRequests = null;
 			foreach (var request in Requests)
 			{
 				if (request != null && request.MessageType.StartsWith(SnipeMessageTypes.PREFIX_ROOM))
 				{
-					room_requests ??= new List<AbstractCommunicatorRequest>();
-					room_requests.Add(request);
+					roomRequests ??= new List<AbstractCommunicatorRequest>();
+					roomRequests.Add(request);
 				}
 			}
-			if (room_requests != null)
+			if (roomRequests != null)
 			{
-				foreach (var request in room_requests)
+				foreach (var request in roomRequests)
 				{
 					request?.Dispose();
 				}
@@ -389,14 +370,36 @@ namespace MiniIT.Snipe
 
 			if (_requests != null)
 			{
-				var temp_requests = _requests;
+				var tempRequests = _requests;
 				_requests = null;
-				foreach (var request in temp_requests)
+				foreach (var request in tempRequests)
 				{
 					request?.Dispose();
 				}
 			}
 		}
+
+		#region IRoomStateListener
+
+		void IRoomStateListener.OnRoomJoined()
+		{
+			if (Client.GetTransport() is HttpTransport httpTransport)
+			{
+				httpTransport.IntensiveHeartbeat = true;
+			}
+		}
+
+		void IRoomStateListener.OnRoomLeft()
+		{
+			if (Client.GetTransport() is HttpTransport httpTransport)
+			{
+				httpTransport.IntensiveHeartbeat = false;
+			}
+
+			DisposeRoomRequests();
+		}
+
+		#endregion
 
 		#region Analytics
 

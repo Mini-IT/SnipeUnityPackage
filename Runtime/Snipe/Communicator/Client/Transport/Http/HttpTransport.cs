@@ -20,9 +20,26 @@ namespace MiniIT.Snipe
 		public override bool Connected => _connected;
 		public override bool ConnectionEstablished => _connectionEstablished;
 
+		public bool IntensiveHeartbeat
+		{
+			get => _intensiveHeartbeat;
+			set
+			{
+				if (_intensiveHeartbeat == value)
+					return;
+
+				_intensiveHeartbeat = value;
+				UpdateHeartbeat();
+			}
+		}
+
 		private IHttpClient _client;
 
+		private CancellationTokenSource _heartbeatCancellation;
+		private bool _heartbeatRunning = false;
+		private bool _intensiveHeartbeat = false;
 		private TimeSpan _heartbeatInterval;
+		private readonly TimeSpan _heartbeatIntensiveInterval = TimeSpan.FromSeconds(1);
 
 		private Uri _baseUrl;
 		private bool _started;
@@ -197,7 +214,7 @@ namespace MiniIT.Snipe
 		{
 			string requestType = message.SafeGetString("t");
 			int requestId = message.SafeGetValue<int>("id");
-			string json = JsonUtility.ToJson(message); // ??? Don't use FastJSON because the message can contain custom classes for attr.setMulty for example
+			string json = JsonUtility.ToJson(message);
 
 			string responseMessage = null;
 
@@ -283,19 +300,43 @@ namespace MiniIT.Snipe
 
 		#region Heartbeat
 
-		private CancellationTokenSource _heartbeatCancellation;
+		private void UpdateHeartbeat()
+		{
+			// Determine if heartbeat should be running
+			bool shouldRun = _connected && GetCurrentHeartbeatInterval().TotalSeconds >= 1;
+
+			if (shouldRun && !_heartbeatRunning)
+			{
+				StartHeartbeat();
+			}
+			else if (!shouldRun && _heartbeatRunning)
+			{
+				StopHeartbeat();
+			}
+			// If already running, but interval changed (e.g., mode switched), restart
+			else if (shouldRun && _heartbeatRunning)
+			{
+				StopHeartbeat();
+				StartHeartbeat();
+			}
+		}
+
+		private TimeSpan GetCurrentHeartbeatInterval()
+		{
+			return IntensiveHeartbeat ? _heartbeatIntensiveInterval : _config.HttpHeartbeatInterval;
+		}
 
 		private void StartHeartbeat()
 		{
-			_heartbeatCancellation?.Cancel();
+			StopHeartbeat(); // Ensure only one task is running
 
-			if (_config.HttpHeartbeatInterval.TotalSeconds < 1)
+			var interval = GetCurrentHeartbeatInterval();
+			if (interval.TotalSeconds < 1)
 			{
 				return;
 			}
 
-			_heartbeatInterval = _config.HttpHeartbeatInterval;
-
+			_heartbeatRunning = true;
 			_heartbeatCancellation = new CancellationTokenSource();
 			AlterTask.RunAndForget(() => HeartbeatTask(_heartbeatCancellation.Token));
 		}
@@ -307,15 +348,20 @@ namespace MiniIT.Snipe
 				_heartbeatCancellation.Cancel();
 				_heartbeatCancellation = null;
 			}
+			_heartbeatRunning = false;
 		}
 
 		private async void HeartbeatTask(CancellationToken cancellation)
 		{
 			while (!cancellation.IsCancellationRequested && Connected)
 			{
+				var interval = GetCurrentHeartbeatInterval();
+				if (interval.TotalSeconds < 1)
+					break;
+
 				try
 				{
-					await AlterTask.Delay(_heartbeatInterval, cancellation);
+					await AlterTask.Delay(interval, cancellation);
 				}
 				catch (OperationCanceledException)
 				{
@@ -327,6 +373,7 @@ namespace MiniIT.Snipe
 					SendMessage(s_pingMessage);
 				}
 			}
+			_heartbeatRunning = false;
 		}
 
 		#endregion
@@ -397,8 +444,9 @@ namespace MiniIT.Snipe
 			_connectionEstablished = true;
 			OnClientConnected();
 
-			StartHeartbeat();
+			UpdateHeartbeat();
 		}
+
 
 		public override void Dispose()
 		{
