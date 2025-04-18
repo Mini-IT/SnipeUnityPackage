@@ -26,7 +26,7 @@ namespace MiniIT.Snipe
 		private bool _loggedIn = false;
 
 		public bool Connected => _transport != null && _transport.Connected;
-		public bool LoggedIn { get { return _loggedIn && Connected; } }
+		public bool LoggedIn => _loggedIn && Connected;
 		public bool WebSocketConnected => Connected && _transport is WebSocketTransport;
 		public bool UdpClientConnected => Connected && _transport is KcpTransport;
 		public bool HttpClientConnected => Connected && _transport is HttpTransport;

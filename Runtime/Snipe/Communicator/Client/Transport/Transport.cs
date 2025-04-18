@@ -29,7 +29,7 @@ namespace MiniIT.Snipe
 		public virtual bool Started { get; } = false;
 		public virtual bool Connected { get; } = false;
 		public virtual bool ConnectionEstablished { get; } = false;
-		public virtual TransportInfo Info { get; protected set; }
+		public TransportInfo Info { get; protected set; }
 
 		protected readonly SnipeConfig _config;
 		protected readonly SnipeAnalyticsTracker _analytics;
