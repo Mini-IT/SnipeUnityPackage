@@ -5,6 +5,7 @@ using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe
 {
@@ -71,7 +72,8 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception e)
 			{
-				_logger.LogTrace($"Connection failed: {e}");
+				string exceptionMessage = LogUtil.GetReducedException(e);
+				_logger.LogTrace($"Connection failed: {exceptionMessage}");
 				OnWebSocketClosed(e.ToString());
 			}
 
@@ -133,7 +135,8 @@ namespace MiniIT.Snipe
 				}
 				catch (WebSocketException e)
 				{
-					Disconnect($"Send exception: {e}");
+					string exceptionMessage = LogUtil.GetReducedException(e);
+					Disconnect($"Send exception: {exceptionMessage}");
 				}
 				catch (OperationCanceledException)
 				{
@@ -200,7 +203,8 @@ namespace MiniIT.Snipe
 				}
 				catch (WebSocketException e)
 				{
-					Disconnect($"Receive exception: {e}");
+					string exceptionMessage = LogUtil.GetReducedException(e);
+					Disconnect($"Receive exception: {exceptionMessage}");
 				}
 				catch (OperationCanceledException)
 				{
