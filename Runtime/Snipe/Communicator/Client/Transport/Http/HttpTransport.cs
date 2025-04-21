@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net.Http;
 using System.Threading;
 using Microsoft.Extensions.Logging;
@@ -15,6 +16,7 @@ namespace MiniIT.Snipe
 		private const string API_PATH = "api/v1/request/";
 
 		private static readonly SnipeObject s_pingMessage = new SnipeObject() { ["t"] = "server.ping", ["id"] = -1 };
+		private static readonly long s_sessionDurationTicks = TimeSpan.FromSeconds(301).Ticks;
 
 		public override bool Started => _started;
 		public override bool Connected => _connected;
@@ -23,6 +25,7 @@ namespace MiniIT.Snipe
 		private IHttpClient _client;
 
 		private TimeSpan _heartbeatInterval;
+		private long _sessionAliveTillTicks;
 
 		private Uri _baseUrl;
 		private bool _started;
@@ -75,6 +78,7 @@ namespace MiniIT.Snipe
 		{
 			_connected = false;
 			_started = false;
+			_sessionAliveTillTicks = 0;
 
 			StopHeartbeat();
 
@@ -88,11 +92,23 @@ namespace MiniIT.Snipe
 
 		public override void SendMessage(SnipeObject message)
 		{
+			if (!CheckSessionAlive())
+			{
+				Disconnect();
+				return;
+			}
+
 			DoSendRequest(message);
 		}
 
 		public override void SendBatch(IList<SnipeObject> messages)
 		{
+			if (!CheckSessionAlive())
+			{
+				Disconnect();
+				return;
+			}
+
 			if (messages.Count == 1)
 			{
 				DoSendRequest(messages[0]);
@@ -115,13 +131,6 @@ namespace MiniIT.Snipe
 			return new Uri(url);
 		}
 
-		private void OnClientConnected()
-		{
-			_logger.LogTrace("OnClientConnected");
-
-			ConnectionOpenedHandler?.Invoke(this);
-		}
-
 		private void ProcessMessage(string json)
 		{
 			var message = SnipeObject.FromJSONString(json);
@@ -130,6 +139,8 @@ namespace MiniIT.Snipe
 			{
 				return;
 			}
+
+			RefreshSessionAliveTimestamp();
 
 			if (message.SafeGetString("t") == "server.responses")
 			{
@@ -400,9 +411,23 @@ namespace MiniIT.Snipe
 		{
 			_connected = true;
 			_connectionEstablished = true;
-			OnClientConnected();
+			RefreshSessionAliveTimestamp();
+
+			_logger.LogTrace("OnClientConnected");
+
+			ConnectionOpenedHandler?.Invoke(this);
 
 			StartHeartbeat();
+		}
+
+		private void RefreshSessionAliveTimestamp()
+		{
+			_sessionAliveTillTicks = Stopwatch.GetTimestamp() + s_sessionDurationTicks;
+		}
+
+		private bool CheckSessionAlive()
+		{
+			return Stopwatch.GetTimestamp() < _sessionAliveTillTicks;
 		}
 
 		public override void Dispose()
