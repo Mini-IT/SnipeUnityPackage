@@ -10,6 +10,7 @@ using UnityEngine;
 using Cysharp.Threading.Tasks;
 using System.IO;
 using System.Text;
+using MiniIT.Snipe.Logging;
 
 namespace MiniIT
 {
@@ -72,7 +73,8 @@ namespace MiniIT
 			}
 			catch (Exception ex)
 			{
-				DebugLogger.LogError($"[{nameof(LogReporter)}] {ex}");
+				string exceptionMessage = LogUtil.GetReducedException(ex);
+				DebugLogger.LogError($"[{nameof(LogReporter)}] {exceptionMessage}");
 			}
 			finally
 			{
@@ -92,7 +94,8 @@ namespace MiniIT
 			}
 			catch (Exception ex)
 			{
-				DebugLogger.LogError($"[{nameof(LogReporter)}] {ex}");
+				string exceptionMessage = LogUtil.GetReducedException(ex);
+				DebugLogger.LogError($"[{nameof(LogReporter)}] {exceptionMessage}");
 			}
 			finally
 			{
@@ -114,7 +117,8 @@ namespace MiniIT
 					}
 					catch (Exception e)
 					{
-						DebugLogger.LogError($"[{nameof(LogReporter)}] Failed deleting temp log file: {e}");
+						string exceptionMessage = LogUtil.GetReducedException(e);
+						DebugLogger.LogError($"[{nameof(LogReporter)}] Failed deleting temp log file: {exceptionMessage}");
 					}
 				}
 			}
@@ -244,7 +248,8 @@ namespace MiniIT
 			}
 			catch (Exception e)
 			{
-				DebugLogger.LogError($"[{nameof(LogReporter)}] Failed to delete {s_filePath}: {e}");
+				string exceptionMessage = LogUtil.GetReducedException(e);
+				DebugLogger.LogError($"[{nameof(LogReporter)}] Failed to delete {s_filePath}: {exceptionMessage}");
 			}
 
 			Application.logMessageReceivedThreaded -= OnLogMessageReceived;
