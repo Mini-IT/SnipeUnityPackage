@@ -336,10 +336,12 @@ namespace MiniIT.Snipe
 					break;
 				}
 
-				if (!cancellation.IsCancellationRequested && Connected)
+				if (cancellation.IsCancellationRequested || !Connected)
 				{
-					SendMessage(s_pingMessage);
+					break;
 				}
+
+				SendMessage(s_pingMessage);
 			}
 		}
 
