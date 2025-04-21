@@ -392,7 +392,7 @@ namespace MiniIT.Snipe
 			{
 				string exceptionMessage = ex is AggregateException ae ? LogUtil.GetReducedException(ae) : ex.ToString();
 				_diagnostics.LogTrace($"SendTask Exception: {exceptionMessage}");
-				_analytics.TrackError("WebSocket SendTask error", e);
+				_analytics.TrackError("WebSocket SendTask error", ex);
 
 				StopSendTask();
 			}
