@@ -1,8 +1,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net.Http;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using MiniIT.Http;
@@ -16,6 +16,7 @@ namespace MiniIT.Snipe
 		private const string API_PATH = "api/v1/request/";
 
 		private static readonly Dictionary<string, object> s_pingMessage = new () { ["t"] = "server.ping", ["id"] = -1 };
+		private static readonly long s_sessionDurationTicks = TimeSpan.FromSeconds(301).Ticks;
 
 		public override bool Started => _started;
 		public override bool Connected => _connected;
@@ -41,6 +42,7 @@ namespace MiniIT.Snipe
 		private bool _intensiveHeartbeat = false;
 		private TimeSpan _heartbeatInterval;
 		private readonly TimeSpan _heartbeatIntensiveInterval = TimeSpan.FromSeconds(1);
+		private long _sessionAliveTillTicks;
 
 		private Uri _baseUrl;
 		private bool _started;
@@ -93,6 +95,7 @@ namespace MiniIT.Snipe
 		{
 			_connected = false;
 			_started = false;
+			_sessionAliveTillTicks = 0;
 
 			StopHeartbeat();
 
@@ -106,11 +109,23 @@ namespace MiniIT.Snipe
 
 		public override void SendMessage(IDictionary<string, object> message)
 		{
+			if (!CheckSessionAlive())
+			{
+				Disconnect();
+				return;
+			}
+
 			DoSendRequest(message);
 		}
 
 		public override void SendBatch(IList<IDictionary<string, object>> messages)
 		{
+			if (!CheckSessionAlive())
+			{
+				Disconnect();
+				return;
+			}
+
 			if (messages.Count == 1)
 			{
 				DoSendRequest(messages[0]);
@@ -133,13 +148,6 @@ namespace MiniIT.Snipe
 			return new Uri(url);
 		}
 
-		private void OnClientConnected()
-		{
-			_logger.LogTrace("OnClientConnected");
-
-			ConnectionOpenedHandler?.Invoke(this);
-		}
-
 		private void ProcessMessage(string json)
 		{
 			var message = JsonUtility.ParseDictionary(json);
@@ -150,20 +158,25 @@ namespace MiniIT.Snipe
 				return;
 			}
 
+			RefreshSessionAliveTimestamp();
+
 			if (message.SafeGetString("t") == "server.responses")
 			{
-				if (message.TryGetValue("data", out var innerData))
+				if (!message.TryGetValue("data", out var innerData))
 				{
-					if (innerData is IList innerMessages)
-					{
-						ProcessBatchInnerMessages(innerMessages);
-					}
-					else if (innerData is IDictionary<string, object> dataDict &&
-					         dataDict.TryGetValue("list", out var dataList) &&
-					         dataList is IList innerList)
-					{
-						ProcessBatchInnerMessages(innerList);
-					}
+					// Wrong message format
+					return;
+				}
+
+				if (innerData is IList innerMessages)
+				{
+					ProcessBatchInnerMessages(innerMessages);
+				}
+				else if (innerData is IDictionary<string, object> dataDict &&
+				         dataDict.TryGetValue("list", out var dataList) &&
+				         dataList is IList innerList)
+				{
+					ProcessBatchInnerMessages(innerList);
 				}
 			}
 			else // single message
@@ -185,29 +198,29 @@ namespace MiniIT.Snipe
 
 		private void InternalProcessMessage(IDictionary<string, object> message)
 		{
-			ExtractAuthToken(message);
-			MessageReceivedHandler?.Invoke(message);
-		}
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private void ExtractAuthToken(IDictionary<string, object> message)
-		{
 			_logger.LogTrace(JsonUtility.ToJson(message));
 
 			if (message.SafeGetString("t") == "user.login")
 			{
-				if (!message.TryGetValue("token", out string token))
-				{
-					if (message.TryGetValue<IDictionary<string, object>>("data", out var data))
-					{
-						data.TryGetValue("token", out token);
-					}
-				}
+				ExtractAuthToken(message);
+			}
 
-				if (!string.IsNullOrEmpty(token))
+			MessageReceivedHandler?.Invoke(message);
+		}
+
+		private void ExtractAuthToken(IDictionary<string, object> message)
+		{
+			if (!message.TryGetValue("token", out string token))
+			{
+				if (message.TryGetValue<IDictionary<string, object>>("data", out var data))
 				{
-					_client.SetAuthToken(token);
+					data.TryGetValue("token", out token);
 				}
+			}
+
+			if (!string.IsNullOrEmpty(token))
+			{
+				_client.SetAuthToken(token);
 			}
 		}
 
@@ -446,11 +459,24 @@ namespace MiniIT.Snipe
 		{
 			_connected = true;
 			_connectionEstablished = true;
-			OnClientConnected();
+			RefreshSessionAliveTimestamp();
+
+			_logger.LogTrace("OnClientConnected");
+
+			ConnectionOpenedHandler?.Invoke(this);
 
 			UpdateHeartbeat();
 		}
 
+		private void RefreshSessionAliveTimestamp()
+		{
+			_sessionAliveTillTicks = Stopwatch.GetTimestamp() + s_sessionDurationTicks;
+		}
+
+		private bool CheckSessionAlive()
+		{
+			return Stopwatch.GetTimestamp() < _sessionAliveTillTicks;
+		}
 
 		public override void Dispose()
 		{
