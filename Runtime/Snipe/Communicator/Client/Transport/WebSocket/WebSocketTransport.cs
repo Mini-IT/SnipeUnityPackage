@@ -412,7 +412,7 @@ namespace MiniIT.Snipe
 			_heartbeatCancellation?.Cancel();
 
 			// Custom heartbeating is needed only for WebSocketSharp
-			if (_webSocket == null && _webSocket.AutoPing)
+			if (_webSocket == null || _webSocket.AutoPing)
 			{
 				_heartbeatEnabled = false;
 				return;
