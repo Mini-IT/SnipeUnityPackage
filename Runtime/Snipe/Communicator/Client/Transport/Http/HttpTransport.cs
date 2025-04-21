@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Net.Http;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using MiniIT.Http;
@@ -127,28 +126,33 @@ namespace MiniIT.Snipe
 		{
 			var message = SnipeObject.FromJSONString(json);
 
-			if (message != null)
+			if (message == null)
 			{
-				if (message.SafeGetString("t") == "server.responses")
+				return;
+			}
+
+			if (message.SafeGetString("t") == "server.responses")
+			{
+				if (!message.TryGetValue("data", out var innerData))
 				{
-					if (message.TryGetValue("data", out var innerData))
-					{
-						if (innerData is IList innerMessages)
-						{
-							ProcessBatchInnerMessages(innerMessages);
-						}
-						else if (innerData is IDictionary<string, object> dataDict &&
-							dataDict.TryGetValue("list", out var dataList) &&
-							dataList is IList innerList)
-						{
-							ProcessBatchInnerMessages(innerList);
-						}
-					}
+					// Wrong message format
+					return;
 				}
-				else // single message
+
+				if (innerData is IList innerMessages)
 				{
-					InternalProcessMessage(message);
+					ProcessBatchInnerMessages(innerMessages);
 				}
+				else if (innerData is IDictionary<string, object> dataDict &&
+				         dataDict.TryGetValue("list", out var dataList) &&
+				         dataList is IList innerList)
+				{
+					ProcessBatchInnerMessages(innerList);
+				}
+			}
+			else // single message
+			{
+				InternalProcessMessage(message);
 			}
 		}
 
@@ -165,29 +169,29 @@ namespace MiniIT.Snipe
 
 		private void InternalProcessMessage(SnipeObject message)
 		{
-			ExtractAuthToken(message);
-			MessageReceivedHandler?.Invoke(message);
-		}
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private void ExtractAuthToken(SnipeObject message)
-		{
 			_logger.LogTrace(message.ToJSONString());
 
 			if (message.SafeGetString("t") == "user.login")
 			{
-				if (!message.TryGetValue("token", out string token))
-				{
-					if (message.TryGetValue<SnipeObject>("data", out var data))
-					{
-						data.TryGetValue("token", out token);
-					}
-				}
+				ExtractAuthToken(message);
+			}
 
-				if (!string.IsNullOrEmpty(token))
+			MessageReceivedHandler?.Invoke(message);
+		}
+
+		private void ExtractAuthToken(SnipeObject message)
+		{
+			if (!message.TryGetValue("token", out string token))
+			{
+				if (message.TryGetValue<SnipeObject>("data", out var data))
 				{
-					_client.SetAuthToken(token);
+					data.TryGetValue("token", out token);
 				}
+			}
+
+			if (!string.IsNullOrEmpty(token))
+			{
+				_client.SetAuthToken(token);
 			}
 		}
 
