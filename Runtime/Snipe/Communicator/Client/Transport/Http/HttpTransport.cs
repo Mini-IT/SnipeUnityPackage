@@ -230,7 +230,7 @@ namespace MiniIT.Snipe
 
 				var uri = new Uri(_baseUrl, requestType);
 
-				_logger.LogTrace($"<<< request ({uri}) - {requestId} - {requestType} - {json}");
+				_logger.LogTrace($"<<< request [id: {requestId}] {requestType} {json}");
 
 				using (var response = await _client.PostJson(uri, json))
 				{
@@ -240,7 +240,7 @@ namespace MiniIT.Snipe
 					//   429 - {"errorCode":"rateLimit"}
 					//   500 - {"errorCode":"requestTimeout"}
 
-					_logger.LogTrace($">>> response - {requestId} - {requestType} ({response.ResponseCode}) {response.Error}");
+					_logger.LogTrace($">>> response [id: {requestId}] {requestType} ({response.ResponseCode}) {response.Error}");
 
 					if (response.IsSuccess)
 					{
