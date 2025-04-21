@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using MiniIT.Http;
+using MiniIT.Snipe.Logging;
 using MiniIT.Threading;
 
 namespace MiniIT.Snipe
@@ -264,7 +265,8 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception e)
 			{
-				_diagnostics.LogError(e, "Request failed {0}", e.ToString());
+				string exceptionMessage = (e is AggregateException) ? LogUtil.GetReducedException(e) : e.ToString();
+				_diagnostics.LogError(e, "Request failed {0}", exceptionMessage);
 			}
 
 			try
@@ -415,13 +417,15 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception e)
 			{
+				string exceptionMessage = (e is AggregateException) ? LogUtil.GetReducedException(e) : e.ToString();
+
 				if (_connectionEstablished)
 				{
-					_diagnostics.LogError(e, "Request failed {0}", e.ToString());
+					_diagnostics.LogError(e, "Request failed {0}", exceptionMessage);
 				}
 				else
 				{
-					_diagnostics.LogTrace("SendHandshake error: " + e);
+					_diagnostics.LogTrace("SendHandshake error: " + exceptionMessage);
 				}
 			}
 			finally

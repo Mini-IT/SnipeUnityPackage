@@ -10,6 +10,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.MessagePack;
+using MiniIT.Snipe.Logging;
 using MiniIT.Threading;
 using MiniIT.Snipe.Configuration;
 
@@ -387,10 +388,10 @@ namespace MiniIT.Snipe
 					await AlterTask.Delay(100);
 				}
 			}
-			catch (Exception task_exception)
+			catch (Exception ex)
 			{
-				var e = task_exception is AggregateException ae ? ae.InnerException : task_exception;
-				_diagnostics.LogTrace($"SendTask Exception: {e}");
+				string exceptionMessage = ex is AggregateException ae ? LogUtil.GetReducedException(ae) : ex.ToString();
+				_diagnostics.LogTrace($"SendTask Exception: {exceptionMessage}");
 				_analytics.TrackError("WebSocket SendTask error", e);
 
 				StopSendTask();
