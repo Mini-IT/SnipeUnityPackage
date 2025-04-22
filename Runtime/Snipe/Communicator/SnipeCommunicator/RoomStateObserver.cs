@@ -2,6 +2,7 @@ namespace MiniIT.Snipe
 {
 	internal interface IRoomStateListener
 	{
+		void OnMatchmakingStarted();
 		void OnRoomJoined();
 		void OnRoomLeft();
 	}
@@ -22,6 +23,16 @@ namespace MiniIT.Snipe
 		public void Reset()
 		{
 			_roomState = RoomState.Unknown;
+		}
+
+		public void OnRequestSent(string messageType)
+		{
+			switch (messageType)
+			{
+				case "matchmaking.add":
+					SetMatchmaking();
+					break;
+			}
 		}
 
 		public void OnMessageReceived(string messageType, string errorCode)
@@ -46,7 +57,12 @@ namespace MiniIT.Snipe
 
 				case SnipeMessageTypes.ROOM_DEAD:
 				case SnipeMessageTypes.ROOM_LEAVE:
+				case "matchmaking.remove":
 					SetNotInRoom();
+					break;
+
+				case "matchmaking.start":
+					SetMatchmaking();
 					break;
 			}
 		}
@@ -72,6 +88,17 @@ namespace MiniIT.Snipe
 			{
 				_roomStateListener.OnRoomLeft();
 			}
+		}
+
+		private void SetMatchmaking()
+		{
+			if (_roomState == RoomState.Matchmaking)
+			{
+				return;
+			}
+
+			_roomState = RoomState.Matchmaking;
+			_roomStateListener.OnMatchmakingStarted();
 		}
 	}
 }
