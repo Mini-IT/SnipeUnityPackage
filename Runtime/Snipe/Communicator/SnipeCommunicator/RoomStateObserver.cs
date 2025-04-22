@@ -1,12 +1,5 @@
 namespace MiniIT.Snipe
 {
-	internal interface IRoomStateListener
-	{
-		void OnMatchmakingStarted();
-		void OnRoomJoined();
-		void OnRoomLeft();
-	}
-
 	internal class RoomStateObserver
 	{
 		public RoomState State => _roomState;
@@ -29,7 +22,7 @@ namespace MiniIT.Snipe
 		{
 			switch (messageType)
 			{
-				case "matchmaking.add":
+				case SnipeMessageTypes.MATCHMAKING_ADD:
 					SetMatchmaking();
 					break;
 			}
@@ -57,11 +50,11 @@ namespace MiniIT.Snipe
 
 				case SnipeMessageTypes.ROOM_DEAD:
 				case SnipeMessageTypes.ROOM_LEAVE:
-				case "matchmaking.remove":
+				case SnipeMessageTypes.MATCHMAKING_REMOVE:
 					SetNotInRoom();
 					break;
 
-				case "matchmaking.start":
+				case SnipeMessageTypes.MATCHMAKING_START:
 					SetMatchmaking();
 					break;
 			}
