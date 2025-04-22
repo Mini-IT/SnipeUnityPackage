@@ -2,6 +2,7 @@ namespace MiniIT.Snipe
 {
 	internal interface IRoomStateListener
 	{
+		void OnMatchmakingStarted();
 		void OnRoomJoined();
 		void OnRoomLeft();
 	}
@@ -24,39 +25,80 @@ namespace MiniIT.Snipe
 			_roomState = RoomState.Unknown;
 		}
 
+		public void OnRequestSent(string messageType)
+		{
+			switch (messageType)
+			{
+				case "matchmaking.add":
+					SetMatchmaking();
+					break;
+			}
+		}
+
 		public void OnMessageReceived(string messageType, string errorCode)
 		{
-			if (messageType == SnipeMessageTypes.ROOM_JOIN)
+			switch (messageType)
 			{
-				if (errorCode == SnipeErrorCodes.OK || errorCode == SnipeErrorCodes.ALREADY_IN_ROOM)
+				case SnipeMessageTypes.ROOM_JOIN:
 				{
-					if (_roomState != RoomState.Joined)
+					switch (errorCode)
 					{
-						_roomState = RoomState.Joined;
-						_roomStateListener.OnRoomJoined();
+						case SnipeErrorCodes.OK:
+						case SnipeErrorCodes.ALREADY_IN_ROOM:
+							SetRoomJoined();
+							break;
+						default:
+							SetNotInRoom();
+							break;
 					}
+
+					break;
 				}
-				else
-				{
+
+				case SnipeMessageTypes.ROOM_DEAD:
+				case SnipeMessageTypes.ROOM_LEAVE:
+				case "matchmaking.remove":
 					SetNotInRoom();
-				}
+					break;
+
+				case "matchmaking.start":
+					SetMatchmaking();
+					break;
 			}
-			else if (messageType == SnipeMessageTypes.ROOM_DEAD)
+		}
+
+		private void SetRoomJoined()
+		{
+			if (_roomState == RoomState.Joined)
 			{
-				SetNotInRoom();
+				return;
 			}
+
+			_roomState = RoomState.Joined;
+			_roomStateListener.OnRoomJoined();
 		}
 
 		private void SetNotInRoom()
 		{
-			bool consideredJoined = _roomState == RoomState.Joined;
+			bool wasJoined = (_roomState == RoomState.Joined);
 
 			_roomState = RoomState.NotInRoom;
 
-			if (consideredJoined)
+			if (wasJoined)
 			{
 				_roomStateListener.OnRoomLeft();
 			}
+		}
+
+		private void SetMatchmaking()
+		{
+			if (_roomState == RoomState.Matchmaking)
+			{
+				return;
+			}
+
+			_roomState = RoomState.Matchmaking;
+			_roomStateListener.OnMatchmakingStarted();
 		}
 	}
 }

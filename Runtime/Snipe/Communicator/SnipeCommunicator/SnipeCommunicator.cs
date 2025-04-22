@@ -48,10 +48,8 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public event Action PreDestroy;
 
-		public string ConnectionId => Client?.ConnectionId;
-		public TimeSpan CurrentRequestElapsed => Client?.CurrentRequestElapsed ?? TimeSpan.Zero;
-
-		internal SnipeClient Client { get; private set; }
+		public string ConnectionId => _client?.ConnectionId;
+		public TimeSpan CurrentRequestElapsed => _client?.CurrentRequestElapsed ?? TimeSpan.Zero;
 
 		public bool AllowRequestsToWaitForLogin { get; set; } = true;
 
@@ -63,23 +61,24 @@ namespace MiniIT.Snipe
 
 		public readonly HashSet<SnipeRequestDescriptor> MergeableRequestTypes = new HashSet<SnipeRequestDescriptor>();
 
-		public bool Connected => Client != null && Client.Connected;
-		public bool LoggedIn => Client != null && Client.LoggedIn;
+		public bool Connected => _client != null && _client.Connected;
+		public bool LoggedIn => _client != null && _client.LoggedIn;
 
-		public bool? RoomJoined => (Client == null) ? null : (Client.LoggedIn && _roomStateObserver.State == RoomState.Joined);
+		public bool? RoomJoined => (_client == null) ? null : (_client.LoggedIn && _roomStateObserver.State == RoomState.Joined);
 
 		public bool BatchMode
 		{
-			get => Client?.BatchMode ?? false;
+			get => _client?.BatchMode ?? false;
 			set
 			{
-				if (Client != null)
+				if (_client != null)
 				{
-					Client.BatchMode = value;
+					_client.BatchMode = value;
 				}
 			}
 		}
 
+		private SnipeClient _client;
 		private bool _disconnecting = false;
 
 		private readonly object _clientLock = new object();
@@ -99,6 +98,7 @@ namespace MiniIT.Snipe
 			_mainThreadRunner = SnipeServices.MainThreadRunner;
 			_analytics = SnipeServices.Analytics.GetTracker(contextId);
 			_logger = SnipeServices.LogService.GetLogger(nameof(SnipeCommunicator));
+			_logger.BeginScope($"{InstanceId}");
 
 			_roomStateObserver = new RoomStateObserver(this);
 
@@ -125,27 +125,27 @@ namespace MiniIT.Snipe
 
 			if (LoggedIn)
 			{
-				_logger.LogWarning($"({InstanceId}) InitClient - already logged in");
+				_logger.LogWarning("InitClient - already logged in");
 				return;
 			}
 
-			if (Client == null)
+			if (_client == null)
 			{
-				Client = new SnipeClient(_config);
-				Client.ConnectionOpened += OnClientConnectionOpened;
-				Client.ConnectionClosed += OnClientConnectionClosed;
-				Client.UdpConnectionFailed += OnClientUdpConnectionFailed;
-				Client.MessageReceived += OnMessageReceived;
+				_client = new SnipeClient(_config);
+				_client.ConnectionOpened += OnClientConnectionOpened;
+				_client.ConnectionClosed += OnClientConnectionClosed;
+				_client.UdpConnectionFailed += OnClientUdpConnectionFailed;
+				_client.MessageReceived += OnMessageReceived;
 			}
 
 			lock (_clientLock)
 			{
-				if (!Client.Connected)
+				if (!_client.Connected)
 				{
 					_disconnecting = false;
-					Client.Connect();
+					_client.Connect();
 
-					var transportInfo = Client.GetTransportInfo();
+					var transportInfo = _client.GetTransportInfo();
 
 					_mainThreadRunner.RunInMainThread(() =>
 					{
@@ -157,7 +157,7 @@ namespace MiniIT.Snipe
 
 		public void Disconnect()
 		{
-			_logger.LogTrace($"({InstanceId}) Disconnect");
+			_logger.LogTrace("Disconnect");
 
 			_roomStateObserver.Reset();
 			_disconnecting = true;
@@ -168,21 +168,33 @@ namespace MiniIT.Snipe
 				_delayedInitCancellation = null;
 			}
 
-			if (Client != null && Client.Connected)
+			if (_client != null && _client.Connected)
 			{
-				Client.Disconnect();
+				_client.Disconnect();
 			}
+		}
+
+		internal int SendRequest(string messageType, IDictionary<string, object> data)
+		{
+			int id = _client?.SendRequest(messageType, data) ?? 0;
+
+			if (id != 0)
+			{
+				_roomStateObserver.OnRequestSent(messageType);
+			}
+
+			return id;
 		}
 
 		private void OnClientConnectionOpened()
 		{
-			_logger.LogTrace($"({InstanceId}) Client connection opened");
+			_logger.LogTrace("Client connection opened");
 
 			_restoreConnectionAttempt = 0;
 			_disconnecting = false;
 			_analytics.ConnectionEventsEnabled = true;
 
-			var transportInfo = Client.GetTransportInfo();
+			var transportInfo = _client.GetTransportInfo();
 
 			_mainThreadRunner.RunInMainThread(() =>
 			{
@@ -193,11 +205,11 @@ namespace MiniIT.Snipe
 
 		private void OnClientConnectionClosed()
 		{
-			_logger.LogTrace($"({InstanceId}) [{Client?.ConnectionId}] Client connection closed");
+			_logger.LogTrace($"[{_client?.ConnectionId}] Client connection closed");
 
 			_roomStateObserver.Reset();
 
-			var transportInfo = Client?.GetTransportInfo() ?? default;
+			var transportInfo = _client?.GetTransportInfo() ?? default;
 
 			_mainThreadRunner.RunInMainThread(() =>
 			{
@@ -208,7 +220,7 @@ namespace MiniIT.Snipe
 
 		private void OnClientUdpConnectionFailed()
 		{
-			var transportInfo = Client?.GetTransportInfo() ?? default;
+			var transportInfo = _client?.GetTransportInfo() ?? default;
 
 			_mainThreadRunner.RunInMainThread(() =>
 			{
@@ -237,7 +249,7 @@ namespace MiniIT.Snipe
 		private void AttemptToRestoreConnection()
 		{
 			_restoreConnectionAttempt++;
-			_logger.LogTrace($"({InstanceId}) Attempt to restore connection {_restoreConnectionAttempt}");
+			_logger.LogTrace($"Attempt to restore connection {_restoreConnectionAttempt}");
 
 			_analytics.ConnectionEventsEnabled = false;
 
@@ -277,7 +289,7 @@ namespace MiniIT.Snipe
 		{
 			_safeEventRaiser ??= new SafeEventRaiser((handler, e) =>
 			{
-				_logger.LogError($"({InstanceId}) RaiseEvent - Error in the handler {handler?.Method?.Name}: {e}");
+				_logger.LogError($"RaiseEvent - Error in the handler {handler?.Method?.Name}: {e}");
 			});
 
 			_safeEventRaiser.RaiseEvent(eventDelegate, args);
@@ -287,7 +299,7 @@ namespace MiniIT.Snipe
 
 		private async void DelayedInitClient(CancellationToken cancellation)
 		{
-			_logger.LogTrace($"({InstanceId}) WaitAndInitClient - start delay");
+			_logger.LogTrace("WaitAndInitClient - start delay");
 
 			Random random = new Random();
 			int delay = RETRY_INIT_CLIENT_DELAY * _restoreConnectionAttempt + random.Next(RETRY_INIT_CLIENT_RANDOM_DELAY);
@@ -309,14 +321,14 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			_logger.LogTrace($"({InstanceId}) WaitAndInitClient - delay finished");
+			_logger.LogTrace("WaitAndInitClient - delay finished");
 
 			InitClient();
 		}
 
 		public void DisposeRoomRequests()
 		{
-			_logger.LogTrace($"({InstanceId}) DisposeRoomRequests");
+			_logger.LogTrace("DisposeRoomRequests");
 
 			List<AbstractCommunicatorRequest> roomRequests = null;
 			foreach (var request in Requests)
@@ -338,14 +350,14 @@ namespace MiniIT.Snipe
 
 		public void Dispose()
 		{
-			_logger.LogTrace($"({InstanceId}) Dispose");
+			_logger.LogTrace("Dispose");
 
-			if (Client != null)
+			if (_client != null)
 			{
-				Client.ConnectionOpened -= OnClientConnectionOpened;
-				Client.ConnectionClosed -= OnClientConnectionClosed;
-				Client.UdpConnectionFailed -= OnClientUdpConnectionFailed;
-				Client.MessageReceived -= OnMessageReceived;
+				_client.ConnectionOpened -= OnClientConnectionOpened;
+				_client.ConnectionClosed -= OnClientConnectionClosed;
+				_client.UdpConnectionFailed -= OnClientUdpConnectionFailed;
+				_client.MessageReceived -= OnMessageReceived;
 			}
 
 			Disconnect();
@@ -357,16 +369,16 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception) { }
 
-			if (Client != null)
+			if (_client != null)
 			{
-				Client.Dispose();
-				Client = null;
+				_client.Dispose();
+				_client = null;
 			}
 		}
 
 		public void DisposeRequests()
 		{
-			_logger.LogTrace($"({InstanceId}) DisposeRequests");
+			_logger.LogTrace("DisposeRequests");
 
 			if (_requests != null)
 			{
@@ -381,22 +393,34 @@ namespace MiniIT.Snipe
 
 		#region IRoomStateListener
 
+		void IRoomStateListener.OnMatchmakingStarted()
+		{
+			_logger.LogTrace("OnMatchmakingStarted");
+
+			SetIntensiveHeartbeat(true);
+		}
+
 		void IRoomStateListener.OnRoomJoined()
 		{
-			if (Client.GetTransport() is HttpTransport httpTransport)
-			{
-				httpTransport.IntensiveHeartbeat = true;
-			}
+			_logger.LogInformation("OnRoomJoined");
+
+			SetIntensiveHeartbeat(true);
 		}
 
 		void IRoomStateListener.OnRoomLeft()
 		{
-			if (Client.GetTransport() is HttpTransport httpTransport)
-			{
-				httpTransport.IntensiveHeartbeat = false;
-			}
+			_logger.LogInformation("OnRoomLeft");
 
+			SetIntensiveHeartbeat(false);
 			DisposeRoomRequests();
+		}
+
+		private void SetIntensiveHeartbeat(bool value)
+		{
+			if (_client.GetTransport() is HttpTransport httpTransport)
+			{
+				httpTransport.IntensiveHeartbeat = value;
+			}
 		}
 
 		#endregion
@@ -416,7 +440,7 @@ namespace MiniIT.Snipe
 
 		private void AnalyticsTrackConnectionSucceeded(TransportInfo transportInfo)
 		{
-			var data = Client.UdpClientConnected ? new Dictionary<string, object>()
+			var data = _client.UdpClientConnected ? new Dictionary<string, object>()
 			{
 				["connection_type"] = "udp",
 				["connection_time"] = _analytics.UdpConnectionTime.TotalMilliseconds,
@@ -451,7 +475,7 @@ namespace MiniIT.Snipe
 			var properties = new Dictionary<string, object>()
 			{
 				//["communicator"] = this.name,
-				["connection_id"] = Client?.ConnectionId,
+				["connection_id"] = _client?.ConnectionId,
 				//["disconnect_reason"] = Client?.DisconnectReason,
 				//["check_connection_message"] = Client?.CheckConnectionMessageType,
 				["connection_url"] = _analytics.ConnectionUrl,

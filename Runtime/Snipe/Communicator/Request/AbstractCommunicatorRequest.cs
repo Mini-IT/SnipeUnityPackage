@@ -183,7 +183,7 @@ namespace MiniIT.Snipe
 
 			if (CheckCommunicatorReady())
 			{
-				_requestId = _communicator.Client.SendRequest(MessageType, Data);
+				_requestId = _communicator.SendRequest(MessageType, Data);
 			}
 
 			if (_requestId == 0)
