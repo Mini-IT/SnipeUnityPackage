@@ -26,34 +26,49 @@ namespace MiniIT.Snipe
 
 		public void OnMessageReceived(string messageType, string errorCode)
 		{
-			if (messageType == SnipeMessageTypes.ROOM_JOIN)
+			switch (messageType)
 			{
-				if (errorCode == SnipeErrorCodes.OK || errorCode == SnipeErrorCodes.ALREADY_IN_ROOM)
+				case SnipeMessageTypes.ROOM_JOIN:
 				{
-					if (_roomState != RoomState.Joined)
+					switch (errorCode)
 					{
-						_roomState = RoomState.Joined;
-						_roomStateListener.OnRoomJoined();
+						case SnipeErrorCodes.OK:
+						case SnipeErrorCodes.ALREADY_IN_ROOM:
+							SetRoomJoined();
+							break;
+						default:
+							SetNotInRoom();
+							break;
 					}
+
+					break;
 				}
-				else
-				{
+
+				case SnipeMessageTypes.ROOM_DEAD:
+				case SnipeMessageTypes.ROOM_LEAVE:
 					SetNotInRoom();
-				}
+					break;
 			}
-			else if (messageType == SnipeMessageTypes.ROOM_DEAD)
+		}
+
+		private void SetRoomJoined()
+		{
+			if (_roomState == RoomState.Joined)
 			{
-				SetNotInRoom();
+				return;
 			}
+
+			_roomState = RoomState.Joined;
+			_roomStateListener.OnRoomJoined();
 		}
 
 		private void SetNotInRoom()
 		{
-			bool consideredJoined = _roomState == RoomState.Joined;
+			bool wasJoined = (_roomState == RoomState.Joined);
 
 			_roomState = RoomState.NotInRoom;
 
-			if (consideredJoined)
+			if (wasJoined)
 			{
 				_roomStateListener.OnRoomLeft();
 			}
