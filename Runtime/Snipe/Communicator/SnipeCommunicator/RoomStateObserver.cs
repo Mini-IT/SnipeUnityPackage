@@ -1,12 +1,5 @@
 namespace MiniIT.Snipe
 {
-	internal interface IRoomStateListener
-	{
-		void OnMatchmakingStarted();
-		void OnRoomJoined();
-		void OnRoomLeft();
-	}
-
 	internal class RoomStateObserver
 	{
 		public RoomState State => _roomState;
