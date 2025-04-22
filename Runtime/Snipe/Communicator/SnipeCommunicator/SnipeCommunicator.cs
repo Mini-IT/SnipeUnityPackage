@@ -384,6 +384,8 @@ namespace MiniIT.Snipe
 
 		void IRoomStateListener.OnRoomJoined()
 		{
+			_logger.LogInformation("OnRoomJoined");
+
 			if (Client.GetTransport() is HttpTransport httpTransport)
 			{
 				httpTransport.IntensiveHeartbeat = true;
@@ -392,6 +394,8 @@ namespace MiniIT.Snipe
 
 		void IRoomStateListener.OnRoomLeft()
 		{
+			_logger.LogInformation("OnRoomLeft");
+
 			if (Client.GetTransport() is HttpTransport httpTransport)
 			{
 				httpTransport.IntensiveHeartbeat = false;
