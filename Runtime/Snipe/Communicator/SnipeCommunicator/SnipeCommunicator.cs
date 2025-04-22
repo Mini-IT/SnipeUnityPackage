@@ -99,6 +99,7 @@ namespace MiniIT.Snipe
 			_mainThreadRunner = SnipeServices.MainThreadRunner;
 			_analytics = SnipeServices.Analytics.GetTracker(contextId);
 			_logger = SnipeServices.LogService.GetLogger(nameof(SnipeCommunicator));
+			_logger.BeginScope($"{InstanceId}");
 
 			_roomStateObserver = new RoomStateObserver(this);
 
@@ -125,7 +126,7 @@ namespace MiniIT.Snipe
 
 			if (LoggedIn)
 			{
-				_logger.LogWarning($"({InstanceId}) InitClient - already logged in");
+				_logger.LogWarning("InitClient - already logged in");
 				return;
 			}
 
@@ -157,7 +158,7 @@ namespace MiniIT.Snipe
 
 		public void Disconnect()
 		{
-			_logger.LogTrace($"({InstanceId}) Disconnect");
+			_logger.LogTrace("Disconnect");
 
 			_roomStateObserver.Reset();
 			_disconnecting = true;
@@ -176,7 +177,7 @@ namespace MiniIT.Snipe
 
 		private void OnClientConnectionOpened()
 		{
-			_logger.LogTrace($"({InstanceId}) Client connection opened");
+			_logger.LogTrace("Client connection opened");
 
 			_restoreConnectionAttempt = 0;
 			_disconnecting = false;
@@ -193,7 +194,7 @@ namespace MiniIT.Snipe
 
 		private void OnClientConnectionClosed()
 		{
-			_logger.LogTrace($"({InstanceId}) [{Client?.ConnectionId}] Client connection closed");
+			_logger.LogTrace($"[{Client?.ConnectionId}] Client connection closed");
 
 			_roomStateObserver.Reset();
 
@@ -237,7 +238,7 @@ namespace MiniIT.Snipe
 		private void AttemptToRestoreConnection()
 		{
 			_restoreConnectionAttempt++;
-			_logger.LogTrace($"({InstanceId}) Attempt to restore connection {_restoreConnectionAttempt}");
+			_logger.LogTrace($"Attempt to restore connection {_restoreConnectionAttempt}");
 
 			_analytics.ConnectionEventsEnabled = false;
 
@@ -277,7 +278,7 @@ namespace MiniIT.Snipe
 		{
 			_safeEventRaiser ??= new SafeEventRaiser((handler, e) =>
 			{
-				_logger.LogError($"({InstanceId}) RaiseEvent - Error in the handler {handler?.Method?.Name}: {e}");
+				_logger.LogError($"RaiseEvent - Error in the handler {handler?.Method?.Name}: {e}");
 			});
 
 			_safeEventRaiser.RaiseEvent(eventDelegate, args);
@@ -287,7 +288,7 @@ namespace MiniIT.Snipe
 
 		private async void DelayedInitClient(CancellationToken cancellation)
 		{
-			_logger.LogTrace($"({InstanceId}) WaitAndInitClient - start delay");
+			_logger.LogTrace("WaitAndInitClient - start delay");
 
 			Random random = new Random();
 			int delay = RETRY_INIT_CLIENT_DELAY * _restoreConnectionAttempt + random.Next(RETRY_INIT_CLIENT_RANDOM_DELAY);
@@ -309,14 +310,14 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			_logger.LogTrace($"({InstanceId}) WaitAndInitClient - delay finished");
+			_logger.LogTrace("WaitAndInitClient - delay finished");
 
 			InitClient();
 		}
 
 		public void DisposeRoomRequests()
 		{
-			_logger.LogTrace($"({InstanceId}) DisposeRoomRequests");
+			_logger.LogTrace("DisposeRoomRequests");
 
 			List<AbstractCommunicatorRequest> roomRequests = null;
 			foreach (var request in Requests)
@@ -338,7 +339,7 @@ namespace MiniIT.Snipe
 
 		public void Dispose()
 		{
-			_logger.LogTrace($"({InstanceId}) Dispose");
+			_logger.LogTrace("Dispose");
 
 			if (Client != null)
 			{
@@ -366,7 +367,7 @@ namespace MiniIT.Snipe
 
 		public void DisposeRequests()
 		{
-			_logger.LogTrace($"({InstanceId}) DisposeRequests");
+			_logger.LogTrace("DisposeRequests");
 
 			if (_requests != null)
 			{
