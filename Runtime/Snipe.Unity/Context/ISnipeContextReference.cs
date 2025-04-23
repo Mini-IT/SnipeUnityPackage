@@ -1,3 +1,5 @@
+using System;
+using System.Threading;
 
 namespace MiniIT.Snipe
 {
@@ -11,5 +13,7 @@ namespace MiniIT.Snipe
 		/// <param name="context">The instance of <see cref="SnipeContext"/></param>
 		/// <returns><c>true</c> if a valid intance is found</returns>
 		bool TryGetSnipeContext(out SnipeContext context);
+
+		void GetSnipeContextWhenReady(Action<SnipeContext> callback, CancellationToken cancellationToken = default);
 	}
 }
