@@ -57,18 +57,18 @@ namespace MiniIT.Snipe
 		private readonly RoomStateObserver _roomStateObserver;
 		private readonly ILogger _logger;
 
-		public SnipeCommunicator(int contextId, SnipeConfig config)
+		public SnipeCommunicator(SnipeConfig config, SnipeAnalyticsTracker analytics)
 		{
 			_config = config;
+			_analytics = analytics;
 
 			_mainThreadRunner = SnipeServices.MainThreadRunner;
-			_analytics = SnipeServices.Analytics.GetTracker(contextId);
 			_logger = SnipeServices.LogService.GetLogger(nameof(SnipeCommunicator));
 			_logger.BeginScope($"{InstanceId}");
 
 			_roomStateObserver = new RoomStateObserver(this);
 
-			_logger.LogTrace($"PACKAGE VERSION: {PackageInfo.VERSION_NAME}");
+			_logger.LogInformation($"PACKAGE VERSION: {PackageInfo.VERSION_NAME}");
 		}
 
 		/// <summary>
@@ -76,8 +76,6 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public void Start()
 		{
-			//_mainThreadRunner.SetMainThread();
-
 			InitClient();
 		}
 

@@ -60,7 +60,7 @@ namespace MiniIT.Snipe
 
 		public bool Initialized => _contextFactory != null && _tablesFactory != null;
 
-		private readonly Dictionary<int, SnipeContext> _contexts = new Dictionary<int, SnipeContext>();
+		private readonly Dictionary<int, SnipeContext> _contexts = new ();
 
 		private ISnipeContextFactory _contextFactory;
 		private ISnipeApiTablesFactory _tablesFactory;

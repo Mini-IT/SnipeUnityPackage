@@ -47,7 +47,7 @@ namespace MiniIT
 			DebugLogger.Log($"[{nameof(LogReporter)}] New temp log file created: {s_filePath}");
 		}
 
-		internal void SetSnipeContext(SnipeContext snipeContext, SnipeConfig snipeConfig)
+		public void Initialize(SnipeContext snipeContext, SnipeConfig snipeConfig)
 		{
 			_snipeContext = snipeContext;
 			_snipeConfig = snipeConfig;
