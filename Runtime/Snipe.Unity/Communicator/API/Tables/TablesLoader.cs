@@ -151,9 +151,14 @@ namespace MiniIT.Snipe
 
 				if (!cancellationToken.IsCancellationRequested)
 				{
-					long version = 0;
-					_versions?.TryGetValue(loaderItem.Name, out version);
-					loaded = await LoadTableAsync(loaderItem, httpClient, version, cancellationToken);
+					if (_versions != null && _versions.TryGetValue(loaderItem.Name, out long version))
+					{
+						loaded = await LoadTableAsync(loaderItem, httpClient, version, cancellationToken);
+					}
+					else
+					{
+						_logger.LogError($"Failed to get table version for table '{loaderItem.Name}'");
+					}
 				}
 			}
 			catch (OperationCanceledException)
