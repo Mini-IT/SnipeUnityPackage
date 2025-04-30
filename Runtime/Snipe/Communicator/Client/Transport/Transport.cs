@@ -29,6 +29,12 @@ namespace MiniIT.Snipe
 		public virtual bool Started { get; } = false;
 		public virtual bool Connected { get; } = false;
 		public virtual bool ConnectionEstablished { get; } = false;
+
+		/// <summary>
+		/// At least one message received
+		/// </summary>
+		public virtual bool ConnectionVerified { get; } = false;
+
 		public virtual TransportInfo Info { get; protected set; }
 
 		protected readonly SnipeConfig _config;

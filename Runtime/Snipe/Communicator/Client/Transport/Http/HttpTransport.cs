@@ -21,6 +21,7 @@ namespace MiniIT.Snipe
 		public override bool Started => _started;
 		public override bool Connected => _connected;
 		public override bool ConnectionEstablished => _connectionEstablished;
+		public override bool ConnectionVerified => _connectionEstablished;
 
 		private IHttpClient _client;
 

@@ -213,7 +213,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			if (transport.ConnectionEstablished)
+			if (transport.ConnectionVerified)
 			{
 				Disconnect(true);
 			}
