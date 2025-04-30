@@ -10,6 +10,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.MessagePack;
+using MiniIT.Snipe.Logging;
 using MiniIT.Threading;
 
 namespace MiniIT.Snipe
@@ -42,6 +43,7 @@ namespace MiniIT.Snipe
 		public override bool Started => _webSocket != null;
 		public override bool Connected => _webSocket != null && _webSocket.Connected;
 		public override bool ConnectionEstablished => _connected;
+		public override bool ConnectionVerified => _loggedIn;
 
 		private WebSocketWrapper _webSocket = null;
 		private readonly object _lock = new object();
@@ -69,10 +71,16 @@ namespace MiniIT.Snipe
 			_webSocket = _config.WebSocketImplementation switch
 			{
 				SnipeConfig.WebSocketImplementations.ClientWebSocket => new WebSocketClientWrapper(),
-				SnipeConfig.WebSocketImplementations.BestWebSocket => new WebSocketClientWrapper(),
-				_ => new WebSocketClientWrapper(),
+				SnipeConfig.WebSocketImplementations.BestWebSocket => new WebSocketBestWrapper(),
+				_ => new WebSocketSharpWrapper(),
 			};
 #endif
+
+			Info = new TransportInfo()
+			{
+				Protocol = TransportProtocol.WebSocket,
+				ClientImplementation = _webSocket.GetType().Name,
+			};
 
 			_webSocket.OnConnectionOpened += OnWebSocketConnected;
 			_webSocket.OnConnectionClosed += OnWebSocketClosed;
@@ -132,6 +140,8 @@ namespace MiniIT.Snipe
 
 		private void OnWebSocketConnected()
 		{
+			_connected = true;
+
 			_logger.LogTrace("OnWebSocketConnected");
 
 			ConnectionOpenedHandler?.Invoke(this);
@@ -378,10 +388,11 @@ namespace MiniIT.Snipe
 					await AlterTask.Delay(100);
 				}
 			}
-			catch (Exception task_exception)
+			catch (Exception ex)
 			{
-				var e = task_exception is AggregateException ae ? ae.InnerException : task_exception;
-				_logger.LogTrace($"SendTask Exception: {e}");
+				var e = ex is AggregateException ae ? ae.InnerException : ex;
+				string exceptionMessage = LogUtil.GetReducedException(ex);
+				_logger.LogTrace($"SendTask Exception: {exceptionMessage}");
 				_analytics.TrackError("WebSocket SendTask error", e);
 
 				StopSendTask();
@@ -401,7 +412,7 @@ namespace MiniIT.Snipe
 			_heartbeatCancellation?.Cancel();
 
 			// Custom heartbeating is needed only for WebSocketSharp
-			if (_webSocket == null && _webSocket.AutoPing)
+			if (_webSocket == null || _webSocket.AutoPing)
 			{
 				_heartbeatEnabled = false;
 				return;

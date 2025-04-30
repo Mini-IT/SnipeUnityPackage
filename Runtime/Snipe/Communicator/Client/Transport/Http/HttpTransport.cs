@@ -1,11 +1,12 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net.Http;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using MiniIT.Http;
+using MiniIT.Snipe.Logging;
 using MiniIT.Threading;
 
 namespace MiniIT.Snipe
@@ -15,16 +16,20 @@ namespace MiniIT.Snipe
 		private const string API_PATH = "api/v1/request/";
 
 		private static readonly SnipeObject s_pingMessage = new SnipeObject() { ["t"] = "server.ping", ["id"] = -1 };
+		private static readonly long s_sessionDurationTicks = TimeSpan.FromSeconds(301).Ticks;
 
-		public override bool Started => _connected;
+		public override bool Started => _started;
 		public override bool Connected => _connected;
 		public override bool ConnectionEstablished => _connectionEstablished;
+		public override bool ConnectionVerified => _connectionEstablished;
 
 		private IHttpClient _client;
 
 		private TimeSpan _heartbeatInterval;
+		private long _sessionAliveTillTicks;
 
 		private Uri _baseUrl;
+		private bool _started;
 		private bool _connected;
 		private bool _connectionEstablished = false;
 		private readonly object _lock = new object();
@@ -40,12 +45,21 @@ namespace MiniIT.Snipe
 		{
 			lock (_lock)
 			{
-				if (Connected)
+				if (Started)
+				{
 					return;
+				}
+				_started = true;
 
 				_baseUrl = GetBaseUrl();
 
 				_client ??= SnipeServices.HttpClientFactory.CreateHttpClient();
+
+				Info = new TransportInfo()
+				{
+					Protocol = TransportProtocol.Http,
+					ClientImplementation = _client.GetType().Name,
+				};
 			}
 
 			SendHandshake();
@@ -64,10 +78,13 @@ namespace MiniIT.Snipe
 		private void InternalDisconnect()
 		{
 			_connected = false;
+			_started = false;
+			_sessionAliveTillTicks = 0;
+
+			StopHeartbeat();
 
 			_client?.Reset();
 
-			StopHeartbeat();
 			ConnectionClosedHandler?.Invoke(this);
 
 			// It's important to keep the value during ConnectionClosedHandler invocation
@@ -76,11 +93,23 @@ namespace MiniIT.Snipe
 
 		public override void SendMessage(SnipeObject message)
 		{
+			if (!CheckSessionAlive())
+			{
+				Disconnect();
+				return;
+			}
+
 			DoSendRequest(message);
 		}
 
 		public override void SendBatch(IList<SnipeObject> messages)
 		{
+			if (!CheckSessionAlive())
+			{
+				Disconnect();
+				return;
+			}
+
 			if (messages.Count == 1)
 			{
 				DoSendRequest(messages[0]);
@@ -103,39 +132,39 @@ namespace MiniIT.Snipe
 			return new Uri(url);
 		}
 
-		private void OnClientConnected()
-		{
-			_logger.LogTrace("OnClientConnected");
-
-			ConnectionOpenedHandler?.Invoke(this);
-		}
-
 		private void ProcessMessage(string json)
 		{
 			var message = SnipeObject.FromJSONString(json);
 
-			if (message != null)
+			if (message == null)
 			{
-				if (message.SafeGetString("t") == "server.responses")
+				return;
+			}
+
+			RefreshSessionAliveTimestamp();
+
+			if (message.SafeGetString("t") == "server.responses")
+			{
+				if (!message.TryGetValue("data", out var innerData))
 				{
-					if (message.TryGetValue("data", out var innerData))
-					{
-						if (innerData is IList innerMessages)
-						{
-							ProcessBatchInnerMessages(innerMessages);
-						}
-						else if (innerData is IDictionary<string, object> dataDict &&
-							dataDict.TryGetValue("list", out var dataList) &&
-							dataList is IList innerList)
-						{
-							ProcessBatchInnerMessages(innerList);
-						}
-					}
+					// Wrong message format
+					return;
 				}
-				else // single message
+
+				if (innerData is IList innerMessages)
 				{
-					InternalProcessMessage(message);
+					ProcessBatchInnerMessages(innerMessages);
 				}
+				else if (innerData is IDictionary<string, object> dataDict &&
+				         dataDict.TryGetValue("list", out var dataList) &&
+				         dataList is IList innerList)
+				{
+					ProcessBatchInnerMessages(innerList);
+				}
+			}
+			else // single message
+			{
+				InternalProcessMessage(message);
 			}
 		}
 
@@ -152,31 +181,29 @@ namespace MiniIT.Snipe
 
 		private void InternalProcessMessage(SnipeObject message)
 		{
-			ExtractAuthToken(message);
-			MessageReceivedHandler?.Invoke(message);
-		}
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private void ExtractAuthToken(SnipeObject message)
-		{
 			_logger.LogTrace(message.ToJSONString());
 
 			if (message.SafeGetString("t") == "user.login")
 			{
-				string token = null;
+				ExtractAuthToken(message);
+			}
 
-				if (!message.TryGetValue("token", out token))
-				{
-					if (message.TryGetValue<SnipeObject>("data", out var data))
-					{
-						data.TryGetValue("token", out token);
-					}
-				}
+			MessageReceivedHandler?.Invoke(message);
+		}
 
-				if (!string.IsNullOrEmpty(token))
+		private void ExtractAuthToken(SnipeObject message)
+		{
+			if (!message.TryGetValue("token", out string token))
+			{
+				if (message.TryGetValue<SnipeObject>("data", out var data))
 				{
-					_client.SetAuthToken(token);
+					data.TryGetValue("token", out token);
 				}
+			}
+
+			if (!string.IsNullOrEmpty(token))
+			{
+				_client.SetAuthToken(token);
 			}
 		}
 
@@ -195,9 +222,16 @@ namespace MiniIT.Snipe
 				await _sendSemaphore.WaitAsync();
 				semaphoreOccupied = true;
 
+				// During awaiting the semaphore a disconnect could happen - check it
+				if (!_connected)
+				{
+					_sendSemaphore.Release();
+					return;
+				}
+
 				var uri = new Uri(_baseUrl, requestType);
 
-				_logger.LogTrace($"<<< request ({uri}) - {requestId} - {requestType}");
+				_logger.LogTrace($"<<< request [id: {requestId}] {requestType} {json}");
 
 				using (var response = await _client.PostJson(uri, json))
 				{
@@ -207,11 +241,12 @@ namespace MiniIT.Snipe
 					//   429 - {"errorCode":"rateLimit"}
 					//   500 - {"errorCode":"requestTimeout"}
 
-					_logger.LogTrace($">>> response - {requestId} - {requestType} ({response.ResponseCode}) {response.Error}");
+					_logger.LogTrace($">>> response [id: {requestId}] {requestType} ({response.ResponseCode}) {response.Error}");
 
 					if (response.IsSuccess)
 					{
 						responseMessage = await response.GetStringContentAsync();
+						_logger.LogTrace(responseMessage);
 					}
 					else if (response.ResponseCode != 429) // HttpStatusCode.TooManyRequests
 					{
@@ -226,7 +261,8 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception e)
 			{
-				_logger.LogError(e, "Request failed {0}", e.ToString());
+				string exceptionMessage = (e is AggregateException) ? LogUtil.GetReducedException(e) : e.ToString();
+				_logger.LogError(e, "Request failed {0}", exceptionMessage);
 			}
 
 			try
@@ -301,10 +337,12 @@ namespace MiniIT.Snipe
 					break;
 				}
 
-				if (!cancellation.IsCancellationRequested && Connected)
+				if (cancellation.IsCancellationRequested || !Connected)
 				{
-					SendMessage(s_pingMessage);
+					break;
 				}
+
+				SendMessage(s_pingMessage);
 			}
 		}
 
@@ -344,17 +382,18 @@ namespace MiniIT.Snipe
 				{
 					_logger.LogTrace("SendHandshake error: " + httpException);
 				}
-				InternalDisconnect();
 			}
 			catch (Exception e)
 			{
+				string exceptionMessage = (e is AggregateException) ? LogUtil.GetReducedException(e) : e.ToString();
+
 				if (_connectionEstablished)
 				{
-					_logger.LogError(e, "Request failed {0}", e.ToString());
+					_logger.LogError(e, "Request failed {0}", exceptionMessage);
 				}
 				else
 				{
-					_logger.LogTrace("SendHandshake error: " + e);
+					_logger.LogTrace("SendHandshake error: " + exceptionMessage);
 				}
 			}
 			finally
@@ -364,15 +403,34 @@ namespace MiniIT.Snipe
 					_sendSemaphore.Release();
 				}
 			}
+
+			if (!_connected)
+			{
+				InternalDisconnect();
+			}
 		}
 
 		private void ConfirmConnectionEstablished()
 		{
 			_connected = true;
 			_connectionEstablished = true;
-			OnClientConnected();
+			RefreshSessionAliveTimestamp();
+
+			_logger.LogTrace("OnClientConnected");
+
+			ConnectionOpenedHandler?.Invoke(this);
 
 			StartHeartbeat();
+		}
+
+		private void RefreshSessionAliveTimestamp()
+		{
+			_sessionAliveTillTicks = Stopwatch.GetTimestamp() + s_sessionDurationTicks;
+		}
+
+		private bool CheckSessionAlive()
+		{
+			return Stopwatch.GetTimestamp() < _sessionAliveTillTicks;
 		}
 
 		public override void Dispose()

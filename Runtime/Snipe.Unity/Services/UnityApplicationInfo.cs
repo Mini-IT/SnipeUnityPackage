@@ -53,6 +53,8 @@ namespace MiniIT.Snipe.Unity
 			suffix = "Nutaku";
 //#elif CHINA
 //			suffix = "China";
+#elif STEAM || MINIIT_STEAM || UNITY_STEAM
+			suffix = "Steam";
 #endif
 #endif
 			return suffix;
