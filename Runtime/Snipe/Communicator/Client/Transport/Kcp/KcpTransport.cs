@@ -13,11 +13,13 @@ namespace MiniIT.Snipe
 		public override bool Started => _kcpConnection != null;
 		public override bool Connected => _kcpConnection != null && _kcpConnection.Connected;
 		public override bool ConnectionEstablished => _connectionEstablished;
+		public override bool ConnectionVerified => _connectionVerified;
 
 		private KcpConnection _kcpConnection;
 		private CancellationTokenSource _networkLoopCancellation;
 
 		private bool _connectionEstablished = false;
+		private bool _connectionVerified = false;
 		private readonly object _lock = new object();
 
 		internal KcpTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
@@ -78,6 +80,7 @@ namespace MiniIT.Snipe
 			}
 
 			_connectionEstablished = false;
+			_connectionVerified = false;
 		}
 
 		public override void SendMessage(IDictionary<string, object> message)
@@ -128,6 +131,8 @@ namespace MiniIT.Snipe
 		private void OnClientDataReceived(ArraySegment<byte> buffer, KcpChannel channel, bool compressed)
 		{
 			_logger.LogTrace("OnUdpClientDataReceived");
+
+			_connectionVerified = true;
 
 			var opcode = (KcpOpCode)buffer.Array[buffer.Offset];
 
