@@ -72,7 +72,9 @@ namespace MiniIT.Snipe
 			_webSocket = _config.WebSocketImplementation switch
 			{
 				WebSocketImplementations.ClientWebSocket => new WebSocketClientWrapper(),
+#if BEST_WEBSOCKET
 				WebSocketImplementations.BestWebSocket => new WebSocketBestWrapper(),
+#endif
 				_ => new WebSocketSharpWrapper(),
 			};
 #endif
