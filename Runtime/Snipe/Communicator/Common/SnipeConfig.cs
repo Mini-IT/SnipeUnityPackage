@@ -210,7 +210,14 @@ namespace MiniIT.Snipe
 
 		public bool CheckHttpAvailable()
 		{
-			return !string.IsNullOrEmpty(GetHttpAddress());
+			string url = GetHttpAddress();
+
+			if (string.IsNullOrEmpty(url))
+			{
+				return false;
+			}
+
+			return new Regex("^https?://..*\\..*").IsMatch(url);
 		}
 
 		private bool CheckConnectionParametersValid() =>
