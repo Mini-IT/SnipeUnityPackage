@@ -23,7 +23,7 @@ namespace MiniIT.Snipe
 			_logger = SnipeServices.LogService.GetLogger<SnipeConfigLoader>();
 		}
 
-		public async UniTask<Dictionary<string, object>> Load()
+		public async UniTask<Dictionary<string, object>> Load(SnipeConfigLoadingStatistics loadingStatistics = null)
 		{
 			string requestParamsJson = "{" +
 				$"\"project\":\"{_projectID}\"," +
@@ -37,6 +37,11 @@ namespace MiniIT.Snipe
 			Dictionary<string, object> config = null;
 
 			IHttpClient httpClient = SnipeServices.HttpClientFactory.CreateHttpClient();
+
+			if (loadingStatistics != null)
+			{
+				loadingStatistics.ClientImplementation = httpClient.GetType().Name;
+			}
 
 			try
 			{
