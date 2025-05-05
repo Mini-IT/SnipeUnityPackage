@@ -11,10 +11,10 @@ namespace MiniIT.Snipe
 		protected const int RETRY_DELAY_MS = 1000;
 
 		protected static readonly SnipeObject EMPTY_DATA = new SnipeObject();
-		
+
 		public string MessageType { get; private set; }
 		public SnipeObject Data { get; set; }
-		
+
 		public delegate void ResponseHandler(string error_code, SnipeObject data);
 
 		protected SnipeCommunicator _communicator;
@@ -22,7 +22,7 @@ namespace MiniIT.Snipe
 
 		protected int _requestId { get; private set; }
 		private int _retriesLeft = RETRIES_COUNT;
-		
+
 		private bool _sent = false;
 		protected bool _waitingForResponse = false;
 
@@ -33,7 +33,7 @@ namespace MiniIT.Snipe
 			_communicator = communicator;
 			MessageType = messageType;
 			Data = data;
-			
+
 			_communicator?.Requests.Add(this);
 		}
 
@@ -47,15 +47,15 @@ namespace MiniIT.Snipe
 		{
 			if (_sent)
 				return;
-				
+
 			_callback = callback;
 			SendRequest();
 		}
-		
+
 		private void SendRequest()
 		{
 			_sent = true;
-			
+
 			if (!CheckCommunicatorValid())
 			{
 				InvokeCallback(SnipeErrorCodes.NOT_READY, EMPTY_DATA);
@@ -72,7 +72,7 @@ namespace MiniIT.Snipe
 				InvokeCallback(SnipeErrorCodes.INVALIND_DATA, EMPTY_DATA);
 				return;
 			}
-			
+
 			if (CheckCommunicatorReady())
 			{
 				OnCommunicatorReady();
@@ -82,7 +82,7 @@ namespace MiniIT.Snipe
 				OnConnectionClosed(true);
 			}
 		}
-		
+
 		protected virtual bool CheckCommunicatorValid()
 		{
 			return _communicator != null;
@@ -97,31 +97,31 @@ namespace MiniIT.Snipe
 		{
 			_communicator.ConnectionFailed -= OnConnectionClosed;
 			_communicator.ConnectionFailed += OnConnectionClosed;
-			
+
 			if (_callback != null)
 			{
 				_waitingForResponse = true;
 				_communicator.MessageReceived -= OnMessageReceived;
 				_communicator.MessageReceived += OnMessageReceived;
 			}
-			
+
 			DoSendRequest();
 		}
-		
+
 		protected void DoSendRequest()
 		{
 			_requestId = 0;
-			
+
 			bool check_duplication = false;
-			
+
 			foreach (SnipeRequestDescriptor descriptor in _communicator.MergeableRequestTypes)
 			{
 				string mergeble_type = descriptor?.MessageType;
-					
+
 				if (mergeble_type != null && string.Equals(mergeble_type, MessageType, StringComparison.Ordinal))
 				{
 					bool matched = true;
-						
+
 					if (descriptor.Data != null && Data != null)
 					{
 						foreach (var pair in descriptor.Data)
@@ -133,7 +133,7 @@ namespace MiniIT.Snipe
 							}
 						}
 					}
-						
+
 					if (matched)
 					{
 						check_duplication = true;
@@ -141,48 +141,49 @@ namespace MiniIT.Snipe
 					}
 				}
 			}
-			
+
 			if (check_duplication)
 			{
 				for (int i = 0; i < _communicator.Requests.Count; i++)
 				{
 					var request = _communicator.Requests[i];
-					
+
 					if (request == null)
 						continue;
-					
+
 					if (object.ReferenceEquals(request, this))
 						break;
-					
-					if (request.Equals(this))
+
+					if (string.Equals(request.MessageType, this.MessageType, StringComparison.Ordinal) &&
+					    CheckDataIsFullyContained(request.Data, this.Data))
 					{
 						_requestId = request._requestId;
 						break;
 					}
 				}
 			}
-			
+
 			if (_requestId != 0)
 			{
 				GetLogger().LogTrace($"DoSendRequest - Same request found: {MessageType}, id = {_requestId}, mWaitingForResponse = {_waitingForResponse}");
-				
+
 				if (!_waitingForResponse)
 				{
 					Dispose();
 				}
 				return;
 			}
-			
+
 			if (CheckCommunicatorReady())
 			{
 				_requestId = _communicator.Client.SendRequest(MessageType, Data);
 			}
-			
+
 			if (_requestId == 0)
 			{
 				InvokeCallback(SnipeErrorCodes.NOT_READY, EMPTY_DATA);
 			}
-			
+
 			if (!_waitingForResponse)
 			{
 				// keep this instance for a while to prevent duplicate requests
@@ -222,7 +223,7 @@ namespace MiniIT.Snipe
 		{
 			if (_communicator == null)
 				return;
-			
+
 			if ((request_id == 0 || request_id == _requestId) && message_type == MessageType)
 			{
 				if (error_code == SnipeErrorCodes.SERVICE_OFFLINE && _retriesLeft > 0)
@@ -235,13 +236,13 @@ namespace MiniIT.Snipe
 				InvokeCallback(error_code, response_data);
 			}
 		}
-		
+
 		protected void InvokeCallback(string error_code, SnipeObject response_data)
 		{
 			var callback = _callback;
-			
+
 			Dispose();
-			
+
 			if (callback != null)
 			{
 				try
@@ -254,17 +255,17 @@ namespace MiniIT.Snipe
 				}
 			}
 		}
-		
+
 		private async void DelayedRetryRequest()
 		{
 			await AlterTask.Delay(RETRY_DELAY_MS);
-			
+
 			if (_communicator != null)
 			{
 				Request(_callback);
 			}
 		}
-		
+
 		private async void DelayedDispose()
 		{
 			await AlterTask.Yield();
@@ -279,13 +280,13 @@ namespace MiniIT.Snipe
 				{
 					_communicator.Requests.Remove(this);
 				}
-				
+
 				_communicator.ConnectionSucceeded -= OnCommunicatorReady;
 				_communicator.ConnectionFailed -= OnConnectionClosed;
 				_communicator.MessageReceived -= OnMessageReceived;
 				_communicator = null;
 			}
-			
+
 			_callback = null;
 			_waitingForResponse = false;
 		}
@@ -307,6 +308,18 @@ namespace MiniIT.Snipe
 		{
 			_logger ??= SnipeServices.LogService.GetLogger(nameof(AbstractCommunicatorRequest));
 			return _logger;
+		}
+
+		private static bool CheckDataIsFullyContained(IDictionary<string, object> container, IDictionary<string, object> data)
+		{
+			foreach (var item in data)
+			{
+				if (!container.TryGetValue(item.Key, out object value) || value != item.Value)
+				{
+					return false;
+				}
+			}
+			return true;
 		}
 	}
 }
