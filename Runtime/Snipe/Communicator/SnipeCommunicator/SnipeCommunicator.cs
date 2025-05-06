@@ -25,7 +25,7 @@ namespace MiniIT.Snipe
 		private List<AbstractCommunicatorRequest> _requests;
 		public List<AbstractCommunicatorRequest> Requests => _requests ??= new List<AbstractCommunicatorRequest>();
 
-		public readonly HashSet<SnipeRequestDescriptor> MergeableRequestTypes = new HashSet<SnipeRequestDescriptor>();
+		public HashSet<SnipeRequestDescriptor> MergeableRequestTypes { get; } = new HashSet<SnipeRequestDescriptor>();
 
 		public bool Connected => _client != null && _client.Connected;
 		public bool LoggedIn => _client != null && _client.LoggedIn;

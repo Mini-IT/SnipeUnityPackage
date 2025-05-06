@@ -162,7 +162,8 @@ namespace MiniIT.Snipe
 					if (object.ReferenceEquals(request, this))
 						break;
 
-					if (request.Equals(this))
+					if (string.Equals(request.MessageType, this.MessageType, StringComparison.Ordinal) &&
+					    CheckDataIsFullyContained(request.Data, this.Data))
 					{
 						_requestId = request._requestId;
 						break;
@@ -319,6 +320,18 @@ namespace MiniIT.Snipe
 		{
 			_logger ??= SnipeServices.LogService.GetLogger(nameof(AbstractCommunicatorRequest));
 			return _logger;
+		}
+
+		private static bool CheckDataIsFullyContained(IDictionary<string, object> container, IDictionary<string, object> data)
+		{
+			foreach (var item in data)
+			{
+				if (!container.TryGetValue(item.Key, out object value) || value != item.Value)
+				{
+					return false;
+				}
+			}
+			return true;
 		}
 	}
 }
