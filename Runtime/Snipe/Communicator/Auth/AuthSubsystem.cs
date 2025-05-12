@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -179,7 +180,9 @@ namespace MiniIT.Snipe
 			{
 				case SnipeErrorCodes.OK:
 				case SnipeErrorCodes.ALREADY_LOGGED_IN:
-					OnLoginSucceeded(data);
+					int uid = data.SafeGetValue<int>("id");
+					string username = data.SafeGetString("name");
+					OnLoginSucceeded(uid, username);
 					break;
 
 				case SnipeErrorCodes.NO_SUCH_USER:
@@ -217,11 +220,11 @@ namespace MiniIT.Snipe
 			_communicator.Disconnect();
 		}
 
-		private void OnLoginSucceeded(SnipeObject data)
+		private void OnLoginSucceeded(int userid, string username)
 		{
-			UserID = data.SafeGetValue<int>("id");
+			UserID = userid;
 
-			if (data.TryGetValue("name", out string username))
+			if (!string.IsNullOrEmpty(username))
 			{
 				UserName = username;
 			}
@@ -333,7 +336,10 @@ namespace MiniIT.Snipe
 					{
 						//ClearAllBindings();
 
-						SetAuthData(response.SafeGetString("uid"), response.SafeGetString("password"));
+						int uid = data.SafeGetValue<int>("uid");
+						string username = data.SafeGetString("name");
+
+						SetAuthData(uid.ToString(CultureInfo.InvariantCulture), response.SafeGetString("password"));
 
 						JustRegistered = response.SafeGetValue<bool>("registrationDone", false);
 
@@ -361,7 +367,7 @@ namespace MiniIT.Snipe
 							}
 						}
 
-						OnLoginSucceeded(data);
+						OnLoginSucceeded(uid, username);
 					}
 				})
 			);
