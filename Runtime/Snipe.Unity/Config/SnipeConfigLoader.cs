@@ -49,7 +49,7 @@ namespace MiniIT.Snipe
 
 				if (!response.IsSuccess)
 				{
-					_logger.LogTrace($"loader failed. {response.Error}");
+					_logger.LogTrace($"loader failed. Status Code: {response.ResponseCode}; Error Message: '{response.Error}'");
 					return null;
 				}
 
