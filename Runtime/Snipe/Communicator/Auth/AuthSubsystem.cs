@@ -94,6 +94,7 @@ namespace MiniIT.Snipe
 		protected readonly List<AuthBinding> _bindings;
 
 		protected int _loginAttempt;
+		private bool _registering = false;
 
 		protected readonly SnipeConfig _config;
 		protected readonly SnipeAnalyticsTracker _analytics;
@@ -180,9 +181,7 @@ namespace MiniIT.Snipe
 			{
 				case SnipeErrorCodes.OK:
 				case SnipeErrorCodes.ALREADY_LOGGED_IN:
-					int uid = data.SafeGetValue<int>("id");
-					string username = data.SafeGetString("name");
-					OnLoginSucceeded(uid, username);
+					OnLoginSucceeded(data);
 					break;
 
 				case SnipeErrorCodes.NO_SUCH_USER:
@@ -220,11 +219,11 @@ namespace MiniIT.Snipe
 			_communicator.Disconnect();
 		}
 
-		private void OnLoginSucceeded(int userid, string username)
+		private void OnLoginSucceeded(SnipeObject data)
 		{
-			UserID = userid;
+			UserID = data.SafeGetValue<int>("id");
 
-			if (!string.IsNullOrEmpty(username))
+			if (data.TryGetValue("name", out string username))
 			{
 				UserName = username;
 			}
@@ -234,8 +233,11 @@ namespace MiniIT.Snipe
 
 			_communicator.MessageReceived -= OnMessageReceived;
 
-			StartBindings();
-			RaiseLoginSucceededEvent();
+			if (!_registering)
+			{
+				StartBindings();
+				RaiseLoginSucceededEvent();
+			}
 		}
 
 		protected bool LoginWithInternalAuthData()
@@ -329,17 +331,18 @@ namespace MiniIT.Snipe
 				data["flagCanPack"] = true;
 			}
 
+			_registering = true;
+
 			RunAuthRequest(() => new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN)
-				.Request(data, (error_code, response) =>
+				.Request(data, (errorCode, response) =>
 				{
-					if (error_code == SnipeErrorCodes.OK)
+					_registering = false;
+
+					if (errorCode == SnipeErrorCodes.OK)
 					{
-						//ClearAllBindings();
-
-						int uid = data.SafeGetValue<int>("uid");
-						string username = data.SafeGetString("name");
-
-						SetAuthData(uid.ToString(CultureInfo.InvariantCulture), response.SafeGetString("password"));
+						string authUid = response.SafeGetString("uid");
+						string authPassword = response.SafeGetString("password");
+						SetAuthData(authUid, authPassword);
 
 						JustRegistered = response.SafeGetValue<bool>("registrationDone", false);
 
@@ -367,7 +370,7 @@ namespace MiniIT.Snipe
 							}
 						}
 
-						OnLoginSucceeded(uid, username);
+						OnLoginSucceeded(response);
 					}
 				})
 			);
