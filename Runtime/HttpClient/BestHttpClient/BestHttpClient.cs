@@ -52,6 +52,7 @@ namespace MiniIT.Http
 		{
 			var request = HTTPRequest.CreateGet(uri);
 			request.TimeoutSettings.ConnectTimeout = _defaultConnectTimeout;
+			request.DownloadSettings.DisableCache = true;
 			await request.Send();
 			return new BestHttpClientResponse(request.Response);
 		}
@@ -60,6 +61,7 @@ namespace MiniIT.Http
 		{
 			var request = HTTPRequest.CreateGet(uri);
 			request.TimeoutSettings.Timeout = timeout;
+			request.DownloadSettings.DisableCache = true;
 			await request.Send();
 			return new BestHttpClientResponse(request.Response);
 		}
@@ -78,6 +80,7 @@ namespace MiniIT.Http
 			request.UploadSettings.UploadStream = new MemoryStream(data);
 
 			request.TimeoutSettings.ConnectTimeout = _defaultConnectTimeout;
+			request.DownloadSettings.DisableCache = true;
 			await request.Send();
 			return new BestHttpClientResponse(request.Response);
 		}
@@ -95,6 +98,7 @@ namespace MiniIT.Http
 				.AddField(name, content);
 
 			request.TimeoutSettings.ConnectTimeout = _defaultConnectTimeout;
+			request.DownloadSettings.DisableCache = true;
 			await request.Send();
 			return new BestHttpClientResponse(request.Response);
 		}
