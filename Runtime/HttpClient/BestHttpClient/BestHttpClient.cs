@@ -21,7 +21,7 @@ namespace MiniIT.Http
 	{
 		private static bool s_tlsInitialized = false;
 
-		private readonly TimeSpan _defaultConnectTimeout = TimeSpan.FromSeconds(4);
+		private readonly TimeSpan _defaultConnectTimeout = TimeSpan.FromSeconds(3);
 
 		private string _authToken;
 
@@ -60,6 +60,7 @@ namespace MiniIT.Http
 		public async UniTask<IHttpClientResponse> Get(Uri uri, TimeSpan timeout)
 		{
 			var request = HTTPRequest.CreateGet(uri);
+			request.TimeoutSettings.ConnectTimeout = _defaultConnectTimeout;
 			request.TimeoutSettings.Timeout = timeout;
 			request.DownloadSettings.DisableCache = true;
 			await request.Send();
