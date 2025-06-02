@@ -19,6 +19,8 @@ namespace MiniIT.Http
 {
 	public class BestHttpClient : IHttpClient
 	{
+		private static bool s_tlsInitialized = false;
+
 		private readonly TimeSpan _defaultConnectTimeout = TimeSpan.FromSeconds(4);
 
 		private string _authToken;
@@ -26,6 +28,12 @@ namespace MiniIT.Http
 #if TLS_SUPPORTED
 		public BestHttpClient()
 		{
+			if (s_tlsInitialized)
+			{
+				return;
+			}
+
+			s_tlsInitialized = true;
 			TLSSecurity.Setup();
 		}
 #endif

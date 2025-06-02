@@ -227,11 +227,6 @@ namespace MiniIT.Snipe
 				UserName = username;
 			}
 
-			if (!_registering)
-			{
-				StartBindings();
-			}
-
 			AutoLogin = true;
 			_loginAttempt = 0;
 
@@ -239,6 +234,7 @@ namespace MiniIT.Snipe
 
 			if (!_registering)
 			{
+				StartBindings();
 				RaiseLoginSucceededEvent();
 			}
 		}
@@ -337,15 +333,15 @@ namespace MiniIT.Snipe
 			_registering = true;
 
 			RunAuthRequest(() => new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN)
-				.Request(data, (error_code, response) =>
+				.Request(data, (errorCode, response) =>
 				{
 					_registering = false;
 
-					if (error_code == SnipeErrorCodes.OK)
+					if (errorCode == SnipeErrorCodes.OK)
 					{
-						//ClearAllBindings();
-						
-						SetAuthData(response.SafeGetString("uid"), response.SafeGetString("password"));
+						string authUid = response.SafeGetString("uid");
+						string authPassword = response.SafeGetString("password");
+						SetAuthData(authUid, authPassword);
 
 						JustRegistered = response.SafeGetValue<bool>("registrationDone", false);
 
@@ -373,9 +369,7 @@ namespace MiniIT.Snipe
 							}
 						}
 
-						StartBindings();
-
-						RaiseLoginSucceededEvent();
+						OnLoginSucceeded(response);
 					}
 				})
 			);
@@ -401,6 +395,8 @@ namespace MiniIT.Snipe
 
 		private void StartBindings()
 		{
+			_logger.LogInformation("StartBindings");
+
 			foreach (var binding in _bindings)
 			{
 				binding?.Start();
