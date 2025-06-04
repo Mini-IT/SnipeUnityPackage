@@ -34,6 +34,10 @@ namespace MiniIT.Http
 			}
 
 			s_tlsInitialized = true;
+
+			// Disable OSCP cache for performance
+			SecurityOptions.OCSP.OCSPCache.DatabaseOptions.DiskManager.MaxCacheSizeInBytes = 0;
+
 			TLSSecurity.Setup();
 		}
 #endif
