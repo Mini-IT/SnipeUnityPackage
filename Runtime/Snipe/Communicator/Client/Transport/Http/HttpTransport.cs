@@ -16,7 +16,7 @@ namespace MiniIT.Snipe
 		private const string API_PATH = "api/v1/request/";
 
 		private static readonly SnipeObject s_pingMessage = new SnipeObject() { ["t"] = "server.ping", ["id"] = -1 };
-		private static readonly long s_sessionDurationTicks = TimeSpan.FromSeconds(301).Ticks;
+		private static readonly long s_sessionDurationTicks = 301 * Stopwatch.Frequency;
 
 		public override bool Started => _started;
 		public override bool Connected => _connected;
