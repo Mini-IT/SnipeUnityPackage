@@ -192,7 +192,7 @@ namespace MiniIT.MessagePack
 			}
 			else
 			{
-				bufferSpan[_position] = (byte)0xDF;
+				bufferSpan[_position++] = (byte)0xDF;
 				CopyBytesUnsafe(bufferSpan, _bigEndianConverter.GetBytes((UInt32)len), 4);
 			}
 
