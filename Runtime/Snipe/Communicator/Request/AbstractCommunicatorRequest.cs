@@ -69,7 +69,7 @@ namespace MiniIT.Snipe
 
 			if (string.IsNullOrEmpty(MessageType))
 			{
-				InvokeCallback(SnipeErrorCodes.INVALIND_DATA, EMPTY_DATA);
+				InvokeCallback(SnipeErrorCodes.INVALID_DATA, EMPTY_DATA);
 				return;
 			}
 
