@@ -173,6 +173,32 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(serizlized, serizlizedNew);
 		}
 
+		[Test]
+		public void TestLargeMapSerialization()
+		{
+			const int MAP_SIZE = 70000;
+			var map = new Dictionary<string, object>(MAP_SIZE);
+
+			for (int i = 0; i < MAP_SIZE; i++)
+			{
+				map[$"key{i}"] = i;
+			}
+
+			var serializer = new MessagePackSerializer(MAP_SIZE * 10);
+			var serialized = serializer.Serialize(map).ToArray();
+
+			byte[] expectedHeader = new byte[]
+			{
+				0xDF,
+				(byte)((MAP_SIZE >> 24) & 0xFF),
+				(byte)((MAP_SIZE >> 16) & 0xFF),
+				(byte)((MAP_SIZE >> 8) & 0xFF),
+				(byte)(MAP_SIZE & 0xFF)
+			};
+
+			CollectionAssert.AreEqual(expectedHeader, serialized.AsSpan(0, 5).ToArray());
+		}
+
 		class CustomUnsupportedData
 		{
 			public string Value { get; }
