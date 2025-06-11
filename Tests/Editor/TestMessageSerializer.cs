@@ -199,6 +199,27 @@ namespace MiniIT.Snipe.Tests.Editor
 			CollectionAssert.AreEqual(expectedHeader, serialized.AsSpan(0, 5).ToArray());
 		}
 
+		[Test]
+        public void Serialize_ShouldUseInt32FormatForInt32MinValue()
+        {
+            var map = new Dictionary<string, object>
+            {
+                ["v"] = Int32.MinValue,
+            };
+
+            var serializer = new MessagePackSerializer(64);
+            Span<byte> bytes = serializer.Serialize(map);
+
+            byte[] expected = new byte[]
+            {
+                0x81, // map of 1 element
+                0xA1, (byte)'v',
+                0xD2, 0x80, 0x00, 0x00, 0x00
+            };
+
+            CollectionAssert.AreEqual(expected, bytes.ToArray());
+        }
+
 		class CustomUnsupportedData
 		{
 			public string Value { get; }

@@ -433,12 +433,12 @@ namespace MiniIT.MessagePack
 			}
 			else
 			{
-				if (val <= Int32.MinValue)  // int 64
+				if (val < Int32.MinValue)  // int 64
 				{
 					bufferSpan[_position++] = (byte)0xD3;
 					CopyBytesUnsafe(bufferSpan, _bigEndianConverter.GetBytes(val), 8);
 				}
-				else if (val <= Int16.MinValue)  // int 32
+				else if (val < Int16.MinValue)  // int 32
 				{
 					bufferSpan[_position++] = (byte)0xD2;
 					CopyBytesUnsafe(bufferSpan, _bigEndianConverter.GetBytes((Int32)val), 4);
