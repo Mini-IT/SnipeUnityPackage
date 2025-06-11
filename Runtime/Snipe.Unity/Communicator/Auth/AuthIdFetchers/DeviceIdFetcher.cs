@@ -54,7 +54,7 @@ namespace MiniIT.Snipe.Unity
 			StringBuilder sb = new StringBuilder();
 			foreach (byte b in GetHash(inputString))
 			{
-				sb.Append(b.ToString("X2").ToLower());
+				sb.Append(b.ToString("X2").ToLowerInvariant());
 			}
 
 			return sb.ToString();

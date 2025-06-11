@@ -303,7 +303,7 @@ namespace MiniIT.Snipe
 			foreach (string filePath in files)
 			{
 				if (TryExtractNameAndVersion(filePath, out string tableName, out string version, extention) &&
-					_builtInTablesListService.TryGetTableVersion(tableName.ToLower(), out long builtInVersion))
+					_builtInTablesListService.TryGetTableVersion(tableName.ToLowerInvariant(), out long builtInVersion))
 				{
 					long cachedVersion = Convert.ToInt64(version);
 					if (cachedVersion < builtInVersion)

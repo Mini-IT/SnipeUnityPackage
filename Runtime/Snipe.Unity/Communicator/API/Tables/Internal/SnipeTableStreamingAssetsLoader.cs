@@ -65,7 +65,7 @@ namespace MiniIT.Snipe.Tables
 		{
 			// NOTE: There is a bug - only lowercase works
 			// (https://issuetracker.unity3d.com/issues/android-loading-assets-from-assetbundles-takes-significantly-more-time-when-the-project-is-built-as-an-aab)
-			tableName = tableName.ToLower();
+			tableName = tableName.ToLowerInvariant();
 
 			if (version <= 0)
 			{
