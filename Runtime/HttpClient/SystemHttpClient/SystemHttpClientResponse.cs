@@ -15,7 +15,7 @@ namespace MiniIT.Http
 		{
 			_response = response;
 			ResponseCode = (long)response.StatusCode;
-			Error = $"{(int)response.StatusCode} {response.StatusCode}";
+			Error = response.IsSuccessStatusCode ? null : $"{(int)response.StatusCode} {response.StatusCode}";
 		}
 
 		public async UniTask<string> GetStringContentAsync()
