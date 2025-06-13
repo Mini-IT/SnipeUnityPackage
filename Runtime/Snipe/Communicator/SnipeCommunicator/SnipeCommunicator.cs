@@ -184,6 +184,8 @@ namespace MiniIT.Snipe
 				AnalyticsTrackConnectionFailed(transportInfo);
 				OnConnectionFailed();
 			});
+
+			DisposeRequests();
 		}
 
 		private void OnClientUdpConnectionFailed()
@@ -219,7 +221,6 @@ namespace MiniIT.Snipe
 			else if (ConnectionFailed != null)
 			{
 				RaiseEvent(ConnectionFailed, false);
-				DisposeRequests();
 			}
 		}
 
