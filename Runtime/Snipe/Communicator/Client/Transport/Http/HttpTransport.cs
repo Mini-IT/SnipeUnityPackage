@@ -358,7 +358,7 @@ namespace MiniIT.Snipe
 				semaphoreOccupied = true;
 
 				string url = _config.GetHttpAddress();
-				var uri = new Uri(new Uri(url), "test_connect.html");
+				var uri = new Uri(new Uri(url), "test_connect.html?t=" + DateTimeOffset.UtcNow.ToUnixTimeSeconds());
 
 				_logger.LogTrace($"<<< request ({uri})");
 
