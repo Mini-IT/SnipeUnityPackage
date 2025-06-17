@@ -369,6 +369,7 @@ namespace MiniIT.Snipe
 			}
 
 			_sendMessages = null;
+			_batchMessages = null;
 		}
 
 		private async void SendTask(CancellationToken? cancellation)
