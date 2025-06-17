@@ -306,7 +306,11 @@ namespace MiniIT.Snipe
 		{
 			_logger.LogTrace("StartNetworkLoop");
 
-			_networkLoopCancellation?.Cancel();
+			if (_networkLoopCancellation != null)
+			{
+				_networkLoopCancellation.Cancel();
+				_networkLoopCancellation.Dispose();
+			}
 
 			_networkLoopCancellation = new CancellationTokenSource();
 			Task.Run(() => NetworkLoop(_networkLoopCancellation.Token));
@@ -320,6 +324,7 @@ namespace MiniIT.Snipe
 			if (_networkLoopCancellation != null)
 			{
 				_networkLoopCancellation.Cancel();
+				_networkLoopCancellation.Dispose();
 				_networkLoopCancellation = null;
 			}
 		}

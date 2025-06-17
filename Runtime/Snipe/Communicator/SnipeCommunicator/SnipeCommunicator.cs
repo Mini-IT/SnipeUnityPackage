@@ -100,6 +100,7 @@ namespace MiniIT.Snipe
 			if (_delayedInitCancellation != null)
 			{
 				_delayedInitCancellation.Cancel();
+				_delayedInitCancellation.Dispose();
 				_delayedInitCancellation = null;
 			}
 
@@ -145,6 +146,7 @@ namespace MiniIT.Snipe
 			if (_delayedInitCancellation != null)
 			{
 				_delayedInitCancellation.Cancel();
+				_delayedInitCancellation.Dispose();
 				_delayedInitCancellation = null;
 			}
 

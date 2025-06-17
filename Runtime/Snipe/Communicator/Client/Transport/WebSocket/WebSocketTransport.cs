@@ -341,7 +341,12 @@ namespace MiniIT.Snipe
 
 		private void StartSendTask()
 		{
-			_sendTaskCancellation?.Cancel();
+			if (_sendTaskCancellation != null)
+			{
+				_sendTaskCancellation.Cancel();
+				_sendTaskCancellation.Dispose();
+			}
+
 
 #if NET5_0_OR_GREATER
 			if (_sendMessages == null)
@@ -412,7 +417,11 @@ namespace MiniIT.Snipe
 
 		private void StartHeartbeat()
 		{
-			_heartbeatCancellation?.Cancel();
+			if (_heartbeatCancellation != null)
+			{
+				_heartbeatCancellation.Cancel();
+				_heartbeatCancellation.Dispose();
+			}
 
 			// Custom heartbeating is needed only for WebSocketSharp
 			if (_webSocket == null || _webSocket.AutoPing)
@@ -430,6 +439,7 @@ namespace MiniIT.Snipe
 			if (_heartbeatCancellation != null)
 			{
 				_heartbeatCancellation.Cancel();
+				_heartbeatCancellation.Dispose();
 				_heartbeatCancellation = null;
 			}
 		}
@@ -516,7 +526,11 @@ namespace MiniIT.Snipe
 
 			// _logger.LogTrace($"StartCheckConnection");
 
-			_checkConnectionCancellation?.Cancel();
+			if (_checkConnectionCancellation != null)
+			{
+				_checkConnectionCancellation.Cancel();
+				_checkConnectionCancellation.Dispose();
+			}
 
 			_checkConnectionCancellation = new CancellationTokenSource();
 			AlterTask.RunAndForget(() => CheckConnectionTask(_checkConnectionCancellation.Token));
@@ -527,6 +541,7 @@ namespace MiniIT.Snipe
 			if (_checkConnectionCancellation != null)
 			{
 				_checkConnectionCancellation.Cancel();
+				_checkConnectionCancellation.Dispose();
 				_checkConnectionCancellation = null;
 
 				// _logger.LogTrace($"StopCheckConnection");

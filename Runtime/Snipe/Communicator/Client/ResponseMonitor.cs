@@ -104,6 +104,7 @@ namespace MiniIT.Snipe
 			if (_cancellation != null)
 			{
 				_cancellation.Cancel();
+				_cancellation.Dispose();
 				_cancellation = null;
 			}
 		}
