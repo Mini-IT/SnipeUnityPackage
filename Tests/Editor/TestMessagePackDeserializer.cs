@@ -81,6 +81,20 @@ namespace MiniIT.Snipe.Tests.Editor
         }
 
         [Test]
+        public void Parse_ShouldHandleNegativeInt8()
+        {
+            // Arrange
+            byte[] negativeIntBytes = new byte[] { 0xd0, 0xff }; // MsgPack encoded -1 (int8)
+
+            // Act
+            var result = MessagePackDeserializer.Parse(negativeIntBytes);
+
+            // Assert
+            Assert.AreEqual(-1, result);
+        }
+
+
+        [Test]
         public void Parse_ComplexMapShouldDecodeCorrectly()
         {
 	        // Arrange

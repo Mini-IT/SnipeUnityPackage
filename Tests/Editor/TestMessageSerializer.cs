@@ -220,6 +220,69 @@ namespace MiniIT.Snipe.Tests.Editor
             CollectionAssert.AreEqual(expected, bytes.ToArray());
         }
 
+		 [Test]
+        public void Serialize_ShouldUseFixIntFormatForMinus32()
+        {
+            var map = new Dictionary<string, object>
+            {
+                ["v"] = -32,
+            };
+
+            var serializer = new MessagePackSerializer(64);
+            Span<byte> bytes = serializer.Serialize(map);
+
+            byte[] expected = new byte[]
+            {
+                0x81,
+                0xA1, (byte)'v',
+                0xE0
+            };
+
+            CollectionAssert.AreEqual(expected, bytes.ToArray());
+        }
+
+        [Test]
+        public void Serialize_ShouldUseInt8FormatForMinus128()
+        {
+            var map = new Dictionary<string, object>
+            {
+                ["v"] = -128,
+            };
+
+            var serializer = new MessagePackSerializer(64);
+            Span<byte> bytes = serializer.Serialize(map);
+
+            byte[] expected = new byte[]
+            {
+                0x81,
+                0xA1, (byte)'v',
+                0xD0, 0x80
+            };
+
+            CollectionAssert.AreEqual(expected, bytes.ToArray());
+        }
+
+        [Test]
+        public void Serialize_ShouldUseInt16FormatForMinus129()
+        {
+            var map = new Dictionary<string, object>
+            {
+                ["v"] = -129,
+            };
+
+            var serializer = new MessagePackSerializer(64);
+            Span<byte> bytes = serializer.Serialize(map);
+
+            byte[] expected = new byte[]
+            {
+                0x81,
+                0xA1, (byte)'v',
+                0xD1, 0xFF, 0x7F
+            };
+
+            CollectionAssert.AreEqual(expected, bytes.ToArray());
+        }
+
 		class CustomUnsupportedData
 		{
 			public string Value { get; }
