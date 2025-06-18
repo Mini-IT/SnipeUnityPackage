@@ -317,7 +317,7 @@ namespace MiniIT.Snipe
 			//Task.Run(() => UdpConnectionTimeout(_networkLoopCancellation.Token));
 		}
 
-		public void StopNetworkLoop()
+		private void StopNetworkLoop()
 		{
 			_logger.LogTrace("StopNetworkLoop");
 
