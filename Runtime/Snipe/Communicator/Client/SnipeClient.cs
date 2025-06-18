@@ -20,6 +20,10 @@ namespace MiniIT.Snipe
 		public event Action<string> LoginFailed;
 		public event Action UdpConnectionFailed;
 
+		// KLUDGE: Needed for clearing batched requests on disconnect during login
+		[Obsolete("Will be removed in v.8")]
+		public event Action InternalConnectionClosed;
+
 		private Transport _transport;
 
 		private bool _loggedIn = false;
@@ -264,6 +268,13 @@ namespace MiniIT.Snipe
 			{
 				_transport.Dispose();
 				_transport = null;
+			}
+
+			// KLUDGE: Needed for clearing batched requests on disconnect during login
+			// To be removed in v.8
+			if (InternalConnectionClosed != null)
+			{
+				_mainThreadRunner.RunInMainThread(() => InternalConnectionClosed?.Invoke());
 			}
 
 			if (raiseEvent)

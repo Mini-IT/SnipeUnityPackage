@@ -115,6 +115,7 @@ namespace MiniIT.Snipe
 				Client = new SnipeClient(_config);
 				Client.ConnectionOpened += OnClientConnectionOpened;
 				Client.ConnectionClosed += OnClientConnectionClosed;
+				Client.InternalConnectionClosed += OnInternalClientConnectionClosed;
 				Client.UdpConnectionFailed += OnClientUdpConnectionFailed;
 				Client.MessageReceived += OnMessageReceived;
 			}
@@ -181,11 +182,20 @@ namespace MiniIT.Snipe
 
 			var transportInfo = Client?.GetTransportInfo() ?? default;
 
+			// TODO: check
+			// This event is already called by the client in the main thread
 			_mainThreadRunner.RunInMainThread(() =>
 			{
 				AnalyticsTrackConnectionFailed(transportInfo);
 				OnConnectionFailed();
 			});
+
+			DisposeRequests();
+		}
+
+		private void OnInternalClientConnectionClosed()
+		{
+			_logger.LogTrace($"({InstanceId}) [{Client?.ConnectionId}] Client internal event - connection closed");
 
 			DisposeRequests();
 		}
@@ -342,6 +352,7 @@ namespace MiniIT.Snipe
 			{
 				Client.ConnectionOpened -= OnClientConnectionOpened;
 				Client.ConnectionClosed -= OnClientConnectionClosed;
+				Client.InternalConnectionClosed -= OnInternalClientConnectionClosed;
 				Client.UdpConnectionFailed -= OnClientUdpConnectionFailed;
 				Client.MessageReceived -= OnMessageReceived;
 			}
