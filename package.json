@@ -1,6 +1,6 @@
 {
   "name": "com.miniit.snipe.client",
-  "version": "7.2.3",
+  "version": "7.2.4",
   "dependencies": {
     "com.miniit.fastjson": "1.0.0",
     "com.miniit.logger": "1.1.0",
