@@ -358,7 +358,8 @@ namespace MiniIT.Snipe
 
 			_serverReactionStartTimestamp = Stopwatch.GetTimestamp();
 
-			_responseMonitor.Add(_requestId, message.SafeGetString("t"));
+			int id = message.SafeGetValue<int>("id");
+			_responseMonitor.Add(id, message.SafeGetString("t"));
 		}
 
 		private void DoSendBatch(List<SnipeObject> messages)
