@@ -45,7 +45,7 @@ namespace MiniIT.Snipe
 			
 			_connectionWaitingCancellation = new CancellationTokenSource();
 			await WaitForConnection(_connectionWaitingCancellation.Token);
-			_connectionWaitingCancellation = null;
+			DisposeConnectionWaitingCancellation(false);
 		}
 		
 		private async Task WaitForConnection(CancellationToken cancellation)
@@ -69,11 +69,7 @@ namespace MiniIT.Snipe
 
 		public override void Disconnect()
 		{
-			if (_connectionWaitingCancellation != null)
-			{
-				_connectionWaitingCancellation.Cancel();
-				_connectionWaitingCancellation = null;
-			}
+			DisposeConnectionWaitingCancellation(true);
 
 			lock (_lock)
 			{
@@ -88,9 +84,22 @@ namespace MiniIT.Snipe
 			}
 		}
 
+		private void DisposeConnectionWaitingCancellation(bool cancel)
+		{
+			if (_connectionWaitingCancellation != null)
+			{
+				if (cancel)
+				{
+					_connectionWaitingCancellation.Cancel();
+				}
+				_connectionWaitingCancellation.Dispose();
+				_connectionWaitingCancellation = null;
+			}
+		}
+
 		protected void OnWebSocketConnected(object sender, EventArgs e)
 		{
-			_connectionWaitingCancellation = null;
+			DisposeConnectionWaitingCancellation(false);
 
 			OnConnectionOpened?.Invoke();
 		}

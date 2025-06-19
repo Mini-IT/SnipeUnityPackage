@@ -103,6 +103,7 @@ namespace MiniIT.Snipe
 			if (_cancellation != null)
 			{
 				_cancellation.Cancel();
+				_cancellation.Dispose();
 				_cancellation = null;
 			}
 
@@ -290,6 +291,11 @@ namespace MiniIT.Snipe
 		{
 			base.Dispose();
 			_webSocket?.Dispose();
+			
+			if (_cancellation != null)
+			{
+				_cancellation.Dispose();
+			}
 		}
 	}
 

@@ -115,7 +115,7 @@ namespace MiniIT.Snipe.Editor
 				
 				if (projectDefines.Remove(define_symbol))
 				{
-					Debug.Log("[Snipe DependenciesDetector] Remove define symbol: {define_symbol}");
+					Debug.Log($"[Snipe DependenciesDetector] Remove define symbol: {define_symbol}");
 				}
 			}
 		}

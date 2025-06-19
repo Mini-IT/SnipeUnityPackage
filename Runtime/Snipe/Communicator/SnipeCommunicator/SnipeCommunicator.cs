@@ -100,6 +100,7 @@ namespace MiniIT.Snipe
 			if (_delayedInitCancellation != null)
 			{
 				_delayedInitCancellation.Cancel();
+				_delayedInitCancellation.Dispose();
 				_delayedInitCancellation = null;
 			}
 
@@ -114,6 +115,7 @@ namespace MiniIT.Snipe
 				Client = new SnipeClient(_config);
 				Client.ConnectionOpened += OnClientConnectionOpened;
 				Client.ConnectionClosed += OnClientConnectionClosed;
+				Client.InternalConnectionClosed += OnInternalClientConnectionClosed;
 				Client.UdpConnectionFailed += OnClientUdpConnectionFailed;
 				Client.MessageReceived += OnMessageReceived;
 			}
@@ -145,6 +147,7 @@ namespace MiniIT.Snipe
 			if (_delayedInitCancellation != null)
 			{
 				_delayedInitCancellation.Cancel();
+				_delayedInitCancellation.Dispose();
 				_delayedInitCancellation = null;
 			}
 
@@ -179,11 +182,22 @@ namespace MiniIT.Snipe
 
 			var transportInfo = Client?.GetTransportInfo() ?? default;
 
+			// TODO: check
+			// This event is already called by the client in the main thread
 			_mainThreadRunner.RunInMainThread(() =>
 			{
 				AnalyticsTrackConnectionFailed(transportInfo);
 				OnConnectionFailed();
 			});
+
+			DisposeRequests();
+		}
+
+		private void OnInternalClientConnectionClosed()
+		{
+			_logger.LogTrace($"({InstanceId}) [{Client?.ConnectionId}] Client internal event - connection closed");
+
+			DisposeRequests();
 		}
 
 		private void OnClientUdpConnectionFailed()
@@ -219,7 +233,6 @@ namespace MiniIT.Snipe
 			else if (ConnectionFailed != null)
 			{
 				RaiseEvent(ConnectionFailed, false);
-				DisposeRequests();
 			}
 		}
 
@@ -339,6 +352,7 @@ namespace MiniIT.Snipe
 			{
 				Client.ConnectionOpened -= OnClientConnectionOpened;
 				Client.ConnectionClosed -= OnClientConnectionClosed;
+				Client.InternalConnectionClosed -= OnInternalClientConnectionClosed;
 				Client.UdpConnectionFailed -= OnClientUdpConnectionFailed;
 				Client.MessageReceived -= OnMessageReceived;
 			}

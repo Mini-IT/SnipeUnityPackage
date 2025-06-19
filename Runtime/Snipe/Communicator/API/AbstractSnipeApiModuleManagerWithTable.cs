@@ -36,6 +36,7 @@ namespace MiniIT.Snipe.Api
 			if (_waitingTableCancellation != null)
 			{
 				_waitingTableCancellation.Cancel();
+				_waitingTableCancellation.Dispose();
 				_waitingTableCancellation = null;
 			}
 

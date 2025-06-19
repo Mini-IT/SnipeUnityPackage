@@ -173,6 +173,116 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(serizlized, serizlizedNew);
 		}
 
+		[Test]
+		public void TestLargeMapSerialization()
+		{
+			const int MAP_SIZE = 70000;
+			var map = new Dictionary<string, object>(MAP_SIZE);
+
+			for (int i = 0; i < MAP_SIZE; i++)
+			{
+				map[$"key{i}"] = i;
+			}
+
+			var serializer = new MessagePackSerializer(MAP_SIZE * 10);
+			var serialized = serializer.Serialize(map).ToArray();
+
+			byte[] expectedHeader = new byte[]
+			{
+				0xDF,
+				(byte)((MAP_SIZE >> 24) & 0xFF),
+				(byte)((MAP_SIZE >> 16) & 0xFF),
+				(byte)((MAP_SIZE >> 8) & 0xFF),
+				(byte)(MAP_SIZE & 0xFF)
+			};
+
+			CollectionAssert.AreEqual(expectedHeader, serialized.AsSpan(0, 5).ToArray());
+		}
+
+		[Test]
+        public void Serialize_ShouldUseInt32FormatForInt32MinValue()
+        {
+            var map = new Dictionary<string, object>
+            {
+                ["v"] = Int32.MinValue,
+            };
+
+            var serializer = new MessagePackSerializer(64);
+            Span<byte> bytes = serializer.Serialize(map);
+
+            byte[] expected = new byte[]
+            {
+                0x81, // map of 1 element
+                0xA1, (byte)'v',
+                0xD2, 0x80, 0x00, 0x00, 0x00
+            };
+
+            CollectionAssert.AreEqual(expected, bytes.ToArray());
+        }
+
+		 [Test]
+        public void Serialize_ShouldUseFixIntFormatForMinus32()
+        {
+            var map = new Dictionary<string, object>
+            {
+                ["v"] = -32,
+            };
+
+            var serializer = new MessagePackSerializer(64);
+            Span<byte> bytes = serializer.Serialize(map);
+
+            byte[] expected = new byte[]
+            {
+                0x81,
+                0xA1, (byte)'v',
+                0xE0
+            };
+
+            CollectionAssert.AreEqual(expected, bytes.ToArray());
+        }
+
+        [Test]
+        public void Serialize_ShouldUseInt8FormatForMinus128()
+        {
+            var map = new Dictionary<string, object>
+            {
+                ["v"] = -128,
+            };
+
+            var serializer = new MessagePackSerializer(64);
+            Span<byte> bytes = serializer.Serialize(map);
+
+            byte[] expected = new byte[]
+            {
+                0x81,
+                0xA1, (byte)'v',
+                0xD0, 0x80
+            };
+
+            CollectionAssert.AreEqual(expected, bytes.ToArray());
+        }
+
+        [Test]
+        public void Serialize_ShouldUseInt16FormatForMinus129()
+        {
+            var map = new Dictionary<string, object>
+            {
+                ["v"] = -129,
+            };
+
+            var serializer = new MessagePackSerializer(64);
+            Span<byte> bytes = serializer.Serialize(map);
+
+            byte[] expected = new byte[]
+            {
+                0x81,
+                0xA1, (byte)'v',
+                0xD1, 0xFF, 0x7F
+            };
+
+            CollectionAssert.AreEqual(expected, bytes.ToArray());
+        }
+
 		class CustomUnsupportedData
 		{
 			public string Value { get; }

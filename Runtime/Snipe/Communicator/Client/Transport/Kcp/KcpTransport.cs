@@ -306,20 +306,25 @@ namespace MiniIT.Snipe
 		{
 			_logger.LogTrace("StartNetworkLoop");
 
-			_networkLoopCancellation?.Cancel();
+			if (_networkLoopCancellation != null)
+			{
+				_networkLoopCancellation.Cancel();
+				_networkLoopCancellation.Dispose();
+			}
 
 			_networkLoopCancellation = new CancellationTokenSource();
 			Task.Run(() => NetworkLoop(_networkLoopCancellation.Token));
 			//Task.Run(() => UdpConnectionTimeout(_networkLoopCancellation.Token));
 		}
 
-		public void StopNetworkLoop()
+		private void StopNetworkLoop()
 		{
 			_logger.LogTrace("StopNetworkLoop");
 
 			if (_networkLoopCancellation != null)
 			{
 				_networkLoopCancellation.Cancel();
+				_networkLoopCancellation.Dispose();
 				_networkLoopCancellation = null;
 			}
 		}

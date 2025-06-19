@@ -37,6 +37,7 @@ namespace MiniIT.Snipe.Api
 					key = item.Key;
 					val = item.Value._value;
 					callback = item.Value._callback;
+					_setRequests.Clear();
 					return true;
 				}
 			}

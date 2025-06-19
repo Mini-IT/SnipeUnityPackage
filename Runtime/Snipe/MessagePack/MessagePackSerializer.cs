@@ -192,7 +192,7 @@ namespace MiniIT.MessagePack
 			}
 			else
 			{
-				bufferSpan[_position] = (byte)0xDF;
+				bufferSpan[_position++] = (byte)0xDF;
 				CopyBytesUnsafe(bufferSpan, _bigEndianConverter.GetBytes((UInt32)len), 4);
 			}
 
@@ -433,22 +433,22 @@ namespace MiniIT.MessagePack
 			}
 			else
 			{
-				if (val <= Int32.MinValue)  // int 64
+				if (val < Int32.MinValue)  // int 64
 				{
 					bufferSpan[_position++] = (byte)0xD3;
 					CopyBytesUnsafe(bufferSpan, _bigEndianConverter.GetBytes(val), 8);
 				}
-				else if (val <= Int16.MinValue)  // int 32
+				else if (val < Int16.MinValue)  // int 32
 				{
 					bufferSpan[_position++] = (byte)0xD2;
 					CopyBytesUnsafe(bufferSpan, _bigEndianConverter.GetBytes((Int32)val), 4);
 				}
-				else if (val <= -128)  // int 16
+				else if (val < -128)  // int 16
 				{
 					bufferSpan[_position++] = (byte)0xD1;
 					CopyBytesUnsafe(bufferSpan, _bigEndianConverter.GetBytes((Int16)val), 2);
 				}
-				else if (val <= -32)  // int 8
+				else if (val < -32)  // int 8
 				{
 					bufferSpan[_position++] = (byte)0xD0;
 					bufferSpan[_position++] = (byte)val;

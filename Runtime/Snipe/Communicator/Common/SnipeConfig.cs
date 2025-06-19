@@ -260,7 +260,7 @@ namespace MiniIT.Snipe
 			else if (wssUrl is string wssUrlString && !string.IsNullOrWhiteSpace(wssUrlString))
 			{
 				wssUrlString = wssUrlString.Trim();
-				string lowerUrl = wssUrlString.ToLower();
+				string lowerUrl = wssUrlString.ToLowerInvariant();
 
 				if (lowerUrl.StartsWith('['))
 				{
@@ -296,7 +296,7 @@ namespace MiniIT.Snipe
 				if (listItem is string url && !string.IsNullOrWhiteSpace(url))
 				{
 					url = url.Trim();
-					if (url.ToLower().StartsWith("wss://"))
+					if (url.ToLowerInvariant().StartsWith("wss://"))
 					{
 						outputList.Add(url);
 					}
