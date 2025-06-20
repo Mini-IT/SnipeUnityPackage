@@ -141,6 +141,7 @@ namespace MiniIT.Snipe
 			_transport ??= transportFactory.Invoke();
 
 			_connectionStartTimestamp = Stopwatch.GetTimestamp();
+			_prevDisconnectTime = TimeSpan.Zero;
 			_transport.Connect();
 		}
 
