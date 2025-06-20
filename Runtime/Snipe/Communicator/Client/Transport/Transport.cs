@@ -41,6 +41,8 @@ namespace MiniIT.Snipe
 		protected readonly SnipeAnalyticsTracker _analytics;
 		protected readonly ILogger _logger;
 
+		protected bool _disposed = false;
+
 		internal Transport(SnipeConfig config, SnipeAnalyticsTracker analytics)
 		{
 			_config = config;
@@ -61,6 +63,13 @@ namespace MiniIT.Snipe
 
 		public virtual void Dispose()
 		{
+			if (_disposed)
+			{
+				return;
+			}
+
+			_disposed = true;
+
 			Disconnect();
 			ConnectionOpenedHandler = null;
 			ConnectionClosedHandler = null;

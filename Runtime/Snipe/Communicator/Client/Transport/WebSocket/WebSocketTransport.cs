@@ -242,7 +242,7 @@ namespace MiniIT.Snipe
 			}
 			finally
 			{
-				if (semaphoreOccupied)
+				if (semaphoreOccupied && !_disposed)
 				{
 					_messageSerializationSemaphore.Release();
 				}
@@ -306,7 +306,7 @@ namespace MiniIT.Snipe
 			}
 			finally
 			{
-				if (semaphoreOccupied)
+				if (semaphoreOccupied && !_disposed)
 				{
 					_messageProcessingSemaphore.Release();
 				}
