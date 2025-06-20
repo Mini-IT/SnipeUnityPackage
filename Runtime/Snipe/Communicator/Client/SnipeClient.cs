@@ -71,6 +71,7 @@ namespace MiniIT.Snipe
 		private readonly Queue<Func<Transport>> _transportFactoriesQueue = new Queue<Func<Transport>>(3);
 
 		private int _requestId = 0;
+		private TimeSpan _prevDisconnectTime = TimeSpan.Zero;
 
 		private readonly SnipeConfig _config;
 		private readonly SnipeAnalyticsTracker _analytics;
@@ -217,11 +218,16 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			if (transport.ConnectionVerified)
+			// If disconnected twice during 10 seconds, then force transport change
+			TimeSpan now = DateTimeOffset.UtcNow.Offset;
+			TimeSpan dif = now - _prevDisconnectTime;
+			_prevDisconnectTime = now;
+
+			if (transport.ConnectionVerified && dif.TotalSeconds > 10)
 			{
 				Disconnect(true);
 			}
-			else // not connected yet, try another transport
+			else // Not connected yet or connection is lossy. Try another transport
 			{
 				Disconnect(false); // stop the transport and clean up
 
