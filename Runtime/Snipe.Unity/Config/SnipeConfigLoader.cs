@@ -23,25 +23,13 @@ namespace MiniIT.Snipe
 			_logger = SnipeServices.LogService.GetLogger<SnipeConfigLoader>();
 		}
 
-		public async UniTask<Dictionary<string, object>> Load(SnipeConfigLoadingStatistics loadingStatistics = null)
+		public async UniTask<Dictionary<string, object>> Load(Dictionary<string, object> additionalParams = null)
 		{
-			string requestParamsJson = "{" +
-				$"\"project\":\"{_projectID}\"," +
-				$"\"deviceID\":\"{_appInfo.DeviceIdentifier}\"," +
-				$"\"identifier\":\"{_appInfo.ApplicationIdentifier}\"," +
-				$"\"version\":\"{_appInfo.ApplicationVersion}\"," +
-				$"\"platform\":\"{_appInfo.ApplicationPlatform}\"," +
-				$"\"packageVersion\":\"{PackageInfo.VERSION_CODE}\"" +
-				"}";
+			string requestParamsJson = BuildRequestParamsJson(additionalParams);
 
 			Dictionary<string, object> config = null;
 
 			IHttpClient httpClient = SnipeServices.HttpClientFactory.CreateHttpClient();
-
-			if (loadingStatistics != null)
-			{
-				loadingStatistics.ClientImplementation = httpClient.GetType().Name;
-			}
 
 			try
 			{
@@ -49,7 +37,7 @@ namespace MiniIT.Snipe
 
 				if (!response.IsSuccess)
 				{
-					_logger.LogTrace($"loader failed. Status Code: {response.ResponseCode}; Error Message: '{response.Error}'");
+					_logger.LogTrace($"loader failed. {response.Error}");
 					return null;
 				}
 
@@ -96,6 +84,29 @@ namespace MiniIT.Snipe
 			}
 
 			return config;
+		}
+
+		private string BuildRequestParamsJson(Dictionary<string, object> additionalParams)
+		{
+			var requestParams = new Dictionary<string, object>
+			{
+				{ "project", _projectID },
+				{ "deviceID", _appInfo.DeviceIdentifier },
+				{ "identifier", _appInfo.ApplicationIdentifier },
+				{ "version", _appInfo.ApplicationVersion },
+				{ "platform", _appInfo.ApplicationPlatform },
+				{ "packageVersion", PackageInfo.VERSION_CODE }
+			};
+
+			if (additionalParams != null)
+			{
+				foreach (var param in additionalParams)
+				{
+					requestParams[param.Key] = param.Value;
+				}
+			}
+
+			return JSON.ToJSON(requestParams);
 		}
 	}
 }
