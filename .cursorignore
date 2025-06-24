@@ -1,0 +1,11 @@
+**/.git
+**/.git/*
+
+**/*.meta
+**/*~
+
+**/.DS_Store
+
+**/.*ignore
+
+Documentation~
