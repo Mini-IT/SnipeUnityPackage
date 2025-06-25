@@ -97,12 +97,7 @@ namespace MiniIT.Snipe
 
 		private void InitClient()
 		{
-			if (_delayedInitCancellation != null)
-			{
-				_delayedInitCancellation.Cancel();
-				_delayedInitCancellation.Dispose();
-				_delayedInitCancellation = null;
-			}
+			CancellationTokenHelper.CancelAndDispose(ref _delayedInitCancellation);
 
 			if (LoggedIn)
 			{
@@ -144,12 +139,7 @@ namespace MiniIT.Snipe
 			_roomJoined = null;
 			_disconnecting = true;
 
-			if (_delayedInitCancellation != null)
-			{
-				_delayedInitCancellation.Cancel();
-				_delayedInitCancellation.Dispose();
-				_delayedInitCancellation = null;
-			}
+			CancellationTokenHelper.CancelAndDispose(ref _delayedInitCancellation);
 
 			if (Client != null && Client.Connected)
 			{

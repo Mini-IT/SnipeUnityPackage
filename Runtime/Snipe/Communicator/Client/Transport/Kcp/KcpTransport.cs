@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.MessagePack;
+using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
@@ -306,11 +307,7 @@ namespace MiniIT.Snipe
 		{
 			_logger.LogTrace("StartNetworkLoop");
 
-			if (_networkLoopCancellation != null)
-			{
-				_networkLoopCancellation.Cancel();
-				_networkLoopCancellation.Dispose();
-			}
+			CancellationTokenHelper.CancelAndDispose(ref _networkLoopCancellation);
 
 			_networkLoopCancellation = new CancellationTokenSource();
 			Task.Run(() => NetworkLoop(_networkLoopCancellation.Token));
@@ -321,12 +318,7 @@ namespace MiniIT.Snipe
 		{
 			_logger.LogTrace("StopNetworkLoop");
 
-			if (_networkLoopCancellation != null)
-			{
-				_networkLoopCancellation.Cancel();
-				_networkLoopCancellation.Dispose();
-				_networkLoopCancellation = null;
-			}
+			CancellationTokenHelper.CancelAndDispose(ref _networkLoopCancellation);
 		}
 
 		private async void NetworkLoop(CancellationToken cancellation)

@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.Snipe.Logging;
+using MiniIT.Utils;
 using WebSocketSharp;
 
 namespace MiniIT.Snipe
@@ -42,12 +43,12 @@ namespace MiniIT.Snipe
 				//_webSocket.SslConfiguration.EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls12;
 				_webSocket.ConnectAsync();
 			}
-			
+
 			_connectionWaitingCancellation = new CancellationTokenSource();
 			await WaitForConnection(_connectionWaitingCancellation.Token);
 			DisposeConnectionWaitingCancellation(false);
 		}
-		
+
 		private async Task WaitForConnection(CancellationToken cancellation)
 		{
 			try
@@ -59,7 +60,7 @@ namespace MiniIT.Snipe
 				// This is OK. Just terminating the task
 				return;
 			}
-			
+
 			if (!cancellation.IsCancellationRequested && !Connected)
 			{
 				_logger.LogTrace("WaitForConnection - Connection timed out");
@@ -86,15 +87,7 @@ namespace MiniIT.Snipe
 
 		private void DisposeConnectionWaitingCancellation(bool cancel)
 		{
-			if (_connectionWaitingCancellation != null)
-			{
-				if (cancel)
-				{
-					_connectionWaitingCancellation.Cancel();
-				}
-				_connectionWaitingCancellation.Dispose();
-				_connectionWaitingCancellation = null;
-			}
+			CancellationTokenHelper.Dispose(ref _connectionWaitingCancellation, cancel);
 		}
 
 		protected void OnWebSocketConnected(object sender, EventArgs e)
@@ -107,7 +100,7 @@ namespace MiniIT.Snipe
 		protected void OnWebSocketClosed(object sender, CloseEventArgs e)
 		{
 			_logger.LogTrace($"OnWebSocketClosed: {e?.Reason}");
-			
+
 			Disconnect();
 
 			OnConnectionClosed?.Invoke();
@@ -117,13 +110,13 @@ namespace MiniIT.Snipe
 		{
 			ProcessMessage?.Invoke(e.RawData);
 		}
-		
+
 		protected void OnWebSocketError(object sender, ErrorEventArgs e)
 		{
 			_logger.LogTrace($"OnWebSocketError: {e}");
 			//Analytics.TrackError($"WebSocketError: {e.Message}", e.Exception);
 		}
-		
+
 		//public override void SendRequest(string message)
 		//{
 		//	if (!Connected)
@@ -145,7 +138,7 @@ namespace MiniIT.Snipe
 				_webSocket.SendAsync(bytes, null);
 			}
 		}
-		
+
 		public override void SendRequest(ArraySegment<byte> data)
 		{
 			if (!Connected)

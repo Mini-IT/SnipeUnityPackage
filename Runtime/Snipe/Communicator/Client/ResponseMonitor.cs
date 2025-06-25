@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using MiniIT.Threading;
+using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
@@ -101,12 +102,7 @@ namespace MiniIT.Snipe
 		{
 			_items?.Clear();
 
-			if (_cancellation != null)
-			{
-				_cancellation.Cancel();
-				_cancellation.Dispose();
-				_cancellation = null;
-			}
+			CancellationTokenHelper.CancelAndDispose(ref _cancellation);
 		}
 
 		public void Dispose()

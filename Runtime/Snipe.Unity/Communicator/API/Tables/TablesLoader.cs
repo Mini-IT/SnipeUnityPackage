@@ -8,6 +8,7 @@ using MiniIT.Http;
 using MiniIT.Snipe.Tables;
 using MiniIT.Threading;
 using MiniIT.Unity;
+using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
@@ -255,12 +256,7 @@ namespace MiniIT.Snipe
 
 		private void StopLoading()
 		{
-			if (_cancellation != null)
-			{
-				_cancellation.Cancel();
-				_cancellation.Dispose();
-				_cancellation = null;
-			}
+			CancellationTokenHelper.CancelAndDispose(ref _cancellation);
 		}
 
 		/// <summary>
