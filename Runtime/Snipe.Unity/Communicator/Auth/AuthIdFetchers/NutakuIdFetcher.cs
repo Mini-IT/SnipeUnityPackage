@@ -1,7 +1,7 @@
 ﻿#if NUTAKU
 
 using System;
-using Nutaku.Unity;
+using NutakuUnitySdk;
 
 namespace MiniIT.Snipe.Unity
 {
@@ -11,7 +11,7 @@ namespace MiniIT.Snipe.Unity
 		{
 			if (string.IsNullOrEmpty(Value))
 			{
-				string userId = SdkPlugin.loginInfo?.userId;
+				string userId = NutakuCurrentUser.GetUserId().ToString();
 				SetValue(userId);
 			}
 			callback?.Invoke(Value);
