@@ -220,7 +220,6 @@ namespace MiniIT.Snipe
 			try
 			{
 				await _sendSemaphore.WaitAsync();
-				semaphoreOccupied = true;
 
 				// During awaiting the semaphore a disconnect could happen - check it
 				if (!_connected)
@@ -228,6 +227,8 @@ namespace MiniIT.Snipe
 					_sendSemaphore.Release();
 					return;
 				}
+
+				semaphoreOccupied = true;
 
 				var uri = new Uri(_baseUrl, requestType);
 
@@ -256,7 +257,7 @@ namespace MiniIT.Snipe
 			}
 			catch (HttpRequestException httpException)
 			{
-				_logger.LogError(httpException, httpException.ToString());
+				_logger.LogError(httpException, "Request failed {0}", httpException);
 				InternalDisconnect();
 			}
 			catch (Exception e)
