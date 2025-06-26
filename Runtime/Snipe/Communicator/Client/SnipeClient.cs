@@ -19,6 +19,7 @@ namespace MiniIT.Snipe
 		public event Action LoginSucceeded;
 		public event Action<string> LoginFailed;
 		public event Action UdpConnectionFailed;
+		public event Action InternalConnectionClosed;
 
 		public bool Connected => _transport != null && _transport.Connected;
 		public bool LoggedIn => _loggedIn && Connected;
@@ -275,8 +276,7 @@ namespace MiniIT.Snipe
 				_transport = null;
 			}
 
-			// KLUDGE: Needed for clearing batched requests on disconnect during login
-			// To be removed in v.8
+			// Needed for clearing batched requests on disconnect during login
 			if (InternalConnectionClosed != null)
 			{
 				_mainThreadRunner.RunInMainThread(() => InternalConnectionClosed?.Invoke());
