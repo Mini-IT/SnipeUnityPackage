@@ -21,6 +21,8 @@ namespace MiniIT.Snipe
 		private SnipeConfigLoader _loader;
 		private readonly string _projectID;
 
+		private readonly object _statisticsLock = new object();
+
 		public SnipeConfigLoadingService(string projectID)
 		{
 			_projectID = projectID;
@@ -41,7 +43,10 @@ namespace MiniIT.Snipe
 
 			_loading = true;
 
-			Statistics.SetState(SnipeConfigLoadingStatistics.LoadingState.Initialization);
+			lock (_statisticsLock)
+			{
+				Statistics.SetState(SnipeConfigLoadingStatistics.LoadingState.Initialization);
+			}
 
 			if (_loader == null)
 			{
@@ -50,7 +55,11 @@ namespace MiniIT.Snipe
 
 				if (cancellationToken.IsCancellationRequested)
 				{
-					Statistics.SetState(SnipeConfigLoadingStatistics.LoadingState.Cancelled);
+					lock (_statisticsLock)
+					{
+						Statistics.SetState(SnipeConfigLoadingStatistics.LoadingState.Cancelled);
+					}
+
 					TrackStats();
 					return _config;
 				}
@@ -58,13 +67,20 @@ namespace MiniIT.Snipe
 				_loader ??= new SnipeConfigLoader(_projectID, SnipeServices.ApplicationInfo);
 			}
 
-			Statistics.SetState(SnipeConfigLoadingStatistics.LoadingState.Loading);
+			lock (_statisticsLock)
+			{
+				Statistics.SetState(SnipeConfigLoadingStatistics.LoadingState.Loading);
+			}
 
 			_config = await _loader.Load(Statistics);
 			_loading = false;
 
-			Statistics.Success = _config != null;
-			Statistics.SetState(SnipeConfigLoadingStatistics.LoadingState.Finished);
+			lock (_statisticsLock)
+			{
+				Statistics.Success = _config != null;
+				Statistics.SetState(SnipeConfigLoadingStatistics.LoadingState.Finished);
+			}
+
 			TrackStats();
 
 			return _config;

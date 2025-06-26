@@ -53,21 +53,31 @@ namespace MiniIT.Snipe.Internal
 			string line = null;
 
 			IHttpClient httpClient = SnipeServices.HttpClientFactory.CreateHttpClient();
-			httpClient.SetAuthToken(_apiKey);
-			IHttpClientResponse response = null;
+			httpClient.SetAuthToken(apiKey);
 
 			while (!file.EndOfStream)
 			{
 				string content = GetPortionContent(file, ref line, connectionId, userId, appVersion, appPlatform);
 
+				IHttpClientResponse response = null;
+
 				try
 				{
 					response = await httpClient.PostJson(new Uri(_url), content);
 					statusCode = (HttpStatusCode)response.ResponseCode;
+
+					if (!response.IsSuccess)
+					{
+						succeeded = false;
+						DebugLogger.Log($"[{nameof(LogSender)}] Failed posting log. Result code = {(int)statusCode} {statusCode} " + response.Error);
+						break;
+					}
+
+					DebugLogger.Log($"[{nameof(LogSender)}] Send log portion result code = {(int)statusCode} {statusCode}");
 				}
 				catch (Exception ex)
 				{
-					succeeded = (response != null && response.IsSuccess);
+					succeeded = response != null && response.IsSuccess;
 
 					if (!succeeded)
 					{
@@ -77,20 +87,20 @@ namespace MiniIT.Snipe.Internal
 
 					statusCode = HttpStatusCode.OK;
 				}
-
-				if (!response.IsSuccess)
+				finally
 				{
-					succeeded = false;
-					DebugLogger.Log($"[{nameof(LogSender)}] Failed posting log. Result code = {(int)statusCode} {statusCode} " + response.Error);
-					break;
+					response?.Dispose();
 				}
-
-				DebugLogger.Log($"[{nameof(LogSender)}] Send log portion result code = {(int)statusCode} {statusCode}");
 			}
 
 			if (succeeded)
 			{
 				DebugLogger.Log($"[{nameof(LogSender)}] Sent successfully. UserId = {userId}, ConnectionId = {connectionId}");
+			}
+
+			if (httpClient is IDisposable disposable)
+			{
+				disposable.Dispose();
 			}
 
 			return succeeded;

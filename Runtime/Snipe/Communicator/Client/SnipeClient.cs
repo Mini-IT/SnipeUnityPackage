@@ -67,6 +67,7 @@ namespace MiniIT.Snipe
 		private readonly Queue<Func<Transport>> _transportFactoriesQueue = new Queue<Func<Transport>>(3);
 
 		private int _requestId = 0;
+		private TimeSpan _prevDisconnectTime = TimeSpan.Zero;
 
 		private readonly SnipeConfig _config;
 		private readonly SnipeAnalyticsTracker _analytics;
@@ -138,6 +139,7 @@ namespace MiniIT.Snipe
 			_transport ??= transportFactory.Invoke();
 
 			_connectionStartTimestamp = Stopwatch.GetTimestamp();
+			_prevDisconnectTime = TimeSpan.Zero;
 			_transport.Connect();
 		}
 
@@ -215,11 +217,16 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			if (transport.ConnectionVerified)
+			// If disconnected twice during 10 seconds, then force transport change
+			TimeSpan now = DateTimeOffset.UtcNow.Offset;
+			TimeSpan dif = now - _prevDisconnectTime;
+			_prevDisconnectTime = now;
+
+			if (transport.ConnectionVerified && dif.TotalSeconds > 10)
 			{
 				Disconnect(true);
 			}
-			else // not connected yet, try another transport
+			else // Not connected yet or connection is lossy. Try another transport
 			{
 				Disconnect(false); // stop the transport and clean up
 
@@ -266,6 +273,13 @@ namespace MiniIT.Snipe
 			{
 				_transport.Dispose();
 				_transport = null;
+			}
+
+			// KLUDGE: Needed for clearing batched requests on disconnect during login
+			// To be removed in v.8
+			if (InternalConnectionClosed != null)
+			{
+				_mainThreadRunner.RunInMainThread(() => InternalConnectionClosed?.Invoke());
 			}
 
 			if (raiseEvent)
@@ -349,7 +363,8 @@ namespace MiniIT.Snipe
 
 			_serverReactionStartTimestamp = Stopwatch.GetTimestamp();
 
-			_responseMonitor.Add(_requestId, message.SafeGetString("t"));
+			int id = message.SafeGetValue<int>("id");
+			_responseMonitor.Add(id, message.SafeGetString("t"));
 		}
 
 		private void DoSendBatch(List<IDictionary<string, object>> messages)

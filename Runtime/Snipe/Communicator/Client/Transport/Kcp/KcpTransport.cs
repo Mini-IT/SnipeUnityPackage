@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.MessagePack;
+using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
@@ -169,7 +170,7 @@ namespace MiniIT.Snipe
 			{
 				ArrayPool<byte>.Shared.Return(data);
 
-				if (semaphoreOccupied)
+				if (semaphoreOccupied && !_disposed)
 				{
 					_messageProcessingSemaphore.Release();
 				}
@@ -215,7 +216,7 @@ namespace MiniIT.Snipe
 			}
 			finally
 			{
-				if (semaphoreOccupied)
+				if (semaphoreOccupied && !_disposed)
 				{
 					_messageSerializationSemaphore.Release();
 				}
@@ -244,7 +245,7 @@ namespace MiniIT.Snipe
 			}
 			finally
 			{
-				if (semaphoreOccupied)
+				if (semaphoreOccupied && !_disposed)
 				{
 					_messageSerializationSemaphore.Release();
 				}
@@ -306,22 +307,18 @@ namespace MiniIT.Snipe
 		{
 			_logger.LogTrace("StartNetworkLoop");
 
-			_networkLoopCancellation?.Cancel();
+			CancellationTokenHelper.CancelAndDispose(ref _networkLoopCancellation);
 
 			_networkLoopCancellation = new CancellationTokenSource();
 			Task.Run(() => NetworkLoop(_networkLoopCancellation.Token));
 			//Task.Run(() => UdpConnectionTimeout(_networkLoopCancellation.Token));
 		}
 
-		public void StopNetworkLoop()
+		private void StopNetworkLoop()
 		{
 			_logger.LogTrace("StopNetworkLoop");
 
-			if (_networkLoopCancellation != null)
-			{
-				_networkLoopCancellation.Cancel();
-				_networkLoopCancellation = null;
-			}
+			CancellationTokenHelper.CancelAndDispose(ref _networkLoopCancellation);
 		}
 
 		private async void NetworkLoop(CancellationToken cancellation)

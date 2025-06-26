@@ -9,7 +9,7 @@ namespace MiniIT.Snipe
 		public const string USER_NOT_FOUND = "userNotFound";
 		public const string ALREADY_IN_ROOM = "alreadyInRoom";
 		public const string ALREADY_LOGGED_IN = "alreadyLoggedIn";
-		
+
 		// Auth
 		public const string NOT_INITIALIZED = "notInitialized";
 		public const string NO_SUCH_USER = "noSuchUser";
@@ -18,10 +18,10 @@ namespace MiniIT.Snipe
 		public const string USER_ONLINE = "userOnline";
 		public const string LOGOUT_IN_PROGRESS = "logoutInProgress";
 		public const string LOGIN_DATA_WRONG = "loginDataWrong";
-		
+
 		// SnipeCommunicatorRequest
 		public const string NOT_READY = "notReady";
-		public const string INVALIND_DATA = "invalidData";
+		public const string INVALID_DATA = "invalidData";
 		public const string SERVICE_OFFLINE = "serviceOffline";
 		public const string GAME_SERVERS_OFFLINE = "gameServersOffline";
 	}

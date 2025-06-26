@@ -30,18 +30,22 @@ namespace MiniIT.Snipe
 		public List<StateChange> StateChanges { get; } = new List<StateChange>(4);
 		public LoadingState State { get; private set; } = LoadingState.NotStarted;
 		public bool Success { get; set; } = false;
+		public TimeSpan CurrentStateTime { get; private set; }
 		public string ClientImplementation { get; set; }
 
-		private readonly long _startTimestamp = Stopwatch.GetTimestamp();
+		private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
 
 		public void SetState(LoadingState state)
 		{
+			var time = _stopwatch.Elapsed;
+
 			State = state;
+			CurrentStateTime = time;
 
 			StateChanges.Add(new StateChange
 			{
 				State = state,
-				Time = TimeSpan.FromTicks(Stopwatch.GetTimestamp() - _startTimestamp),
+				Time = time,
 			});
 		}
 	}
