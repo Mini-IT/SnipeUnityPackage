@@ -9,6 +9,7 @@ using System.IO;
 using Best.HTTP;
 using Best.HTTP.Request.Authenticators;
 using Best.HTTP.Request.Upload.Forms;
+using Best.HTTP.Shared;
 using Cysharp.Threading.Tasks;
 
 #if TLS_SUPPORTED
@@ -39,6 +40,7 @@ namespace MiniIT.Http
 			SecurityOptions.OCSP.OCSPCache.DatabaseOptions.DiskManager.MaxCacheSizeInBytes = 0;
 
 			TLSSecurity.Setup();
+			HTTPManager.LocalCache = null;
 		}
 #endif
 
@@ -57,6 +59,7 @@ namespace MiniIT.Http
 			var request = HTTPRequest.CreateGet(uri);
 			request.TimeoutSettings.ConnectTimeout = _defaultConnectTimeout;
 			request.DownloadSettings.DisableCache = true;
+			request.SetHeader("Cache-Control", "no-cache");
 			await request.Send();
 			return new BestHttpClientResponse(request.Response);
 		}
@@ -67,6 +70,7 @@ namespace MiniIT.Http
 			request.TimeoutSettings.ConnectTimeout = _defaultConnectTimeout;
 			request.TimeoutSettings.Timeout = timeout;
 			request.DownloadSettings.DisableCache = true;
+			request.SetHeader("Cache-Control", "no-cache");
 			await request.Send();
 			return new BestHttpClientResponse(request.Response);
 		}
@@ -86,6 +90,7 @@ namespace MiniIT.Http
 
 			request.TimeoutSettings.ConnectTimeout = _defaultConnectTimeout;
 			request.DownloadSettings.DisableCache = true;
+			request.SetHeader("Cache-Control", "no-cache");
 			await request.Send();
 			return new BestHttpClientResponse(request.Response);
 		}
@@ -104,6 +109,7 @@ namespace MiniIT.Http
 
 			request.TimeoutSettings.ConnectTimeout = _defaultConnectTimeout;
 			request.DownloadSettings.DisableCache = true;
+			request.SetHeader("Cache-Control", "no-cache");
 			await request.Send();
 			return new BestHttpClientResponse(request.Response);
 		}
