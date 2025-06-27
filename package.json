@@ -1,6 +1,6 @@
 {
   "name": "com.miniit.snipe.client",
-  "version": "7.2.5",
+  "version": "7.2.6",
   "dependencies": {
     "com.miniit.fastjson": "1.0.0",
     "com.miniit.logger": "1.1.0",
@@ -10,7 +10,6 @@
     "com.cysharp.unitask": "2.3.0",
     "com.miniit.altertask": "1.0.0"
   },
-  "unity": "2022.3",
   "author": {
     "name": "Mini IT",
     "url": "http://snipe.dev"
