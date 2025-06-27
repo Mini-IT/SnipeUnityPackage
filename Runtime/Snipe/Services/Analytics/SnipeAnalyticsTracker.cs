@@ -4,7 +4,7 @@ using MiniIT.Snipe.Debugging;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeAnalyticsTracker
+	public class SnipeAnalyticsTracker : ISnipeConfigLoadingAnalyticsTracker
 	{
 		public bool IsEnabled => _analyticsService.IsEnabled;
 
@@ -267,5 +267,17 @@ namespace MiniIT.Snipe
 
 		#endregion Constants
 
+		public void TrackSnipeConfigLoadingStats(SnipeConfigLoadingStatistics statistics)
+		{
+			if (_externalTracker is not ISnipeConfigLoadingAnalyticsTracker tracker)
+			{
+				return;
+			}
+
+			_mainThreadRunner.RunInMainThread(() =>
+			{
+				tracker.TrackSnipeConfigLoadingStats(statistics);
+			});
+		}
 	}
 }

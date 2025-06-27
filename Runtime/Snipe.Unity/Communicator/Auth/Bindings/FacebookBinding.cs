@@ -38,6 +38,12 @@ namespace MiniIT.Snipe.Unity
 #endif
 		}
 
+		public void Connect<TBinding>(BindResultCallback callback = null) where TBinding : AuthBinding
+		{
+			var binding = _authSubsystem.GetBinding<TBinding>();
+			Connect(binding, callback);
+		}
+
 		public void Connect(AuthBinding binding, BindResultCallback callback = null)
 		{
 			if (binding is FacebookBinding)
@@ -55,12 +61,12 @@ namespace MiniIT.Snipe.Unity
 				return;
 			}
 
-			string auth_login = GetInternalAuthLogin();
-			string auth_token = GetInternalAuthToken();
+			string authLogin = GetInternalAuthLogin();
+			string authToken = GetInternalAuthToken();
 			string uid = GetUserId();
 
-			if (string.IsNullOrEmpty(auth_login) ||
-				string.IsNullOrEmpty(auth_token) ||
+			if (string.IsNullOrEmpty(authLogin) ||
+				string.IsNullOrEmpty(authToken) ||
 				string.IsNullOrEmpty(uid))
 			{
 				return;
@@ -80,7 +86,7 @@ namespace MiniIT.Snipe.Unity
 
 			//_logger.LogTrace($"({ProviderId}) send user.bind " + data.ToJSONString());
 			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_CONNECT, data)
-				.Request((string errorCode, IDictionary<string, object> data) =>
+				.Request((string errorCode, IDictionary<string, object> _) =>
 				{
 					callback?.Invoke(this, errorCode);
 				});

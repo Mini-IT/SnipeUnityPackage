@@ -13,12 +13,15 @@ namespace MiniIT.Snipe
 	public class SnipeConfigLoadingService : ISnipeConfigLoadingService
 	{
 		public Dictionary<string, object> Config => _config;
+		public SnipeConfigLoadingStatistics Statistics { get; } = new SnipeConfigLoadingStatistics();
 
 		private Dictionary<string, object> _config;
 		private bool _loading = false;
 
 		private SnipeConfigLoader _loader;
 		private readonly string _projectID;
+
+		private readonly object _statisticsLock = new object();
 
 		public SnipeConfigLoadingService(string projectID)
 		{
@@ -40,6 +43,11 @@ namespace MiniIT.Snipe
 
 			_loading = true;
 
+			lock (_statisticsLock)
+			{
+				Statistics.SetState(SnipeConfigLoadingStatistics.LoadingState.Initialization);
+			}
+
 			if (_loader == null)
 			{
 				await UniTask.WaitUntil(() => SnipeServices.IsInitialized, PlayerLoopTiming.Update, cancellationToken)
@@ -47,16 +55,43 @@ namespace MiniIT.Snipe
 
 				if (cancellationToken.IsCancellationRequested)
 				{
+					lock (_statisticsLock)
+					{
+						Statistics.SetState(SnipeConfigLoadingStatistics.LoadingState.Cancelled);
+					}
+
+					TrackStats();
 					return _config;
 				}
 
 				_loader ??= new SnipeConfigLoader(_projectID, SnipeServices.ApplicationInfo);
 			}
 
-			_config = await _loader.Load();
+			lock (_statisticsLock)
+			{
+				Statistics.SetState(SnipeConfigLoadingStatistics.LoadingState.Loading);
+			}
+
+			_config = await _loader.Load(Statistics);
 			_loading = false;
 
+			lock (_statisticsLock)
+			{
+				Statistics.Success = _config != null;
+				Statistics.SetState(SnipeConfigLoadingStatistics.LoadingState.Finished);
+			}
+
+			TrackStats();
+
 			return _config;
+		}
+
+		private void TrackStats()
+		{
+			if (SnipeServices.Analytics.GetTracker() is ISnipeConfigLoadingAnalyticsTracker tracker)
+			{
+				tracker.TrackSnipeConfigLoadingStats(Statistics);
+			}
 		}
 	}
 }

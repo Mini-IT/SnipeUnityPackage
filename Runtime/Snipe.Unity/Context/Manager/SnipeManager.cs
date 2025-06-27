@@ -6,8 +6,29 @@ namespace MiniIT.Snipe
 {
 	public interface ISnipeContextProvider
 	{
+		/// <summary>
+		/// Try to get the instance of <see cref="SnipeContext"/>.
+		/// If the internal reference is not set yet,
+		/// then <b>no instance will be created</b>
+		/// </summary>
+		/// <param name="id">Context ID</param>
+		/// <param name="context">Instance of <see cref="SnipeContext"/></param>
+		/// <returns><c>true</c> if a valid intance is found</returns>
 		bool TryGetContext(int id, out SnipeContext context);
-		SnipeContext GetContext(int id);
+
+		/// <summary>
+		/// Gets or creates <see cref="SnipeContext"/> with the ID == <paramref name="id"/>
+		/// </summary>
+		/// <param name="id">Context ID</param>
+		/// <returns>Instance of <see cref="SnipeContext"/></returns>
+		SnipeContext GetOrCreateContext(int id);
+
+		/// <summary>
+		/// Returns an instance of <see cref="ISnipeContextReference"/> with the given ID
+		/// </summary>
+		/// <param name="id">Context ID</param>
+		/// <returns></returns>
+		ISnipeContextReference GetContextReference(int id);
 	}
 
 	public interface ISnipeTablesProvider
@@ -15,7 +36,13 @@ namespace MiniIT.Snipe
 		SnipeApiTables GetTables();
 	}
 
-	public class SnipeManager : ISnipeContextProvider, ISnipeTablesProvider
+	public interface ISnipeManager : ISnipeContextProvider, ISnipeTablesProvider
+	{
+		bool Initialized { get; }
+		void Initialize(ISnipeContextFactory contextFactory, ISnipeApiTablesFactory tablesFactory);
+	}
+
+	public class SnipeManager : ISnipeManager
 	{
 		#region Singleton
 
@@ -38,7 +65,10 @@ namespace MiniIT.Snipe
 
 		#endregion
 
-		private readonly Dictionary<int, SnipeContext> _contexts = new Dictionary<int, SnipeContext>();
+		public bool Initialized => _contextFactory != null && _tablesFactory != null;
+
+		private readonly Dictionary<int, SnipeContext> _contexts = new ();
+		private readonly Dictionary<int, SnipeContextReference> _references = new ();
 
 		private ISnipeContextFactory _contextFactory;
 		private ISnipeApiTablesFactory _tablesFactory;
@@ -48,7 +78,7 @@ namespace MiniIT.Snipe
 		{
 			_contextFactory = contextFactory;
 			_tablesFactory = tablesFactory;
-			_ = GetContext(0); // create default context
+			_ = GetOrCreateContext(0); // create default context
 		}
 
 		public bool TryGetContext(int id, out SnipeContext context)
@@ -56,7 +86,7 @@ namespace MiniIT.Snipe
 			return _contexts.TryGetValue(id, out context);
 		}
 
-		public SnipeContext GetContext(int id)
+		public SnipeContext GetOrCreateContext(int id)
 		{
 			if (_contexts.TryGetValue(id, out var context))
 			{
@@ -70,7 +100,31 @@ namespace MiniIT.Snipe
 
 			context = _contextFactory.CreateContext(id);
 			_contexts[id] = context;
+
+			if (_references.TryGetValue(id, out var reference))
+			{
+				reference.SetContext(context);
+			}
+
 			return context;
+		}
+
+		public ISnipeContextReference GetContextReference(int id)
+		{
+			if (_references.TryGetValue(id, out var reference))
+			{
+				return reference;
+			}
+
+			var contextReference = new SnipeContextReference();
+			_references[id] = contextReference;
+
+			if (_contexts.TryGetValue(id, out var context))
+			{
+				contextReference.SetContext(context);
+			}
+
+			return contextReference;
 		}
 
 		public SnipeApiTables GetTables()

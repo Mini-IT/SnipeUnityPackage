@@ -8,6 +8,7 @@ using MiniIT.Http;
 using MiniIT.Snipe.Tables;
 using MiniIT.Threading;
 using MiniIT.Unity;
+using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
@@ -151,9 +152,14 @@ namespace MiniIT.Snipe
 
 				if (!cancellationToken.IsCancellationRequested)
 				{
-					long version = 0;
-					_versions?.TryGetValue(loaderItem.Name, out version);
-					loaded = await LoadTableAsync(loaderItem, httpClient, version, cancellationToken);
+					if (_versions != null && _versions.TryGetValue(loaderItem.Name, out long version))
+					{
+						loaded = await LoadTableAsync(loaderItem, httpClient, version, cancellationToken);
+					}
+					else
+					{
+						_logger.LogError($"Failed to get table version for table '{loaderItem.Name}'");
+					}
 				}
 			}
 			catch (OperationCanceledException)
@@ -250,12 +256,7 @@ namespace MiniIT.Snipe
 
 		private void StopLoading()
 		{
-			if (_cancellation != null)
-			{
-				_cancellation.Cancel();
-				_cancellation.Dispose();
-				_cancellation = null;
-			}
+			CancellationTokenHelper.CancelAndDispose(ref _cancellation);
 		}
 
 		/// <summary>
@@ -298,7 +299,7 @@ namespace MiniIT.Snipe
 			foreach (string filePath in files)
 			{
 				if (TryExtractNameAndVersion(filePath, out string tableName, out string version, extention) &&
-					_builtInTablesListService.TryGetTableVersion(tableName.ToLower(), out long builtInVersion))
+					_builtInTablesListService.TryGetTableVersion(tableName.ToLowerInvariant(), out long builtInVersion))
 				{
 					long cachedVersion = Convert.ToInt64(version);
 					if (cachedVersion < builtInVersion)

@@ -16,11 +16,12 @@ namespace MiniIT.Snipe
 		private const string API_PATH = "api/v1/request/";
 
 		private static readonly Dictionary<string, object> s_pingMessage = new () { ["t"] = "server.ping", ["id"] = -1 };
-		private static readonly long s_sessionDurationTicks = TimeSpan.FromSeconds(301).Ticks;
+		private static readonly long s_sessionDurationTicks = 301 * Stopwatch.Frequency;
 
 		public override bool Started => _started;
 		public override bool Connected => _connected;
 		public override bool ConnectionEstablished => _connectionEstablished;
+		public override bool ConnectionVerified => _connectionEstablished;
 
 		public bool IntensiveHeartbeat
 		{
@@ -237,7 +238,6 @@ namespace MiniIT.Snipe
 			try
 			{
 				await _sendSemaphore.WaitAsync();
-				semaphoreOccupied = true;
 
 				// During awaiting the semaphore a disconnect could happen - check it
 				if (!_connected)
@@ -245,6 +245,8 @@ namespace MiniIT.Snipe
 					_sendSemaphore.Release();
 					return;
 				}
+
+				semaphoreOccupied = true;
 
 				var uri = new Uri(_baseUrl, requestType);
 
@@ -273,7 +275,7 @@ namespace MiniIT.Snipe
 			}
 			catch (HttpRequestException httpException)
 			{
-				_diagnostics.LogError(httpException, httpException.ToString());
+				_diagnostics.LogError(httpException, "Request failed {0}", httpException);
 				InternalDisconnect();
 			}
 			catch (Exception e)
@@ -405,7 +407,7 @@ namespace MiniIT.Snipe
 				semaphoreOccupied = true;
 
 				string url = _config.GetHttpAddress();
-				var uri = new Uri(new Uri(url), "test_connect.html");
+				var uri = new Uri(new Uri(url), "test_connect.html?t=" + DateTimeOffset.UtcNow.ToUnixTimeSeconds());
 
 				_diagnostics.LogTrace($"<<< request ({uri})");
 

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using MiniIT.Threading;
+using MiniIT.Utils;
 
 namespace MiniIT.Snipe.Api
 {
@@ -33,11 +34,7 @@ namespace MiniIT.Snipe.Api
 
 		public override void Dispose()
 		{
-			if (_waitingTableCancellation != null)
-			{
-				_waitingTableCancellation.Cancel();
-				_waitingTableCancellation = null;
-			}
+			CancellationTokenHelper.CancelAndDispose(ref _waitingTableCancellation);
 
 			ClearCommunicatorReference();
 

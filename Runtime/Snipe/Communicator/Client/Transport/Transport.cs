@@ -29,11 +29,19 @@ namespace MiniIT.Snipe
 		public virtual bool Started { get; } = false;
 		public virtual bool Connected { get; } = false;
 		public virtual bool ConnectionEstablished { get; } = false;
+
+		/// <summary>
+		/// At least one message received
+		/// </summary>
+		public virtual bool ConnectionVerified { get; } = false;
+
 		public TransportInfo Info { get; protected set; }
 
 		protected readonly SnipeConfig _config;
 		protected readonly SnipeAnalyticsTracker _analytics;
 		protected readonly IDiagnosticsChannel _diagnostics;
+
+		protected bool _disposed = false;
 
 		internal Transport(SnipeConfig config, SnipeAnalyticsTracker analytics)
 		{
@@ -55,6 +63,13 @@ namespace MiniIT.Snipe
 
 		public virtual void Dispose()
 		{
+			if (_disposed)
+			{
+				return;
+			}
+
+			_disposed = true;
+
 			Disconnect();
 			ConnectionOpenedHandler = null;
 			ConnectionClosedHandler = null;

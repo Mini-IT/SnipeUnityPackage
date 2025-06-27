@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.MessagePack;
+using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
@@ -13,11 +14,13 @@ namespace MiniIT.Snipe
 		public override bool Started => _kcpConnection != null;
 		public override bool Connected => _kcpConnection != null && _kcpConnection.Connected;
 		public override bool ConnectionEstablished => _connectionEstablished;
+		public override bool ConnectionVerified => _connectionVerified;
 
 		private KcpConnection _kcpConnection;
 		private CancellationTokenSource _networkLoopCancellation;
 
 		private bool _connectionEstablished = false;
+		private bool _connectionVerified = false;
 		private readonly object _lock = new object();
 
 		internal KcpTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
@@ -78,6 +81,7 @@ namespace MiniIT.Snipe
 			}
 
 			_connectionEstablished = false;
+			_connectionVerified = false;
 		}
 
 		public override void SendMessage(IDictionary<string, object> message)
@@ -129,6 +133,8 @@ namespace MiniIT.Snipe
 		{
 			_diagnostics.LogTrace("OnUdpClientDataReceived");
 
+			_connectionVerified = true;
+
 			var opcode = (KcpOpCode)buffer.Array[buffer.Offset];
 
 			//if (opcode == KcpOpCodes.Heartbeat)
@@ -164,7 +170,7 @@ namespace MiniIT.Snipe
 			{
 				ArrayPool<byte>.Shared.Return(data);
 
-				if (semaphoreOccupied)
+				if (semaphoreOccupied && !_disposed)
 				{
 					_messageProcessingSemaphore.Release();
 				}
@@ -210,7 +216,7 @@ namespace MiniIT.Snipe
 			}
 			finally
 			{
-				if (semaphoreOccupied)
+				if (semaphoreOccupied && !_disposed)
 				{
 					_messageSerializationSemaphore.Release();
 				}
@@ -239,7 +245,7 @@ namespace MiniIT.Snipe
 			}
 			finally
 			{
-				if (semaphoreOccupied)
+				if (semaphoreOccupied && !_disposed)
 				{
 					_messageSerializationSemaphore.Release();
 				}
@@ -301,22 +307,18 @@ namespace MiniIT.Snipe
 		{
 			_diagnostics.LogTrace("StartNetworkLoop");
 
-			_networkLoopCancellation?.Cancel();
+			CancellationTokenHelper.CancelAndDispose(ref _networkLoopCancellation);
 
 			_networkLoopCancellation = new CancellationTokenSource();
 			Task.Run(() => NetworkLoop(_networkLoopCancellation.Token));
 			//Task.Run(() => UdpConnectionTimeout(_networkLoopCancellation.Token));
 		}
 
-		public void StopNetworkLoop()
+		private void StopNetworkLoop()
 		{
 			_diagnostics.LogTrace("StopNetworkLoop");
 
-			if (_networkLoopCancellation != null)
-			{
-				_networkLoopCancellation.Cancel();
-				_networkLoopCancellation = null;
-			}
+			CancellationTokenHelper.CancelAndDispose(ref _networkLoopCancellation);
 		}
 
 		private async void NetworkLoop(CancellationToken cancellation)

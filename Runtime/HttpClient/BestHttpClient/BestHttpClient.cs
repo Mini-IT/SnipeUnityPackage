@@ -9,6 +9,7 @@ using System.IO;
 using Best.HTTP;
 using Best.HTTP.Request.Authenticators;
 using Best.HTTP.Request.Upload.Forms;
+using Best.HTTP.Shared;
 using Cysharp.Threading.Tasks;
 
 #if TLS_SUPPORTED
@@ -19,14 +20,27 @@ namespace MiniIT.Http
 {
 	public class BestHttpClient : IHttpClient
 	{
-		private readonly TimeSpan _defaultConnectTimeout = TimeSpan.FromSeconds(4);
+		private static bool s_tlsInitialized = false;
+
+		private readonly TimeSpan _defaultConnectTimeout = TimeSpan.FromSeconds(3);
 
 		private string _authToken;
 
 #if TLS_SUPPORTED
 		public BestHttpClient()
 		{
+			if (s_tlsInitialized)
+			{
+				return;
+			}
+
+			s_tlsInitialized = true;
+
+			// Disable OSCP cache for performance
+			SecurityOptions.OCSP.OCSPCache.DatabaseOptions.DiskManager.MaxCacheSizeInBytes = 0;
+
 			TLSSecurity.Setup();
+			HTTPManager.LocalCache = null;
 		}
 #endif
 
@@ -44,6 +58,8 @@ namespace MiniIT.Http
 		{
 			var request = HTTPRequest.CreateGet(uri);
 			request.TimeoutSettings.ConnectTimeout = _defaultConnectTimeout;
+			request.DownloadSettings.DisableCache = true;
+			request.SetHeader("Cache-Control", "no-cache");
 			await request.Send();
 			return new BestHttpClientResponse(request.Response);
 		}
@@ -51,7 +67,10 @@ namespace MiniIT.Http
 		public async UniTask<IHttpClientResponse> Get(Uri uri, TimeSpan timeout)
 		{
 			var request = HTTPRequest.CreateGet(uri);
+			request.TimeoutSettings.ConnectTimeout = _defaultConnectTimeout;
 			request.TimeoutSettings.Timeout = timeout;
+			request.DownloadSettings.DisableCache = true;
+			request.SetHeader("Cache-Control", "no-cache");
 			await request.Send();
 			return new BestHttpClientResponse(request.Response);
 		}
@@ -70,6 +89,8 @@ namespace MiniIT.Http
 			request.UploadSettings.UploadStream = new MemoryStream(data);
 
 			request.TimeoutSettings.ConnectTimeout = _defaultConnectTimeout;
+			request.DownloadSettings.DisableCache = true;
+			request.SetHeader("Cache-Control", "no-cache");
 			await request.Send();
 			return new BestHttpClientResponse(request.Response);
 		}
@@ -87,6 +108,8 @@ namespace MiniIT.Http
 				.AddField(name, content);
 
 			request.TimeoutSettings.ConnectTimeout = _defaultConnectTimeout;
+			request.DownloadSettings.DisableCache = true;
+			request.SetHeader("Cache-Control", "no-cache");
 			await request.Send();
 			return new BestHttpClientResponse(request.Response);
 		}

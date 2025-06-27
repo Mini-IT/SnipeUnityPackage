@@ -21,14 +21,16 @@ namespace MiniIT.Snipe.Api
 
 			var config = _configBuilder.Build(id);
 
-			var communicator = new SnipeCommunicator(id, config);
-			var auth = new UnityAuthSubsystem(communicator, config);
+			var analytics = SnipeServices.Analytics.GetTracker(id);
+			var communicator = new SnipeCommunicator(config, analytics);
+			var auth = new UnityAuthSubsystem(id, communicator, config, analytics);
 			var logReporter = new LogReporter();
 
-			var context = InternalCreateContext(id, config, communicator, auth, logReporter);
+			var context = InternalCreateContext(id, communicator, auth, logReporter);
+			context.Initialize(config);
 			return context;
 		}
 
-		protected abstract SnipeContext InternalCreateContext(int id, SnipeConfig config, SnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter);
+		protected abstract SnipeContext InternalCreateContext(int id, SnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter);
 	}
 }

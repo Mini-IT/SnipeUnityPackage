@@ -13,6 +13,7 @@ using MiniIT.MessagePack;
 using MiniIT.Snipe.Logging;
 using MiniIT.Threading;
 using MiniIT.Snipe.Configuration;
+using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
@@ -44,6 +45,7 @@ namespace MiniIT.Snipe
 		public override bool Started => _webSocket != null;
 		public override bool Connected => _webSocket != null && _webSocket.Connected;
 		public override bool ConnectionEstablished => _connected;
+		public override bool ConnectionVerified => _loggedIn;
 
 		private WebSocketWrapper _webSocket = null;
 		private readonly object _lock = new object();
@@ -63,7 +65,7 @@ namespace MiniIT.Snipe
 		{
 			string url = _config.GetWebSocketUrl();
 
-			_diagnostics.LogTrace("WebSocket Connect to " + url);
+			_logger.LogTrace("WebSocket Connect to " + url);
 
 #if WEBGL_ENVIRONMENT
 			_webSocket = new WebSocketJSWrapper();
@@ -71,7 +73,9 @@ namespace MiniIT.Snipe
 			_webSocket = _config.WebSocketImplementation switch
 			{
 				WebSocketImplementations.ClientWebSocket => new WebSocketClientWrapper(),
+#if BEST_WEBSOCKET
 				WebSocketImplementations.BestWebSocket => new WebSocketBestWrapper(),
+#endif
 				_ => new WebSocketSharpWrapper(),
 			};
 #endif
@@ -96,7 +100,7 @@ namespace MiniIT.Snipe
 				}
 				catch (Exception e)
 				{
-					_diagnostics.LogTrace("Failed to connect to {url} - {error}", url, e);
+					_logger.LogTrace("Failed to connect to {url} - {error}", url, e);
 				}
 			});
 		}
@@ -142,14 +146,14 @@ namespace MiniIT.Snipe
 		{
 			_connected = true;
 
-			_diagnostics.LogTrace("OnWebSocketConnected");
+			_logger.LogTrace("OnWebSocketConnected");
 
 			ConnectionOpenedHandler?.Invoke(this);
 		}
 
 		protected void OnWebSocketClosed()
 		{
-			_diagnostics.LogTrace("OnWebSocketClosed");
+			_logger.LogTrace("OnWebSocketClosed");
 
 			_loggedIn = false;
 
@@ -240,7 +244,7 @@ namespace MiniIT.Snipe
 			}
 			finally
 			{
-				if (semaphoreOccupied)
+				if (semaphoreOccupied && !_disposed)
 				{
 					_messageSerializationSemaphore.Release();
 				}
@@ -257,12 +261,12 @@ namespace MiniIT.Snipe
 
 			if (_config.CompressionEnabled && msgData.Length >= _config.MinMessageBytesToCompress) // compression needed
 			{
-				_diagnostics.LogTrace("compress message");
-				//_diagnostics.LogTrace("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
+				_logger.LogTrace("compress message");
+				//_logger.LogTrace("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
 
 				byte[] compressed = _messageCompressor.Compress(msgData);
 
-				//_diagnostics.LogTrace("Compressed:   " + BitConverter.ToString(compressed.Array, compressed.Offset, compressed.Count));
+				//_logger.LogTrace("Compressed:   " + BitConverter.ToString(compressed.Array, compressed.Offset, compressed.Count));
 
 				result = new byte[compressed.Length + 2];
 				result[0] = COMPRESSED_HEADER[0];
@@ -290,7 +294,7 @@ namespace MiniIT.Snipe
 
 		private async void ProcessMessage(byte[] rawData)
 		{
-			_diagnostics.LogTrace("ProcessWebSocketMessage"); //   " + BitConverter.ToString(raw_data, 0, raw_data.Length));
+			_logger.LogTrace("ProcessWebSocketMessage"); //   " + BitConverter.ToString(raw_data, 0, raw_data.Length));
 
 			IDictionary<string, object> message;
 
@@ -304,7 +308,7 @@ namespace MiniIT.Snipe
 			}
 			finally
 			{
-				if (semaphoreOccupied)
+				if (semaphoreOccupied && !_disposed)
 				{
 					_messageProcessingSemaphore.Release();
 				}
@@ -339,7 +343,7 @@ namespace MiniIT.Snipe
 
 		private void StartSendTask()
 		{
-			_sendTaskCancellation?.Cancel();
+			CancellationTokenHelper.CancelAndDispose(ref _sendTaskCancellation);
 
 #if NET5_0_OR_GREATER
 			if (_sendMessages == null)
@@ -359,14 +363,10 @@ namespace MiniIT.Snipe
 		{
 			StopCheckConnection();
 
-			if (_sendTaskCancellation != null)
-			{
-				_sendTaskCancellation.Cancel();
-				_sendTaskCancellation.Dispose();
-				_sendTaskCancellation = null;
-			}
+			CancellationTokenHelper.CancelAndDispose(ref _sendTaskCancellation);
 
 			_sendMessages = null;
+			_batchMessages = null;
 		}
 
 		private async void SendTask(CancellationToken? cancellation)
@@ -390,9 +390,10 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception ex)
 			{
-				string exceptionMessage = ex is AggregateException ae ? LogUtil.GetReducedException(ae) : ex.ToString();
-				_diagnostics.LogTrace($"SendTask Exception: {exceptionMessage}");
-				_analytics.TrackError("WebSocket SendTask error", ex);
+				var e = ex is AggregateException ae ? ae.InnerException : ex;
+				string exceptionMessage = LogUtil.GetReducedException(ex);
+				_logger.LogTrace($"SendTask Exception: {exceptionMessage}");
+				_analytics.TrackError("WebSocket SendTask error", e);
 
 				StopSendTask();
 			}
@@ -408,7 +409,7 @@ namespace MiniIT.Snipe
 
 		private void StartHeartbeat()
 		{
-			_heartbeatCancellation?.Cancel();
+			CancellationTokenHelper.CancelAndDispose(ref _heartbeatCancellation);
 
 			// Custom heartbeating is needed only for WebSocketSharp
 			if (_webSocket == null || _webSocket.AutoPing)
@@ -423,11 +424,7 @@ namespace MiniIT.Snipe
 
 		private void StopHeartbeat()
 		{
-			if (_heartbeatCancellation != null)
-			{
-				_heartbeatCancellation.Cancel();
-				_heartbeatCancellation = null;
-			}
+			CancellationTokenHelper.CancelAndDispose(ref _heartbeatCancellation);
 		}
 
 		private async void HeartbeatTask(CancellationToken cancellation)
@@ -462,18 +459,18 @@ namespace MiniIT.Snipe
 
 							if (pong)
 							{
-								_diagnostics.LogTrace($"Heartbeat pong {_analytics.PingTime.TotalMilliseconds} ms");
+								_logger.LogTrace($"Heartbeat pong {_analytics.PingTime.TotalMilliseconds} ms");
 							}
 							else
 							{
-								_diagnostics.LogTrace($"Heartbeat pong NOT RECEIVED");
+								_logger.LogTrace($"Heartbeat pong NOT RECEIVED");
 							}
 						});
 					}
 
 					ResetHeartbeatTimer();
 
-					_diagnostics.LogTrace($"Heartbeat ping");
+					_logger.LogTrace($"Heartbeat ping");
 				}
 
 				if (cancellation.IsCancellationRequested)
@@ -510,9 +507,9 @@ namespace MiniIT.Snipe
 			if (!_loggedIn)
 				return;
 
-			// _diagnostics.LogTrace($"StartCheckConnection");
+			// _logger.LogTrace($"StartCheckConnection");
 
-			_checkConnectionCancellation?.Cancel();
+			CancellationTokenHelper.CancelAndDispose(ref _checkConnectionCancellation);
 
 			_checkConnectionCancellation = new CancellationTokenSource();
 			AlterTask.RunAndForget(() => CheckConnectionTask(_checkConnectionCancellation.Token));
@@ -520,13 +517,7 @@ namespace MiniIT.Snipe
 
 		private void StopCheckConnection()
 		{
-			if (_checkConnectionCancellation != null)
-			{
-				_checkConnectionCancellation.Cancel();
-				_checkConnectionCancellation = null;
-
-				// _diagnostics.LogTrace($"StopCheckConnection");
-			}
+			CancellationTokenHelper.CancelAndDispose(ref _checkConnectionCancellation);
 
 			BadConnection = false;
 		}
@@ -550,7 +541,7 @@ namespace MiniIT.Snipe
 				return;
 
 			BadConnection = true;
-			_diagnostics.LogTrace($"CheckConnectionTask - Bad connection detected");
+			_logger.LogTrace($"CheckConnectionTask - Bad connection detected");
 
 			bool pinging = false;
 			while (Connected && BadConnection)
@@ -578,11 +569,11 @@ namespace MiniIT.Snipe
 							if (pong)
 							{
 								BadConnection = false;
-								_diagnostics.LogTrace($"CheckConnectionTask - pong received");
+								_logger.LogTrace($"CheckConnectionTask - pong received");
 							}
 							else
 							{
-								_diagnostics.LogTrace($"CheckConnectionTask - pong NOT received");
+								_logger.LogTrace($"CheckConnectionTask - pong NOT received");
 								OnDisconnectDetected();
 							}
 						});
@@ -596,7 +587,7 @@ namespace MiniIT.Snipe
 			if (Connected)
 			{
 				// Disconnect detected
-				_diagnostics.LogTrace($"CheckConnectionTask - Disconnect detected");
+				_logger.LogTrace($"CheckConnectionTask - Disconnect detected");
 
 				OnWebSocketClosed();
 			}

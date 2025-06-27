@@ -25,7 +25,7 @@ namespace MiniIT.Snipe
 		private List<AbstractCommunicatorRequest> _requests;
 		public List<AbstractCommunicatorRequest> Requests => _requests ??= new List<AbstractCommunicatorRequest>();
 
-		public readonly HashSet<SnipeRequestDescriptor> MergeableRequestTypes = new HashSet<SnipeRequestDescriptor>();
+		public HashSet<SnipeRequestDescriptor> MergeableRequestTypes { get; } = new HashSet<SnipeRequestDescriptor>();
 
 		public bool Connected => _client != null && _client.Connected;
 		public bool LoggedIn => _client != null && _client.LoggedIn;
@@ -57,18 +57,18 @@ namespace MiniIT.Snipe
 		private readonly RoomStateObserver _roomStateObserver;
 		private readonly ILogger _logger;
 
-		public SnipeCommunicator(int contextId, SnipeConfig config)
+		public SnipeCommunicator(SnipeConfig config, SnipeAnalyticsTracker analytics)
 		{
 			_config = config;
+			_analytics = analytics;
 
 			_mainThreadRunner = SnipeServices.MainThreadRunner;
-			_analytics = SnipeServices.Analytics.GetTracker(contextId);
 			_logger = SnipeServices.LogService.GetLogger(nameof(SnipeCommunicator));
 			_logger.BeginScope($"{InstanceId}");
 
 			_roomStateObserver = new RoomStateObserver(this);
 
-			_logger.LogTrace($"PACKAGE VERSION: {PackageInfo.VERSION_NAME}");
+			_logger.LogInformation($"PACKAGE VERSION: {PackageInfo.VERSION_NAME}");
 		}
 
 		/// <summary>
@@ -76,8 +76,6 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public void Start()
 		{
-			//_mainThreadRunner.SetMainThread();
-
 			InitClient();
 		}
 
@@ -100,6 +98,7 @@ namespace MiniIT.Snipe
 				_client = new SnipeClient(_config);
 				_client.ConnectionOpened += OnClientConnectionOpened;
 				_client.ConnectionClosed += OnClientConnectionClosed;
+				_client.ConnectionDisrupted += OnClientConnectionDisrupted;
 				_client.UdpConnectionFailed += OnClientUdpConnectionFailed;
 				_client.MessageReceived += OnMessageReceived;
 			}
@@ -194,10 +193,19 @@ namespace MiniIT.Snipe
 			});
 		}
 
+		private void OnClientConnectionDisrupted()
+		{
+			_logger.LogTrace($"({InstanceId}) [{_client?.ConnectionId}] Client connection disrupted");
+
+			DisposeRequests();
+
+			ConnectionDisrupted?.Invoke();
+		}
+
 		// Main thread
 		private void OnConnectionFailed()
 		{
-			ConnectionDisrupted?.Invoke();
+			OnClientConnectionDisrupted();
 
 			if (_restoreConnectionAttempt < RestoreConnectionAttempts && !_disconnecting)
 			{
@@ -208,8 +216,6 @@ namespace MiniIT.Snipe
 			}
 
 			ConnectionClosed?.Invoke();
-
-			DisposeRequests();
 		}
 
 		private void AttemptToRestoreConnection()
@@ -306,6 +312,7 @@ namespace MiniIT.Snipe
 			{
 				_client.ConnectionOpened -= OnClientConnectionOpened;
 				_client.ConnectionClosed -= OnClientConnectionClosed;
+				_client.ConnectionDisrupted -= OnClientConnectionDisrupted;
 				_client.UdpConnectionFailed -= OnClientUdpConnectionFailed;
 				_client.MessageReceived -= OnMessageReceived;
 			}

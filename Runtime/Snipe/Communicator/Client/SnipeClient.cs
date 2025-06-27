@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
-using MiniIT.Snipe.Diagnostics;
 
 namespace MiniIT.Snipe
 {
@@ -17,8 +16,9 @@ namespace MiniIT.Snipe
 		public event MessageReceivedHandler MessageReceived;
 		public event Action ConnectionOpened;
 		public event Action ConnectionClosed;
-		public event Action LoginSucceeded;
-		public event Action<string> LoginFailed;
+		public event Action ConnectionDisrupted;
+		//public event Action LoginSucceeded;
+		//public event Action<string> LoginFailed;
 		public event Action UdpConnectionFailed;
 
 		public bool Connected => _transport != null && _transport.Connected;
@@ -58,7 +58,7 @@ namespace MiniIT.Snipe
 					_batchedRequests = null;
 				}
 
-				_diagnostics.LogTrace($"BatchMode = {value}");
+				_logger.LogTrace($"BatchMode = {value}");
 			}
 		}
 
@@ -68,12 +68,13 @@ namespace MiniIT.Snipe
 		private readonly Queue<Func<Transport>> _transportFactoriesQueue = new Queue<Func<Transport>>(3);
 
 		private int _requestId = 0;
+		private TimeSpan _prevDisconnectTime = TimeSpan.Zero;
 
 		private readonly SnipeConfig _config;
 		private readonly SnipeAnalyticsTracker _analytics;
 		private readonly ResponseMonitor _responseMonitor;
 		private readonly IMainThreadRunner _mainThreadRunner;
-		private readonly IDiagnosticsChannel _diagnostics;
+		private readonly ILogger _logger;
 
 		internal SnipeClient(SnipeConfig config)
 		{
@@ -81,7 +82,7 @@ namespace MiniIT.Snipe
 			_analytics = SnipeServices.Analytics.GetTracker(config.ContextId);
 			_responseMonitor = new ResponseMonitor(_analytics);
 			_mainThreadRunner = SnipeServices.MainThreadRunner;
-			_diagnostics = SnipeServices.Diagnostics.GetChannel(nameof(SnipeClient));
+			_logger = SnipeServices.LogService.GetLogger(nameof(SnipeClient));
 		}
 
 		public void Connect()
@@ -139,6 +140,7 @@ namespace MiniIT.Snipe
 			_transport ??= transportFactory.Invoke();
 
 			_connectionStartTimestamp = Stopwatch.GetTimestamp();
+			_prevDisconnectTime = TimeSpan.Zero;
 			_transport.Connect();
 		}
 
@@ -203,7 +205,7 @@ namespace MiniIT.Snipe
 				}
 				catch (Exception e)
 				{
-					_diagnostics.LogTrace("ConnectionOpened invocation error: {0}", e);
+					_logger.LogTrace("ConnectionOpened invocation error: {0}", e);
 					_analytics.TrackError("ConnectionOpened invocation error", e);
 				}
 			});
@@ -216,11 +218,16 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			if (transport.ConnectionEstablished)
+			// If disconnected twice during 10 seconds, then force transport change
+			TimeSpan now = DateTimeOffset.UtcNow.Offset;
+			TimeSpan dif = now - _prevDisconnectTime;
+			_prevDisconnectTime = now;
+
+			if (transport.ConnectionVerified && dif.TotalSeconds > 10)
 			{
 				Disconnect(true);
 			}
-			else // not connected yet, try another transport
+			else // Not connected yet or connection is lossy. Try another transport
 			{
 				Disconnect(false); // stop the transport and clean up
 
@@ -242,7 +249,7 @@ namespace MiniIT.Snipe
 				}
 				catch (Exception e)
 				{
-					_diagnostics.LogWarning("ConnectionClosed invocation error: {0}", e);
+					_logger.LogTrace("ConnectionClosed invocation error: {0}", e);
 					_analytics.TrackError("ConnectionClosed invocation error", e);
 				}
 			});
@@ -267,6 +274,12 @@ namespace MiniIT.Snipe
 			{
 				_transport.Dispose();
 				_transport = null;
+			}
+
+			// Needed for clearing batched requests on disconnect during login
+			if (ConnectionDisrupted != null)
+			{
+				_mainThreadRunner.RunInMainThread(() => ConnectionDisrupted?.Invoke());
 			}
 
 			if (raiseEvent)
@@ -341,16 +354,17 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			if (_diagnostics.IsEnabled(LogLevel.Trace))
+			if (_logger.IsEnabled(LogLevel.Trace))
 			{
-				_diagnostics.LogTrace("SendRequest - {0}", JsonUtility.ToJson(message));
+				_logger.LogTrace("SendRequest - {0}", JsonUtility.ToJson(message));
 			}
 
 			_transport.SendMessage(message);
 
 			_serverReactionStartTimestamp = Stopwatch.GetTimestamp();
 
-			_responseMonitor.Add(_requestId, message.SafeGetString("t"));
+			int id = message.SafeGetValue<int>("id");
+			_responseMonitor.Add(id, message.SafeGetString("t"));
 		}
 
 		private void DoSendBatch(List<IDictionary<string, object>> messages)
@@ -358,7 +372,7 @@ namespace MiniIT.Snipe
 			if (!Connected || messages == null || messages.Count == 0)
 				return;
 
-			_diagnostics.LogTrace("DoSendBatch - {0} items", messages.Count);
+			_logger.LogTrace("DoSendBatch - {0} items", messages.Count);
 
 			_transport.SendBatch(messages);
 		}
@@ -383,10 +397,10 @@ namespace MiniIT.Snipe
 
 			_responseMonitor.Remove(requestID, messageType);
 
-			if (_diagnostics.IsEnabled(LogLevel.Trace))
+			if (_logger.IsEnabled(LogLevel.Trace))
 			{
 				string dataJson = responseData != null ? JsonUtility.ToJson(responseData) : null;
-				_diagnostics.LogTrace("[{0}] ProcessMessage - {1} - {2} {3} {4}", ConnectionId, requestID, messageType, errorCode, dataJson);
+				_logger.LogTrace("[{0}] ProcessMessage - {1} - {2} {3} {4}", ConnectionId, requestID, messageType, errorCode, dataJson);
 			}
 
 			if (!_loggedIn && messageType == SnipeMessageTypes.USER_LOGIN)
@@ -406,7 +420,7 @@ namespace MiniIT.Snipe
 		{
 			if (errorCode == SnipeErrorCodes.OK || errorCode == SnipeErrorCodes.ALREADY_LOGGED_IN)
 			{
-				_diagnostics.LogTrace("[{0}] ProcessMessage - Login Succeeded", ConnectionId);
+				_logger.LogTrace("[{0}] ProcessMessage - Login Succeeded", ConnectionId);
 
 				_loggedIn = true;
 
@@ -424,41 +438,41 @@ namespace MiniIT.Snipe
 					ConnectionId = "";
 				}
 
-				if (LoginSucceeded != null)
-				{
-					_mainThreadRunner.RunInMainThread(() =>
-					{
-						try
-						{
-							LoginSucceeded?.Invoke();
-						}
-						catch (Exception e)
-						{
-							_diagnostics.LogTrace("[{0}] ProcessMessage - LoginSucceeded invocation error: {1}", ConnectionId, e);
-							_analytics.TrackError("LoginSucceeded invocation error", e);
-						}
-					});
-				}
+				// if (LoginSucceeded != null)
+				// {
+				// 	_mainThreadRunner.RunInMainThread(() =>
+				// 	{
+				// 		try
+				// 		{
+				// 			LoginSucceeded?.Invoke();
+				// 		}
+				// 		catch (Exception e)
+				// 		{
+				// 			_logger.LogTrace("[{0}] ProcessMessage - LoginSucceeded invocation error: {1}", ConnectionId, e);
+				// 			_analytics.TrackError("LoginSucceeded invocation error", e);
+				// 		}
+				// 	});
+				// }
 			}
 			else
 			{
-				_diagnostics.LogTrace("[{0}] ProcessMessage - Login Failed", ConnectionId);
+				_logger.LogTrace("[{0}] ProcessMessage - Login Failed", ConnectionId);
 
-				if (LoginFailed != null)
-				{
-					_mainThreadRunner.RunInMainThread(() =>
-					{
-						try
-						{
-							LoginFailed?.Invoke(errorCode);
-						}
-						catch (Exception e)
-						{
-							_diagnostics.LogTrace("[{0}] ProcessMessage - LoginFailed invocation error: {1}", ConnectionId, e);
-							_analytics.TrackError("LoginFailed invocation error", e);
-						}
-					});
-				}
+				// if (LoginFailed != null)
+				// {
+				// 	_mainThreadRunner.RunInMainThread(() =>
+				// 	{
+				// 		try
+				// 		{
+				// 			LoginFailed?.Invoke(errorCode);
+				// 		}
+				// 		catch (Exception e)
+				// 		{
+				// 			_logger.LogTrace("[{0}] ProcessMessage - LoginFailed invocation error: {1}", ConnectionId, e);
+				// 			_analytics.TrackError("LoginFailed invocation error", e);
+				// 		}
+				// 	});
+				// }
 			}
 		}
 
@@ -470,12 +484,12 @@ namespace MiniIT.Snipe
 				{
 					try
 					{
-						// TODO: Remove IDictionary<string, object> wrapper
-						MessageReceived?.Invoke(messageType, errorCode, new Dictionary<string, object>(responseData), requestId);
+						// TODO: Remove IDictionary<string, object> wrapper ????
+						MessageReceived?.Invoke(messageType, errorCode, new /*ReadOnly*/Dictionary<string, object>(responseData), requestId);
 					}
 					catch (Exception e)
 					{
-						_diagnostics.LogTrace("[{0}] ProcessMessage - {1} - MessageReceived invocation error: {2}", ConnectionId, messageType, e);
+						_logger.LogTrace("[{0}] ProcessMessage - {1} - MessageReceived invocation error: {2}", ConnectionId, messageType, e);
 						_analytics.TrackError("MessageReceived invocation error", e, new Dictionary<string, object>()
 						{
 							["messageType"] = messageType,
@@ -486,7 +500,7 @@ namespace MiniIT.Snipe
 			}
 			else
 			{
-				_diagnostics.LogTrace("[{0}] ProcessMessage - no MessageReceived listeners", ConnectionId);
+				_logger.LogTrace("[{0}] ProcessMessage - no MessageReceived listeners", ConnectionId);
 			}
 		}
 
@@ -518,7 +532,7 @@ namespace MiniIT.Snipe
 				{
 					var message = queue[i];
 					messages.Add(message);
-					_diagnostics.LogTrace("Request batched - {0}", JsonUtility.ToJson(message));
+					_logger.LogTrace("Request batched - {0}", JsonUtility.ToJson(message));
 				}
 
 				DoSendBatch(messages);
