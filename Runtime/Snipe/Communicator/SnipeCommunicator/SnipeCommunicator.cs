@@ -99,6 +99,7 @@ namespace MiniIT.Snipe
 				_client.ConnectionOpened += OnClientConnectionOpened;
 				_client.ConnectionClosed += OnClientConnectionClosed;
 				_client.UdpConnectionFailed += OnClientUdpConnectionFailed;
+				_client.InternalConnectionClosed += OnClientInternalConnectionClosed;
 				_client.MessageReceived += OnMessageReceived;
 			}
 
@@ -190,6 +191,13 @@ namespace MiniIT.Snipe
 			{
 				AnalyticsTrackUdpConnectionFailed(transportInfo);
 			});
+		}
+
+		private void OnClientInternalConnectionClosed()
+		{
+			_logger.LogTrace($"({InstanceId}) [{_client?.ConnectionId}] Client internal event - connection closed");
+
+			DisposeRequests();
 		}
 
 		// Main thread
@@ -305,6 +313,7 @@ namespace MiniIT.Snipe
 				_client.ConnectionOpened -= OnClientConnectionOpened;
 				_client.ConnectionClosed -= OnClientConnectionClosed;
 				_client.UdpConnectionFailed -= OnClientUdpConnectionFailed;
+				_client.InternalConnectionClosed -= OnClientInternalConnectionClosed;
 				_client.MessageReceived -= OnMessageReceived;
 			}
 

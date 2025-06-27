@@ -43,7 +43,7 @@ namespace MiniIT.Http
 
 		public async UniTask<IHttpClientResponse> PostJson(Uri uri, string content)
 		{
-			var requestContent = new StringContent(content, Encoding.UTF8, "application/json");
+			using var requestContent = new StringContent(content, Encoding.UTF8, "application/json");
 
 			var response = await _httpClient.PostAsync(uri, requestContent);
 			return new SystemHttpClientResponse(response);
@@ -51,7 +51,7 @@ namespace MiniIT.Http
 
 		public async UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content)
 		{
-			var requestContent = new MultipartFormDataContent();
+			using var requestContent = new MultipartFormDataContent();
 			requestContent.Add(new ByteArrayContent(content), name);
 
 			var response = await _httpClient.PostAsync(uri, requestContent);

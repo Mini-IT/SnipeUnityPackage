@@ -13,6 +13,7 @@ using MiniIT.MessagePack;
 using MiniIT.Snipe.Logging;
 using MiniIT.Threading;
 using MiniIT.Snipe.Configuration;
+using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
@@ -243,7 +244,7 @@ namespace MiniIT.Snipe
 			}
 			finally
 			{
-				if (semaphoreOccupied)
+				if (semaphoreOccupied && !_disposed)
 				{
 					_messageSerializationSemaphore.Release();
 				}
@@ -307,7 +308,7 @@ namespace MiniIT.Snipe
 			}
 			finally
 			{
-				if (semaphoreOccupied)
+				if (semaphoreOccupied && !_disposed)
 				{
 					_messageProcessingSemaphore.Release();
 				}
@@ -342,7 +343,7 @@ namespace MiniIT.Snipe
 
 		private void StartSendTask()
 		{
-			_sendTaskCancellation?.Cancel();
+			CancellationTokenHelper.CancelAndDispose(ref _sendTaskCancellation);
 
 #if NET5_0_OR_GREATER
 			if (_sendMessages == null)
@@ -362,14 +363,10 @@ namespace MiniIT.Snipe
 		{
 			StopCheckConnection();
 
-			if (_sendTaskCancellation != null)
-			{
-				_sendTaskCancellation.Cancel();
-				_sendTaskCancellation.Dispose();
-				_sendTaskCancellation = null;
-			}
+			CancellationTokenHelper.CancelAndDispose(ref _sendTaskCancellation);
 
 			_sendMessages = null;
+			_batchMessages = null;
 		}
 
 		private async void SendTask(CancellationToken? cancellation)
@@ -412,7 +409,7 @@ namespace MiniIT.Snipe
 
 		private void StartHeartbeat()
 		{
-			_heartbeatCancellation?.Cancel();
+			CancellationTokenHelper.CancelAndDispose(ref _heartbeatCancellation);
 
 			// Custom heartbeating is needed only for WebSocketSharp
 			if (_webSocket == null || _webSocket.AutoPing)
@@ -427,11 +424,7 @@ namespace MiniIT.Snipe
 
 		private void StopHeartbeat()
 		{
-			if (_heartbeatCancellation != null)
-			{
-				_heartbeatCancellation.Cancel();
-				_heartbeatCancellation = null;
-			}
+			CancellationTokenHelper.CancelAndDispose(ref _heartbeatCancellation);
 		}
 
 		private async void HeartbeatTask(CancellationToken cancellation)
@@ -516,7 +509,7 @@ namespace MiniIT.Snipe
 
 			// _logger.LogTrace($"StartCheckConnection");
 
-			_checkConnectionCancellation?.Cancel();
+			CancellationTokenHelper.CancelAndDispose(ref _checkConnectionCancellation);
 
 			_checkConnectionCancellation = new CancellationTokenSource();
 			AlterTask.RunAndForget(() => CheckConnectionTask(_checkConnectionCancellation.Token));
@@ -524,13 +517,7 @@ namespace MiniIT.Snipe
 
 		private void StopCheckConnection()
 		{
-			if (_checkConnectionCancellation != null)
-			{
-				_checkConnectionCancellation.Cancel();
-				_checkConnectionCancellation = null;
-
-				// _logger.LogTrace($"StopCheckConnection");
-			}
+			CancellationTokenHelper.CancelAndDispose(ref _checkConnectionCancellation);
 
 			BadConnection = false;
 		}

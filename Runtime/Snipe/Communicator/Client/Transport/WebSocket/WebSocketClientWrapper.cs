@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.Snipe.Logging;
+using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
@@ -100,11 +101,7 @@ namespace MiniIT.Snipe
 
 		private void Disconnect(string reason)
 		{
-			if (_cancellation != null)
-			{
-				_cancellation.Cancel();
-				_cancellation = null;
-			}
+			CancellationTokenHelper.CancelAndDispose(ref _cancellation);
 
 			if (_webSocket != null)
 			{
@@ -290,6 +287,8 @@ namespace MiniIT.Snipe
 		{
 			base.Dispose();
 			_webSocket?.Dispose();
+
+			CancellationTokenHelper.Dispose(ref _cancellation, false);
 		}
 	}
 

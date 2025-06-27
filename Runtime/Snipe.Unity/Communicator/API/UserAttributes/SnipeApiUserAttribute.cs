@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using MiniIT.Threading;
+using MiniIT.Utils;
 
 namespace MiniIT.Snipe.Api
 {
@@ -196,7 +197,7 @@ namespace MiniIT.Snipe.Api
 
 				if (_syncronizer.Cancellation == null)
 				{
-					_syncronizer.Cancellation = new CancellationTokenSource();
+					_syncronizer.InitCancellation();
 					DelayedSendSetRequests(_syncronizer.Cancellation.Token);
 				}
 			}
@@ -227,8 +228,7 @@ namespace MiniIT.Snipe.Api
 				await _syncronizer.Semaphore.WaitAsync(cancellationToken);
 				semaphoreOccupied = true;
 
-				_syncronizer.Cancellation?.Dispose();
-				_syncronizer.Cancellation = null;
+				_syncronizer.DisposeCancellation();
 
 				FlushRequests();
 			}
@@ -309,9 +309,11 @@ namespace MiniIT.Snipe.Api
 		}
 
 		public AlterSemaphore Semaphore { get; } = new AlterSemaphore(1, 1);
-		public CancellationTokenSource Cancellation { get; set; }
+
+		public CancellationTokenSource Cancellation => _cancellation;
 
 		private UserAttributeSetRequestsBatch _requests;
+		private CancellationTokenSource _cancellation;
 
 		public UserAttributeSetRequestsBatch GetRequests(bool create)
 		{
@@ -324,14 +326,19 @@ namespace MiniIT.Snipe.Api
 
 		public void Clear()
 		{
-			if (Cancellation != null)
-			{
-				Cancellation.Cancel();
-				Cancellation.Dispose();
-				Cancellation= null;
-			}
+			DisposeCancellation();
 
 			_requests?.TryFlush(out _, out _);
+		}
+
+		public void InitCancellation()
+		{
+			_cancellation ??= new CancellationTokenSource();
+		}
+
+		public void DisposeCancellation()
+		{
+			CancellationTokenHelper.CancelAndDispose(ref _cancellation);
 		}
 	}
 }
