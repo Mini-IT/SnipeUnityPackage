@@ -98,8 +98,8 @@ namespace MiniIT.Snipe
 				_client = new SnipeClient(_config);
 				_client.ConnectionOpened += OnClientConnectionOpened;
 				_client.ConnectionClosed += OnClientConnectionClosed;
+				_client.ConnectionDisrupted += OnClientConnectionDisrupted;
 				_client.UdpConnectionFailed += OnClientUdpConnectionFailed;
-				_client.InternalConnectionClosed += OnClientInternalConnectionClosed;
 				_client.MessageReceived += OnMessageReceived;
 			}
 
@@ -193,17 +193,19 @@ namespace MiniIT.Snipe
 			});
 		}
 
-		private void OnClientInternalConnectionClosed()
+		private void OnClientConnectionDisrupted()
 		{
-			_logger.LogTrace($"({InstanceId}) [{_client?.ConnectionId}] Client internal event - connection closed");
+			_logger.LogTrace($"({InstanceId}) [{_client?.ConnectionId}] Client connection disrupted");
 
 			DisposeRequests();
+
+			ConnectionDisrupted?.Invoke();
 		}
 
 		// Main thread
 		private void OnConnectionFailed()
 		{
-			ConnectionDisrupted?.Invoke();
+			OnClientConnectionDisrupted();
 
 			if (_restoreConnectionAttempt < RestoreConnectionAttempts && !_disconnecting)
 			{
@@ -214,8 +216,6 @@ namespace MiniIT.Snipe
 			}
 
 			ConnectionClosed?.Invoke();
-
-			DisposeRequests();
 		}
 
 		private void AttemptToRestoreConnection()
@@ -312,8 +312,8 @@ namespace MiniIT.Snipe
 			{
 				_client.ConnectionOpened -= OnClientConnectionOpened;
 				_client.ConnectionClosed -= OnClientConnectionClosed;
+				_client.ConnectionDisrupted -= OnClientConnectionDisrupted;
 				_client.UdpConnectionFailed -= OnClientUdpConnectionFailed;
-				_client.InternalConnectionClosed -= OnClientInternalConnectionClosed;
 				_client.MessageReceived -= OnMessageReceived;
 			}
 

@@ -16,10 +16,10 @@ namespace MiniIT.Snipe
 		public event MessageReceivedHandler MessageReceived;
 		public event Action ConnectionOpened;
 		public event Action ConnectionClosed;
-		public event Action LoginSucceeded;
-		public event Action<string> LoginFailed;
+		public event Action ConnectionDisrupted;
+		//public event Action LoginSucceeded;
+		//public event Action<string> LoginFailed;
 		public event Action UdpConnectionFailed;
-		public event Action InternalConnectionClosed;
 
 		public bool Connected => _transport != null && _transport.Connected;
 		public bool LoggedIn => _loggedIn && Connected;
@@ -277,9 +277,9 @@ namespace MiniIT.Snipe
 			}
 
 			// Needed for clearing batched requests on disconnect during login
-			if (InternalConnectionClosed != null)
+			if (ConnectionDisrupted != null)
 			{
-				_mainThreadRunner.RunInMainThread(() => InternalConnectionClosed?.Invoke());
+				_mainThreadRunner.RunInMainThread(() => ConnectionDisrupted?.Invoke());
 			}
 
 			if (raiseEvent)
@@ -438,41 +438,41 @@ namespace MiniIT.Snipe
 					ConnectionId = "";
 				}
 
-				if (LoginSucceeded != null)
-				{
-					_mainThreadRunner.RunInMainThread(() =>
-					{
-						try
-						{
-							LoginSucceeded?.Invoke();
-						}
-						catch (Exception e)
-						{
-							_logger.LogTrace("[{0}] ProcessMessage - LoginSucceeded invocation error: {1}", ConnectionId, e);
-							_analytics.TrackError("LoginSucceeded invocation error", e);
-						}
-					});
-				}
+				// if (LoginSucceeded != null)
+				// {
+				// 	_mainThreadRunner.RunInMainThread(() =>
+				// 	{
+				// 		try
+				// 		{
+				// 			LoginSucceeded?.Invoke();
+				// 		}
+				// 		catch (Exception e)
+				// 		{
+				// 			_logger.LogTrace("[{0}] ProcessMessage - LoginSucceeded invocation error: {1}", ConnectionId, e);
+				// 			_analytics.TrackError("LoginSucceeded invocation error", e);
+				// 		}
+				// 	});
+				// }
 			}
 			else
 			{
 				_logger.LogTrace("[{0}] ProcessMessage - Login Failed", ConnectionId);
 
-				if (LoginFailed != null)
-				{
-					_mainThreadRunner.RunInMainThread(() =>
-					{
-						try
-						{
-							LoginFailed?.Invoke(errorCode);
-						}
-						catch (Exception e)
-						{
-							_logger.LogTrace("[{0}] ProcessMessage - LoginFailed invocation error: {1}", ConnectionId, e);
-							_analytics.TrackError("LoginFailed invocation error", e);
-						}
-					});
-				}
+				// if (LoginFailed != null)
+				// {
+				// 	_mainThreadRunner.RunInMainThread(() =>
+				// 	{
+				// 		try
+				// 		{
+				// 			LoginFailed?.Invoke(errorCode);
+				// 		}
+				// 		catch (Exception e)
+				// 		{
+				// 			_logger.LogTrace("[{0}] ProcessMessage - LoginFailed invocation error: {1}", ConnectionId, e);
+				// 			_analytics.TrackError("LoginFailed invocation error", e);
+				// 		}
+				// 	});
+				// }
 			}
 		}
 
@@ -484,8 +484,8 @@ namespace MiniIT.Snipe
 				{
 					try
 					{
-						// TODO: Remove IDictionary<string, object> wrapper
-						MessageReceived?.Invoke(messageType, errorCode, new Dictionary<string, object>(responseData), requestId);
+						// TODO: Remove IDictionary<string, object> wrapper ????
+						MessageReceived?.Invoke(messageType, errorCode, new /*ReadOnly*/Dictionary<string, object>(responseData), requestId);
 					}
 					catch (Exception e)
 					{
