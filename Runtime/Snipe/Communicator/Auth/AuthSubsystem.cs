@@ -444,23 +444,23 @@ namespace MiniIT.Snipe
 		/// <summary>
 		/// Gets or creates a new instance of <see cref="AuthBinding"/>
 		/// </summary>
-		public BindingType GetBinding<BindingType>(bool create = true) where BindingType : AuthBinding
+		public TBinding GetBinding<TBinding>(bool create = true) where TBinding : AuthBinding
 		{
-			BindingType resultBinding = FindBinding<BindingType>();
+			TBinding resultBinding = FindBinding<TBinding>();
 
 			if (resultBinding == null && create)
 			{
-				resultBinding = CreateBinding<BindingType>();
+				resultBinding = CreateBinding<TBinding>();
 				_bindings.Add(resultBinding);
 			}
 
 			return resultBinding;
 		}
 
-		protected BindingType FindBinding<BindingType>(bool tryBaseClasses = true) where BindingType : AuthBinding
+		protected TBinding FindBinding<TBinding>(bool tryBaseClasses = true) where TBinding : AuthBinding
 		{
-			Type targetBindingType = typeof(BindingType);
-			BindingType resultBinding = null;
+			Type targetBindingType = typeof(TBinding);
+			TBinding resultBinding = null;
 
 			if (_bindings.Count > 0)
 			{
@@ -468,7 +468,7 @@ namespace MiniIT.Snipe
 				{
 					if (binding != null && binding.GetType() == targetBindingType)
 					{
-						resultBinding = binding as BindingType;
+						resultBinding = binding as TBinding;
 						break;
 					}
 				}
@@ -478,9 +478,9 @@ namespace MiniIT.Snipe
 				{
 					foreach (var binding in _bindings)
 					{
-						if (binding != null && binding is BindingType)
+						if (binding is TBinding b)
 						{
-							resultBinding = binding as BindingType;
+							resultBinding = b;
 							break;
 						}
 					}
@@ -537,18 +537,18 @@ namespace MiniIT.Snipe
 		/// <summary>
 		/// Creates an instance of <see cref="AuthBinding"/> using reflection
 		/// </summary>
-		/// <returns>A new instance of <c>BindingType</c></returns>
+		/// <returns>A new instance of <c>TBinding</c></returns>
 		/// <exception cref="ArgumentException">No constructor found matching required parameters types</exception>
-		protected BindingType CreateBinding<BindingType>() where BindingType : AuthBinding
+		protected TBinding CreateBinding<TBinding>() where TBinding : AuthBinding
 		{
-			var constructor = typeof(BindingType).GetConstructor(new Type[] { typeof(SnipeCommunicator), typeof(AuthSubsystem), typeof(SnipeConfig) });
+			var constructor = typeof(TBinding).GetConstructor(new Type[] { typeof(SnipeCommunicator), typeof(AuthSubsystem), typeof(SnipeConfig) });
 
 			if (constructor == null)
 			{
 				throw new ArgumentException("Unsupported contructor");
 			}
 
-			return constructor.Invoke(new object[] { _communicator, this, _config }) as BindingType;
+			return constructor.Invoke(new object[] { _communicator, this, _config }) as TBinding;
 		}
 
 		private void RaiseLoginSucceededEvent()
