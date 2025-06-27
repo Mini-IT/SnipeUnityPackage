@@ -339,40 +339,45 @@ namespace MiniIT.Snipe
 				{
 					_registering = false;
 
-					if (errorCode == SnipeErrorCodes.OK)
+					if (errorCode != SnipeErrorCodes.OK)
 					{
-						string authUid = response.SafeGetString("uid");
-						string authPassword = response.SafeGetString("password");
-						SetAuthData(authUid, authPassword);
+						return;
+					}
+					
+					string authUid = response.SafeGetString("uid");
+					string authPassword = response.SafeGetString("password");
+					SetAuthData(authUid, authPassword);
 
-						JustRegistered = response.SafeGetValue<bool>("registrationDone", false);
+					JustRegistered = response.SafeGetValue<bool>("registrationDone", false);
 
-						if (response["authsBinded"] is IList list)
+					if (response["authsBinded"] is IList list)
+					{
+						for (int i = 0; i < list.Count; i++)
 						{
-							for (int i = 0; i < list.Count; i++)
+							if (list[i] is not IDictionary<string, object> item)
 							{
-								var item = list[i] as IDictionary<string, object>;
-								if (item != null)
-								{
-									string provider = item.SafeGetString("provider");
-									if (!string.IsNullOrEmpty(provider))
-									{
-										AuthBinding binding = _bindings.FirstOrDefault(b => b.ProviderId == provider);
-										if (binding != null)
-										{
-											binding.IsBindDone = true;
-										}
-										else
-										{
-											_sharedPrefs.SetInt(SnipePrefs.GetAuthBindDone(_contextId) + provider, 1);
-										}
-									}
-								}
+								continue;
+							}
+
+							string provider = item.SafeGetString("provider");
+							if (string.IsNullOrEmpty(provider))
+							{
+								continue;
+							}
+
+							AuthBinding binding = _bindings.FirstOrDefault(b => b.ProviderId == provider);
+							if (binding != null)
+							{
+								binding.IsBindDone = true;
+							}
+							else
+							{
+								_sharedPrefs.SetInt(SnipePrefs.GetAuthBindDone(_contextId) + provider, 1);
 							}
 						}
-
-						OnLoginSucceeded(response);
 					}
+
+					OnLoginSucceeded(response);
 				})
 			);
 		}
