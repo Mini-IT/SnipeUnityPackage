@@ -38,6 +38,12 @@ namespace MiniIT.Snipe.Unity
 #endif
 		}
 
+		public void Connect<TBinding>(BindResultCallback callback = null) where TBinding : AuthBinding
+		{
+			var binding = _authSubsystem.GetBinding<TBinding>();
+			Connect(binding, callback);
+		}
+
 		public void Connect(AuthBinding binding, BindResultCallback callback = null)
 		{
 			if (binding is FacebookBinding)
