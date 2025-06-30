@@ -10,27 +10,27 @@ namespace MiniIT.Snipe.Unity
 		{
 		}
 
-		protected override void InitDefaultBindings()
+		protected override void RegisterDefaultBindings()
 		{
-			if (FindBinding<DeviceIdBinding>(false) == null)
+			if (!TryGetBinding<DeviceIdBinding>(false, out _))
 			{
 				_bindings.Add(new DeviceIdBinding(_communicator, this, _config));
 			}
 
-			if (FindBinding<AdvertisingIdBinding>(false) == null)
+			if (!TryGetBinding<AdvertisingIdBinding>(false, out _))
 			{
 				_bindings.Add(new AdvertisingIdBinding(_communicator, this, _config));
 			}
 
 #if SNIPE_FACEBOOK
-			if (FindBinding<FacebookBinding>(false) == null)
+			if (!TryGetBinding<FacebookBinding>(false, out _))
 			{
 				_bindings.Add(new FacebookBinding(_communicator, this, _config));
 			}
 #endif
 
 #if UNITY_ANDROID
-			if (FindBinding<AmazonBinding>(false) == null)
+			if (!TryGetBinding<AmazonBinding>(false, out _))
 			{
 				_bindings.Add(new AmazonBinding(_communicator, this, _config));
 			}

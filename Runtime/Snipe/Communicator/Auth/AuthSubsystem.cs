@@ -117,7 +117,7 @@ namespace MiniIT.Snipe
 			_bindings = new List<AuthBinding>();
 		}
 
-		protected virtual void InitDefaultBindings()
+		protected virtual void RegisterDefaultBindings()
 		{
 		}
 
@@ -134,7 +134,7 @@ namespace MiniIT.Snipe
 
 			if (UseDefaultBindings)
 			{
-				InitDefaultBindings();
+				RegisterDefaultBindings();
 			}
 
 			if (!LoginWithInternalAuthData())
@@ -343,7 +343,7 @@ namespace MiniIT.Snipe
 					{
 						return;
 					}
-					
+
 					string authUid = response.SafeGetString("uid");
 					string authPassword = response.SafeGetString("password");
 					SetAuthData(authUid, authPassword);
@@ -446,53 +446,58 @@ namespace MiniIT.Snipe
 				});
 		}
 
-		/// <summary>
-		/// Gets or creates a new instance of <see cref="AuthBinding"/>
-		/// </summary>
-		public TBinding GetBinding<TBinding>(bool create = true) where TBinding : AuthBinding
+		public TBinding RegisterBinding<TBinding>(TBinding binding) where TBinding : AuthBinding
 		{
-			TBinding resultBinding = FindBinding<TBinding>();
-
-			if (resultBinding == null && create)
-			{
-				resultBinding = CreateBinding<TBinding>();
-				_bindings.Add(resultBinding);
-			}
-
-			return resultBinding;
+			_bindings.Add(binding);
+			return binding;
 		}
 
-		protected TBinding FindBinding<TBinding>(bool tryBaseClasses = true) where TBinding : AuthBinding
+		public bool TryGetBinding<TBinding>(out TBinding binding) where TBinding : AuthBinding
+		{
+			return TryGetBinding<TBinding>(true, out binding);
+		}
+
+		public bool TryGetBinding<TBinding>(bool searchBaseClasses, out TBinding binding) where TBinding : AuthBinding
 		{
 			Type targetBindingType = typeof(TBinding);
-			TBinding resultBinding = null;
+			binding = null;
 
-			if (_bindings.Count > 0)
+			if (_bindings.Count <= 0)
 			{
-				foreach (var binding in _bindings)
-				{
-					if (binding != null && binding.GetType() == targetBindingType)
-					{
-						resultBinding = binding as TBinding;
-						break;
-					}
-				}
+				return false;
+			}
 
-				// if no exact type match found, try base classes
-				if (resultBinding == null && tryBaseClasses)
+			foreach (var registeredBinding in _bindings)
+			{
+				if (registeredBinding != null && registeredBinding.GetType() == targetBindingType)
 				{
-					foreach (var binding in _bindings)
-					{
-						if (binding is TBinding b)
-						{
-							resultBinding = b;
-							break;
-						}
-					}
+					binding = registeredBinding as TBinding;
+					break;
 				}
 			}
 
-			return resultBinding;
+			if (binding != null)
+			{
+				return true;
+			}
+
+			// if no exact type match found, try base classes
+
+			if (!searchBaseClasses)
+			{
+				return false;
+			}
+
+			foreach (var registeredBinding in _bindings)
+			{
+				if (registeredBinding is TBinding b)
+				{
+					binding = b;
+					break;
+				}
+			}
+
+			return binding != null;
 		}
 
 		public void ClearAllBindings()

@@ -40,8 +40,10 @@ namespace MiniIT.Snipe.Unity
 
 		public void Connect<TBinding>(BindResultCallback callback = null) where TBinding : AuthBinding
 		{
-			var binding = _authSubsystem.GetBinding<TBinding>();
-			Connect(binding, callback);
+			if (_authSubsystem.TryGetBinding<TBinding>(out var binding))
+			{
+				Connect(binding, callback);
+			}
 		}
 
 		public void Connect(AuthBinding binding, BindResultCallback callback = null)
