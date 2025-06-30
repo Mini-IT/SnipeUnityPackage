@@ -14,25 +14,25 @@ namespace MiniIT.Snipe.Unity
 		{
 			if (!TryGetBinding<DeviceIdBinding>(false, out _))
 			{
-				_bindings.Add(new DeviceIdBinding(_communicator, this, _config));
+				RegisterBinding(new DeviceIdBinding());
 			}
 
 			if (!TryGetBinding<AdvertisingIdBinding>(false, out _))
 			{
-				_bindings.Add(new AdvertisingIdBinding(_communicator, this, _config));
+				RegisterBinding(new AdvertisingIdBinding());
 			}
 
 #if SNIPE_FACEBOOK
 			if (!TryGetBinding<FacebookBinding>(false, out _))
 			{
-				_bindings.Add(new FacebookBinding(_communicator, this, _config));
+				RegisterBinding(new FacebookBinding());
 			}
 #endif
 
 #if UNITY_ANDROID
 			if (!TryGetBinding<AmazonBinding>(false, out _))
 			{
-				_bindings.Add(new AmazonBinding(_communicator, this, _config));
+				RegisterBinding(new AmazonBinding());
 			}
 #endif
 		}

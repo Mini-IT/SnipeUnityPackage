@@ -8,8 +8,8 @@ namespace MiniIT.Snipe.Unity
 {
 	public class FacebookBinding : AuthBinding<FacebookIdFetcher>
 	{
-		public FacebookBinding(SnipeCommunicator communicator, AuthSubsystem authSubsystem, SnipeConfig config)
-			: base("fb", communicator, authSubsystem, config)
+		public FacebookBinding()
+			: base("fb")
 		{
 		}
 
@@ -80,7 +80,7 @@ namespace MiniIT.Snipe.Unity
 				["provider"] = ProviderId,
 				["login"] = uid,
 				["auth"] = pass,
-				["connectLogin"] = _config.ContextId + binding.GetUserId(),
+				["connectLogin"] = _contextId + binding.GetUserId(),
 				["connectProvider"] = binding.ProviderId,
 			};
 
