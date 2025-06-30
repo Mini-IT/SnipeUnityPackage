@@ -46,8 +46,6 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public bool JustRegistered { get; protected set; } = false;
 
-		public bool UseDefaultBindings { get; set; } = true;
-
 		private int _userID = 0;
 		public int UserID
 		{
@@ -90,7 +88,7 @@ namespace MiniIT.Snipe
 		public string UserName { get; protected set; }
 
 		protected readonly SnipeCommunicator _communicator;
-		protected readonly HashSet<AuthBinding> _bindings;
+		protected readonly HashSet<AuthBinding> _bindings = new ();
 
 		protected int _loginAttempt;
 		private bool _registering = false;
@@ -113,12 +111,6 @@ namespace MiniIT.Snipe
 			_sharedPrefs = SnipeServices.SharedPrefs;
 			_mainThreadRunner = SnipeServices.MainThreadRunner;
 			_logger = SnipeServices.LogService.GetLogger(nameof(AuthSubsystem));
-
-			_bindings = new HashSet<AuthBinding>();
-		}
-
-		protected virtual void RegisterDefaultBindings()
-		{
 		}
 
 		public void Authorize()
@@ -132,9 +124,9 @@ namespace MiniIT.Snipe
 
 			_logger.LogTrace($"({_communicator.InstanceId}) Authorize");
 
-			if (UseDefaultBindings)
+			if (_bindings.Count == 0)
 			{
-				RegisterDefaultBindings();
+				_logger.LogWarning("No auth bindings registered. In some projects this might be the desired behavior. But in most cases this is a bug.");
 			}
 
 			if (!LoginWithInternalAuthData())
