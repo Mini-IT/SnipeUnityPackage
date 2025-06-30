@@ -12,7 +12,8 @@ namespace MiniIT.Snipe
 		public const int SNIPE_VERSION = 6;
 		public const int MAX_BATCH_SIZE = 5;
 
-		public delegate void MessageReceivedHandler(string message_type, string error_code, IDictionary<string, object> data, int request_id);
+		public delegate void MessageReceivedHandler(string messageType, string errorCode, IDictionary<string, object> data, int requestID);
+
 		public event MessageReceivedHandler MessageReceived;
 		public event Action ConnectionOpened;
 		public event Action ConnectionClosed;
