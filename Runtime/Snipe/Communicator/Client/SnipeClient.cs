@@ -113,14 +113,8 @@ namespace MiniIT.Snipe
 
 		private bool StartNextTransport()
 		{
-#if NET_STANDARD_2_1
 			if (_transportFactoriesQueue.TryDequeue(out var transportFactory))
 			{
-#else
-			if (_transportFactoriesQueue.Count > 0)
-			{
-				var transportFactory = _transportFactoriesQueue.Dequeue();
-#endif
 				StartTransport(transportFactory);
 				return true;
 			}
