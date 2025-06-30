@@ -73,7 +73,6 @@ namespace MiniIT.Snipe
 		private readonly SnipeConfig _config;
 		private readonly SnipeAnalyticsTracker _analytics;
 		private readonly ResponseMonitor _responseMonitor;
-		private readonly IMainThreadRunner _mainThreadRunner;
 		private readonly ILogger _logger;
 
 		internal SnipeClient(SnipeConfig config)
@@ -81,7 +80,6 @@ namespace MiniIT.Snipe
 			_config = config;
 			_analytics = SnipeServices.Analytics.GetTracker(config.ContextId);
 			_responseMonitor = new ResponseMonitor(_analytics);
-			_mainThreadRunner = SnipeServices.MainThreadRunner;
 			_logger = SnipeServices.LogService.GetLogger(nameof(SnipeClient));
 		}
 
@@ -158,11 +156,7 @@ namespace MiniIT.Snipe
 
 			transport.ConnectionClosedHandler = (Transport t) =>
 			{
-				_mainThreadRunner.RunInMainThread(() =>
-				{
-					UdpConnectionFailed?.Invoke();
-				});
-
+				UdpConnectionFailed?.Invoke();
 				OnTransportConnectionClosed(t);
 			};
 
@@ -196,19 +190,7 @@ namespace MiniIT.Snipe
 		private void OnTransportConnectionOpened(Transport transport)
 		{
 			_analytics.ConnectionEstablishmentTime = GetElapsedTime(_connectionStartTimestamp);
-
-			_mainThreadRunner.RunInMainThread(() =>
-			{
-				try
-				{
-					ConnectionOpened?.Invoke();
-				}
-				catch (Exception e)
-				{
-					_logger.LogTrace("ConnectionOpened invocation error: {0}", e);
-					_analytics.TrackError("ConnectionOpened invocation error", e);
-				}
-			});
+			ConnectionOpened?.Invoke();
 		}
 
 		private void OnTransportConnectionClosed(Transport transport)
@@ -241,18 +223,7 @@ namespace MiniIT.Snipe
 
 		private void RaiseConnectionClosedEvent()
 		{
-			_mainThreadRunner.RunInMainThread(() =>
-			{
-				try
-				{
-					ConnectionClosed?.Invoke();
-				}
-				catch (Exception e)
-				{
-					_logger.LogTrace("ConnectionClosed invocation error: {0}", e);
-					_analytics.TrackError("ConnectionClosed invocation error", e);
-				}
-			});
+			ConnectionClosed?.Invoke();
 		}
 
 		public void Disconnect()
@@ -277,10 +248,7 @@ namespace MiniIT.Snipe
 			}
 
 			// Needed for clearing batched requests on disconnect during login
-			if (ConnectionDisrupted != null)
-			{
-				_mainThreadRunner.RunInMainThread(() => ConnectionDisrupted?.Invoke());
-			}
+			ConnectionDisrupted?.Invoke();
 
 			if (raiseEvent)
 			{
@@ -438,41 +406,13 @@ namespace MiniIT.Snipe
 					ConnectionId = "";
 				}
 
-				// if (LoginSucceeded != null)
-				// {
-				// 	_mainThreadRunner.RunInMainThread(() =>
-				// 	{
-				// 		try
-				// 		{
-				// 			LoginSucceeded?.Invoke();
-				// 		}
-				// 		catch (Exception e)
-				// 		{
-				// 			_logger.LogTrace("[{0}] ProcessMessage - LoginSucceeded invocation error: {1}", ConnectionId, e);
-				// 			_analytics.TrackError("LoginSucceeded invocation error", e);
-				// 		}
-				// 	});
-				// }
+				// LoginSucceeded?.Invoke();
 			}
 			else
 			{
 				_logger.LogTrace("[{0}] ProcessMessage - Login Failed", ConnectionId);
 
-				// if (LoginFailed != null)
-				// {
-				// 	_mainThreadRunner.RunInMainThread(() =>
-				// 	{
-				// 		try
-				// 		{
-				// 			LoginFailed?.Invoke(errorCode);
-				// 		}
-				// 		catch (Exception e)
-				// 		{
-				// 			_logger.LogTrace("[{0}] ProcessMessage - LoginFailed invocation error: {1}", ConnectionId, e);
-				// 			_analytics.TrackError("LoginFailed invocation error", e);
-				// 		}
-				// 	});
-				// }
+				// LoginFailed?.Invoke(errorCode);
 			}
 		}
 
@@ -480,23 +420,8 @@ namespace MiniIT.Snipe
 		{
 			if (MessageReceived != null)
 			{
-				_mainThreadRunner.RunInMainThread(() =>
-				{
-					try
-					{
-						// TODO: Remove IDictionary<string, object> wrapper ????
-						MessageReceived?.Invoke(messageType, errorCode, new /*ReadOnly*/Dictionary<string, object>(responseData), requestId);
-					}
-					catch (Exception e)
-					{
-						_logger.LogTrace("[{0}] ProcessMessage - {1} - MessageReceived invocation error: {2}", ConnectionId, messageType, e);
-						_analytics.TrackError("MessageReceived invocation error", e, new Dictionary<string, object>()
-						{
-							["messageType"] = messageType,
-							["errorCode"] = errorCode,
-						});
-					}
-				});
+				// TODO: Remove IDictionary<string, object> wrapper ????
+				MessageReceived?.Invoke(messageType, errorCode, new /*ReadOnly*/Dictionary<string, object>(responseData), requestId);
 			}
 			else
 			{

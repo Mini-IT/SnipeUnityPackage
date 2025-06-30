@@ -193,13 +193,17 @@ namespace MiniIT.Snipe
 			});
 		}
 
+		// Not main thread
 		private void OnClientConnectionDisrupted()
 		{
 			_logger.LogTrace($"({InstanceId}) [{_client?.ConnectionId}] Client connection disrupted");
 
 			DisposeRequests();
 
-			ConnectionDisrupted?.Invoke();
+			_mainThreadRunner.RunInMainThread(() =>
+			{
+				ConnectionDisrupted?.Invoke();
+			});
 		}
 
 		// Main thread
