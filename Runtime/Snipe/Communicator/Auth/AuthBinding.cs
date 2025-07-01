@@ -92,6 +92,7 @@ namespace MiniIT.Snipe
 
 			if (!string.IsNullOrEmpty(uid) && !IsBindDone)
 			{
+				uid = FormatUserId(uid);
 				CheckAuthExists(uid);
 			}
 		}
@@ -144,8 +145,11 @@ namespace MiniIT.Snipe
 
 		public string GetUserId()
 		{
-			string uid = Fetcher?.Value;
+			return FormatUserId(Fetcher?.Value);
+		}
 
+		protected string FormatUserId(string uid)
+		{
 			if (string.IsNullOrEmpty(uid))
 			{
 				return "";
@@ -225,15 +229,15 @@ namespace MiniIT.Snipe
 			});
 		}
 
-		protected virtual void CheckAuthExists(string userID, CheckAuthExistsCallback callback = null)
+		private void CheckAuthExists(string formattedExternalUserID, CheckAuthExistsCallback callback = null)
 		{
-			_logger.LogTrace($"({ProviderId}) CheckAuthExists {userID}");
+			_logger.LogTrace($"({ProviderId}) CheckAuthExists {formattedExternalUserID}");
 
 			IDictionary<string, object> data = new Dictionary<string, object>()
 			{
 				["ckey"] = GetClientKey(),
 				["provider"] = ProviderId,
-				["login"] = userID,
+				["login"] = formattedExternalUserID,
 			};
 
 			int loginID = _authSubsystem.UserID;
@@ -246,7 +250,7 @@ namespace MiniIT.Snipe
 				.Request((errorCode, responseData) => OnCheckAuthExistsResponse(errorCode, responseData, callback));
 		}
 
-		protected virtual void OnBindResponse(string errorCode, IDictionary<string, object> data)
+		private void OnBindResponse(string errorCode, IDictionary<string, object> data)
 		{
 			_logger.LogTrace($"({ProviderId}) OnBindResponse - {errorCode}");
 
