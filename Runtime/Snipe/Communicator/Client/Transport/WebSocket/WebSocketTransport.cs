@@ -116,9 +116,9 @@ namespace MiniIT.Snipe
 				StopHeartbeat();
 				StopCheckConnection();
 
-				if (_webSocket != null)
+				var ws = _webSocket;
+				if (ws != null)
 				{
-					var ws = _webSocket;
 					_webSocket.OnConnectionOpened -= OnWebSocketConnected;
 					_webSocket.OnConnectionClosed -= OnWebSocketClosed;
 					_webSocket.ProcessMessage -= ProcessWebSocketMessage;
