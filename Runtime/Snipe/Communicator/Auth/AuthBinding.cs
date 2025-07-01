@@ -21,6 +21,8 @@ namespace MiniIT.Snipe
 		public string ProviderId { get; }
 		public AuthIdFetcher Fetcher { get; }
 
+		public bool UseContextIdPrefix { get; protected set; } = true;
+
 		//public bool? AccountExists { get; protected set; } = null;
 
 		public string BindDonePrefsKey => SnipePrefs.GetAuthBindDone(_contextId) + ProviderId;
@@ -142,7 +144,19 @@ namespace MiniIT.Snipe
 
 		public string GetUserId()
 		{
-			return Fetcher?.Value ?? "";
+			string uid = Fetcher?.Value;
+
+			if (string.IsNullOrEmpty(uid))
+			{
+				return "";
+			}
+
+			if (UseContextIdPrefix)
+			{
+				uid = _contextId + uid;
+			}
+
+			return uid;
 		}
 
 		protected string GetClientKey() => _getClientKey?.Invoke();

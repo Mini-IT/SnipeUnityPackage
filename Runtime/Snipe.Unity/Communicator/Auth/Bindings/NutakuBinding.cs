@@ -7,6 +7,7 @@ namespace MiniIT.Snipe.Unity
 		public NutakuBinding()
 			: base("nuta")
 		{
+			UseContextIdPrefix = false;
 		}
 	}
 }

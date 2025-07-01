@@ -284,8 +284,12 @@ namespace MiniIT.Snipe
 
 		protected abstract void RegisterAndLogin();
 
-		protected async UniTask FetchLoginId(string provider, AuthIdFetcher fetcher, List<IDictionary<string, object>> providers, bool contextIdPrefix)
+		protected async UniTask FetchLoginId(AuthBinding binding, List<IDictionary<string, object>> providers)
 		{
+			string provider = binding.ProviderId;
+			AuthIdFetcher fetcher = binding.Fetcher;
+			bool contextIdPrefix = binding.UseContextIdPrefix;
+
 			bool done = false;
 
 			fetcher.Fetch(false, uid =>

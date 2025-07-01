@@ -80,7 +80,7 @@ namespace MiniIT.Snipe.Unity
 				["provider"] = ProviderId,
 				["login"] = uid,
 				["auth"] = pass,
-				["connectLogin"] = _contextId + binding.GetUserId(),
+				["connectLogin"] = binding.GetUserId(),
 				["connectProvider"] = binding.ProviderId,
 			};
 
