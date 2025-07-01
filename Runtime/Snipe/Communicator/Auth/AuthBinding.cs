@@ -5,10 +5,10 @@ using MiniIT.Storage;
 
 namespace MiniIT.Snipe
 {
-	public class AuthBinding<FetcherType> : AuthBinding where FetcherType : AuthIdFetcher, new()
+	public class AuthBinding<TFetcher> : AuthBinding where TFetcher : AuthIdFetcher, new()
 	{
 		public AuthBinding(string providerId)
-			: base(providerId, new FetcherType())
+			: base(providerId, new TFetcher())
 		{
 		}
 	}
