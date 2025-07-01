@@ -23,8 +23,6 @@ namespace MiniIT.Snipe
 
 		public bool UseContextIdPrefix { get; protected set; } = true;
 
-		//public bool? AccountExists { get; protected set; } = null;
-
 		public string BindDonePrefsKey => SnipePrefs.GetAuthBindDone(_contextId) + ProviderId;
 
 		private bool? _isBindDone = null;
@@ -34,11 +32,11 @@ namespace MiniIT.Snipe
 			internal set => SetBindDoneFlag(value);
 		}
 
-		protected BindResultCallback _bindResultCallback;
+		private BindResultCallback _bindResultCallback;
 		private bool _started = false;
 
-		protected int _contextId;
-		protected Func<string> _getClientKey;
+		private int _contextId;
+		private Func<string> _getClientKeyMethod;
 		protected SnipeCommunicator _communicator;
 		protected AuthSubsystem _authSubsystem;
 		private readonly ISharedPrefs _sharedPrefs;
@@ -61,7 +59,7 @@ namespace MiniIT.Snipe
 			_contextId = contextId;
 			_communicator = communicator;
 			_authSubsystem = authSubsystem;
-			_getClientKey = getClientKeyMethod;
+			_getClientKeyMethod = getClientKeyMethod;
 		}
 
 		public void Start()
@@ -86,7 +84,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		protected void OnIdFetched(string uid)
+		private void OnIdFetched(string uid)
 		{
 			_logger.LogTrace($"OnIdFetched: {uid}");
 
@@ -148,7 +146,7 @@ namespace MiniIT.Snipe
 			return FormatUserId(Fetcher?.Value);
 		}
 
-		protected string FormatUserId(string uid)
+		private string FormatUserId(string uid)
 		{
 			if (string.IsNullOrEmpty(uid))
 			{
@@ -163,7 +161,7 @@ namespace MiniIT.Snipe
 			return uid;
 		}
 
-		protected string GetClientKey() => _getClientKey?.Invoke();
+		protected string GetClientKey() => _getClientKeyMethod?.Invoke();
 
 		protected string GetInternalAuthToken()
 		{
@@ -257,22 +255,20 @@ namespace MiniIT.Snipe
 
 			if (errorCode == SnipeErrorCodes.OK)
 			{
-				//AccountExists = true;
 				IsBindDone = true;
 			}
 
 			InvokeBindResultCallback(errorCode);
 		}
 
-		protected void OnCheckAuthExistsResponse(string errorCode, IDictionary<string, object> data, CheckAuthExistsCallback callback)
+		private void OnCheckAuthExistsResponse(string errorCode, IDictionary<string, object> data, CheckAuthExistsCallback callback)
 		{
 			bool accountExists = (errorCode == SnipeErrorCodes.OK);
-			//	AccountExists = (error_code == SnipeErrorCodes.OK);
 
 			bool isMe = data.SafeGetValue("isSame", false);
-			if (/*AccountExists == true &&*/ isMe)
+			if (isMe)
 			{
-				IsBindDone = true; // _communicator.LoggedIn;
+				IsBindDone = true;
 			}
 
 			if (callback != null)
@@ -281,21 +277,23 @@ namespace MiniIT.Snipe
 				callback = null;
 			}
 
-			if (/*AccountExists.HasValue && */_communicator.LoggedIn)
+			if (!_communicator.LoggedIn)
 			{
-				if (!accountExists) //(AccountExists == false)
-				{
-					Bind();
-				}
-				else if (!isMe)
-				{
-					_logger.LogTrace($"({ProviderId}) OnCheckAuthExistsResponse - another account found - InvokeAccountBindingCollisionEvent");
-					_authSubsystem.OnAccountBindingCollision(this, data.SafeGetString("name"));
-				}
+				return;
+			}
+
+			if (!accountExists)
+			{
+				Bind();
+			}
+			else if (!isMe)
+			{
+				_logger.LogTrace($"({ProviderId}) OnCheckAuthExistsResponse - another account found - InvokeAccountBindingCollisionEvent");
+				_authSubsystem.OnAccountBindingCollision(this, data.SafeGetString("name"));
 			}
 		}
 
-		protected virtual void InvokeBindResultCallback(string errorCode)
+		private void InvokeBindResultCallback(string errorCode)
 		{
 			_logger.LogTrace($"({ProviderId}) InvokeBindResultCallback - {errorCode}");
 
