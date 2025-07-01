@@ -6,6 +6,6 @@ namespace MiniIT.Snipe
 	{
 		public string Value { get; protected set; }
 
-		public abstract void Fetch(bool wait_initialization, Action<string> callback = null);
+		public abstract void Fetch(bool waitInitialization, Action<string> callback = null);
 	}
 }
