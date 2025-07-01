@@ -20,6 +20,7 @@ namespace MiniIT.Snipe
 
 		public string ProviderId { get; }
 		public AuthIdFetcher Fetcher { get; }
+		public int ContextId => _contextId;
 
 		public bool UseContextIdPrefix { get; protected set; } = true;
 

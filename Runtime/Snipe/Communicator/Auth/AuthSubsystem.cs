@@ -92,6 +92,7 @@ namespace MiniIT.Snipe
 
 		protected int _loginAttempt;
 		private bool _registering = false;
+		private bool _reloginning = false;
 
 		private readonly int _contextId;
 		protected SnipeConfig _config;
@@ -230,6 +231,12 @@ namespace MiniIT.Snipe
 			{
 				StartBindings();
 				RaiseLoginSucceededEvent();
+
+				if (_reloginning)
+				{
+					BindAll();
+					_reloginning = false;
+				}
 			}
 		}
 
@@ -525,11 +532,18 @@ namespace MiniIT.Snipe
 				_userID = 0;
 
 				await AlterTask.Delay(1000);
+
+				_communicator.Disconnect();
+
+				await AlterTask.Delay(1000);
+
+				_reloginning = true;
+				_communicator.Start();
 			});
 		}
 
 		// Called by BindProvider
-		internal void OnAccountBindingCollision(AuthBinding binding, string user_name = null)
+		internal void OnAccountBindingCollision(AuthBinding binding, string username = null)
 		{
 			if (AutomaticallyBindCollisions)
 			{
@@ -537,7 +551,7 @@ namespace MiniIT.Snipe
 			}
 			else
 			{
-				AccountBindingCollision?.Invoke(binding, user_name);
+				AccountBindingCollision?.Invoke(binding, username);
 			}
 		}
 
