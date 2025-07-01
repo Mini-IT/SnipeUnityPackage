@@ -225,6 +225,7 @@ namespace MiniIT.Snipe
 		{
 			Fetcher?.Fetch(false, uid =>
 			{
+				uid = FormatUserId(uid);
 				CheckAuthExists(uid, callback);
 			});
 		}
