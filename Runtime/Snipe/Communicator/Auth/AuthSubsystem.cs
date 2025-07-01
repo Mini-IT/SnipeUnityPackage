@@ -534,7 +534,7 @@ namespace MiniIT.Snipe
 				_communicator.Disconnect();
 
 				await UniTask.WaitWhile(() => _communicator.Connected);
-				await UniTask.Yield(); // allow other tasks to finish disconnection processing
+				await UniTask.Delay(1000); // Server needs some time to finish a session. One second is a recommended timeout
 
 				_reloginning = true;
 				_communicator.Start();
