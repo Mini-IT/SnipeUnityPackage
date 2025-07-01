@@ -531,11 +531,10 @@ namespace MiniIT.Snipe
 				binding.IsBindDone = false;
 				_userID = 0;
 
-				await AlterTask.Delay(1000);
-
 				_communicator.Disconnect();
 
-				await AlterTask.Delay(1000);
+				await UniTask.WaitWhile(() => _communicator.Connected);
+				await UniTask.Yield(); // allow other tasks to finish disconnection processing
 
 				_reloginning = true;
 				_communicator.Start();
