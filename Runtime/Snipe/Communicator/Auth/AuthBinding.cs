@@ -101,7 +101,7 @@ namespace MiniIT.Snipe
 
 			if (IsBindDone)
 			{
-				InvokeBindResultCallback(SnipeErrorCodes.OK);// IsBindDone ? SnipeErrorCodes.OK : SnipeErrorCodes.NOT_INITIALIZED);
+				InvokeBindResultCallback(SnipeErrorCodes.OK);
 				return;
 			}
 			string authLogin = GetInternalAuthLogin();
@@ -199,7 +199,7 @@ namespace MiniIT.Snipe
 			FillExtraParameters(data);
 
 			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_RESET, data)
-				.Request((string errorCode, IDictionary<string, object> responseData) =>
+				.Request((errorCode, responseData) =>
 				{
 					if (errorCode == SnipeErrorCodes.OK)
 					{
