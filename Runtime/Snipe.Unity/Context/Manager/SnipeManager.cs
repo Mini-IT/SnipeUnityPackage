@@ -4,44 +4,6 @@ using MiniIT.Snipe.Api;
 
 namespace MiniIT.Snipe
 {
-	public interface ISnipeContextProvider
-	{
-		/// <summary>
-		/// Try to get the instance of <see cref="SnipeContext"/>.
-		/// If the internal reference is not set yet,
-		/// then <b>no instance will be created</b>
-		/// </summary>
-		/// <param name="id">Context ID</param>
-		/// <param name="context">Instance of <see cref="SnipeContext"/></param>
-		/// <returns><c>true</c> if a valid intance is found</returns>
-		bool TryGetContext(int id, out SnipeContext context);
-
-		/// <summary>
-		/// Gets or creates <see cref="SnipeContext"/> with the ID == <paramref name="id"/>
-		/// </summary>
-		/// <param name="id">Context ID</param>
-		/// <returns>Instance of <see cref="SnipeContext"/></returns>
-		SnipeContext GetOrCreateContext(int id);
-
-		/// <summary>
-		/// Returns an instance of <see cref="ISnipeContextReference"/> with the given ID
-		/// </summary>
-		/// <param name="id">Context ID</param>
-		/// <returns></returns>
-		ISnipeContextReference GetContextReference(int id);
-	}
-
-	public interface ISnipeTablesProvider
-	{
-		SnipeApiTables GetTables();
-	}
-
-	public interface ISnipeManager : ISnipeContextProvider, ISnipeTablesProvider
-	{
-		bool Initialized { get; }
-		void Initialize(ISnipeContextFactory contextFactory, ISnipeApiTablesFactory tablesFactory);
-	}
-
 	public class SnipeManager : ISnipeManager
 	{
 		#region Singleton
@@ -81,12 +43,17 @@ namespace MiniIT.Snipe
 			_ = GetOrCreateContext(0); // create default context
 		}
 
+		public bool TryGetContext(out SnipeContext context)
+		{
+			return TryGetContext(0, out context);
+		}
+
 		public bool TryGetContext(int id, out SnipeContext context)
 		{
 			return _contexts.TryGetValue(id, out context);
 		}
 
-		public SnipeContext GetOrCreateContext(int id)
+		public SnipeContext GetOrCreateContext(int id = 0)
 		{
 			if (_contexts.TryGetValue(id, out var context))
 			{
@@ -109,7 +76,7 @@ namespace MiniIT.Snipe
 			return context;
 		}
 
-		public ISnipeContextReference GetContextReference(int id)
+		public ISnipeContextReference GetContextReference(int id = 0)
 		{
 			if (_references.TryGetValue(id, out var reference))
 			{
