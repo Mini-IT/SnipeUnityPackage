@@ -26,7 +26,7 @@ namespace MiniIT.Snipe
 		public event AccountBindingCollisionHandler AccountBindingCollision;
 
 		public event Action LoginRequested;
-		public event Action LoginSucceeded;
+		public event Action<int> LoginSucceeded;
 
 		/// <summary>
 		/// If true then the authorization will start automatically after connection is opened.
@@ -215,7 +215,8 @@ namespace MiniIT.Snipe
 
 		private void OnLoginSucceeded(IDictionary<string, object> data)
 		{
-			UserID = data.SafeGetValue<int>("id");
+			int userId = data.SafeGetValue<int>("id");
+			UserID = userId;
 
 			if (data.TryGetValue("name", out string username))
 			{
@@ -230,7 +231,7 @@ namespace MiniIT.Snipe
 			if (!_registering)
 			{
 				StartBindings();
-				RaiseLoginSucceededEvent();
+				RaiseLoginSucceededEvent(userId);
 
 				if (_reloginning)
 				{
@@ -571,13 +572,13 @@ namespace MiniIT.Snipe
 			return constructor.Invoke(new object[] { _communicator, this, _config }) as TBinding;
 		}
 
-		private void RaiseLoginSucceededEvent()
+		private void RaiseLoginSucceededEvent(int userId)
 		{
 			if (LoginSucceeded != null)
 			{
 				_mainThreadRunner.RunInMainThread(() =>
 				{
-					RaiseEvent(LoginSucceeded);
+					RaiseEvent(LoginSucceeded, userId);
 				});
 			}
 		}

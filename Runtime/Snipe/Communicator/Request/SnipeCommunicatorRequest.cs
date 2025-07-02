@@ -59,7 +59,7 @@ namespace MiniIT.Snipe
 		protected override void OnWillReconnect()
 		{
 			_communicator.ConnectionEstablished -= OnCommunicatorReady;
-			_authSubsystem.LoginSucceeded -= OnCommunicatorReady;
+			_authSubsystem.LoginSucceeded -= OnLoginSucceeded;
 			_communicator.MessageReceived -= OnMessageReceived;
 
 			if (_communicator.AllowRequestsToWaitForLogin)
@@ -67,7 +67,7 @@ namespace MiniIT.Snipe
 				string dataJson = Data != null ? JsonUtility.ToJson(Data) : null;
 				GetLogger().LogTrace($"Waiting for login - {MessageType} - {dataJson}");
 
-				_authSubsystem.LoginSucceeded += OnCommunicatorReady;
+				_authSubsystem.LoginSucceeded += OnLoginSucceeded;
 			}
 			else
 			{
@@ -94,7 +94,7 @@ namespace MiniIT.Snipe
 
 		public override void Dispose()
 		{
-			_authSubsystem.LoginSucceeded -= OnCommunicatorReady;
+			_authSubsystem.LoginSucceeded -= OnLoginSucceeded;
 			base.Dispose();
 		}
 

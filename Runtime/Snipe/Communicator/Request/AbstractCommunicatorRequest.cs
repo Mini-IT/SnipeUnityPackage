@@ -93,6 +93,11 @@ namespace MiniIT.Snipe
 			return _communicator.Connected;
 		}
 
+		protected virtual void OnLoginSucceeded(int userId)
+		{
+			OnCommunicatorReady();
+		}
+
 		protected virtual void OnCommunicatorReady()
 		{
 			SubscribeDisconnectionEvents();
