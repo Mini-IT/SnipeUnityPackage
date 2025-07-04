@@ -4,6 +4,6 @@ namespace MiniIT.Snipe
 {
 	public interface ISnipeTablesProvider
 	{
-		SnipeApiTables GetTables();
+		SnipeApiTables GetSnipeTables();
 	}
 }

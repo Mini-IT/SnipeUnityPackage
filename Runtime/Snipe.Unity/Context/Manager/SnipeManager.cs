@@ -36,11 +36,16 @@ namespace MiniIT.Snipe
 		private ISnipeApiTablesFactory _tablesFactory;
 		private SnipeApiTables _tables;
 
+		public void Initialize(ISnipeContextAndTablesFactory factory)
+		{
+			Initialize(factory, factory);
+		}
+
 		public void Initialize(ISnipeContextFactory contextFactory, ISnipeApiTablesFactory tablesFactory)
 		{
 			_contextFactory = contextFactory;
 			_tablesFactory = tablesFactory;
-			_ = GetOrCreateContext(0); // create default context
+			// _ = GetOrCreateContext(0); // create default context
 		}
 
 		public bool TryGetContext(out SnipeContext context)
@@ -94,7 +99,7 @@ namespace MiniIT.Snipe
 			return contextReference;
 		}
 
-		public SnipeApiTables GetTables()
+		public SnipeApiTables GetSnipeTables()
 		{
 			if (_tables == null)
 			{

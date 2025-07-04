@@ -1,3 +1,6 @@
+using System;
+using System.Threading;
+
 namespace MiniIT.Snipe
 {
 	public interface ISnipeContextProvider
@@ -34,5 +37,22 @@ namespace MiniIT.Snipe
 		/// <param name="id">Context ID</param>
 		/// <returns></returns>
 		ISnipeContextReference GetContextReference(int id = 0);
+	}
+
+	public static class SnipeContextProviderExtension
+	{
+		/// <inheritdoc cref="ISnipeContextReference.GetSnipeContextWhenReady"/>
+		public static void GetContextWhenReady(this ISnipeContextProvider provider, Action<SnipeContext> callback,
+			CancellationToken cancellationToken = default)
+		{
+			GetContextWhenReady(provider, 0, callback, cancellationToken);
+		}
+
+		/// <inheritdoc cref="ISnipeContextReference.GetSnipeContextWhenReady"/>
+		/// <param name="id">context id</param>
+		public static void GetContextWhenReady(this ISnipeContextProvider provider, int id, Action<SnipeContext> callback, CancellationToken cancellationToken = default)
+		{
+			provider.GetContextReference(id).GetSnipeContextWhenReady(callback, cancellationToken);
+		}
 	}
 }

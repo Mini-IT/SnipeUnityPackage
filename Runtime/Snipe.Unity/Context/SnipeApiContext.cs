@@ -17,7 +17,7 @@ namespace MiniIT.Snipe
 			: base(id, communicator, auth, logReporter)
 		{
 			_api = itemsFactory.CreateSnipeApiService(communicator, auth);
-			var tables = tablesProvider.GetTables();
+			var tables = tablesProvider.GetSnipeTables();
 
 			var logicTable = tables.GetTable<SnipeTableLogicItem>();
 			if (logicTable != null)
