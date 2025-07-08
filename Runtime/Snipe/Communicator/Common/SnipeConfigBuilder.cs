@@ -124,7 +124,8 @@ namespace MiniIT.Snipe.Configuration
 			_data.ServerWebSocketUrls.Add("wss://dev2.snipe.dev/wss_11000/");
 			_data.ServerWebSocketUrls.Add("wss://dev-proxy2.snipe.dev/wss_11000/");
 
-			_data.ServerHttpUrl = "https://dev.snipe.dev/";
+			_data.ServerHttpUrls.Clear();
+			_data.ServerHttpUrls.Add("https://dev.snipe.dev/");
 			_data.HttpHeartbeatInterval = TimeSpan.FromMinutes(1);
 
 			_data.LogReporterUrl = "https://logs-dev.snipe.dev/api/v1/log/batch";
@@ -141,7 +142,8 @@ namespace MiniIT.Snipe.Configuration
 			_data.ServerWebSocketUrls.Add("wss://live2.snipe.dev/wss_16000/");
 			_data.ServerWebSocketUrls.Add("wss://live-proxy2.snipe.dev/wss_16000/");
 
-			_data.ServerHttpUrl = "https://live.snipe.dev/";
+			_data.ServerHttpUrls.Clear();
+			_data.ServerHttpUrls.Add("https://live.snipe.dev/");
 			_data.HttpHeartbeatInterval = TimeSpan.Zero;
 
 			_data.LogReporterUrl = "https://logs.snipe.dev/api/v1/log/batch";
@@ -160,9 +162,22 @@ namespace MiniIT.Snipe.Configuration
 				_data.ServerUdpUrls.Add(new UdpAddress() { Host = udpHost.Trim(), Port = port });
 			}
 
-			if (data.TryGetValue("snipeHttpUrl", out string httpUrl) && !string.IsNullOrWhiteSpace(httpUrl))
+			if (data.TryGetValue("snipeHttpUrls", out object httpUrls) &&
+			    httpUrls is IList httpUrlsList && httpUrlsList.Count > 0)
 			{
-				_data.ServerHttpUrl = httpUrl.Trim();
+				_data.ServerHttpUrls.Clear();
+				foreach (var listItem in httpUrlsList)
+				{
+					if (listItem is string url && !string.IsNullOrWhiteSpace(url))
+					{
+						_data.ServerHttpUrls.Add(url.Trim());
+					}
+				}
+			}
+			else if (data.TryGetValue("snipeHttpUrl", out string httpUrl) && !string.IsNullOrWhiteSpace(httpUrl))
+			{
+				_data.ServerHttpUrls.Clear();
+				_data.ServerHttpUrls.Add(httpUrl.Trim());
 			}
 
 			if (data.TryGetValue("snipeWssUrl", out object wssUrl))
@@ -270,7 +285,7 @@ namespace MiniIT.Snipe.Configuration
 			{
 				return;
 			}
-			
+
 			_data.CompressionEnabled = compression.SafeGetValue<bool>("enabled");
 
 			if (!_data.CompressionEnabled)

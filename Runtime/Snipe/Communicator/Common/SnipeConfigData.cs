@@ -36,7 +36,7 @@ namespace MiniIT.Snipe.Configuration
 		public bool AutoJoinRoom;
 		public List<string> ServerWebSocketUrls = new List<string>();
 		public List<UdpAddress> ServerUdpUrls = new List<UdpAddress>();
-		public string ServerHttpUrl;
+		public List<string> ServerHttpUrls = new List<string>();
 
 		/// <summary>
 		/// Http transport heartbeat interval.
