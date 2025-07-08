@@ -46,16 +46,16 @@ namespace MiniIT.Snipe
 			LogReporter.Initialize(this, config);
 		}
 
-		public void Reset()
-		{
-			if (IsDisposed)
-			{
-				return;
-			}
-
-			Communicator.Dispose();
-			Auth.ClearAllBindings(); // ??????
-		}
+		// public void Reset()
+		// {
+		// 	if (IsDisposed)
+		// 	{
+		// 		return;
+		// 	}
+		//
+		// 	Communicator.Dispose();
+		// 	Auth.ClearAllBindings(); // ??????
+		// }
 
 		/// <summary>
 		/// Tear down a <see cref="SnipeContext"/> and notify all internal services that the context should be destroyed.
