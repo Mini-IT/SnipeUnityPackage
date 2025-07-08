@@ -72,6 +72,7 @@ namespace MiniIT.Snipe
 			LogicManager?.Dispose();
 			CalendarManager?.Dispose();
 			BadgesManager?.Dispose();
+			CalendarV2Manager?.Dispose();
 
 			if (_api is IDisposable disposableApi)
 			{

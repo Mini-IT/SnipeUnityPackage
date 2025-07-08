@@ -35,13 +35,13 @@ namespace MiniIT.Snipe.Api
 							var eventVar = new SnipeTableCalendarV2ItemVariable();
 							calendar_event.Vars.Add(eventVar);
 
-							if (var_item_data.TryGetValue("id", out var var_id))
+							if (var_item_data.TryGetValue("stringID", out var var_id))
 								eventVar.StringID = Convert.ToString(var_id);
-							if (var_item_data.TryGetValue("name", out var stage_type))
+							if (var_item_data.TryGetValue("type", out var stage_type))
 								eventVar.Type = Convert.ToString(stage_type);
-							if (var_item_data.TryGetValue("stringID", out var var_value))
+							if (var_item_data.TryGetValue("value", out var var_value))
 								eventVar.Value = Convert.ToString(var_value);
-							if (var_item_data.TryGetValue("repeatType", out var stage_value_dev))
+							if (var_item_data.TryGetValue("valueDev", out var stage_value_dev))
 								eventVar.ValueDev = Convert.ToString(stage_value_dev);
 						}
 					}

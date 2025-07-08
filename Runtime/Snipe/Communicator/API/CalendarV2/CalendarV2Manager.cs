@@ -15,6 +15,26 @@ namespace MiniIT.Snipe.Api
 			ServerTimeZone = serverTimeZone;
 		}
 
+		public T GetValueByName<T>(int eventID, string name, bool dev = false)
+		{
+			if (_calendarTable == null)
+			{
+				return default;
+			}
+
+			foreach (var item in _calendarTable.Values)
+			{
+				if (item.ID == eventID)
+				{
+					bool devOverride = item.DevOverride;
+					dev = dev && devOverride;
+					return item.GetValueByName<T>(name, dev);
+				}
+			}
+
+			return default;
+		}
+
 		~CalendarV2Manager()
 		{
 			Dispose();
