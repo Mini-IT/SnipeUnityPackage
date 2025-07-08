@@ -21,7 +21,7 @@ namespace MiniIT.Snipe
 
 		public List<string> ServerWebSocketUrls => _data.ServerWebSocketUrls;
 		public List<UdpAddress> ServerUdpUrls => _data.ServerUdpUrls;
-		public string ServerHttpUrl => _data.ServerHttpUrl;
+		public List<string> ServerHttpUrls => _data.ServerHttpUrls;
 
 		public WebSocketImplementations WebSocketImplementation => _data.WebSocketImplementation;
 
@@ -40,6 +40,7 @@ namespace MiniIT.Snipe
 
 		private int _serverWebSocketUrlIndex = 0;
 		private int _serverUdpUrlIndex = 0;
+		private int _serverHttpUrlIndex = 0;
 		private readonly IMainThreadRunner _mainThreadRunner;
 		private readonly IApplicationInfo _applicationInfo;
 
@@ -164,7 +165,13 @@ namespace MiniIT.Snipe
 
 		public string GetHttpAddress()
 		{
-			return ServerHttpUrl;
+			_serverHttpUrlIndex = GetValidIndex(ServerHttpUrls, _serverHttpUrlIndex, false);
+			if (_serverHttpUrlIndex >= 0)
+			{
+				return ServerHttpUrls[_serverHttpUrlIndex];
+			}
+
+			return null;
 		}
 
 		public void NextWebSocketUrl()
@@ -190,6 +197,20 @@ namespace MiniIT.Snipe
 			});
 
 			return _serverUdpUrlIndex > prev;
+		}
+
+		public bool NextHttpUrl()
+		{
+			int prev = _serverHttpUrlIndex;
+			_serverHttpUrlIndex = GetValidIndex(ServerHttpUrls, _serverHttpUrlIndex, true);
+
+			_mainThreadRunner.RunInMainThread(() =>
+			{
+				string key = SnipePrefs.GetHttpUrlIndex(ContextId);
+				SnipeServices.SharedPrefs.SetInt(key, _serverHttpUrlIndex);
+			});
+
+			return _serverHttpUrlIndex > prev;
 		}
 
 		public bool CheckUdpAvailable()

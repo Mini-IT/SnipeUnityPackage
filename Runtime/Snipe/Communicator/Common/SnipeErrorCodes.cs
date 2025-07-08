@@ -2,7 +2,7 @@ using MiniIT;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeErrorCodes
+	public static class SnipeErrorCodes
 	{
 		public const string OK = "ok";
 		public const string WRONG_TOKEN = "wrongToken";

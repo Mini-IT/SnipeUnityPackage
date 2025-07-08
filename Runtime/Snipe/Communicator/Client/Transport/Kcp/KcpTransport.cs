@@ -9,7 +9,7 @@ using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
-	public class KcpTransport : Transport
+	public sealed class KcpTransport : Transport
 	{
 		public override bool Started => _kcpConnection != null;
 		public override bool Connected => _kcpConnection != null && _kcpConnection.Connected;

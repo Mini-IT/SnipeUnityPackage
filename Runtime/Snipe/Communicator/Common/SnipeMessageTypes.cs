@@ -1,7 +1,7 @@
 
 namespace MiniIT.Snipe
 {
-	public class SnipeMessageTypes
+	public static class SnipeMessageTypes
 	{
 		public const string USER_LOGIN = "user.login";
 		public const string AUTH_BIND = "auth.bind";

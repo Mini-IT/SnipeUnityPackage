@@ -11,7 +11,7 @@ using MiniIT.Threading;
 
 namespace MiniIT.Snipe
 {
-	public class HttpTransport : Transport
+	public sealed class HttpTransport : Transport
 	{
 		private const string API_PATH = "api/v1/request/";
 
@@ -277,6 +277,8 @@ namespace MiniIT.Snipe
 			{
 				_logger.LogError(httpException, "Request failed {0}", httpException);
 				InternalDisconnect();
+
+				_config.NextHttpUrl();
 			}
 			catch (Exception e)
 			{
@@ -456,6 +458,8 @@ namespace MiniIT.Snipe
 			if (!_connected)
 			{
 				InternalDisconnect();
+
+				_config.NextHttpUrl();
 			}
 		}
 
