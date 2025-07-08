@@ -11,7 +11,7 @@ using MiniIT.Threading;
 
 namespace MiniIT.Snipe
 {
-	public class HttpTransport : Transport
+	public sealed class HttpTransport : Transport
 	{
 		private const string API_PATH = "api/v1/request/";
 

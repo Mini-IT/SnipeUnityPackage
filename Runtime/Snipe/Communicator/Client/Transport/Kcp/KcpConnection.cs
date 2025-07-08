@@ -9,7 +9,7 @@ using System.Runtime.CompilerServices;
 
 namespace MiniIT.Snipe
 {
-	public class KcpConnection
+	public sealed class KcpConnection
 	{
 		private enum KcpState { Connected, Authenticated, Disconnected }
 
@@ -93,7 +93,7 @@ namespace MiniIT.Snipe
 		private uint _lastPingTime;
 		private uint _pingsCount = 0;
 		public uint PingTime { get; private set; }
-		
+
 		private readonly object _lock = new object();
 		private readonly ILogger _logger;
 
@@ -167,7 +167,7 @@ namespace MiniIT.Snipe
 			_refTime.Start();
 
 			SendReliable(KcpHeader.Handshake);
-			
+
 			// force sending handshake immediately
 			TickOutgoing();
 		}
@@ -190,7 +190,7 @@ namespace MiniIT.Snipe
 				try
 				{
 					SendReliable(KcpHeader.Disconnect);
-					
+
 					lock (_lock)
 					{
 						_kcp.Flush();
@@ -230,7 +230,7 @@ namespace MiniIT.Snipe
 				_logger.LogWarning("KcpConnection: tried sending while disconnected");
 				return;
 			}
-			
+
 			if (data.Count == 0)
 			{
 				_logger.LogWarning("KcpConnection: tried sending empty message");
@@ -297,13 +297,13 @@ namespace MiniIT.Snipe
 				_logger.LogWarning("KcpConnection: tried sending while disconnected");
 				return;
 			}
-			
+
 			if (data.Count == 0)
 			{
 				_logger.LogWarning("KcpConnection: tried sending empty batch");
 				return;
 			}
-			
+
 			int length = 0;
 			int startMessageIndex = 0;
 			for (int i = 0; i < data.Count; i++)
@@ -345,7 +345,7 @@ namespace MiniIT.Snipe
 		{
 			byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferLength);
 			int offset = 0;
-				
+
 			for (int i = 0; i < count; i++)
 			{
 				int index = startIndex + i;
@@ -359,7 +359,7 @@ namespace MiniIT.Snipe
 			// NOTE: at this point offset must be equal to bufferLength
 
 			SendReliable(KcpHeader.Batch, new ArraySegment<byte>(buffer, 0, offset));
-			
+
 			ArrayPool<byte>.Shared.Return(buffer);
 		}
 
@@ -385,7 +385,7 @@ namespace MiniIT.Snipe
 				HandleDeadLink();
 				HandlePing(time);
 				HandleChoked();
-				
+
 				while (//!paused &&
 					ReceiveNextReliable(out KcpHeader header, out ArraySegment<byte> message))
 				{
