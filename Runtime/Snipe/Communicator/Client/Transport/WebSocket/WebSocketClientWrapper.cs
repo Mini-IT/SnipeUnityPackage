@@ -10,7 +10,7 @@ using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
-	public class WebSocketClientWrapper : WebSocketWrapper
+	public sealed class WebSocketClientWrapper : WebSocketWrapper
 	{
 		public override bool AutoPing => true;
 

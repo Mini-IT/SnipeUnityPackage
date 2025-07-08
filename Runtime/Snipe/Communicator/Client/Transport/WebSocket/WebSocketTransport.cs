@@ -16,7 +16,7 @@ using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
-	public class WebSocketTransport : Transport
+	public sealed class WebSocketTransport : Transport
 	{
 		private const double HEARTBEAT_INTERVAL = 30; // seconds
 		private const int HEARTBEAT_TASK_DELAY = 5000; //milliseconds
