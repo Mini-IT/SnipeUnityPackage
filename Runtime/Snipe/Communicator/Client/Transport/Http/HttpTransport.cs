@@ -259,6 +259,8 @@ namespace MiniIT.Snipe
 			{
 				_logger.LogError(httpException, "Request failed {0}", httpException);
 				InternalDisconnect();
+
+				_config.NextHttpUrl();
 			}
 			catch (Exception e)
 			{
@@ -408,6 +410,8 @@ namespace MiniIT.Snipe
 			if (!_connected)
 			{
 				InternalDisconnect();
+
+				_config.NextHttpUrl();
 			}
 		}
 

@@ -49,7 +49,7 @@ namespace MiniIT.Snipe
 
 		public List<string> ServerWebSocketUrls { get; } = new List<string>();
 		public List<UdpAddress> ServerUdpUrls { get; } = new List<UdpAddress>();
-		public string ServerHttpUrl { get; set; }
+		public List<string> ServerHttpUrls { get; } = new List<string>();
 
 		/// <summary>
 		/// Http transport heartbeat interval.
@@ -68,6 +68,7 @@ namespace MiniIT.Snipe
 
 		private int _serverWebSocketUrlIndex = 0;
 		private int _serverUdpUrlIndex = 0;
+		private int _serverHttpUrlIndex = 0;
 		private readonly IMainThreadRunner _mainThreadRunner;
 		private readonly IApplicationInfo _applicationInfo;
 
@@ -175,7 +176,8 @@ namespace MiniIT.Snipe
 			ServerWebSocketUrls.Add("wss://dev2.snipe.dev/wss_11000/");
 			ServerWebSocketUrls.Add("wss://dev-proxy2.snipe.dev/wss_11000/");
 
-			ServerHttpUrl = "https://dev.snipe.dev/";
+			ServerHttpUrls.Clear();
+			ServerHttpUrls.Add("https://dev.snipe.dev/");
 			HttpHeartbeatInterval = TimeSpan.FromMinutes(1);
 
 			LogReporterUrl = "https://logs-dev.snipe.dev/api/v1/log/batch";
@@ -192,7 +194,8 @@ namespace MiniIT.Snipe
 			ServerWebSocketUrls.Add("wss://live2.snipe.dev/wss_16000/");
 			ServerWebSocketUrls.Add("wss://live-proxy2.snipe.dev/wss_16000/");
 
-			ServerHttpUrl = "https://live.snipe.dev/";
+			ServerHttpUrls.Clear();
+			ServerHttpUrls.Add("https://live.snipe.dev/");
 			HttpHeartbeatInterval = TimeSpan.Zero;
 
 			LogReporterUrl = "https://logs.snipe.dev/api/v1/log/batch";
@@ -230,9 +233,22 @@ namespace MiniIT.Snipe
 				ServerUdpUrls.Add(new UdpAddress() { Host = udpHost.Trim(), Port = port });
 			}
 
-			if (SnipeObject.TryGetValue(data, "snipeHttpUrl", out string httpUrl) && !string.IsNullOrWhiteSpace(httpUrl))
+			if (SnipeObject.TryGetValue(data, "snipeHttpUrls", out object httpUrls) &&
+			    httpUrls is IList httpUrlsList && httpUrlsList.Count > 0)
 			{
-				ServerHttpUrl = httpUrl.Trim();
+				ServerHttpUrls.Clear();
+				foreach (var listItem in httpUrlsList)
+				{
+					if (listItem is string url && !string.IsNullOrWhiteSpace(url))
+					{
+						ServerHttpUrls.Add(url.Trim());
+					}
+				}
+			}
+			else if (SnipeObject.TryGetValue(data, "snipeHttpUrl", out string httpUrl) && !string.IsNullOrWhiteSpace(httpUrl))
+			{
+				ServerHttpUrls.Clear();
+				ServerHttpUrls.Add(httpUrl.Trim());
 			}
 
 			if (SnipeObject.TryGetValue(data, "snipeWssUrl", out object wssUrl))
@@ -416,7 +432,13 @@ namespace MiniIT.Snipe
 
 		public string GetHttpAddress()
 		{
-			return ServerHttpUrl;
+			_serverHttpUrlIndex = GetValidIndex(ServerHttpUrls, _serverHttpUrlIndex, false);
+			if (_serverHttpUrlIndex >= 0)
+			{
+				return ServerHttpUrls[_serverHttpUrlIndex];
+			}
+
+			return null;
 		}
 
 		public void NextWebSocketUrl()
@@ -442,6 +464,20 @@ namespace MiniIT.Snipe
 			});
 
 			return _serverUdpUrlIndex > prev;
+		}
+
+		public bool NextHttpUrl()
+		{
+			int prev = _serverHttpUrlIndex;
+			_serverHttpUrlIndex = GetValidIndex(ServerHttpUrls, _serverHttpUrlIndex, true);
+
+			_mainThreadRunner.RunInMainThread(() =>
+			{
+				string key = SnipePrefs.GetHttpUrlIndex(ContextId);
+				SnipeServices.SharedPrefs.SetInt(key, _serverHttpUrlIndex);
+			});
+
+			return _serverHttpUrlIndex > prev;
 		}
 
 		public bool CheckUdpAvailable()
