@@ -38,7 +38,7 @@ namespace MiniIT
 		{
 			try
 			{
-				// Закрываем предыдущий файл, если он существует
+				// Close the previous file, if it exists
 				if (s_file != null)
 				{
 					try
@@ -52,7 +52,7 @@ namespace MiniIT
 					}
 				}
 
-				// Проверяем, существует ли директория для логов
+				// Check if there is a directory for logs
 				string cacheDirectory = Application.temporaryCachePath;
 				if (!Directory.Exists(cacheDirectory))
 				{
@@ -79,26 +79,26 @@ namespace MiniIT
 				}
 				catch (IOException ioEx)
 				{
-					// Обработка ошибок ввода-вывода, включая заполненный диск
+					// I/O error handling, including full disk drive
 					DebugLogger.LogError($"[{nameof(LogReporter)}] IO Error creating log file: {ioEx.Message}");
 					s_canWrite = false;
 				}
 				catch (UnauthorizedAccessException uaEx)
 				{
-					// Обработка ошибок доступа
+					// Access error handling
 					DebugLogger.LogError($"[{nameof(LogReporter)}] Access denied when creating log file: {uaEx.Message}");
 					s_canWrite = false;
 				}
 				catch (Exception ex)
 				{
-					// Обработка других ошибок
+					// Handling other errors
 					DebugLogger.LogError($"[{nameof(LogReporter)}] Error creating log file: {ex.Message}");
 					s_canWrite = false;
 				}
 			}
 			catch (Exception ex)
 			{
-				// Обработка любых непредвиденных ошибок
+				// Handling any unforeseen errors
 				DebugLogger.LogError($"[{nameof(LogReporter)}] Unexpected error in CreateNewFile: {ex.Message}");
 				s_canWrite = false;
 			}
@@ -231,14 +231,14 @@ namespace MiniIT
 					}
 					catch (IOException ioEx)
 					{
-						// Обработка ошибок ввода-вывода, включая заполненный диск
+						// I/O error handling, including full disk drive
 						DebugLogger.LogError($"[{nameof(LogReporter)}] IO Error writing to log file: {ioEx.Message}");
 						s_canWrite = false;
 						StaticDispose();
 					}
 					catch (Exception ex)
 					{
-						// Обработка других ошибок
+						// Handling other errors
 						DebugLogger.LogError($"[{nameof(LogReporter)}] Error writing to log file: {ex.Message}");
 						s_canWrite = false;
 						StaticDispose();
