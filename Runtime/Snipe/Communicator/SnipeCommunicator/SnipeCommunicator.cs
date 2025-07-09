@@ -108,9 +108,7 @@ namespace MiniIT.Snipe
 				if (!_client.Connected)
 				{
 					_disconnecting = false;
-					_client.Connect();
-
-					var transportInfo = _client.GetTransportInfo();
+					var transportInfo = _client.Connect();
 
 					_mainThreadRunner.RunInMainThread(() =>
 					{
@@ -151,15 +149,13 @@ namespace MiniIT.Snipe
 			return id;
 		}
 
-		private void OnClientConnectionOpened()
+		private void OnClientConnectionOpened(TransportInfo transportInfo)
 		{
 			_logger.LogTrace("Client connection opened");
 
 			_restoreConnectionAttempt = 0;
 			_disconnecting = false;
 			_analytics.ConnectionEventsEnabled = true;
-
-			var transportInfo = _client.GetTransportInfo();
 
 			_mainThreadRunner.RunInMainThread(() =>
 			{
@@ -168,13 +164,11 @@ namespace MiniIT.Snipe
 			});
 		}
 
-		private void OnClientConnectionClosed()
+		private void OnClientConnectionClosed(TransportInfo transportInfo)
 		{
 			_logger.LogTrace($"[{_client?.ConnectionId}] Client connection closed");
 
 			_roomStateObserver.Reset();
-
-			var transportInfo = _client?.GetTransportInfo() ?? default;
 
 			_mainThreadRunner.RunInMainThread(() =>
 			{
@@ -183,10 +177,8 @@ namespace MiniIT.Snipe
 			});
 		}
 
-		private void OnClientUdpConnectionFailed()
+		private void OnClientUdpConnectionFailed(TransportInfo transportInfo)
 		{
-			var transportInfo = _client?.GetTransportInfo() ?? default;
-
 			_mainThreadRunner.RunInMainThread(() =>
 			{
 				AnalyticsTrackUdpConnectionFailed(transportInfo);

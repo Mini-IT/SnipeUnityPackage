@@ -2,7 +2,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 
 namespace MiniIT.Snipe
@@ -15,29 +14,23 @@ namespace MiniIT.Snipe
 		public delegate void MessageReceivedHandler(string messageType, string errorCode, IDictionary<string, object> data, int requestID);
 
 		public event MessageReceivedHandler MessageReceived;
-		public event Action ConnectionOpened;
-		public event Action ConnectionClosed;
+		public event Action<TransportInfo> ConnectionOpened;
+		public event Action<TransportInfo> ConnectionClosed;
 		public event Action ConnectionDisrupted;
-		//public event Action LoginSucceeded;
-		//public event Action<string> LoginFailed;
-		public event Action UdpConnectionFailed;
+		public event Action<TransportInfo> UdpConnectionFailed;
 
-		public bool Connected => _transport != null && _transport.Connected;
+		public bool Connected => _transportService.Connected;
 		public bool LoggedIn => _loggedIn && Connected;
-		public bool WebSocketConnected => Connected && _transport is WebSocketTransport;
-		public bool UdpClientConnected => Connected && _transport is KcpTransport;
-		public bool HttpClientConnected => Connected && _transport is HttpTransport;
+		public bool WebSocketConnected => _transportService.WebSocketConnected;
+		public bool UdpClientConnected => _transportService.UdpClientConnected;
+		public bool HttpClientConnected => _transportService.HttpClientConnected;
 
 		public string ConnectionId { get; private set; }
 
-		private Transport _transport;
-
+		private readonly TransportService _transportService;
 		private bool _loggedIn = false;
-
-		private long _connectionStartTimestamp;
-
 		private long _serverReactionStartTimestamp;
-		public TimeSpan CurrentRequestElapsed => GetElapsedTime(_serverReactionStartTimestamp);
+		public TimeSpan CurrentRequestElapsed => StopwatchUtil.GetElapsedTime(_serverReactionStartTimestamp);
 
 		public bool BatchMode
 		{
@@ -66,10 +59,7 @@ namespace MiniIT.Snipe
 		private ConcurrentQueue<IDictionary<string, object>> _batchedRequests;
 		private readonly object _batchLock = new object();
 
-		private readonly Queue<Func<Transport>> _transportFactoriesQueue = new Queue<Func<Transport>>(3);
-
 		private int _requestId = 0;
-		private TimeSpan _prevDisconnectTime = TimeSpan.Zero;
 
 		private readonly SnipeConfig _config;
 		private readonly SnipeAnalyticsTracker _analytics;
@@ -82,143 +72,37 @@ namespace MiniIT.Snipe
 			_analytics = SnipeServices.Analytics.GetTracker(config.ContextId);
 			_responseMonitor = new ResponseMonitor(_analytics);
 			_logger = SnipeServices.LogService.GetLogger(nameof(SnipeClient));
+			_transportService = new TransportService(config, _analytics);
+
+			_transportService.ConnectionOpened += OnTransportConnectionOpened;
+			_transportService.ConnectionClosed += OnTransportConnectionClosed;
+			_transportService.ConnectionDisrupted += OnTransportConnectionDisrupted;
+			_transportService.UdpConnectionFailed += () => UdpConnectionFailed?.Invoke(_transportService.GetTransportInfo());
+			_transportService.MessageReceived += ProcessMessage;
 		}
 
-		public void Connect()
+		public TransportInfo Connect()
 		{
-			_transportFactoriesQueue.Clear();
-
-#if !UNITY_WEBGL
-			if (_config.CheckUdpAvailable())
-			{
-				_transportFactoriesQueue.Enqueue(CreateKcpTransport);
-			}
-#endif
-
-			if (_config.CheckWebSocketAvailable())
-			{
-				_transportFactoriesQueue.Enqueue(CreateWebSocketTransport);
-			}
-
-			if (_config.CheckHttpAvailable())
-			{
-				_transportFactoriesQueue.Enqueue(CreateHttpTransport);
-			}
-
-			StartNextTransport();
+			_transportService.InitializeTransports();
+			_transportService.TryStartNextTransport();
+			return _transportService.GetTransportInfo();
 		}
 
-		public Transport GetTransport() => _transport;
-
-		public TransportInfo GetTransportInfo() => _transport?.Info ?? default;
-
-		private bool StartNextTransport()
-		{
-			if (_transportFactoriesQueue.TryDequeue(out var transportFactory))
-			{
-				StartTransport(transportFactory);
-				return true;
-			}
-
-			return false;
-		}
-
-		private void StartTransport(Func<Transport> transportFactory)
-		{
-			if (_transport != null && _transport.Started)  // already connected or trying to connect
-				return;
-
-			Disconnect(false); // clean up
-
-			_transport ??= transportFactory.Invoke();
-
-			_connectionStartTimestamp = Stopwatch.GetTimestamp();
-			_prevDisconnectTime = TimeSpan.Zero;
-			_transport.Connect();
-		}
-
-		#region Transport factories
-
-		private KcpTransport CreateKcpTransport()
-		{
-			var transport = new KcpTransport(_config, _analytics);
-
-			transport.ConnectionOpenedHandler = (Transport t) =>
-			{
-				_analytics.UdpConnectionTime = GetElapsedTime(_connectionStartTimestamp);
-				OnTransportConnectionOpened(t);
-			};
-
-			transport.ConnectionClosedHandler = (Transport t) =>
-			{
-				UdpConnectionFailed?.Invoke();
-				OnTransportConnectionClosed(t);
-			};
-
-			transport.MessageReceivedHandler = ProcessMessage;
-
-			return transport;
-		}
-
-		private WebSocketTransport CreateWebSocketTransport()
-		{
-			return new WebSocketTransport(_config, _analytics)
-			{
-				ConnectionOpenedHandler = OnTransportConnectionOpened,
-				ConnectionClosedHandler = OnTransportConnectionClosed,
-				MessageReceivedHandler = ProcessMessage
-			};
-		}
-
-		private HttpTransport CreateHttpTransport()
-		{
-			return new HttpTransport(_config, _analytics)
-			{
-				ConnectionOpenedHandler = OnTransportConnectionOpened,
-				ConnectionClosedHandler = OnTransportConnectionClosed,
-				MessageReceivedHandler = ProcessMessage,
-			};
-		}
-
-		#endregion
+		public Transport GetTransport() => _transportService.GetCurrentTransport();
 
 		private void OnTransportConnectionOpened(Transport transport)
 		{
-			_analytics.ConnectionEstablishmentTime = GetElapsedTime(_connectionStartTimestamp);
-			ConnectionOpened?.Invoke();
+			ConnectionOpened?.Invoke(transport.Info);
 		}
 
 		private void OnTransportConnectionClosed(Transport transport)
 		{
-			if (transport != _transport)
-			{
-				return;
-			}
-
-			// If disconnected twice during 10 seconds, then force transport change
-			TimeSpan now = DateTimeOffset.UtcNow.Offset;
-			TimeSpan dif = now - _prevDisconnectTime;
-			_prevDisconnectTime = now;
-
-			if (transport.ConnectionVerified && dif.TotalSeconds > 10)
-			{
-				Disconnect(true);
-			}
-			else // Not connected yet or connection is lossy. Try another transport
-			{
-				Disconnect(false); // stop the transport and clean up
-
-				bool started = StartNextTransport();
-				if (!started)
-				{
-					Disconnect(true);
-				}
-			}
+			ConnectionClosed?.Invoke(transport?.Info ?? default);
 		}
 
-		private void RaiseConnectionClosedEvent()
+		private void OnTransportConnectionDisrupted(Transport transport)
 		{
-			ConnectionClosed?.Invoke();
+			ConnectionDisrupted?.Invoke();
 		}
 
 		public void Disconnect()
@@ -230,25 +114,8 @@ namespace MiniIT.Snipe
 		{
 			_loggedIn = false;
 			ConnectionId = "";
-
-			_analytics.PingTime = TimeSpan.Zero;
-			_analytics.ServerReaction = TimeSpan.Zero;
-
 			_responseMonitor.Stop();
-
-			if (_transport != null)
-			{
-				_transport.Dispose();
-				_transport = null;
-			}
-
-			// Needed for clearing batched requests on disconnect during login
-			ConnectionDisrupted?.Invoke();
-
-			if (raiseEvent)
-			{
-				RaiseConnectionClosedEvent();
-			}
+			_transportService.StopCurrentTransport(raiseEvent);
 		}
 
 		public int SendRequest(string messageType, IDictionary<string, object> data)
@@ -322,7 +189,7 @@ namespace MiniIT.Snipe
 				_logger.LogTrace("SendRequest - {0}", JsonUtility.ToJson(message));
 			}
 
-			_transport.SendMessage(message);
+			_transportService.SendMessage(message);
 
 			_serverReactionStartTimestamp = Stopwatch.GetTimestamp();
 
@@ -337,7 +204,7 @@ namespace MiniIT.Snipe
 
 			_logger.LogTrace("DoSendBatch - {0} items", messages.Count);
 
-			_transport.SendBatch(messages);
+			_transportService.SendBatch(messages);
 		}
 
 		private void ProcessMessage(IDictionary<string, object> message)
@@ -349,7 +216,7 @@ namespace MiniIT.Snipe
 
 			if (_serverReactionStartTimestamp > 0)
 			{
-				_analytics.ServerReaction = GetElapsedTime(_serverReactionStartTimestamp);
+				_analytics.ServerReaction = StopwatchUtil.GetElapsedTime(_serverReactionStartTimestamp);
 			}
 
 			string messageType = message.SafeGetString("t");
@@ -386,11 +253,7 @@ namespace MiniIT.Snipe
 				_logger.LogTrace("[{0}] ProcessMessage - Login Succeeded", ConnectionId);
 
 				_loggedIn = true;
-
-				if (_transport is WebSocketTransport webSocketTransport)
-				{
-					webSocketTransport.SetLoggedIn(true);
-				}
+				_transportService.SetLoggedIn();
 
 				if (responseData != null)
 				{
@@ -400,14 +263,10 @@ namespace MiniIT.Snipe
 				{
 					ConnectionId = "";
 				}
-
-				// LoginSucceeded?.Invoke();
 			}
 			else
 			{
 				_logger.LogTrace("[{0}] ProcessMessage - Login Failed", ConnectionId);
-
-				// LoginFailed?.Invoke(errorCode);
 			}
 		}
 
@@ -415,8 +274,7 @@ namespace MiniIT.Snipe
 		{
 			if (MessageReceived != null)
 			{
-				// TODO: Remove IDictionary<string, object> wrapper ????
-				MessageReceived?.Invoke(messageType, errorCode, new /*ReadOnly*/Dictionary<string, object>(responseData), requestId);
+				MessageReceived?.Invoke(messageType, errorCode, new Dictionary<string, object>(responseData), requestId);
 			}
 			else
 			{
@@ -459,18 +317,11 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		// Stopwatch.GetElapsedTime() is added only in .NET 7+
-		// Here is a custom implementation
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static TimeSpan GetElapsedTime(long startTS)
-		{
-			return (startTS > 0) ? TimeSpan.FromTicks(Stopwatch.GetTimestamp() - startTS) : TimeSpan.Zero;
-		}
-
 		public void Dispose()
 		{
 			Disconnect(false);
 			_responseMonitor.Dispose();
+			_transportService.Dispose();
 		}
 	}
 }
