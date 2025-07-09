@@ -6,27 +6,6 @@ namespace MiniIT.Snipe
 {
 	public class SnipeManager : ISnipeManager
 	{
-		#region Singleton
-
-		public static SnipeManager Instance
-		{
-			get
-			{
-				lock (s_instanceLock)
-				{
-					return s_instance ??= new SnipeManager();
-				}
-			}
-		}
-
-		private static SnipeManager s_instance;
-		private static readonly object s_instanceLock = new object();
-
-		// Private constructor prevents the creation of instances other than the singleton.
-		private SnipeManager() { }
-
-		#endregion
-
 		public bool Initialized => _contextFactory != null && _tablesFactory != null;
 
 		private readonly Dictionary<int, SnipeContext> _contexts = new ();
