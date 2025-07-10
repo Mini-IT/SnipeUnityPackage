@@ -388,6 +388,9 @@ namespace MiniIT.Snipe
 
 		private void RunAuthRequest(Action action)
 		{
+			// Remove old batched requests. Otherwise they will not get renewed
+			_communicator.DisposeRequests();
+
 			bool batchMode = _communicator.BatchMode;
 			_communicator.BatchMode = true;
 
