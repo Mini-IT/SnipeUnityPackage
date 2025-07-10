@@ -53,7 +53,14 @@ namespace MiniIT.Snipe
 
 				_baseUrl = GetBaseUrl();
 
-				_client ??= SnipeServices.HttpClientFactory.CreateHttpClient();
+				if (_client == null)
+				{
+					_client = SnipeServices.HttpClientFactory.CreateHttpClient();
+				}
+				else
+				{
+					_client.SetAuthToken(null);
+				}
 
 				Info = new TransportInfo()
 				{
