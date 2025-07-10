@@ -154,7 +154,6 @@ namespace MiniIT.Snipe.Configuration
 		}
 
 
-
 		#endregion Default config
 
 		private void ParseNew(IDictionary<string, object> data)
@@ -166,17 +165,9 @@ namespace MiniIT.Snipe.Configuration
 				_data.ServerUdpUrls.Add(new UdpAddress() { Host = udpHost.Trim(), Port = port });
 			}
 
-			if (data.TryGetValue("snipeHttpUrls", out object httpUrls) &&
-			    httpUrls is IList httpUrlsList && httpUrlsList.Count > 0)
+			if (data.TryGetValue("snipeHttpUrls", out object httpUrls))
 			{
-				_data.ServerHttpUrls.Clear();
-				foreach (var listItem in httpUrlsList)
-				{
-					if (listItem is string url && !string.IsNullOrWhiteSpace(url))
-					{
-						_data.ServerHttpUrls.Add(url.Trim());
-					}
-				}
+				ParseHttpUrls(_data.ServerHttpUrls, httpUrls);
 			}
 			else if (data.TryGetValue("snipeHttpUrl", out string httpUrl) && !string.IsNullOrWhiteSpace(httpUrl))
 			{
@@ -186,8 +177,7 @@ namespace MiniIT.Snipe.Configuration
 
 			if (data.TryGetValue("snipeWssUrl", out object wssUrl))
 			{
-				List<string> outputList = _data.ServerWebSocketUrls;
-				ParseWebSocketUrls(outputList, wssUrl);
+				ParseWebSocketUrls(_data.ServerWebSocketUrls, wssUrl);
 			}
 
 			if (data.TryGetValue("snipeDev", out bool dev))
@@ -200,23 +190,34 @@ namespace MiniIT.Snipe.Configuration
 		}
 
 		// [Testable]
-		internal static void ParseWebSocketUrls(List<string> outputList, object wssUrl)
+		internal static void ParseWebSocketUrls(List<string> outputList, object input)
 		{
-			if (wssUrl is IList wssUrlList && wssUrlList.Count > 0)
+			ParseUrls(outputList, input, (url) => url.ToLower().StartsWith("wss://"));
+		}
+
+		// [Testable]
+		internal static void ParseHttpUrls(List<string> outputList, object input)
+		{
+			ParseUrls(outputList, input, (url) => url.ToLower().StartsWith("https://"));
+		}
+
+		private static void ParseUrls(List<string> outputList, object input, Func<string, bool> urlChecker)
+		{
+			if (input is IList urlList && urlList.Count > 0)
 			{
-				SetWebSocketUrls(outputList, wssUrlList);
+				SetUrls(outputList, urlList, urlChecker);
 			}
-			else if (wssUrl is string wssUrlString && !string.IsNullOrWhiteSpace(wssUrlString))
+			else if (input is string urlString && !string.IsNullOrWhiteSpace(urlString))
 			{
-				wssUrlString = wssUrlString.Trim();
-				string lowerUrl = wssUrlString.ToLower();
+				urlString = urlString.Trim();
+				string lowerUrl = urlString.ToLower();
 
 				if (lowerUrl.StartsWith('['))
 				{
 					IList list;
 					try
 					{
-						list = (IList)JSON.Parse(wssUrlString);
+						list = (IList)JSON.Parse(urlString);
 					}
 					catch (Exception)
 					{
@@ -225,18 +226,18 @@ namespace MiniIT.Snipe.Configuration
 
 					if (list != null && list.Count > 0)
 					{
-						SetWebSocketUrls(outputList, list);
+						SetUrls(outputList, list, urlChecker);
 					}
 				}
-				else if (lowerUrl.StartsWith("wss://"))
+				else if (urlChecker.Invoke(lowerUrl))
 				{
 					outputList.Clear();
-					outputList.Add(wssUrlString);
+					outputList.Add(urlString);
 				}
 			}
 		}
 
-		private static void SetWebSocketUrls(List<string> outputList, IList wssUrlList)
+		private static void SetUrls(List<string> outputList, IList wssUrlList, Func<string, bool> urlChecker)
 		{
 			outputList.Clear();
 
@@ -245,14 +246,13 @@ namespace MiniIT.Snipe.Configuration
 				if (listItem is string url && !string.IsNullOrWhiteSpace(url))
 				{
 					url = url.Trim();
-					if (url.ToLower().StartsWith("wss://"))
+					if (urlChecker.Invoke(url))
 					{
 						outputList.Add(url);
 					}
 				}
 			}
 		}
-
 
 		private void ParseLogReporterSection(IDictionary<string, object> data)
 		{
