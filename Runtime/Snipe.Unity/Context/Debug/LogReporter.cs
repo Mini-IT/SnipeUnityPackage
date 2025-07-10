@@ -37,14 +37,72 @@ namespace MiniIT
 
 		private static void CreateNewFile()
 		{
-			s_file?.Close();
+			try
+			{
+				// Close the previous file, if it exists
+				if (s_file != null)
+				{
+					try
+					{
+						s_file.Close();
+						s_file = null;
+					}
+					catch (Exception ex)
+					{
+						DebugLogger.LogWarning($"[{nameof(LogReporter)}] Error closing previous log file: {ex.Message}");
+					}
+				}
 
-			long ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-			s_filePath = Path.Combine(Application.temporaryCachePath, $"log{ts}.txt");
-			s_file = File.Open(s_filePath, FileMode.OpenOrCreate, FileAccess.Write);
-			s_bytesWritten = 0;
+				// Check if there is a directory for logs
+				string cacheDirectory = Application.temporaryCachePath;
+				if (!Directory.Exists(cacheDirectory))
+				{
+					try
+					{
+						Directory.CreateDirectory(cacheDirectory);
+					}
+					catch (Exception ex)
+					{
+						DebugLogger.LogError($"[{nameof(LogReporter)}] Failed to create cache directory: {ex.Message}");
+						s_canWrite = false;
+						return;
+					}
+				}
 
-			DebugLogger.Log($"[{nameof(LogReporter)}] New temp log file created: {s_filePath}");
+				long ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+				s_filePath = Path.Combine(cacheDirectory, $"log{ts}.txt");
+
+				try
+				{
+					s_file = File.Open(s_filePath, FileMode.OpenOrCreate, FileAccess.Write);
+					s_bytesWritten = 0;
+					DebugLogger.Log($"[{nameof(LogReporter)}] New temp log file created: {s_filePath}");
+				}
+				catch (IOException ioEx)
+				{
+					// I/O error handling, including full disk drive
+					DebugLogger.LogError($"[{nameof(LogReporter)}] IO Error creating log file: {ioEx.Message}");
+					s_canWrite = false;
+				}
+				catch (UnauthorizedAccessException uaEx)
+				{
+					// Access error handling
+					DebugLogger.LogError($"[{nameof(LogReporter)}] Access denied when creating log file: {uaEx.Message}");
+					s_canWrite = false;
+				}
+				catch (Exception ex)
+				{
+					// Handling other errors
+					DebugLogger.LogError($"[{nameof(LogReporter)}] Error creating log file: {ex.Message}");
+					s_canWrite = false;
+				}
+			}
+			catch (Exception ex)
+			{
+				// Handling any unforeseen errors
+				DebugLogger.LogError($"[{nameof(LogReporter)}] Unexpected error in CreateNewFile: {ex.Message}");
+				s_canWrite = false;
+			}
 		}
 
 		public void Initialize(SnipeContext snipeContext, SnipeConfig snipeConfig)
@@ -150,30 +208,48 @@ namespace MiniIT
 
 				if (s_file != null && s_file.CanWrite)
 				{
-					long ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-					string json = GetLogRecordJson(ts, type, condition, stackTrace);
-					byte[] bytes = Encoding.UTF8.GetBytes(json + "\n");
-
-#if SINGLE_THREAD
-					s_file.Write(bytes, 0, bytes.Length);
-#else
-					await s_file.WriteAsync(bytes, 0, bytes.Length);
-#endif
-
-					s_bytesWritten += bytes.Length;
-					if (s_bytesWritten >= MIN_BYTES_TO_FLUSH)
+					try
 					{
-						s_bytesWritten = 0;
+						long ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+						string json = GetLogRecordJson(ts, type, condition, stackTrace);
+						byte[] bytes = Encoding.UTF8.GetBytes(json + "\n");
+
 #if SINGLE_THREAD
-						s_file.Flush();
+						s_file.Write(bytes, 0, bytes.Length);
 #else
-						await s_file.FlushAsync();
+						await s_file.WriteAsync(bytes, 0, bytes.Length);
 #endif
+
+						s_bytesWritten += bytes.Length;
+						if (s_bytesWritten >= MIN_BYTES_TO_FLUSH)
+						{
+							s_bytesWritten = 0;
+#if SINGLE_THREAD
+							s_file.Flush();
+#else
+							await s_file.FlushAsync();
+#endif
+						}
+					}
+					catch (IOException ioEx)
+					{
+						// I/O error handling, including full disk drive
+						DebugLogger.LogError($"[{nameof(LogReporter)}] IO Error writing to log file: {ioEx.Message}");
+						s_canWrite = false;
+						StaticDispose();
+					}
+					catch (Exception ex)
+					{
+						// Handling other errors
+						DebugLogger.LogError($"[{nameof(LogReporter)}] Error writing to log file: {ex.Message}");
+						s_canWrite = false;
+						StaticDispose();
 					}
 				}
 			}
-			catch (Exception)
+			catch (Exception ex)
 			{
+				DebugLogger.LogError($"[{nameof(LogReporter)}] Error in ProcessLogMessageAsync: {ex.Message}");
 				s_canWrite = false;
 				StaticDispose();
 			}
@@ -237,24 +313,46 @@ namespace MiniIT
 
 		private static void StaticDispose()
 		{
-			s_file?.Dispose();
-			s_file = null;
-
 			try
 			{
-				if (File.Exists(s_filePath))
+				if (s_file != null)
 				{
-					File.Delete(s_filePath);
-					DebugLogger.Log($"[{nameof(LogReporter)}] File {s_filePath} deleted");
+					try
+					{
+						s_file.Dispose();
+					}
+					catch (Exception ex)
+					{
+						DebugLogger.LogWarning($"[{nameof(LogReporter)}] Error disposing log file: {ex.Message}");
+					}
+					finally
+					{
+						s_file = null;
+					}
+				}
+
+				if (!string.IsNullOrEmpty(s_filePath) && File.Exists(s_filePath))
+				{
+					try
+					{
+						File.Delete(s_filePath);
+						DebugLogger.Log($"[{nameof(LogReporter)}] File {s_filePath} deleted");
+					}
+					catch (Exception e)
+					{
+						string exceptionMessage = LogUtil.GetReducedException(e);
+						DebugLogger.LogError($"[{nameof(LogReporter)}] Failed to delete {s_filePath}: {exceptionMessage}");
+					}
 				}
 			}
-			catch (Exception e)
+			catch (Exception ex)
 			{
-				string exceptionMessage = LogUtil.GetReducedException(e);
-				DebugLogger.LogError($"[{nameof(LogReporter)}] Failed to delete {s_filePath}: {exceptionMessage}");
+				DebugLogger.LogError($"[{nameof(LogReporter)}] Error in StaticDispose: {ex.Message}");
 			}
-
-			Application.logMessageReceivedThreaded -= OnLogMessageReceived;
+			finally
+			{
+				Application.logMessageReceivedThreaded -= OnLogMessageReceived;
+			}
 		}
 	}
 }
