@@ -9,6 +9,7 @@ namespace MiniIT.Http
 	public class UnityHttpClient : IHttpClient
 	{
 		private string _authToken;
+		private string _persistentClientId;
 
 		public void Reset()
 		{
@@ -18,6 +19,11 @@ namespace MiniIT.Http
 		public void SetAuthToken(string token)
 		{
 			_authToken = token;
+		}
+
+		public void SetPersistentClientId(string id)
+		{
+			_persistentClientId = id;
 		}
 
 		public async UniTask<IHttpClientResponse> Get(Uri uri)
@@ -36,10 +42,7 @@ namespace MiniIT.Http
 		public async UniTask<IHttpClientResponse> PostJson(Uri uri, string content)
 		{
 			var request = UnityWebRequest.Post(uri, content, "application/json");
-			if (!string.IsNullOrEmpty(_authToken))
-			{
-				request.SetRequestHeader("Authorization", "Bearer " + _authToken);
-			}
+			FillHeaders(request);
 
 			return await SendRequestAsync(request);
 		}
@@ -50,12 +53,22 @@ namespace MiniIT.Http
 			form.AddBinaryData(name, content);
 
 			var request = UnityWebRequest.Post(uri, form);
+			FillHeaders(request);
+
+			return await SendRequestAsync(request);
+		}
+
+		private void FillHeaders(UnityWebRequest request)
+		{
 			if (!string.IsNullOrEmpty(_authToken))
 			{
 				request.SetRequestHeader("Authorization", "Bearer " + _authToken);
 			}
 
-			return await SendRequestAsync(request);
+			if (!string.IsNullOrEmpty(_persistentClientId))
+			{
+				request.SetRequestHeader("DeviceID", _persistentClientId);
+			}
 		}
 
 		private async UniTask<IHttpClientResponse> SendRequestAsync(UnityWebRequest request)

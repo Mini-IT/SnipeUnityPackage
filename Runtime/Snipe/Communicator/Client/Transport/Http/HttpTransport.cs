@@ -14,6 +14,7 @@ namespace MiniIT.Snipe
 	public sealed class HttpTransport : Transport
 	{
 		private const string API_PATH = "api/v1/request/";
+		private const string PREFS_PERSISTENT_CLIENT_ID = "Snipe.Http.PersistentClientId";
 
 		private static readonly Dictionary<string, object> s_pingMessage = new () { ["t"] = "server.ping", ["id"] = -1 };
 		private static readonly long s_sessionDurationTicks = 301 * Stopwatch.Frequency;
@@ -37,6 +38,7 @@ namespace MiniIT.Snipe
 		}
 
 		private IHttpClient _client;
+		private readonly string _persistentClientId;
 
 		private CancellationTokenSource _heartbeatCancellation;
 		private bool _heartbeatRunning = false;
@@ -56,6 +58,12 @@ namespace MiniIT.Snipe
 		internal HttpTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
 			: base(config, analytics)
 		{
+			_persistentClientId = SnipeServices.SharedPrefs.GetString(PREFS_PERSISTENT_CLIENT_ID);
+			if (string.IsNullOrEmpty(_persistentClientId))
+			{
+				_persistentClientId = Guid.NewGuid().ToString();
+				SnipeServices.SharedPrefs.SetString(PREFS_PERSISTENT_CLIENT_ID, _persistentClientId);
+			}
 		}
 
 		public override void Connect()
@@ -73,6 +81,7 @@ namespace MiniIT.Snipe
 				if (_client == null)
 				{
 					_client = SnipeServices.HttpClientFactory.CreateHttpClient();
+					_client.SetPersistentClientId(_persistentClientId);
 				}
 				else
 				{
