@@ -28,6 +28,16 @@ namespace MiniIT.Http
 				: null;
 		}
 
+		public void SetPersistentClientId(string id)
+		{
+			_httpClient.DefaultRequestHeaders.Remove("DeviceID");
+
+			if (!string.IsNullOrEmpty(id))
+			{
+				_httpClient.DefaultRequestHeaders.Add("DeviceID", id);
+			}
+		}
+
 		public async UniTask<IHttpClientResponse> Get(Uri uri)
 		{
 			HttpResponseMessage response = await _httpClient.GetAsync(uri);
