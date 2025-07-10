@@ -28,17 +28,21 @@ namespace MiniIT.Snipe.Configuration
 			return this;
 		}
 
-		public SnipeConfigBuilder SetServerWebSocketUrls(List<string> serverWebSocketUrls)
+		public SnipeConfigBuilder SetServerWebSocketUrls(List<string> urls)
 		{
-			serverWebSocketUrls ??= new List<string>();
-			_data.ServerWebSocketUrls = serverWebSocketUrls;
+			_data.ServerWebSocketUrls = urls ?? new List<string>();
 			return this;
 		}
 
-		public SnipeConfigBuilder SetServerUdpUrls(List<UdpAddress> serverUdpUrls)
+		public SnipeConfigBuilder SetServerUdpUrls(List<UdpAddress> urls)
 		{
-			serverUdpUrls ??= new List<UdpAddress>();
-			_data.ServerUdpUrls = serverUdpUrls;
+			_data.ServerUdpUrls = urls ?? new List<UdpAddress>();
+			return this;
+		}
+
+		public SnipeConfigBuilder SetServerHttpUrls(List<string> urls)
+		{
+			_data.ServerHttpUrls = urls ?? new List<string>();
 			return this;
 		}
 
