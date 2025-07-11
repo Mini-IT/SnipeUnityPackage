@@ -51,15 +51,14 @@ namespace MiniIT.Snipe
 
 		private CancellationTokenSource _delayedInitCancellation;
 
-		private readonly SnipeConfig _config;
+		private SnipeConfig _config;
 		private readonly SnipeAnalyticsTracker _analytics;
 		private readonly IMainThreadRunner _mainThreadRunner;
 		private readonly RoomStateObserver _roomStateObserver;
 		private readonly ILogger _logger;
 
-		public SnipeCommunicator(SnipeConfig config, SnipeAnalyticsTracker analytics)
+		public SnipeCommunicator(SnipeAnalyticsTracker analytics)
 		{
-			_config = config;
 			_analytics = analytics;
 
 			_mainThreadRunner = SnipeServices.MainThreadRunner;
@@ -69,6 +68,11 @@ namespace MiniIT.Snipe
 			_roomStateObserver = new RoomStateObserver(this);
 
 			_logger.LogInformation($"PACKAGE VERSION: {PackageInfo.VERSION_NAME}");
+		}
+
+		public void Initialize(SnipeConfig config)
+		{
+			_config = config;
 		}
 
 		/// <summary>

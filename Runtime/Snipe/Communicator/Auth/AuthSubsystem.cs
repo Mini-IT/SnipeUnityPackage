@@ -101,17 +101,21 @@ namespace MiniIT.Snipe
 		protected readonly IMainThreadRunner _mainThreadRunner;
 		protected readonly ILogger _logger;
 
-		protected AuthSubsystem(int contextId, SnipeCommunicator communicator, SnipeConfig config, SnipeAnalyticsTracker analytics)
+		protected AuthSubsystem(int contextId, SnipeCommunicator communicator, SnipeAnalyticsTracker analytics)
 		{
 			_communicator = communicator;
 			_communicator.ConnectionEstablished += OnConnectionEstablished;
 
 			_contextId = contextId;
-			_config = config;
 			_analytics = analytics;
 			_sharedPrefs = SnipeServices.SharedPrefs;
 			_mainThreadRunner = SnipeServices.MainThreadRunner;
 			_logger = SnipeServices.LogService.GetLogger(nameof(AuthSubsystem));
+		}
+
+		public void Initialize(SnipeConfig config)
+		{
+			_config = config;
 		}
 
 		public void Authorize()

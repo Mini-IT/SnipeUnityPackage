@@ -38,7 +38,7 @@ namespace MiniIT.Snipe
 			UnityTerminator.AddTarget(this);
 		}
 
-		public void Initialize(SnipeConfig config)
+		internal void Initialize(SnipeConfig config)
 		{
 			ProjectName = config.ProjectName;
 			IsDev = config.Project.Mode == SnipeProjectMode.Dev;
