@@ -12,13 +12,14 @@ namespace MiniIT.Snipe.Api
 			{
 				var calendar_list_wrapper = new SnipeTableCalendarV2ItemsWrapper();
 				calendar_list_wrapper.list = new List<SnipeTableCalendarV2Item>();
+
 				foreach (Dictionary<string, object> calendar_item_data in table_list)
 				{
 					var calendar_event = new SnipeTableCalendarV2Item();
 					calendar_list_wrapper.list.Add(calendar_event);
 
 					if (calendar_item_data.TryGetValue("id", out var calendar_event_id))
-						calendar_event.ID = Convert.ToInt32(calendar_event_id);
+						calendar_event.id = Convert.ToInt32(calendar_event_id);
 					if (calendar_item_data.TryGetValue("name", out var calendar_event_name))
 						calendar_event.Name = Convert.ToString(calendar_event_name);
 					if (calendar_item_data.TryGetValue("stringID", out var calendar_event_stringID))
