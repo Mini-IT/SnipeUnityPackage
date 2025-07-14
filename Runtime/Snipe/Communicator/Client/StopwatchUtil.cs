@@ -9,7 +9,9 @@ namespace MiniIT.Snipe
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static TimeSpan GetElapsedTime(long startTS)
 		{
-			return (startTS > 0) ? TimeSpan.FromSeconds((Stopwatch.GetTimestamp() - startTS) * Stopwatch.Frequency) : TimeSpan.Zero;
+			long nowTicks = Stopwatch.GetTimestamp();
+			double elapsedTicks = nowTicks - startTS;
+			return (startTS > 0) ? TimeSpan.FromSeconds(elapsedTicks / Stopwatch.Frequency) : TimeSpan.Zero;
 		}
 	}
 }
