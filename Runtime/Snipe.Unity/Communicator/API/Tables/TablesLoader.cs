@@ -29,6 +29,7 @@ namespace MiniIT.Snipe
 		private readonly BuiltInTablesListService _builtInTablesListService;
 		private readonly SnipeAnalyticsTracker _analyticsTracker;
 		private readonly ILogger _logger;
+		private UniTaskCompletionSource<bool> _loadingTask;
 
 		public TablesLoader()
 		{
@@ -58,6 +59,7 @@ namespace MiniIT.Snipe
 
 			_versions = null;
 			_failed = false;
+			_loadingTask = null;
 		}
 
 		public void Add<TItem>(SnipeTable<TItem> table, string name)
@@ -69,31 +71,51 @@ namespace MiniIT.Snipe
 
 		public async UniTask<bool> Load(CancellationToken cancellationToken = default)
 		{
-			bool fallbackEnabled = (TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceExternal);
-			bool loadExternal = (TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceBuiltIn);
-
-			await _builtInTablesListService.InitializeAsync(cancellationToken);
-
-			if (fallbackEnabled)
+			if (_loadingTask != null)
 			{
-				RemoveOutdatedCache();
+				return await _loadingTask.Task;
 			}
 
-			bool loaded = await LoadAll(loadExternal);
+			_loadingTask = new UniTaskCompletionSource<bool>();
 
-			if (loaded)
+			try
 			{
-				RemoveMisversionedCache();
+				bool fallbackEnabled = (TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceExternal);
+				bool loadExternal = (TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceBuiltIn);
+
+				await _builtInTablesListService.InitializeAsync(cancellationToken);
+
+				if (fallbackEnabled)
+				{
+					RemoveOutdatedCache();
+				}
+
+				bool loaded = await LoadAll(loadExternal);
+
+				if (loaded)
+				{
+					RemoveMisversionedCache();
+				}
+				else if (loadExternal && fallbackEnabled)
+				{
+					_versions = null;
+					loaded = await LoadAll(false);
+				}
+
+				_analyticsTracker.TrackEvent($"TablesLoader - " + (loaded ? "Loaded" : "Failed"));
+				_loadingTask.TrySetResult(loaded);
+				return loaded;
 			}
-			else if (loadExternal && fallbackEnabled)
+			catch (Exception ex)
 			{
-				_versions = null;
-				loaded = await LoadAll(false);
+				_logger.LogError($"Tables loading failed: {ex}");
+				_loadingTask.TrySetException(ex);
+				throw;
 			}
-
-			_analyticsTracker.TrackEvent($"TablesLoader - " + (loaded ? "Loaded" : "Failed"));
-
-			return loaded;
+			finally
+			{
+				_loadingTask = null;
+			}
 		}
 
 		private async UniTask<bool> LoadAll(bool loadExternal)
