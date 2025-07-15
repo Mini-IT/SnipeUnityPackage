@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
 
 namespace MiniIT.Snipe.Api
 {
@@ -24,7 +25,7 @@ namespace MiniIT.Snipe.Api
 
 			foreach (var item in _calendarTable.Values)
 			{
-				if (item.ID == eventID)
+				if (item.id == eventID)
 				{
 					bool devOverride = item.DevOverride;
 					dev = dev && devOverride;
