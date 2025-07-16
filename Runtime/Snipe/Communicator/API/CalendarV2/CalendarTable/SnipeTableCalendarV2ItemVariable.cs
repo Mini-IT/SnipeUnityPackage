@@ -9,49 +9,17 @@ namespace MiniIT.Snipe.Api
 
 		public T GetValue<T>(bool dev = false)
 		{
-			switch (Type)
+			return ChangeType<T>(dev);
+		}
+
+		private T ChangeType<T>(bool dev)
+		{
+			if (dev && !string.IsNullOrEmpty(ValueDev))
 			{
-				case "string":
-					if (dev && !string.IsNullOrEmpty(ValueDev))
-					{
-						return (T)System.Convert.ChangeType(ValueDev, typeof(T));
-					}
-					else
-					{
-						return (T)System.Convert.ChangeType(Value, typeof(T));
-					}
-				case "int":
-					if (dev && !string.IsNullOrEmpty(ValueDev))
-					{
-						return (T)System.Convert.ChangeType(ValueDev, typeof(T));
-					}
-					else
-					{
-						return (T)System.Convert.ChangeType(Value, typeof(T));
-					}
-				case "float":
-					if (dev && !string.IsNullOrEmpty(ValueDev))
-					{
-						return (T)System.Convert.ChangeType(ValueDev, typeof(T));
-					}
-					else
-					{
-						return (T)System.Convert.ChangeType(Value, typeof(T));
-					}
-				case "bool":
-					if (dev && !string.IsNullOrEmpty(ValueDev))
-					{
-						return (T)System.Convert.ChangeType(ValueDev, typeof(T));
-					}
-					else
-					{
-						return (T)System.Convert.ChangeType(Value, typeof(T));
-					}
-				default:
-					{
-						return default;
-					}
+				return (T)System.Convert.ChangeType(ValueDev, typeof(T));
 			}
+
+			return (T)System.Convert.ChangeType(Value, typeof(T));
 		}
 	}
 }

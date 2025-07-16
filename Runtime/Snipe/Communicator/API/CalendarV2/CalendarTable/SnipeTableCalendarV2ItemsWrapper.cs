@@ -6,48 +6,72 @@ namespace MiniIT.Snipe.Api
 {
 	public class SnipeTableCalendarV2ItemsWrapper : SnipeTableItemsListWrapper<SnipeTableCalendarV2Item>
 	{
-		public static SnipeTableCalendarV2ItemsWrapper FromTableData(IDictionary<string, object> table_data)
+		public static SnipeTableCalendarV2ItemsWrapper FromTableData(IDictionary<string, object> tableData)
 		{
-			if (table_data != null && table_data.TryGetValue("list", out var table_list_data) && table_list_data is IList table_list)
+			if (tableData != null && tableData.TryGetValue("list", value: out object tableListData) && tableListData is IList tableList)
 			{
-				var calendar_list_wrapper = new SnipeTableCalendarV2ItemsWrapper();
-				calendar_list_wrapper.list = new List<SnipeTableCalendarV2Item>();
-
-				foreach (Dictionary<string, object> calendar_item_data in table_list)
+				var calendarListWrapper = new SnipeTableCalendarV2ItemsWrapper
 				{
-					var calendar_event = new SnipeTableCalendarV2Item();
-					calendar_list_wrapper.list.Add(calendar_event);
+					list = new List<SnipeTableCalendarV2Item>()
+				};
 
-					if (calendar_item_data.TryGetValue("id", out var calendar_event_id))
-						calendar_event.id = Convert.ToInt32(calendar_event_id);
-					if (calendar_item_data.TryGetValue("name", out var calendar_event_name))
-						calendar_event.Name = Convert.ToString(calendar_event_name);
-					if (calendar_item_data.TryGetValue("stringID", out var calendar_event_stringID))
-						calendar_event.StringID = Convert.ToString(calendar_event_stringID);
-					if (calendar_item_data.TryGetValue("devOverride", out var calendar_event_DevOverride ))
-						calendar_event.DevOverride = Convert.ToBoolean(calendar_event_DevOverride);
+				foreach (Dictionary<string, object> calendarItemData in tableList)
+				{
+					var calendarEvent = new SnipeTableCalendarV2Item();
+					calendarListWrapper.list.Add(calendarEvent);
 
-					calendar_event.Vars = new List<SnipeTableCalendarV2ItemVariable>();
-
-					if (calendar_item_data.TryGetValue("vars", out var calendar_event_vars) && calendar_event_vars is IList calendar_event_stages_list)
+					if (calendarItemData.TryGetValue("id", out object calendarEventID))
 					{
-						foreach (Dictionary<string, object> var_item_data in calendar_event_stages_list)
+						calendarEvent.id = Convert.ToInt32(calendarEventID);
+					}
+
+					if (calendarItemData.TryGetValue("name", out object calendarEventName))
+					{
+						calendarEvent.Name = Convert.ToString(calendarEventName);
+					}
+
+					if (calendarItemData.TryGetValue("stringID", out object calendarEventStringID))
+					{
+						calendarEvent.StringID = Convert.ToString(calendarEventStringID);
+					}
+
+					if (calendarItemData.TryGetValue("devOverride", out object calendarEventDevOverride))
+					{
+						calendarEvent.DevOverride = Convert.ToBoolean(calendarEventDevOverride);
+					}
+
+					calendarEvent.Vars = new List<SnipeTableCalendarV2ItemVariable>();
+
+					if (calendarItemData.TryGetValue("vars", out object calendarEventVars) && calendarEventVars is IList calendarEventStagesList)
+					{
+						foreach (Dictionary<string, object> varItemData in calendarEventStagesList)
 						{
 							var eventVar = new SnipeTableCalendarV2ItemVariable();
-							calendar_event.Vars.Add(eventVar);
+							calendarEvent.Vars.Add(eventVar);
 
-							if (var_item_data.TryGetValue("stringID", out var var_id))
-								eventVar.StringID = Convert.ToString(var_id);
-							if (var_item_data.TryGetValue("type", out var stage_type))
-								eventVar.Type = Convert.ToString(stage_type);
-							if (var_item_data.TryGetValue("value", out var var_value))
-								eventVar.Value = Convert.ToString(var_value);
-							if (var_item_data.TryGetValue("valueDev", out var stage_value_dev))
-								eventVar.ValueDev = Convert.ToString(stage_value_dev);
+							if (varItemData.TryGetValue("stringID", out object varID))
+							{
+								eventVar.StringID = Convert.ToString(varID);
+							}
+
+							if (varItemData.TryGetValue("type", out object stageType))
+							{
+								eventVar.Type = Convert.ToString(stageType);
+							}
+
+							if (varItemData.TryGetValue("value", out object varValue))
+							{
+								eventVar.Value = Convert.ToString(varValue);
+							}
+
+							if (varItemData.TryGetValue("valueDev", out object stageValueDev))
+							{
+								eventVar.ValueDev = Convert.ToString(stageValueDev);
+							}
 						}
 					}
 				}
-				return calendar_list_wrapper;
+				return calendarListWrapper;
 			}
 
 			return null;
