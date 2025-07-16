@@ -1,14 +1,17 @@
+using System;
 using MiniIT.Snipe.Configuration;
 using MiniIT.Snipe.Unity;
 
 namespace MiniIT.Snipe.Api
 {
-	public abstract class AbstractSnipeApiContextFactory : ISnipeContextFactory
+	public abstract class AbstractSnipeApiContextFactory : ISnipeContextFactory, ISnipeApiContextItemsFactory
 	{
 		private readonly SnipeConfigBuilder _configBuilder;
+		private readonly ISnipeTablesProvider _tablesProvider;
 
-		protected AbstractSnipeApiContextFactory(SnipeConfigBuilder configBuilder)
+		protected AbstractSnipeApiContextFactory(ISnipeTablesProvider tablesProvider, SnipeConfigBuilder configBuilder)
 		{
+			_tablesProvider = tablesProvider;
 			_configBuilder = configBuilder;
 		}
 
@@ -29,7 +32,7 @@ namespace MiniIT.Snipe.Api
 			communicator.Initialize(config);
 			auth.Initialize(config);
 
-			var context = InternalCreateContext(id, communicator, auth, logReporter);
+			var context = new SnipeApiContext(id, communicator, auth, logReporter, this, _tablesProvider);
 			context.Initialize(config);
 			return context;
 		}
@@ -44,6 +47,7 @@ namespace MiniIT.Snipe.Api
 			context.Initialize(config);
 		}
 
-		protected abstract SnipeContext InternalCreateContext(int id, SnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter);
+		public abstract TimeSpan GetServerTimeZoneOffset();
+		public abstract AbstractSnipeApiService CreateSnipeApiService(SnipeCommunicator communicator, AuthSubsystem auth);
 	}
 }
