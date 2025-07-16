@@ -80,15 +80,17 @@ namespace MiniIT.Snipe
 
 		public SnipeApiTables GetSnipeTables()
 		{
-			if (_tables == null)
+			if (_tables != null)
 			{
-				if (_tablesFactory == null)
-				{
-					throw new NullReferenceException("Snipe tables factory is null");
-				}
-
-				_tables = _tablesFactory.CreateSnipeApiTables();
+				return _tables;
 			}
+
+			if (_tablesFactory == null)
+			{
+				throw new NullReferenceException("Snipe tables factory is null");
+			}
+
+			_tables = _tablesFactory.CreateSnipeApiTables();
 			return _tables;
 		}
 	}
