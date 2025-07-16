@@ -10,9 +10,9 @@ namespace MiniIT.Snipe.Api
 
 		private ISnipeTable<SnipeTableCalendarV2Item> _calendarTable = null;
 
-		public CalendarV2Manager(ISnipeTable<SnipeTableCalendarV2Item> calendar_table, TimeZoneInfo serverTimeZone)
+		public CalendarV2Manager(ISnipeTable<SnipeTableCalendarV2Item> calendarTable, TimeZoneInfo serverTimeZone)
 		{
-			_calendarTable = calendar_table;
+			_calendarTable = calendarTable;
 			ServerTimeZone = serverTimeZone;
 		}
 
