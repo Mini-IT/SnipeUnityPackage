@@ -24,7 +24,7 @@ namespace MiniIT.Snipe.Api
 						calendar_event.Name = Convert.ToString(calendar_event_name);
 					if (calendar_item_data.TryGetValue("stringID", out var calendar_event_stringID))
 						calendar_event.StringID = Convert.ToString(calendar_event_stringID);
-					if (calendar_item_data.TryGetValue("devOverride ", out var calendar_event_DevOverride ))
+					if (calendar_item_data.TryGetValue("devOverride", out var calendar_event_DevOverride ))
 						calendar_event.DevOverride = Convert.ToBoolean(calendar_event_DevOverride);
 
 					calendar_event.Vars = new List<SnipeTableCalendarV2ItemVariable>();
