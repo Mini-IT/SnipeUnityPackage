@@ -23,7 +23,7 @@ namespace MiniIT.Snipe.Api
 			{
 				if (item.StringID == name)
 				{
-					return item.GetValue<T>();
+					return item.GetValue<T>(dev);
 				}
 			}
 
