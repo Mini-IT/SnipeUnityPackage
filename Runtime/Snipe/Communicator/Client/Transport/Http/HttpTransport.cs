@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using MiniIT.Http;
 using MiniIT.Snipe.Logging;
 using MiniIT.Threading;
+using Cysharp.Threading.Tasks;
 
 namespace MiniIT.Snipe
 {
@@ -38,7 +39,7 @@ namespace MiniIT.Snipe
 		}
 
 		private IHttpClient _client;
-		private readonly string _persistentClientId;
+		private string _persistentClientId;
 
 		private CancellationTokenSource _heartbeatCancellation;
 		private bool _heartbeatRunning = false;
@@ -58,12 +59,15 @@ namespace MiniIT.Snipe
 		internal HttpTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
 			: base(config, analytics)
 		{
-			_persistentClientId = SnipeServices.SharedPrefs.GetString(PREFS_PERSISTENT_CLIENT_ID);
-			if (string.IsNullOrEmpty(_persistentClientId))
+			SnipeServices.MainThreadRunner.RunInMainThread(() =>
 			{
-				_persistentClientId = Guid.NewGuid().ToString();
-				SnipeServices.SharedPrefs.SetString(PREFS_PERSISTENT_CLIENT_ID, _persistentClientId);
-			}
+				_persistentClientId = SnipeServices.SharedPrefs.GetString(PREFS_PERSISTENT_CLIENT_ID);
+				if (string.IsNullOrEmpty(_persistentClientId))
+				{
+					_persistentClientId = Guid.NewGuid().ToString();
+					SnipeServices.SharedPrefs.SetString(PREFS_PERSISTENT_CLIENT_ID, _persistentClientId);
+				}
+			});
 		}
 
 		public override void Connect()
@@ -81,7 +85,7 @@ namespace MiniIT.Snipe
 				if (_client == null)
 				{
 					_client = SnipeServices.HttpClientFactory.CreateHttpClient();
-					_client.SetPersistentClientId(_persistentClientId);
+					//_client.SetPersistentClientId(_persistentClientId);
 				}
 				else
 				{
@@ -95,7 +99,7 @@ namespace MiniIT.Snipe
 				};
 			}
 
-			SendHandshake();
+			SendHandshake().Forget();
 		}
 
 		public override void Disconnect()
@@ -415,8 +419,11 @@ namespace MiniIT.Snipe
 
 		#endregion
 
-		private async void SendHandshake()
+		private async UniTaskVoid SendHandshake()
 		{
+			await UniTask.WaitWhile(() => string.IsNullOrEmpty(_persistentClientId));
+			_client.SetPersistentClientId(_persistentClientId);
+
 			bool semaphoreOccupied = false;
 
 			try
