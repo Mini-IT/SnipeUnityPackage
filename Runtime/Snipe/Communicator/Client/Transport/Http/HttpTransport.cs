@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using MiniIT.Http;
 using MiniIT.Snipe.Logging;
 using MiniIT.Threading;
+using Cysharp.Threading.Tasks;
 
 namespace MiniIT.Snipe
 {
@@ -81,7 +82,7 @@ namespace MiniIT.Snipe
 				};
 			}
 
-			SendHandshake();
+			SendHandshake().Forget();
 		}
 
 		public override void Disconnect()
@@ -370,12 +371,9 @@ namespace MiniIT.Snipe
 
 		#endregion
 
-		private async void SendHandshake()
+		private async UniTaskVoid SendHandshake()
 		{
-			while (string.IsNullOrEmpty(_persistentClientId))
-			{
-				await AlterTask.Yield();
-			}
+			await UniTask.WaitWhile(() => string.IsNullOrEmpty(_persistentClientId));
 			_client.SetPersistentClientId(_persistentClientId);
 
 			bool semaphoreOccupied = false;
