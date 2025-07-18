@@ -97,28 +97,32 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			if (_client == null)
-			{
-				_client = new SnipeClient(_config);
-				_client.ConnectionOpened += OnClientConnectionOpened;
-				_client.ConnectionClosed += OnClientConnectionClosed;
-				_client.ConnectionDisrupted += OnClientConnectionDisrupted;
-				_client.UdpConnectionFailed += OnClientUdpConnectionFailed;
-				_client.MessageReceived += OnMessageReceived;
-			}
-
 			lock (_clientLock)
 			{
-				if (!_client.Connected)
+				if (_client == null)
 				{
-					_disconnecting = false;
-					var transportInfo = _client.Connect();
-
-					_mainThreadRunner.RunInMainThread(() =>
-					{
-						AnalyticsTrackStartConnection(transportInfo);
-					});
+					_client = new SnipeClient(_config);
+					_client.ConnectionOpened += OnClientConnectionOpened;
+					_client.ConnectionClosed += OnClientConnectionClosed;
+					_client.ConnectionDisrupted += OnClientConnectionDisrupted;
+					_client.UdpConnectionFailed += OnClientUdpConnectionFailed;
+					_client.MessageReceived += OnMessageReceived;
 				}
+
+				if (_client.Connected)
+				{
+					return;
+				}
+
+				_disconnecting = false;
+				_restoreConnectionAttempt = 0;
+
+				var transportInfo = _client.Connect();
+
+				_mainThreadRunner.RunInMainThread(() =>
+				{
+					AnalyticsTrackStartConnection(transportInfo);
+				});
 			}
 		}
 
