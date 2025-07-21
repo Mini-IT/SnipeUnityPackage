@@ -434,8 +434,12 @@ namespace MiniIT.Snipe
 					if (success)
 					{
 						ClearAllBindings();
+
 						UserID = 0;
-						SetAuthData(response.SafeGetString("uid"), response.SafeGetString("password"));
+
+						string uid = response.SafeGetString("uid");
+						string pwd = response.SafeGetString("password");
+						SetAuthData(uid, pwd);
 					}
 
 					callback?.Invoke(success);
