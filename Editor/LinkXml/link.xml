@@ -1,3 +1,4 @@
 <linker>
+	<assembly fullname="MiniIT.Snipe" preserve="all"/>
 	<assembly fullname="MiniIT.Snipe.Communicator" preserve="all"/>
 </linker>
