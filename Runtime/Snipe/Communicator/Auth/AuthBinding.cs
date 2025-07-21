@@ -166,12 +166,12 @@ namespace MiniIT.Snipe
 
 		protected string GetInternalAuthToken()
 		{
-			return _sharedPrefs.GetString(SnipePrefs.GetAuthKey(_contextId));
+			return _authSubsystem.GetInternalAuthToken();
 		}
 
 		protected string GetInternalAuthLogin()
 		{
-			return _sharedPrefs.GetString(SnipePrefs.GetAuthUID(_contextId));
+			return _authSubsystem.GetInternalAuthLogin();
 		}
 
 		protected virtual string GetAuthToken()
