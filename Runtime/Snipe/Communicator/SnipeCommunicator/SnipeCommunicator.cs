@@ -80,10 +80,13 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public void Start()
 		{
-			InitClient();
+			if (InitClient())
+			{
+				_restoreConnectionAttempt = 0;
+			}
 		}
 
-		private void InitClient()
+		private bool InitClient()
 		{
 			if (_delayedInitCancellation != null)
 			{
@@ -94,7 +97,7 @@ namespace MiniIT.Snipe
 			if (LoggedIn)
 			{
 				_logger.LogWarning("InitClient - already logged in");
-				return;
+				return false;
 			}
 
 			lock (_clientLock)
@@ -111,11 +114,10 @@ namespace MiniIT.Snipe
 
 				if (_client.Connected)
 				{
-					return;
+					return false;
 				}
 
 				_disconnecting = false;
-				_restoreConnectionAttempt = 0;
 
 				var transportInfo = _client.Connect();
 
@@ -124,6 +126,8 @@ namespace MiniIT.Snipe
 					AnalyticsTrackStartConnection(transportInfo);
 				});
 			}
+
+			return true;
 		}
 
 		public void Disconnect()
