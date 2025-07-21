@@ -139,12 +139,12 @@ namespace MiniIT.Snipe
 
 		protected string GetInternalAuthToken()
 		{
-			return _sharedPrefs.GetString(SnipePrefs.GetAuthKey(_config.ContextId));
+			return _authSubsystem.GetInternalAuthToken();
 		}
 
 		protected string GetInternalAuthLogin()
 		{
-			return _sharedPrefs.GetString(SnipePrefs.GetAuthUID(_config.ContextId));
+			return _authSubsystem.GetInternalAuthLogin();
 		}
 
 		protected virtual string GetAuthToken()
