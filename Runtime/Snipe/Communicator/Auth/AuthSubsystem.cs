@@ -303,11 +303,14 @@ namespace MiniIT.Snipe
 						uid = _config.ContextId + uid;
 					}
 
-					providers.Add(new SnipeObject()
+					var providerData = new SnipeObject() { ["provider"] = provider, ["login"] = uid };
+
+					if (!string.IsNullOrEmpty(fetcher.Token))
 					{
-						["provider"] = provider,
-						["login"] = uid,
-					});
+						providerData.Add("token", fetcher.Token);
+					}
+
+					providers.Add(providerData);
 				}
 				done = true;
 			});
