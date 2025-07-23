@@ -24,7 +24,6 @@ namespace MiniIT.Snipe
 		{
 			_contextFactory = contextFactory;
 			_tablesFactory = tablesFactory;
-			// _ = GetOrCreateContext(0); // create default context
 		}
 
 		public bool TryGetContext(out SnipeContext context)
