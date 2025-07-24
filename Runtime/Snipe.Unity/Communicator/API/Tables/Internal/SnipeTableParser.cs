@@ -21,6 +21,10 @@ namespace MiniIT.Snipe.Tables
 			{
 				listWrapper = SnipeTableCalendarItemsWrapper.FromTableData(jsonObject);
 			}
+			else if (wrapperType == typeof(SnipeTableItemsListWrapper<SnipeTableCalendarV2Item>))
+			{
+				listWrapper = SnipeTableCalendarV2ItemsWrapper.FromTableData(jsonObject);
+			}
 			else
 			{
 				listWrapper = ParseInternal(wrapperType, jsonObject) as ISnipeTableItemsListWrapper;

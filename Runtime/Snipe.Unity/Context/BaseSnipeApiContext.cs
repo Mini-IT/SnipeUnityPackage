@@ -9,6 +9,7 @@ namespace MiniIT.Snipe
 		public GraphLogicManager GraphManager { get; }
 		public BadgesManager BadgesManager { get; }
 		public CalendarManager CalendarManager { get; }
+		public CalendarV2Manager CalendarV2Manager { get; }
 
 		protected AbstractSnipeApiService _api;
 		protected SnipeApiTables _tables;
@@ -44,6 +45,12 @@ namespace MiniIT.Snipe
 				CalendarManager = new CalendarManager(calendarTable, serverTimeZone);
 			}
 
+			var calendarV2Table = tables.GetTable<SnipeTableCalendarV2Item>();
+			if (calendarV2Table != null)
+			{
+				CalendarV2Manager = new CalendarV2Manager(calendarV2Table, serverTimeZone);
+			}
+
 			Communicator.ConnectionSucceeded += OnCommunicatorConnected;
 		}
 
@@ -65,6 +72,7 @@ namespace MiniIT.Snipe
 			LogicManager?.Dispose();
 			CalendarManager?.Dispose();
 			BadgesManager?.Dispose();
+			CalendarV2Manager?.Dispose();
 
 			if (_api is IDisposable disposableApi)
 			{
