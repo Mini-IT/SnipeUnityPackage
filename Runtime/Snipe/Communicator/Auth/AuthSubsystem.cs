@@ -165,7 +165,10 @@ namespace MiniIT.Snipe
 			if (AutoLogin)
 			{
 				Authorize();
+				return;
 			}
+
+			_logger.LogInformation("Auto login is disabled. You must manually call Authorize()");
 		}
 
 		private void OnMessageReceived(string messagetype, string errorcode, IDictionary<string, object> data, int requestid)
@@ -419,7 +422,7 @@ namespace MiniIT.Snipe
 		{
 			_authLogin = uid;
 			_authToken = password;
-			
+
 			_sharedPrefs.SetString(SnipePrefs.GetAuthUID(_contextId), uid);
 			_sharedPrefs.SetString(SnipePrefs.GetAuthKey(_contextId), password);
 			_sharedPrefs.Save();
