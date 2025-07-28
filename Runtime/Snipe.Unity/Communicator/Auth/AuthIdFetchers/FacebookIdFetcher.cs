@@ -1,6 +1,7 @@
 ﻿#if SNIPE_FACEBOOK
 
 using System;
+using System.Threading;
 using MiniIT.Threading;
 using Facebook.Unity;
 
@@ -8,7 +9,7 @@ namespace MiniIT.Snipe.Unity
 {
 	public class FacebookIdFetcher : AuthIdFetcher
 	{
-		public override void Fetch(bool wait_initialization, Action<string> callback = null)
+		public override void Fetch(bool waitInitialization, Action<string> callback = null)
 		{
 			if (string.IsNullOrEmpty(Value) && FB.IsLoggedIn)
 			{
@@ -19,7 +20,7 @@ namespace MiniIT.Snipe.Unity
 				}
 			}
 
-			if (wait_initialization && string.IsNullOrEmpty(Value))
+			if (waitInitialization && string.IsNullOrEmpty(Value))
 			{
 				WaitForInitialization(callback);
 				return;
@@ -34,8 +35,15 @@ namespace MiniIT.Snipe.Unity
 
 			while (string.IsNullOrEmpty(userId))
 			{
-				await AlterTask.Delay(100);
-				userId = GetFacebookUserId();
+				try
+				{
+					await AlterTask.Delay(100, cancellationToken: _cts.Token);
+					userId = GetFacebookUserId();
+				}
+				catch (OperationCanceledException)
+				{
+					return;
+				}
 			}
 
 			SetValue(userId);

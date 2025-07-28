@@ -13,7 +13,7 @@ namespace MiniIT.Snipe
 		}
 	}
 
-	public class AuthBinding
+	public class AuthBinding : IDisposable
 	{
 		public delegate void BindResultCallback(AuthBinding binding, string errorCode);
 		public delegate void CheckAuthExistsCallback(AuthBinding binding, bool exists, bool isMe, string username = null);
@@ -328,6 +328,12 @@ namespace MiniIT.Snipe
 		public void DisposeCallback()
 		{
 			_bindResultCallback = null;
+		}
+		
+		public void Dispose()
+		{
+			Fetcher?.Dispose();
+			DisposeCallback();
 		}
 	}
 }

@@ -11,7 +11,7 @@ using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
-	public abstract class AuthSubsystem
+	public abstract class AuthSubsystem : IDisposable
 	{
 		public delegate void AccountBindingCollisionHandler(AuthBinding binding, string userName = null);
 
@@ -644,5 +644,18 @@ namespace MiniIT.Snipe
 		}
 
 		#endregion
+
+		public virtual void Dispose()
+		{
+			_communicator.ConnectionEstablished -= OnConnectionEstablished;
+			_communicator.MessageReceived -= OnMessageReceived;
+			
+			foreach (var binding in _bindings)
+			{
+				binding?.Dispose();
+			}
+			
+			_bindings.Clear();
+		}
 	}
 }

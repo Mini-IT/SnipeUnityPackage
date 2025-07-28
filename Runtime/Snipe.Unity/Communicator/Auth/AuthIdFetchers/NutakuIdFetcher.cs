@@ -7,7 +7,7 @@ namespace MiniIT.Snipe.Unity
 {
 	public class NutakuIdFetcher : AuthIdFetcher
 	{
-		public override void Fetch(bool wait_initialization, Action<string> callback = null)
+		public override void Fetch(bool waitInitialization, Action<string> callback = null)
 		{
 			if (string.IsNullOrEmpty(Value))
 			{

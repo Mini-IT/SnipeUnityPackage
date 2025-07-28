@@ -1,5 +1,6 @@
 ﻿﻿using System;
 using System.Text.RegularExpressions;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 
 #if !MINI_IT_ADVERTISING_ID
@@ -10,7 +11,7 @@ namespace MiniIT.Snipe.Unity
 {
 	public class AdvertisingIdFetcher : AuthIdFetcher
 	{
-		public override void Fetch(bool wait_initialization, Action<string> callback = null)
+		public override void Fetch(bool waitInitialization, Action<string> callback = null)
 		{
 #if UNITY_WEBGL
 			callback?.Invoke(null);
@@ -27,7 +28,7 @@ namespace MiniIT.Snipe.Unity
 			MiniIT.Utils.AdvertisingIdFetcher.RequestAdvertisingId((advertisingId, trackingEnabled, errorMessage) =>
 			{
 				SetAdvertisingId(advertisingId);
-				
+
 				if (callback != null)
 				{
 					RunInMainThread(() => callback.Invoke(Value));
@@ -41,7 +42,7 @@ namespace MiniIT.Snipe.Unity
 				}))
 			{
 #if UNITY_IOS
-				if (wait_initialization && string.IsNullOrEmpty(Value))
+				if (waitInitialization && string.IsNullOrEmpty(Value))
 				{
 					if (callback != null)
 					{
@@ -60,7 +61,14 @@ namespace MiniIT.Snipe.Unity
 		{
 			while (string.IsNullOrEmpty(Value))
 			{
-				await UniTask.Delay(100);
+				try
+				{
+					await UniTask.Delay(100, cancellationToken: _cts.Token);
+				}
+				catch (OperationCanceledException)
+				{
+					return;
+				}
 			}
 			RunInMainThread(() => callback.Invoke(Value));
 		}
@@ -73,7 +81,7 @@ namespace MiniIT.Snipe.Unity
 			else
 				Value = "";
 		}
-		
+
 		private static bool CheckAdvertisingIdValid(string advertisingId)
 		{
 			if (string.IsNullOrEmpty(advertisingId))
@@ -82,7 +90,7 @@ namespace MiniIT.Snipe.Unity
 			// on IOS value may be "00000000-0000-0000-0000-000000000000"
 			return Regex.IsMatch(advertisingId, @"[^0\W]");
 		}
-		
+
 		private void RunInMainThread(Action action)
 		{
 			SnipeServices.MainThreadRunner.RunInMainThread(action);

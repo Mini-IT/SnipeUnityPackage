@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using MiniIT.Threading;
 
@@ -8,7 +9,7 @@ namespace MiniIT.Snipe.Unity
 	{
 		public static AuthIdObserver Observer { get; } = new AuthIdObserver();
 
-		public override void Fetch(bool wait_initialization, Action<string> callback = null)
+		public override void Fetch(bool waitInitialization, Action<string> callback = null)
 		{
 			//Debug.LogTrace($"[AmazonIdFetcher] Fetch. Value = {Value}");
 			//if (string.IsNullOrEmpty(Value))
@@ -32,7 +33,7 @@ namespace MiniIT.Snipe.Unity
 				Value = Observer.Value;
 			}
 
-			if (wait_initialization && string.IsNullOrEmpty(Value))
+			if (waitInitialization && string.IsNullOrEmpty(Value))
 			{
 				WaitForInitialization(callback).Forget();
 				return;
@@ -45,12 +46,19 @@ namespace MiniIT.Snipe.Unity
 		{
 			while (string.IsNullOrEmpty(Value))
 			{
-				await AlterTask.Delay(100);
-
-				if (CheckValueValid(Observer.Value))
+				try
 				{
-					Value = Observer.Value;
-					break;
+					await AlterTask.Delay(100, cancellationToken: _cts.Token);
+
+					if (CheckValueValid(Observer.Value))
+					{
+						Value = Observer.Value;
+						break;
+					}
+				}
+				catch (OperationCanceledException)
+				{
+					return;
 				}
 			}
 

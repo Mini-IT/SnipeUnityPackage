@@ -69,6 +69,7 @@ namespace MiniIT.Snipe
 
 			IsDisposed = true;
 
+			Auth.Dispose();
 			Communicator.Dispose();
 			LogReporter.Dispose();
 		}
