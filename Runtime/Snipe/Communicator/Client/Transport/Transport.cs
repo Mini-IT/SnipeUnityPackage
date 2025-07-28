@@ -70,10 +70,14 @@ namespace MiniIT.Snipe
 
 			_disposed = true;
 
-			Disconnect();
+			// Remove connection events handlers before calling Disconnect()
+			// to prevent attempts to start next transport on disconnection
 			ConnectionOpenedHandler = null;
 			ConnectionClosedHandler = null;
 			MessageReceivedHandler = null;
+
+			Disconnect();
+
 			_messageSerializationSemaphore.Dispose();
 			_messageProcessingSemaphore.Dispose();
 		}
