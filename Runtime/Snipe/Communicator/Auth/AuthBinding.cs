@@ -186,8 +186,8 @@ namespace MiniIT.Snipe
 		/// <summary>
 		/// Resets stored authorization data to this account.
 		/// </summary>
-		/// <param name="callback">Parameter is <c>errorCode</c></param>
-		public void ResetAuth(Action<string> callback)
+		/// <param name="callback">Parameters are <c>errorCode</c>, <c>authLogin</c>, <c>authToken</c> </param>
+		public void ResetAuth(Action<string, string, string> callback)
 		{
 			IDictionary<string, object> data = new Dictionary<string, object>()
 			{
@@ -202,21 +202,24 @@ namespace MiniIT.Snipe
 			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_RESET, data)
 				.Request((errorCode, responseData) =>
 				{
+					string authLogin = null;
+					string authToken = null;
+
 					if (errorCode == SnipeErrorCodes.OK)
 					{
-						string authLogin = responseData.SafeGetString("uid");
-						string authToken = responseData.SafeGetString("password");
+						authLogin = responseData.SafeGetString("uid");
+						authToken = responseData.SafeGetString("password");
 
-						if (!string.IsNullOrEmpty(authLogin) && !string.IsNullOrEmpty(authToken))
-						{
-							_sharedPrefs.SetString(SnipePrefs.GetAuthUID(_contextId), authLogin);
-							_sharedPrefs.SetString(SnipePrefs.GetAuthKey(_contextId), authToken);
-						}
+						// if (!string.IsNullOrEmpty(authLogin) && !string.IsNullOrEmpty(authToken))
+						// {
+						// 	_sharedPrefs.SetString(SnipePrefs.GetAuthUID(_contextId), authLogin);
+						// 	_sharedPrefs.SetString(SnipePrefs.GetAuthKey(_contextId), authToken);
+						// }
 
 						SetBindDoneFlag(true);
 					}
 
-					callback?.Invoke(errorCode);
+					callback?.Invoke(errorCode, authLogin, authToken);
 				});
 		}
 
@@ -329,7 +332,7 @@ namespace MiniIT.Snipe
 		{
 			_bindResultCallback = null;
 		}
-		
+
 		public void Dispose()
 		{
 			Fetcher?.Dispose();

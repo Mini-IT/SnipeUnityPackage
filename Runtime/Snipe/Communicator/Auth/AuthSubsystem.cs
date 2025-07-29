@@ -565,7 +565,7 @@ namespace MiniIT.Snipe
 		/// <param name="binding">Instance of <see cref="AuthBinding"/> that references the target account</param>
 		public void ReloginTo(AuthBinding binding)
 		{
-			binding.ResetAuth(async (errorCode) =>
+			binding.ResetAuth(async (errorCode, authUid, authToken) =>
 			{
 				if (errorCode != SnipeErrorCodes.OK)
 				{
@@ -575,8 +575,9 @@ namespace MiniIT.Snipe
 
 				ClearAllBindings();
 
-				binding.IsBindDone = false;
 				_userID = 0;
+
+				SetAuthData(authUid, authToken);
 
 				_communicator.Disconnect();
 
@@ -649,12 +650,12 @@ namespace MiniIT.Snipe
 		{
 			_communicator.ConnectionEstablished -= OnConnectionEstablished;
 			_communicator.MessageReceived -= OnMessageReceived;
-			
+
 			foreach (var binding in _bindings)
 			{
 				binding?.Dispose();
 			}
-			
+
 			_bindings.Clear();
 		}
 	}
