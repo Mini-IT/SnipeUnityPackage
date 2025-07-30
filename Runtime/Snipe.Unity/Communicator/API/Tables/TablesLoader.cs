@@ -20,7 +20,7 @@ namespace MiniIT.Snipe
 
 		private CancellationTokenSource _cancellation;
 
-		private readonly AlterSemaphore _semaphore = new AlterSemaphore(MAX_LOADERS_COUNT);
+		private readonly AlterSemaphore _subloadersSemaphore = new AlterSemaphore(MAX_LOADERS_COUNT);
 
 		private bool _failed = false;
 
@@ -29,7 +29,9 @@ namespace MiniIT.Snipe
 		private readonly BuiltInTablesListService _builtInTablesListService;
 		private readonly SnipeAnalyticsTracker _analyticsTracker;
 		private readonly ILogger _logger;
-		private UniTaskCompletionSource<bool> _loadingTask;
+
+		private UniTaskCompletionSource<bool> _loadingTaskCompletion;
+		private readonly object _loadingTaskCompletionLock = new();
 
 		public TablesLoader()
 		{
@@ -59,7 +61,7 @@ namespace MiniIT.Snipe
 
 			_versions = null;
 			_failed = false;
-			_loadingTask = null;
+			_loadingTaskCompletion = null;
 		}
 
 		public void Add<TItem>(SnipeTable<TItem> table, string name)
@@ -69,15 +71,23 @@ namespace MiniIT.Snipe
 			_loadingItems.Add(new TablesLoaderItem(typeof(SnipeTableItemsListWrapper<TItem>), table, name));
 		}
 
-		public async UniTask<bool> Load(CancellationToken cancellationToken = default)
+		public UniTask<bool> Load(CancellationToken cancellationToken = default)
 		{
-			if (_loadingTask != null)
+			lock (_loadingTaskCompletionLock)
 			{
-				return await _loadingTask.Task;
+				if (_loadingTaskCompletion != null)
+				{
+					return _loadingTaskCompletion.Task;
+				}
+
+				_loadingTaskCompletion = new UniTaskCompletionSource<bool>();
 			}
 
-			_loadingTask = new UniTaskCompletionSource<bool>();
+			return DoLoad(cancellationToken);
+		}
 
+		private async UniTask<bool> DoLoad(CancellationToken cancellationToken = default)
+		{
 			try
 			{
 				bool fallbackEnabled = (TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceExternal);
@@ -103,18 +113,18 @@ namespace MiniIT.Snipe
 				}
 
 				_analyticsTracker.TrackEvent($"TablesLoader - " + (loaded ? "Loaded" : "Failed"));
-				_loadingTask.TrySetResult(loaded);
+				_loadingTaskCompletion.TrySetResult(loaded);
 				return loaded;
 			}
 			catch (Exception ex)
 			{
 				_logger.LogError($"Tables loading failed: {ex}");
-				_loadingTask.TrySetException(ex);
+				_loadingTaskCompletion.TrySetException(ex);
 				throw;
 			}
 			finally
 			{
-				_loadingTask = null;
+				_loadingTaskCompletion = null;
 			}
 		}
 
@@ -169,7 +179,7 @@ namespace MiniIT.Snipe
 
 			try
 			{
-				await _semaphore.WaitAsync(cancellationToken);
+				await _subloadersSemaphore.WaitAsync(cancellationToken);
 				semaphoreOccupied = true;
 
 				if (!cancellationToken.IsCancellationRequested)
@@ -197,7 +207,7 @@ namespace MiniIT.Snipe
 			{
 				if(semaphoreOccupied)
 				{
-					_semaphore.Release();
+					_subloadersSemaphore.Release();
 				}
 			}
 
