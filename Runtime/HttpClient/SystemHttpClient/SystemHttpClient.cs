@@ -3,6 +3,7 @@ using System;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 
 namespace MiniIT.Http
@@ -46,10 +47,17 @@ namespace MiniIT.Http
 
 		public async UniTask<IHttpClientResponse> Get(Uri uri, TimeSpan timeout)
 		{
-			TimeSpan prevTimeout = _httpClient.Timeout;
-			_httpClient.Timeout = timeout;
-			HttpResponseMessage response = await _httpClient.GetAsync(uri);
-			_httpClient.Timeout = prevTimeout;
+			HttpResponseMessage response;
+			var cts = new CancellationTokenSource(timeout);
+			try
+			{
+				response = await _httpClient.GetAsync(uri, cts.Token);
+			}
+			catch (OperationCanceledException)
+			{
+				response = null;
+			}
+
 			return new SystemHttpClientResponse(response);
 		}
 

@@ -6,7 +6,7 @@ namespace MiniIT.Http
 	public struct SystemHttpClientResponse : IHttpClientResponse
 	{
 		public long ResponseCode { get; }
-		public readonly bool IsSuccess => _response.IsSuccessStatusCode;
+		public readonly bool IsSuccess => _response != null && _response.IsSuccessStatusCode;
 		public string Error { get; }
 
 		private readonly HttpResponseMessage _response;
@@ -14,8 +14,18 @@ namespace MiniIT.Http
 		public SystemHttpClientResponse(HttpResponseMessage response) : this()
 		{
 			_response = response;
-			ResponseCode = (long)response.StatusCode;
-			Error = response.IsSuccessStatusCode ? null : $"{(int)response.StatusCode} {response.StatusCode}";
+
+			if (response != null)
+			{
+				ResponseCode = (long)response.StatusCode;
+				Error = response.IsSuccessStatusCode ? null : $"{(int)response.StatusCode} {response.StatusCode}";
+			}
+			else
+			{
+				var statusCode = System.Net.HttpStatusCode.RequestTimeout;
+				ResponseCode = (long)statusCode;
+				Error = $"{(int)statusCode} {statusCode}";
+			}
 		}
 
 		public async UniTask<string> GetStringContentAsync()
