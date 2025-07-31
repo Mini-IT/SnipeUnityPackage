@@ -270,6 +270,8 @@ namespace MiniIT.Snipe
 			bool accountExists = (errorCode == SnipeErrorCodes.OK);
 
 			bool isMe = data.SafeGetValue("isSame", false);
+			string username = data.SafeGetString("name");
+
 			if (isMe)
 			{
 				IsBindDone = true;
@@ -277,7 +279,7 @@ namespace MiniIT.Snipe
 
 			if (callback != null)
 			{
-				callback.Invoke(this, accountExists, isMe, data.SafeGetString("name"));
+				callback.Invoke(this, accountExists, isMe, username);
 				callback = null;
 			}
 
@@ -293,7 +295,7 @@ namespace MiniIT.Snipe
 			else if (!isMe)
 			{
 				_logger.LogTrace($"({ProviderId}) OnCheckAuthExistsResponse - another account found - InvokeAccountBindingCollisionEvent");
-				_authSubsystem.OnAccountBindingCollision(this, data.SafeGetString("name"));
+				_authSubsystem.OnAccountBindingCollision(this, username);
 			}
 		}
 
