@@ -565,7 +565,7 @@ namespace MiniIT.Snipe
 		/// <param name="binding">Instance of <see cref="AuthBinding"/> that references the target account</param>
 		public void ReloginTo(AuthBinding binding)
 		{
-			binding.ResetAuth(async (errorCode, authUid, authToken) =>
+			binding.ResetAuth((errorCode, authUid, authToken) =>
 			{
 				if (errorCode != SnipeErrorCodes.OK)
 				{
@@ -575,21 +575,26 @@ namespace MiniIT.Snipe
 
 				ClearAllBindings();
 
-				_userID = 0;
+				UserID = 0;
 
 				SetAuthData(authUid, authToken);
 
-				_communicator.Disconnect();
-
-				await UniTask.WaitWhile(() => _communicator.Connected);
-				await UniTask.Delay(1000); // Server needs some time to finish a session. One second is a recommended timeout
-
-				_reloginning = true;
-				_communicator.Start();
+				ReloginReconnect().Forget();
 			});
 		}
 
-		// Called by BindProvider
+		private async UniTaskVoid ReloginReconnect()
+		{
+			_communicator.Disconnect();
+
+			await UniTask.WaitWhile(() => _communicator.Connected);
+			await UniTask.Delay(1000); // Server needs some time to finish a session. One second is a recommended timeout
+
+			_reloginning = true;
+			_communicator.Start();
+		}
+
+		// Called by AuthBinding
 		internal void OnAccountBindingCollision(AuthBinding binding, string username = null)
 		{
 			if (AutomaticallyBindCollisions)
