@@ -1,15 +1,16 @@
 ﻿#if NUTAKU
 
 using System;
-using Newtonsoft.Json;
 using NutakuUnitySdk;
 using UnityEngine;
 
 namespace MiniIT.Snipe.Unity
 {
-	public class NutakuIdFetcher : AuthIdFetcher
+	public sealed class NutakuIdFetcher : AuthIdFetcher, IAuthIdFetcherWithToken
 	{
-		public class NutakuMono : MonoBehaviour
+		public string Token { get; private set; }
+
+		public sealed class NutakuMono : MonoBehaviour
 		{
 			private void Awake()
 			{
@@ -17,7 +18,7 @@ namespace MiniIT.Snipe.Unity
 			}
 		}
 
-		private class Handshake
+		private sealed class HandshakeResponse
 		{
 			public string errorCode;
 			public string token;
@@ -25,10 +26,12 @@ namespace MiniIT.Snipe.Unity
 
 		private Action<string> _callback;
 		private NutakuMono _mono;
+		private readonly object _monoLock = new object();
 
-		public override void Fetch(bool wait_initialization, Action<string> callback = null)
+		public override void Fetch(bool waitInitialization, Action<string> callback = null)
 		{
 			_callback = callback;
+
 			if (string.IsNullOrEmpty(Value))
 			{
 				string userId = NutakuCurrentUser.GetUserId().ToString();
@@ -41,28 +44,40 @@ namespace MiniIT.Snipe.Unity
 
 		private void CreateMono()
 		{
-			var nutakuObj = GameObject.Instantiate(new GameObject());
-			nutakuObj.name = "NutakuHandshakeMono";
-			_mono = nutakuObj.AddComponent<NutakuMono>();
+			lock (_monoLock)
+			{
+				var nutakuObj = new GameObject("NutakuHandshakeMono");
+				_mono = nutakuObj.AddComponent<NutakuMono>();
+			}
 		}
 
 		private void GetHandshake()
 		{
-			NutakuApi.GameHandshake(_mono, OnHandshakeReceived);
+			lock (_monoLock)
+			{
+				NutakuApi.GameHandshake(_mono, OnHandshakeReceived);
+			}
 		}
 
 		private void OnHandshakeReceived(NutakuApiRawResult rawresult)
 		{
-			if(rawresult.responseCode is > 199 and < 300)
+			if (rawresult.responseCode is > 199 and < 300)
 			{
 				var result = NutakuApi.Parse_GameHandshake(rawresult);
-				var handshake = JsonConvert.DeserializeObject<Handshake>(result.message);
-				if (handshake is { errorCode: "ok" })
+				var handshake = fastJSON.JSON.ToObject<HandshakeResponse>(result.message);
+				if (handshake?.errorCode == "ok")
 				{
 					Token = handshake.token;
 					_callback?.Invoke(Value);
-					GameObject.Destroy(_mono);
 				}
+
+			}
+
+			lock (_monoLock)
+			{
+				var monoGameObject = _mono.gameObject;
+				_mono = null;
+				GameObject.Destroy(monoGameObject);
 			}
 		}
 

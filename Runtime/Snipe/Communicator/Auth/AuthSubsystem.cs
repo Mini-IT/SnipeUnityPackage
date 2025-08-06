@@ -316,9 +316,9 @@ namespace MiniIT.Snipe
 
 					var providerData = new SnipeObject() { ["provider"] = provider, ["login"] = uid };
 
-					if (!string.IsNullOrEmpty(fetcher.Token))
+					if (fetcher is IAuthIdFetcherWithToken tokenFetcher && !string.IsNullOrEmpty(tokenFetcher.Token))
 					{
-						providerData.Add("token", fetcher.Token);
+						providerData.Add("token", tokenFetcher.Token);
 					}
 
 					providers.Add(providerData);
