@@ -62,7 +62,7 @@ namespace MiniIT.Snipe
 			{
 				_socket.Send(data, length, SocketFlags.None);
 			}
-			catch (Exception e)
+			catch (Exception)
 			{
 				Dispose();
 				OnDisconnected?.Invoke();

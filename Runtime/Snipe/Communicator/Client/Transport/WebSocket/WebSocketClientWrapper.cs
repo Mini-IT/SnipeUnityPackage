@@ -222,7 +222,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		protected void OnWebSocketConnected()
+		private void OnWebSocketConnected()
 		{
 			if (OnConnectionOpened != null)
 			{
@@ -230,7 +230,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		protected void OnWebSocketClosed(string reason)
+		private void OnWebSocketClosed(string reason)
 		{
 			_logger.LogTrace($"[WebSocketWrapper] OnWebSocketClosed: {reason}");
 
