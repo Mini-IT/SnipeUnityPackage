@@ -25,7 +25,7 @@ namespace MiniIT.Snipe
 		private readonly byte[] COMPRESSED_HEADER = new byte[] { 0xAA, 0xBB };
 		private readonly byte[] BATCH_HEADER = new byte[] { 0xAA, 0xBC };
 
-		protected bool _heartbeatEnabled = true;
+		private bool _heartbeatEnabled = true;
 		public bool HeartbeatEnabled
 		{
 			get { return _heartbeatEnabled; }
@@ -151,7 +151,7 @@ namespace MiniIT.Snipe
 			ConnectionOpenedHandler?.Invoke(this);
 		}
 
-		protected void OnWebSocketClosed()
+		private void OnWebSocketClosed()
 		{
 			_logger.LogTrace("OnWebSocketClosed");
 
@@ -282,7 +282,7 @@ namespace MiniIT.Snipe
 			return result;
 		}
 
-		protected void ProcessWebSocketMessage(byte[] rawData)
+		private void ProcessWebSocketMessage(byte[] rawData)
 		{
 			if (rawData.Length < 2)
 				return;
