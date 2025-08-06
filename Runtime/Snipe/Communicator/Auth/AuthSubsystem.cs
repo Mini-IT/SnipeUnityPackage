@@ -95,6 +95,9 @@ namespace MiniIT.Snipe
 		protected int _loginAttempt;
 		private bool _registering = false;
 
+		private string _authLogin;
+		private string _authToken;
+
 		protected readonly SnipeConfig _config;
 		protected readonly SnipeAnalyticsTracker _analytics;
 		protected readonly ISharedPrefs _sharedPrefs;
@@ -185,6 +188,8 @@ namespace MiniIT.Snipe
 
 				case SnipeErrorCodes.NO_SUCH_USER:
 				case SnipeErrorCodes.LOGIN_DATA_WRONG:
+					_authLogin = null;
+					_authToken = null;
 					string authUidKey = SnipePrefs.GetAuthUID(_config.ContextId);
 					string authKeyKey = SnipePrefs.GetAuthKey(_config.ContextId);
 					_sharedPrefs.DeleteKey(authUidKey);
@@ -241,10 +246,16 @@ namespace MiniIT.Snipe
 
 		protected bool LoginWithInternalAuthData()
 		{
-			string authUidKey = SnipePrefs.GetAuthUID(_config.ContextId);
-			string authKeyKey = SnipePrefs.GetAuthKey(_config.ContextId);
-			string login = _sharedPrefs.GetString(authUidKey);
-			string password = _sharedPrefs.GetString(authKeyKey);
+			string login = _authLogin;
+			string password = _authToken;
+
+			if (string.IsNullOrEmpty(login) || string.IsNullOrEmpty(password))
+			{
+				string authUidKey = SnipePrefs.GetAuthUID(_config.ContextId);
+				string authKeyKey = SnipePrefs.GetAuthKey(_config.ContextId);
+				_authLogin = login = _sharedPrefs.GetString(authUidKey);
+				_authToken = password = _sharedPrefs.GetString(authKeyKey);
+			}
 
 			if (string.IsNullOrEmpty(login) || string.IsNullOrEmpty(password))
 			{
@@ -380,6 +391,9 @@ namespace MiniIT.Snipe
 
 		private void RunAuthRequest(Action action)
 		{
+			// Remove old batched requests. Otherwise they will not get renewed
+			_communicator.DisposeRequests();
+
 			bool batchMode = _communicator.BatchMode;
 			_communicator.BatchMode = true;
 
@@ -391,9 +405,29 @@ namespace MiniIT.Snipe
 
 		private void SetAuthData(string uid, string password)
 		{
+			_authLogin = uid;
+			_authToken = password;
 			_sharedPrefs.SetString(SnipePrefs.GetAuthUID(_config.ContextId), uid);
 			_sharedPrefs.SetString(SnipePrefs.GetAuthKey(_config.ContextId), password);
 			_sharedPrefs.Save();
+		}
+
+		internal string GetInternalAuthLogin()
+		{
+			if (string.IsNullOrEmpty(_authLogin))
+			{
+				_authLogin = _sharedPrefs.GetString(SnipePrefs.GetAuthUID(_config.ContextId));
+			}
+			return _authLogin;
+		}
+
+		internal string GetInternalAuthToken()
+		{
+			if (string.IsNullOrEmpty(_authToken))
+			{
+				_authToken = _sharedPrefs.GetString(SnipePrefs.GetAuthKey(_config.ContextId));
+			}
+			return _authToken;
 		}
 
 		private void StartBindings()
@@ -434,8 +468,12 @@ namespace MiniIT.Snipe
 					if (success)
 					{
 						ClearAllBindings();
+
 						UserID = 0;
-						SetAuthData(response.SafeGetString("uid"), response.SafeGetString("password"));
+
+						string uid = response.SafeGetString("uid");
+						string pwd = response.SafeGetString("password");
+						SetAuthData(uid, pwd);
 					}
 
 					callback?.Invoke(success);

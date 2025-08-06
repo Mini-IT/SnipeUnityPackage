@@ -23,7 +23,19 @@ namespace MiniIT.Http
 
 		public void SetAuthToken(string token)
 		{
-			_httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+			_httpClient.DefaultRequestHeaders.Authorization = !string.IsNullOrEmpty(token)
+				? new AuthenticationHeaderValue("Bearer", token)
+				: null;
+		}
+
+		public void SetPersistentClientId(string id)
+		{
+			_httpClient.DefaultRequestHeaders.Remove("DeviceID");
+
+			if (!string.IsNullOrEmpty(id))
+			{
+				_httpClient.DefaultRequestHeaders.Add("DeviceID", id);
+			}
 		}
 
 		public async UniTask<IHttpClientResponse> Get(Uri uri)

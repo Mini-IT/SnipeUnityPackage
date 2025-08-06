@@ -16,11 +16,13 @@ namespace MiniIT.Snipe
 
 		public static string GetAuthBindDone(int contextID)
 			=> GetPrefixedString(contextID, "AuthBinded_");
-		
+
 		public static string GetUdpUrlIndex(int contextID)
 			=> GetPrefixedString(contextID, "UdpUrlIndex");
 		public static string GetWebSocketUrlIndex(int contextID)
 			=> GetPrefixedString(contextID, "WebSocketUrlIndex");
+		public static string GetHttpUrlIndex(int contextID)
+			=> GetPrefixedString(contextID, "HttpUrlIndex");
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static string GetPrefixedString(int contextID, string value)

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -7,91 +8,89 @@ namespace MiniIT.Snipe
 	public interface ISnipeConfigLoadingService
 	{
 		Dictionary<string, object> Config { get; }
-		UniTask<Dictionary<string, object>> Load(CancellationToken cancellationToken = default);
+		UniTask<Dictionary<string, object>> Load(Dictionary<string, object> additionalRequestParams = null, CancellationToken cancellationToken = default);
+		void Reset();
 	}
 
-	public class SnipeConfigLoadingService : ISnipeConfigLoadingService
+	public class SnipeConfigLoadingService : ISnipeConfigLoadingService, IDisposable
 	{
 		public Dictionary<string, object> Config => _config;
-		public SnipeConfigLoadingStatistics Statistics { get; } = new SnipeConfigLoadingStatistics();
 
 		private Dictionary<string, object> _config;
-		private bool _loading = false;
+		private bool Loading => _loadingCancellation != default;
 
 		private SnipeConfigLoader _loader;
 		private readonly string _projectID;
 
-		private readonly object _statisticsLock = new object();
+		private CancellationTokenSource _loadingCancellation;
 
 		public SnipeConfigLoadingService(string projectID)
 		{
 			_projectID = projectID;
 		}
 
-		public async UniTask<Dictionary<string, object>> Load(CancellationToken cancellationToken = default)
+		public void Dispose()
+		{
+			if (_loadingCancellation != null)
+			{
+				_loadingCancellation.Dispose();
+				_loadingCancellation = null;
+			}
+		}
+
+		public async UniTask<Dictionary<string, object>> Load(Dictionary<string, object> additionalRequestParams = null, CancellationToken cancellationToken = default)
 		{
 			if (_config != null)
 			{
 				return _config;
 			}
 
-			if (_loading)
+			if (Loading)
 			{
 				await UniTask.WaitWhile(() => _config == null, PlayerLoopTiming.Update, cancellationToken);
 				return _config;
 			}
 
-			_loading = true;
-
-			lock (_statisticsLock)
+			if (_loadingCancellation != null)
 			{
-				Statistics.SetState(SnipeConfigLoadingStatistics.LoadingState.Initialization);
+				_loadingCancellation.Cancel();
+				_loadingCancellation.Dispose();
 			}
+
+			_loadingCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+			var loadingToken = _loadingCancellation.Token;
 
 			if (_loader == null)
 			{
-				await UniTask.WaitUntil(() => SnipeServices.IsInitialized, PlayerLoopTiming.Update, cancellationToken)
+				await UniTask.WaitUntil(() => SnipeServices.IsInitialized, PlayerLoopTiming.Update, loadingToken)
 					.SuppressCancellationThrow();
 
-				if (cancellationToken.IsCancellationRequested)
+				if (loadingToken.IsCancellationRequested)
 				{
-					lock (_statisticsLock)
-					{
-						Statistics.SetState(SnipeConfigLoadingStatistics.LoadingState.Cancelled);
-					}
-
-					TrackStats();
 					return _config;
 				}
 
 				_loader ??= new SnipeConfigLoader(_projectID, SnipeServices.ApplicationInfo);
 			}
 
-			lock (_statisticsLock)
-			{
-				Statistics.SetState(SnipeConfigLoadingStatistics.LoadingState.Loading);
-			}
+			_config = await _loader.Load(additionalRequestParams);
 
-			_config = await _loader.Load(Statistics);
-			_loading = false;
-
-			lock (_statisticsLock)
-			{
-				Statistics.Success = _config != null;
-				Statistics.SetState(SnipeConfigLoadingStatistics.LoadingState.Finished);
-			}
-
-			TrackStats();
+			_loadingCancellation?.Dispose();
+			_loadingCancellation = null;
 
 			return _config;
 		}
 
-		private void TrackStats()
+		public void Reset()
 		{
-			if (SnipeServices.Analytics.GetTracker() is ISnipeConfigLoadingAnalyticsTracker tracker)
+			if (_loadingCancellation != null)
 			{
-				tracker.TrackSnipeConfigLoadingStats(Statistics);
+				_loadingCancellation.Cancel();
+				_loadingCancellation.Dispose();
+				_loadingCancellation = null;
 			}
+
+			_config = null;
 		}
 	}
 }

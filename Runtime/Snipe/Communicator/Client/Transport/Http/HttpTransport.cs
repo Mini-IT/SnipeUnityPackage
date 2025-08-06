@@ -8,12 +8,14 @@ using Microsoft.Extensions.Logging;
 using MiniIT.Http;
 using MiniIT.Snipe.Logging;
 using MiniIT.Threading;
+using Cysharp.Threading.Tasks;
 
 namespace MiniIT.Snipe
 {
-	public class HttpTransport : Transport
+	public sealed class HttpTransport : Transport
 	{
 		private const string API_PATH = "api/v1/request/";
+		private const string PREFS_PERSISTENT_CLIENT_ID = "Snipe.Http.PersistentClientId";
 
 		private static readonly SnipeObject s_pingMessage = new SnipeObject() { ["t"] = "server.ping", ["id"] = -1 };
 		private static readonly long s_sessionDurationTicks = 301 * Stopwatch.Frequency;
@@ -24,6 +26,7 @@ namespace MiniIT.Snipe
 		public override bool ConnectionVerified => _connectionEstablished;
 
 		private IHttpClient _client;
+		private string _persistentClientId;
 
 		private TimeSpan _heartbeatInterval;
 		private long _sessionAliveTillTicks;
@@ -39,6 +42,15 @@ namespace MiniIT.Snipe
 		internal HttpTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
 			: base(config, analytics)
 		{
+			SnipeServices.MainThreadRunner.RunInMainThread(() =>
+			{
+				_persistentClientId = SnipeServices.SharedPrefs.GetString(PREFS_PERSISTENT_CLIENT_ID);
+				if (string.IsNullOrEmpty(_persistentClientId))
+				{
+					_persistentClientId = Guid.NewGuid().ToString();
+					SnipeServices.SharedPrefs.SetString(PREFS_PERSISTENT_CLIENT_ID, _persistentClientId);
+				}
+			});
 		}
 
 		public override void Connect()
@@ -53,7 +65,15 @@ namespace MiniIT.Snipe
 
 				_baseUrl = GetBaseUrl();
 
-				_client ??= SnipeServices.HttpClientFactory.CreateHttpClient();
+				if (_client == null)
+				{
+					_client = SnipeServices.HttpClientFactory.CreateHttpClient();
+					//_client.SetPersistentClientId(_persistentClientId);
+				}
+				else
+				{
+					_client.SetAuthToken(null);
+				}
 
 				Info = new TransportInfo()
 				{
@@ -62,7 +82,7 @@ namespace MiniIT.Snipe
 				};
 			}
 
-			SendHandshake();
+			SendHandshake().Forget();
 		}
 
 		public override void Disconnect()
@@ -220,7 +240,6 @@ namespace MiniIT.Snipe
 			try
 			{
 				await _sendSemaphore.WaitAsync();
-				semaphoreOccupied = true;
 
 				// During awaiting the semaphore a disconnect could happen - check it
 				if (!_connected)
@@ -228,6 +247,8 @@ namespace MiniIT.Snipe
 					_sendSemaphore.Release();
 					return;
 				}
+
+				semaphoreOccupied = true;
 
 				var uri = new Uri(_baseUrl, requestType);
 
@@ -256,8 +277,10 @@ namespace MiniIT.Snipe
 			}
 			catch (HttpRequestException httpException)
 			{
-				_logger.LogError(httpException, httpException.ToString());
+				_logger.LogError(httpException, "Request failed {0}", httpException);
 				InternalDisconnect();
+
+				_config.NextHttpUrl();
 			}
 			catch (Exception e)
 			{
@@ -348,8 +371,11 @@ namespace MiniIT.Snipe
 
 		#endregion
 
-		private async void SendHandshake()
+		private async UniTaskVoid SendHandshake()
 		{
+			await UniTask.WaitWhile(() => string.IsNullOrEmpty(_persistentClientId));
+			_client.SetPersistentClientId(_persistentClientId);
+
 			bool semaphoreOccupied = false;
 
 			try
@@ -407,6 +433,8 @@ namespace MiniIT.Snipe
 			if (!_connected)
 			{
 				InternalDisconnect();
+
+				_config.NextHttpUrl();
 			}
 		}
 

@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeClient : IDisposable
+	public sealed class SnipeClient : IDisposable
 	{
 		public const int SNIPE_VERSION = 6;
 		public const int MAX_BATCH_SIZE = 5;
