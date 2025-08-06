@@ -504,11 +504,16 @@ namespace MiniIT.Snipe
 		private void StartCheckConnection()
 		{
 			if (!_loggedIn)
+			{
 				return;
+			}
 
 			// _logger.LogTrace($"StartCheckConnection");
 
-			CancellationTokenHelper.CancelAndDispose(ref _checkConnectionCancellation);
+			if (_checkConnectionCancellation != null)
+			{
+				CancellationTokenHelper.CancelAndDispose(ref _checkConnectionCancellation);
+			}
 
 			_checkConnectionCancellation = new CancellationTokenSource();
 			AlterTask.RunAndForget(() => CheckConnectionTask(_checkConnectionCancellation.Token));
@@ -516,7 +521,10 @@ namespace MiniIT.Snipe
 
 		private void StopCheckConnection()
 		{
-			CancellationTokenHelper.CancelAndDispose(ref _checkConnectionCancellation);
+			if (_checkConnectionCancellation != null)
+			{
+				CancellationTokenHelper.CancelAndDispose(ref _checkConnectionCancellation);
+			}
 
 			BadConnection = false;
 		}
