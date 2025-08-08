@@ -272,13 +272,12 @@ namespace MiniIT.Snipe
 			{
 				_transport.Dispose();
 				_transport = null;
-			}
 
-			// KLUDGE: Needed for clearing batched requests on disconnect during login
-			// To be removed in v.8
-			if (InternalConnectionClosed != null)
-			{
-				_mainThreadRunner.RunInMainThread(() => InternalConnectionClosed?.Invoke());
+				// KLUDGE: Needed for clearing batched requests on disconnect during login
+				if (InternalConnectionClosed != null)
+				{
+					_mainThreadRunner.RunInMainThread(() => InternalConnectionClosed?.Invoke());
+				}
 			}
 
 			if (raiseEvent)
