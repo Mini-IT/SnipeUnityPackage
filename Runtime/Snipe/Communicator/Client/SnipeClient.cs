@@ -19,9 +19,6 @@ namespace MiniIT.Snipe
 		public event Action LoginSucceeded;
 		public event Action<string> LoginFailed;
 		public event Action UdpConnectionFailed;
-
-		// KLUDGE: Needed for clearing batched requests on disconnect during login
-		[Obsolete("Will be removed in v.8")]
 		public event Action InternalConnectionClosed;
 
 		private Transport _transport;
