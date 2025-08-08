@@ -61,7 +61,7 @@ namespace MiniIT.Snipe.Unity
 					{
 						tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers, true));
 					}
-					else if (binding is IAuthIdFetcherWithToken)
+					else if (binding.Fetcher is IAuthIdFetcherWithToken)
 					{
 						tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers, false));
 					}
