@@ -23,7 +23,7 @@ namespace MiniIT.Snipe
 			_logger = SnipeServices.LogService.GetLogger<SnipeConfigLoader>();
 		}
 
-		public async UniTask<Dictionary<string, object>> Load(Dictionary<string, object> additionalParams = null)
+		public async UniTask<Dictionary<string, object>> Load(Dictionary<string, object> additionalParams = null, SnipeConfigLoadingStatistics loadingStatistics = null)
 		{
 			string requestParamsJson = BuildRequestParamsJson(additionalParams);
 
@@ -31,13 +31,18 @@ namespace MiniIT.Snipe
 
 			IHttpClient httpClient = SnipeServices.HttpClientFactory.CreateHttpClient();
 
+			if (loadingStatistics != null)
+			{
+				loadingStatistics.ClientImplementation = httpClient.GetType().Name;
+			}
+
 			try
 			{
 				var response = await httpClient.PostJson(new Uri(_url), requestParamsJson);
 
 				if (!response.IsSuccess)
 				{
-					_logger.LogTrace($"loader failed. {response.Error}");
+					_logger.LogTrace($"loader failed. Status Code: {response.ResponseCode}; Error Message: '{response.Error}'");
 					return null;
 				}
 
