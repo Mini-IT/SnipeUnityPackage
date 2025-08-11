@@ -400,7 +400,7 @@ namespace MiniIT.Snipe
 			_communicator.BatchMode = batchMode;
 		}
 
-		private void SetAuthData(string uid, string password)
+		internal void SetAuthData(string uid, string password)
 		{
 			_authLogin = uid;
 			_authToken = password;
@@ -552,7 +552,8 @@ namespace MiniIT.Snipe
 				destroyContext.Invoke();
 
 				binding.IsBindDone = false;
-				_userID = 0;
+
+				UserID = 0;
 
 				await AlterTask.Delay(1000);
 				startContext.Invoke();

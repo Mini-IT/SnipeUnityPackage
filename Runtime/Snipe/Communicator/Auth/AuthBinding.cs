@@ -177,14 +177,10 @@ namespace MiniIT.Snipe
 				{
 					if (error_code == SnipeErrorCodes.OK)
 					{
-						string auth_login = response_data.SafeGetString("uid");
-						string auth_token = response_data.SafeGetString("password");
+						string login = response_data.SafeGetString("uid");
+						string token = response_data.SafeGetString("password");
 
-						if (!string.IsNullOrEmpty(auth_login) && !string.IsNullOrEmpty(auth_token))
-						{
-							_sharedPrefs.SetString(SnipePrefs.GetAuthUID(_config.ContextId), auth_login);
-							_sharedPrefs.SetString(SnipePrefs.GetAuthKey(_config.ContextId), auth_token);
-						}
+						_authSubsystem.SetAuthData(login, token);
 
 						SetBindDoneFlag(true);
 					}
