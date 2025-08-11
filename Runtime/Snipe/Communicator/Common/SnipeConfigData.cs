@@ -33,7 +33,7 @@ namespace MiniIT.Snipe.Configuration
 	{
 		public SnipeProjectInfo ProjectInfo;
 		public WebSocketImplementations WebSocketImplementation = WebSocketImplementations.BestWebSocket;
-		public bool AutoJoinRoom;
+		public bool AutoJoinRoom = true;
 		public List<string> ServerWebSocketUrls = new List<string>();
 		public List<UdpAddress> ServerUdpUrls = new List<UdpAddress>();
 		public List<string> ServerHttpUrls = new List<string>();
