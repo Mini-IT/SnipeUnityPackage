@@ -62,11 +62,11 @@ namespace MiniIT.Snipe.Unity
 
 					if (binding is DeviceIdBinding or AdvertisingIdBinding)
 					{
-						tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers, true));
+						tasks.Add(FetchLoginId(binding, providers));
 					}
 					else if (binding.Fetcher is IAuthIdFetcherWithToken)
 					{
-						tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers, false));
+						tasks.Add(FetchLoginId(binding, providers));
 					}
 				}
 
