@@ -15,13 +15,15 @@ namespace MiniIT.Snipe
 	public class SnipeConfigLoadingService : ISnipeConfigLoadingService, IDisposable
 	{
 		public Dictionary<string, object> Config => _config;
+		public SnipeConfigLoadingStatistics Statistics { get; } = new SnipeConfigLoadingStatistics();
 
 		private Dictionary<string, object> _config;
-		private bool Loading => _loadingCancellation != default;
+		private bool Loading => _loadingCancellation != null;
 
 		private SnipeConfigLoader _loader;
 		private readonly string _projectID;
 
+		private readonly object _statisticsLock = new object();
 		private CancellationTokenSource _loadingCancellation;
 
 		public SnipeConfigLoadingService(string projectID)
@@ -51,6 +53,11 @@ namespace MiniIT.Snipe
 				return _config;
 			}
 
+			lock (_statisticsLock)
+			{
+				Statistics.SetState(SnipeConfigLoadingStatistics.LoadingState.Initialization);
+			}
+
 			if (_loadingCancellation != null)
 			{
 				_loadingCancellation.Cancel();
@@ -67,13 +74,33 @@ namespace MiniIT.Snipe
 
 				if (loadingToken.IsCancellationRequested)
 				{
+					lock (_statisticsLock)
+					{
+						Statistics.SetState(SnipeConfigLoadingStatistics.LoadingState.Cancelled);
+					}
+
+					TrackStats();
+
 					return _config;
 				}
 
 				_loader ??= new SnipeConfigLoader(_projectID, SnipeServices.ApplicationInfo);
 			}
 
-			_config = await _loader.Load(additionalRequestParams);
+			lock (_statisticsLock)
+			{
+				Statistics.SetState(SnipeConfigLoadingStatistics.LoadingState.Loading);
+			}
+
+			_config = await _loader.Load(additionalRequestParams, Statistics);
+
+			lock (_statisticsLock)
+			{
+				Statistics.Success = _config != null;
+				Statistics.SetState(SnipeConfigLoadingStatistics.LoadingState.Finished);
+			}
+
+			TrackStats();
 
 			_loadingCancellation?.Dispose();
 			_loadingCancellation = null;
@@ -91,6 +118,14 @@ namespace MiniIT.Snipe
 			}
 
 			_config = null;
+		}
+
+		private void TrackStats()
+		{
+			if (SnipeServices.Analytics.GetTracker() is ISnipeConfigLoadingAnalyticsTracker tracker)
+			{
+				tracker.TrackSnipeConfigLoadingStats(Statistics);
+			}
 		}
 	}
 }
