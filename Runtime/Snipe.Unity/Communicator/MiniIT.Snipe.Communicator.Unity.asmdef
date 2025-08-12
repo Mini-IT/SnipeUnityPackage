@@ -6,14 +6,13 @@
         "MiniIT.Snipe.Communicator",
         "MiniIT.Snipe.Services",
         "MiniIT.Snipe.Logging",
+		"MiniIT.Snipe.Integrations.Facebook",
         "MiniIT.AdvertisingIdFetcher",
         "MiniIT.Framework.StreamingAssetsReader",
-        "MiniIT.Framework.Social",
         "MiniIT.HttpClient.Abstraction",
         "MiniIT.AlterTask",
         "fastJSON",
-        "UniTask",
-        "Nutaku.Unity"
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
