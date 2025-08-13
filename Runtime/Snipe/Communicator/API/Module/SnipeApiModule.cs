@@ -6,7 +6,7 @@ namespace MiniIT.Snipe.Api
 	{
 		protected AbstractSnipeApiService _snipeApiService;
 
-		public SnipeApiModule(AbstractSnipeApiService snipeApiService)
+		protected SnipeApiModule(AbstractSnipeApiService snipeApiService)
 		{
 			_snipeApiService = snipeApiService;
 			_snipeApiService.AddModule(this);
