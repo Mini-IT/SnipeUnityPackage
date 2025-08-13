@@ -15,7 +15,7 @@ namespace MiniIT.Snipe
 		public string MessageType { get; private set; }
 		public IDictionary<string, object> Data { get; set; }
 
-		public delegate void ResponseHandler(string error_code, IDictionary<string, object> data);
+		public delegate void ResponseHandler(string errorCode, IDictionary<string, object> data);
 
 		protected SnipeCommunicator _communicator;
 		protected ResponseHandler _callback;
