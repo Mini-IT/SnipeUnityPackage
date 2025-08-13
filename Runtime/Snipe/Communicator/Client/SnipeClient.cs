@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 
 namespace MiniIT.Snipe
@@ -149,14 +150,14 @@ namespace MiniIT.Snipe
 
 			if (!_loggedIn && (_batchedRequests == null || _batchedRequests.IsEmpty))
 			{
-				data = message["data"] as IDictionary<string, object> ?? new Dictionary<string, object>();
+				EnsureMessageData(ref data, message);
 				data["ckey"] = _config.ClientKey;
 				message["data"] = data;
 			}
 
 			if (_config.DebugId != null)
 			{
-				data ??= message["data"] as Dictionary<string, object> ?? new Dictionary<string, object>();
+				EnsureMessageData(ref data, message);
 				data["debugID"] = _config.DebugId;
 			}
 
@@ -314,6 +315,24 @@ namespace MiniIT.Snipe
 				}
 
 				DoSendBatch(messages);
+			}
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private static void EnsureMessageData(ref IDictionary<string, object> data, IDictionary<string, object> message)
+		{
+			if (data != null)
+			{
+				return;
+			}
+
+			if (message.TryGetValue("data", out var dataObj))
+			{
+				data = dataObj as Dictionary<string, object> ?? new Dictionary<string, object>();
+			}
+			else
+			{
+				data = new Dictionary<string, object>();
 			}
 		}
 
