@@ -24,6 +24,7 @@ namespace MiniIT.Snipe
 		private readonly string _projectID;
 
 		private readonly object _statisticsLock = new object();
+		private bool _statisticsSent = false;
 		private CancellationTokenSource _loadingCancellation;
 
 		public SnipeConfigLoadingService(string projectID)
@@ -122,6 +123,13 @@ namespace MiniIT.Snipe
 
 		private void TrackStats()
 		{
+			if (_statisticsSent)
+			{
+				return;
+			}
+
+			_statisticsSent = true;
+
 			if (SnipeServices.Analytics.GetTracker() is ISnipeConfigLoadingAnalyticsTracker tracker)
 			{
 				tracker.TrackSnipeConfigLoadingStats(Statistics);
