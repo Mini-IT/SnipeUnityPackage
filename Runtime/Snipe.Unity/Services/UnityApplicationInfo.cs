@@ -51,6 +51,10 @@ namespace MiniIT.Snipe.Unity
 			suffix = "RuStore";
 #elif NUTAKU
 			suffix = "Nutaku";
+#elif HUAWEI
+			suffix = "Huawei";
+#elif YANDEX
+			suffix = "Yandex";
 //#elif CHINA
 //			suffix = "China";
 #elif STEAM || MINIIT_STEAM || UNITY_STEAM
