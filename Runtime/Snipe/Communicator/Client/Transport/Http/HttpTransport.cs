@@ -284,7 +284,7 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception e)
 			{
-				string exceptionMessage = (e is AggregateException) ? LogUtil.GetReducedException(e) : e.ToString();
+				string exceptionMessage = (e.InnerException != null) ? LogUtil.GetReducedException(e) : e.ToString();
 				_logger.LogError(e, "Request failed {0}", exceptionMessage);
 			}
 
@@ -398,20 +398,9 @@ namespace MiniIT.Snipe
 					}
 				}
 			}
-			catch (HttpRequestException httpException)
-			{
-				if (_connectionEstablished)
-				{
-					_logger.LogError(httpException, httpException.ToString());
-				}
-				else
-				{
-					_logger.LogTrace("SendHandshake error: " + httpException);
-				}
-			}
 			catch (Exception e)
 			{
-				string exceptionMessage = (e is AggregateException) ? LogUtil.GetReducedException(e) : e.ToString();
+				string exceptionMessage = (e.InnerException != null) ? LogUtil.GetReducedException(e) : e.ToString();
 
 				if (_connectionEstablished)
 				{
