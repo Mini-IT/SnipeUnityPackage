@@ -42,26 +42,24 @@ namespace MiniIT.Snipe.Unity
 
 		private static string GetPlatformSuffix()
 		{
-			string suffix = string.Empty;
-
 #if !UNITY_EDITOR
 #if AMAZON_STORE
-			suffix = "Amazon";
+			return "Amazon";
 #elif RUSTORE
-			suffix = "RuStore";
+			return "RuStore";
 #elif NUTAKU
-			suffix = "Nutaku";
+			return "Nutaku";
 #elif HUAWEI
-			suffix = "Huawei";
+			return "Huawei";
 #elif YANDEX
-			suffix = "Yandex";
+			return "Yandex";
 //#elif CHINA
-//			suffix = "China";
+//			return "China";
 #elif STEAM || MINIIT_STEAM || UNITY_STEAM
-			suffix = "Steam";
+			return "Steam";
 #endif
 #endif
-			return suffix;
+			return string.Empty;
 		}
 	}
 }
