@@ -379,6 +379,12 @@ namespace MiniIT.Snipe
 					break;
 				}
 
+				if (!CheckSessionAlive())
+				{
+					Disconnect();
+					break;
+				}
+
 				SendMessage(s_pingMessage);
 			}
 		}
