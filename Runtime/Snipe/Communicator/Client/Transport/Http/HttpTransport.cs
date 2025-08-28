@@ -161,9 +161,19 @@ namespace MiniIT.Snipe
 				return;
 			}
 
+			string errorCode = message.SafeGetString("errorCode");
+
+			if (errorCode == "notLoggedIn")
+			{
+				Disconnect();
+				return;
+			}
+
 			RefreshSessionAliveTimestamp();
 
-			if (message.SafeGetString("t") == "server.responses")
+			string messageType = message.SafeGetString("t");
+
+			if (messageType == "server.responses")
 			{
 				if (!message.TryGetValue("data", out var innerData))
 				{
@@ -184,7 +194,7 @@ namespace MiniIT.Snipe
 			}
 			else // single message
 			{
-				InternalProcessMessage(message);
+				InternalProcessMessage(messageType, message);
 			}
 		}
 
@@ -194,16 +204,17 @@ namespace MiniIT.Snipe
 			{
 				if (innerMessage is SnipeObject message)
 				{
-					InternalProcessMessage(message);
+					string messageType = message.SafeGetString("t");
+					InternalProcessMessage(messageType, message);
 				}
 			}
 		}
 
-		private void InternalProcessMessage(SnipeObject message)
+		private void InternalProcessMessage(string messageType, SnipeObject message)
 		{
 			_logger.LogTrace(message.ToJSONString());
 
-			if (message.SafeGetString("t") == "user.login")
+			if (messageType == "user.login")
 			{
 				ExtractAuthToken(message);
 			}
