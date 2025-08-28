@@ -247,6 +247,7 @@ namespace MiniIT.Snipe
 			string responseMessage = null;
 
 			bool semaphoreOccupied = false;
+			IHttpClientResponse response = null;
 
 			try
 			{
@@ -265,38 +266,40 @@ namespace MiniIT.Snipe
 
 				_logger.LogTrace($"<<< request [id: {requestId}] {requestType} {json}");
 
-				using (var response = await _client.PostJson(uri, json))
+				response = await _client.PostJson(uri, json);
+
+				// response.StatusCode:
+				//   200 - ok
+				//   401 - wrong auth token,
+				//   429 - {"errorCode":"rateLimit"}
+				//   500 - {"errorCode":"requestTimeout"}
+
+				_logger.LogTrace($">>> response [id: {requestId}] {requestType} ({response.ResponseCode}) {response.Error}");
+
+				if (response.IsSuccess)
 				{
-					// response.StatusCode:
-					//   200 - ok
-					//   401 - wrong auth token,
-					//   429 - {"errorCode":"rateLimit"}
-					//   500 - {"errorCode":"requestTimeout"}
-
-					_logger.LogTrace($">>> response [id: {requestId}] {requestType} ({response.ResponseCode}) {response.Error}");
-
-					if (response.IsSuccess)
-					{
-						responseMessage = await response.GetStringContentAsync();
-						_logger.LogTrace(responseMessage);
-					}
-					else if (response.ResponseCode != 429) // HttpStatusCode.TooManyRequests
-					{
-						Disconnect();
-					}
+					responseMessage = await response.GetStringContentAsync();
+					_logger.LogTrace(responseMessage);
 				}
-			}
-			catch (HttpRequestException httpException)
-			{
-				_logger.LogError(httpException, "Request failed {0}", httpException);
-				InternalDisconnect();
+				else if (response.ResponseCode != 429) // HttpStatusCode.TooManyRequests
+				{
+					Disconnect();
+				}
 
-				_config.NextHttpUrl();
 			}
 			catch (Exception e)
 			{
 				string exceptionMessage = (e.InnerException != null) ? LogUtil.GetReducedException(e) : e.ToString();
 				_logger.LogError(e, "Request failed {0}", exceptionMessage);
+
+				if (e is HttpRequestException)
+				{
+					_config.NextHttpUrl();
+				}
+			}
+			finally
+			{
+				response?.Dispose();
 			}
 
 			try
