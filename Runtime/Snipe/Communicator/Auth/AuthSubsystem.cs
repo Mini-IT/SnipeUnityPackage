@@ -140,7 +140,7 @@ namespace MiniIT.Snipe
 
 			if (!LoginWithInternalAuthData())
 			{
-				RegisterAndLogin();
+				RegisterAndLogin().Forget();
 			}
 		}
 
@@ -194,7 +194,7 @@ namespace MiniIT.Snipe
 					string authKeyKey = SnipePrefs.GetAuthKey(_config.ContextId);
 					_sharedPrefs.DeleteKey(authUidKey);
 					_sharedPrefs.DeleteKey(authKeyKey);
-					RegisterAndLogin();
+					RegisterAndLogin().Forget();
 					break;
 
 				case SnipeErrorCodes.USER_ONLINE:
@@ -299,7 +299,7 @@ namespace MiniIT.Snipe
 			data["flagCanAck"] = true;
 		}
 
-		protected abstract void RegisterAndLogin();
+		protected abstract UniTaskVoid RegisterAndLogin();
 
 		protected async UniTask FetchLoginId(string provider, AuthIdFetcher fetcher, List<SnipeObject> providers, bool contextIdPrefix)
 		{
@@ -314,19 +314,23 @@ namespace MiniIT.Snipe
 						uid = _config.ContextId + uid;
 					}
 
-					providers.Add(new SnipeObject()
+					var providerData = new SnipeObject()
 					{
 						["provider"] = provider,
-						["login"] = uid,
-					});
+						["login"] = uid
+					};
+
+					if (fetcher is IAuthIdFetcherWithToken tokenFetcher && !string.IsNullOrEmpty(tokenFetcher.Token))
+					{
+						providerData.Add("token", tokenFetcher.Token);
+					}
+
+					providers.Add(providerData);
 				}
 				done = true;
 			});
 
-			while (!done)
-			{
-				await AlterTask.Delay(20);
-			}
+			await UniTask.WaitUntil(() => done);
 		}
 
 		protected void RequestRegisterAndLogin(List<SnipeObject> providers)
@@ -400,7 +404,7 @@ namespace MiniIT.Snipe
 			_communicator.BatchMode = batchMode;
 		}
 
-		private void SetAuthData(string uid, string password)
+		internal void SetAuthData(string uid, string password)
 		{
 			_authLogin = uid;
 			_authToken = password;
@@ -552,7 +556,8 @@ namespace MiniIT.Snipe
 				destroyContext.Invoke();
 
 				binding.IsBindDone = false;
-				_userID = 0;
+
+				UserID = 0;
 
 				await AlterTask.Delay(1000);
 				startContext.Invoke();

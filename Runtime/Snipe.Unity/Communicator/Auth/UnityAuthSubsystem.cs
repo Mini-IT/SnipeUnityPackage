@@ -37,7 +37,7 @@ namespace MiniIT.Snipe.Unity
 #endif
 		}
 
-		protected override async void RegisterAndLogin()
+		protected override async UniTaskVoid RegisterAndLogin()
 		{
 			if (_communicator == null)
 			{
@@ -48,22 +48,22 @@ namespace MiniIT.Snipe.Unity
 
 			if (_bindings.Count > 0)
 			{
-				var tasks = new List<UniTask>(2);
+				var tasks = new List<UniTask>(3);
 
 				foreach (AuthBinding binding in _bindings)
 				{
-					if (binding?.Fetcher != null)
+					if (binding?.Fetcher == null)
 					{
-						if (binding is DeviceIdBinding or AdvertisingIdBinding)
-						{
-							tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers, true));
-						}
-#if NUTAKU
-						else if (binding is NutakuBinding)
-						{
-							tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers, false));
-						}
-#endif
+						continue;
+					}
+
+					if (binding is DeviceIdBinding or AdvertisingIdBinding)
+					{
+						tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers, true));
+					}
+					else if (binding.Fetcher is IAuthIdFetcherWithToken)
+					{
+						tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers, false));
 					}
 				}
 
