@@ -611,23 +611,6 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		/// <summary>
-		/// Creates an instance of <see cref="AuthBinding"/> using reflection
-		/// </summary>
-		/// <returns>A new instance of <c>TBinding</c></returns>
-		/// <exception cref="ArgumentException">No constructor found matching required parameters types</exception>
-		protected TBinding CreateBinding<TBinding>() where TBinding : AuthBinding
-		{
-			var constructor = typeof(TBinding).GetConstructor(new Type[] { typeof(SnipeCommunicator), typeof(AuthSubsystem), typeof(SnipeConfig) });
-
-			if (constructor == null)
-			{
-				throw new ArgumentException("Unsupported contructor");
-			}
-
-			return constructor.Invoke(new object[] { _communicator, this, _config }) as TBinding;
-		}
-
 		private void RaiseLoginSucceededEvent(int userId)
 		{
 			if (LoginSucceeded != null)
