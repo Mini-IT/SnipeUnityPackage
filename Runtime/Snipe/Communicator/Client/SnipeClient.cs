@@ -98,11 +98,13 @@ namespace MiniIT.Snipe
 
 		private void OnTransportConnectionClosed(Transport transport)
 		{
+			_loggedIn = false;
 			ConnectionClosed?.Invoke(transport?.Info ?? default);
 		}
 
 		private void OnTransportConnectionDisrupted(Transport transport)
 		{
+			_loggedIn = false;
 			ConnectionDisrupted?.Invoke();
 		}
 
