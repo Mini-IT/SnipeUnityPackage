@@ -98,13 +98,13 @@ namespace MiniIT.Snipe
 
 		private void OnTransportConnectionClosed(Transport transport)
 		{
-			_loggedIn = false;
+			ClearConnectionInfo();
 			ConnectionClosed?.Invoke(transport?.Info ?? default);
 		}
 
 		private void OnTransportConnectionDisrupted(Transport transport)
 		{
-			_loggedIn = false;
+			ClearConnectionInfo();
 			ConnectionDisrupted?.Invoke();
 		}
 
@@ -115,10 +115,15 @@ namespace MiniIT.Snipe
 
 		private void Disconnect(bool raiseEvent)
 		{
+			ClearConnectionInfo();
+			_transportService.StopCurrentTransport(raiseEvent);
+		}
+
+		private void ClearConnectionInfo()
+		{
 			_loggedIn = false;
 			ConnectionId = "";
 			_responseMonitor.Stop();
-			_transportService.StopCurrentTransport(raiseEvent);
 		}
 
 		public int SendRequest(string messageType, IDictionary<string, object> data)
