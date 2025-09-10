@@ -13,6 +13,7 @@ namespace MiniIT.Snipe
 		private int _currentTransportIndex;
 
 		private Transport _currentTransport;
+		private TransportInfo _currentTransportInfo;
 		private TimeSpan _prevDisconnectTime = TimeSpan.Zero;
 		private long _connectionStartTimestamp;
 
@@ -22,7 +23,7 @@ namespace MiniIT.Snipe
 		public bool HttpClientConnected => Connected && _currentTransport is HttpTransport;
 
 		public event Action<Transport> ConnectionOpened;
-		public event Action<Transport> ConnectionClosed;
+		public event Action<TransportInfo> ConnectionClosed;
 		public event Action<Transport> ConnectionDisrupted;
 		public event Action UdpConnectionFailed;
 		public event Action<IDictionary<string, object>> MessageReceived;
@@ -70,7 +71,7 @@ namespace MiniIT.Snipe
 				return false;
 			}
 
-			StopCurrentTransport(false);
+			StopCurrentTransport();
 
 			if (_currentTransportIndex >= _transportFactoriesQueue.Count - 1)
 			{
@@ -90,21 +91,23 @@ namespace MiniIT.Snipe
 
 		}
 
-		public void StopCurrentTransport(bool raiseEvent)
+		public void StopCurrentTransport()
 		{
 			if (_currentTransport != null)
 			{
+				_currentTransportInfo = _currentTransport.Info;
 				_currentTransport.Dispose();
 				_currentTransport = null;
 			}
 
 			_analytics.PingTime = TimeSpan.Zero;
 			_analytics.ServerReaction = TimeSpan.Zero;
+		}
 
-			if (raiseEvent)
-			{
-				ConnectionClosed?.Invoke(null);
-			}
+		public void RaiseConnectionClosedEvent()
+		{
+			ConnectionClosed?.Invoke(_currentTransportInfo);
+			_currentTransportInfo = default;
 		}
 
 		public void SetLoggedIn()
@@ -129,7 +132,7 @@ namespace MiniIT.Snipe
 
 		public void Dispose()
 		{
-			StopCurrentTransport(false);
+			StopCurrentTransport();
 		}
 
 		private void OnTransportOpened(Transport transport)
@@ -160,21 +163,21 @@ namespace MiniIT.Snipe
 			TimeSpan dif = now - _prevDisconnectTime;
 			_prevDisconnectTime = now;
 
+			StopCurrentTransport();
+			ConnectionDisrupted?.Invoke(transport);
+
 			if (transport.ConnectionVerified && dif.TotalSeconds > 10)
 			{
-				StopCurrentTransport(true);
+				RaiseConnectionClosedEvent();
 			}
 			else // Not connected yet or connection is lossy. Try another transport
 			{
-				StopCurrentTransport(false);
-
 				if (!TryStartNextTransport())
 				{
-					StopCurrentTransport(true);
+					StopCurrentTransport();
+					RaiseConnectionClosedEvent();
 				}
 			}
-
-			ConnectionDisrupted?.Invoke(transport);
 		}
 
 		private void OnMessageReceived(IDictionary<string, object> message)

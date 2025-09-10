@@ -96,10 +96,10 @@ namespace MiniIT.Snipe
 			ConnectionOpened?.Invoke(transport.Info);
 		}
 
-		private void OnTransportConnectionClosed(Transport transport)
+		private void OnTransportConnectionClosed(TransportInfo transportInfo)
 		{
 			ClearConnectionInfo();
-			ConnectionClosed?.Invoke(transport?.Info ?? default);
+			ConnectionClosed?.Invoke(transportInfo);
 		}
 
 		private void OnTransportConnectionDisrupted(Transport transport)
@@ -116,7 +116,11 @@ namespace MiniIT.Snipe
 		private void Disconnect(bool raiseEvent)
 		{
 			ClearConnectionInfo();
-			_transportService.StopCurrentTransport(raiseEvent);
+			_transportService.StopCurrentTransport();
+			if (raiseEvent)
+			{
+				_transportService.RaiseConnectionClosedEvent();
+			}
 		}
 
 		private void ClearConnectionInfo()
