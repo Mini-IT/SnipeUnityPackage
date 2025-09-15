@@ -8,19 +8,18 @@ namespace MiniIT.Snipe.Logging
     {
 	    public static string GetReducedException(Exception ex)
 	    {
-		    var summaries = GetExceptionSummaries(ex);
+		    var summaries = new List<string>();
+		    GetExceptionSummaries(ex, summaries);
 		    return string.Join(" ---> ", summaries);
 	    }
 
-	    private static List<string> GetExceptionSummaries(Exception ex)
+	    private static void GetExceptionSummaries(Exception ex, List<string> summaries)
 	    {
-		    var summaries = new List<string>();
-
 		    if (ex is AggregateException aggEx)
 		    {
 			    foreach (var inner in aggEx.Flatten().InnerExceptions)
 			    {
-				    summaries.AddRange(GetExceptionSummaries(inner));
+				    GetExceptionSummaries(inner, summaries);
 			    }
 		    }
 		    else
@@ -43,11 +42,9 @@ namespace MiniIT.Snipe.Logging
 
 			    if (ex.InnerException != null)
 			    {
-				    summaries.AddRange(GetExceptionSummaries(ex.InnerException));
+				    GetExceptionSummaries(ex.InnerException, summaries);
 			    }
 		    }
-
-		    return summaries;
 	    }
 
     }

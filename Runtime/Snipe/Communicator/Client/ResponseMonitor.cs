@@ -7,7 +7,7 @@ using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
-	public class ResponseMonitor : IDisposable
+	public sealed class ResponseMonitor : IDisposable
 	{
 		private const int MAX_RESPONSE_MILLISECONDS = 3000;
 

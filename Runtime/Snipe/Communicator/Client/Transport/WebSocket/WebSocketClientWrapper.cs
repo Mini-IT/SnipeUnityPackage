@@ -10,7 +10,7 @@ using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
-	public class WebSocketClientWrapper : WebSocketWrapper
+	public sealed class WebSocketClientWrapper : WebSocketWrapper
 	{
 		public override bool AutoPing => true;
 
@@ -222,7 +222,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		protected void OnWebSocketConnected()
+		private void OnWebSocketConnected()
 		{
 			if (OnConnectionOpened != null)
 			{
@@ -230,7 +230,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		protected void OnWebSocketClosed(string reason)
+		private void OnWebSocketClosed(string reason)
 		{
 			_logger.LogTrace($"[WebSocketWrapper] OnWebSocketClosed: {reason}");
 

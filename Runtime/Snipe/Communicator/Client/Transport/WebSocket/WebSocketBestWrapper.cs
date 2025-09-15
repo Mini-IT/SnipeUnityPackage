@@ -14,7 +14,7 @@ using Best.WebSockets;
 
 namespace MiniIT.Snipe
 {
-	public class WebSocketBestWrapper : WebSocketWrapper
+	public sealed class WebSocketBestWrapper : WebSocketWrapper
 	{
 		public override bool AutoPing => true;
 

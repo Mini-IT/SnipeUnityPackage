@@ -16,7 +16,7 @@ using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
-	public class WebSocketTransport : Transport
+	public sealed class WebSocketTransport : Transport
 	{
 		private const double HEARTBEAT_INTERVAL = 30; // seconds
 		private const int HEARTBEAT_TASK_DELAY = 5000; //milliseconds
@@ -24,7 +24,7 @@ namespace MiniIT.Snipe
 		private readonly byte[] COMPRESSED_HEADER = new byte[] { 0xAA, 0xBB };
 		private readonly byte[] BATCH_HEADER = new byte[] { 0xAA, 0xBC };
 
-		protected bool _heartbeatEnabled = true;
+		private bool _heartbeatEnabled = true;
 		public bool HeartbeatEnabled
 		{
 			get { return _heartbeatEnabled; }
@@ -150,7 +150,7 @@ namespace MiniIT.Snipe
 			ConnectionOpenedHandler?.Invoke(this);
 		}
 
-		protected void OnWebSocketClosed()
+		private void OnWebSocketClosed()
 		{
 			_logger.LogTrace("OnWebSocketClosed");
 
@@ -281,7 +281,7 @@ namespace MiniIT.Snipe
 			return result;
 		}
 
-		protected void ProcessWebSocketMessage(byte[] rawData)
+		private void ProcessWebSocketMessage(byte[] rawData)
 		{
 			if (rawData.Length < 2)
 				return;
@@ -504,11 +504,16 @@ namespace MiniIT.Snipe
 		private void StartCheckConnection()
 		{
 			if (!_loggedIn)
+			{
 				return;
+			}
 
 			// _logger.LogTrace($"StartCheckConnection");
 
-			CancellationTokenHelper.CancelAndDispose(ref _checkConnectionCancellation);
+			if (_checkConnectionCancellation != null)
+			{
+				CancellationTokenHelper.CancelAndDispose(ref _checkConnectionCancellation);
+			}
 
 			_checkConnectionCancellation = new CancellationTokenSource();
 			AlterTask.RunAndForget(() => CheckConnectionTask(_checkConnectionCancellation.Token));
@@ -516,7 +521,10 @@ namespace MiniIT.Snipe
 
 		private void StopCheckConnection()
 		{
-			CancellationTokenHelper.CancelAndDispose(ref _checkConnectionCancellation);
+			if (_checkConnectionCancellation != null)
+			{
+				CancellationTokenHelper.CancelAndDispose(ref _checkConnectionCancellation);
+			}
 
 			BadConnection = false;
 		}

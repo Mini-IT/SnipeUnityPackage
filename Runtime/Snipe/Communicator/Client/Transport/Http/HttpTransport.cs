@@ -8,12 +8,14 @@ using Microsoft.Extensions.Logging;
 using MiniIT.Http;
 using MiniIT.Snipe.Logging;
 using MiniIT.Threading;
+using Cysharp.Threading.Tasks;
 
 namespace MiniIT.Snipe
 {
-	public class HttpTransport : Transport
+	public sealed class HttpTransport : Transport
 	{
 		private const string API_PATH = "api/v1/request/";
+		private const string PREFS_PERSISTENT_CLIENT_ID = "Snipe.Http.PersistentClientId";
 
 		private static readonly SnipeObject s_pingMessage = new SnipeObject() { ["t"] = "server.ping", ["id"] = -1 };
 		private static readonly long s_sessionDurationTicks = 301 * Stopwatch.Frequency;
@@ -24,6 +26,7 @@ namespace MiniIT.Snipe
 		public override bool ConnectionVerified => _connectionEstablished;
 
 		private IHttpClient _client;
+		private string _persistentClientId;
 
 		private TimeSpan _heartbeatInterval;
 		private long _sessionAliveTillTicks;
@@ -39,6 +42,15 @@ namespace MiniIT.Snipe
 		internal HttpTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
 			: base(config, analytics)
 		{
+			SnipeServices.MainThreadRunner.RunInMainThread(() =>
+			{
+				_persistentClientId = SnipeServices.SharedPrefs.GetString(PREFS_PERSISTENT_CLIENT_ID);
+				if (string.IsNullOrEmpty(_persistentClientId))
+				{
+					_persistentClientId = Guid.NewGuid().ToString();
+					SnipeServices.SharedPrefs.SetString(PREFS_PERSISTENT_CLIENT_ID, _persistentClientId);
+				}
+			});
 		}
 
 		public override void Connect()
@@ -53,7 +65,15 @@ namespace MiniIT.Snipe
 
 				_baseUrl = GetBaseUrl();
 
-				_client ??= SnipeServices.HttpClientFactory.CreateHttpClient();
+				if (_client == null)
+				{
+					_client = SnipeServices.HttpClientFactory.CreateHttpClient();
+					//_client.SetPersistentClientId(_persistentClientId);
+				}
+				else
+				{
+					_client.SetAuthToken(null);
+				}
 
 				Info = new TransportInfo()
 				{
@@ -62,7 +82,7 @@ namespace MiniIT.Snipe
 				};
 			}
 
-			SendHandshake();
+			SendHandshake().Forget();
 		}
 
 		public override void Disconnect()
@@ -141,9 +161,19 @@ namespace MiniIT.Snipe
 				return;
 			}
 
+			string errorCode = message.SafeGetString("errorCode");
+
+			if (errorCode == "notLoggedIn")
+			{
+				Disconnect();
+				return;
+			}
+
 			RefreshSessionAliveTimestamp();
 
-			if (message.SafeGetString("t") == "server.responses")
+			string messageType = message.SafeGetString("t");
+
+			if (messageType == "server.responses")
 			{
 				if (!message.TryGetValue("data", out var innerData))
 				{
@@ -164,7 +194,7 @@ namespace MiniIT.Snipe
 			}
 			else // single message
 			{
-				InternalProcessMessage(message);
+				InternalProcessMessage(messageType, message);
 			}
 		}
 
@@ -174,16 +204,17 @@ namespace MiniIT.Snipe
 			{
 				if (innerMessage is SnipeObject message)
 				{
-					InternalProcessMessage(message);
+					string messageType = message.SafeGetString("t");
+					InternalProcessMessage(messageType, message);
 				}
 			}
 		}
 
-		private void InternalProcessMessage(SnipeObject message)
+		private void InternalProcessMessage(string messageType, SnipeObject message)
 		{
 			_logger.LogTrace(message.ToJSONString());
 
-			if (message.SafeGetString("t") == "user.login")
+			if (messageType == "user.login")
 			{
 				ExtractAuthToken(message);
 			}
@@ -216,6 +247,7 @@ namespace MiniIT.Snipe
 			string responseMessage = null;
 
 			bool semaphoreOccupied = false;
+			IHttpClientResponse response = null;
 
 			try
 			{
@@ -234,36 +266,40 @@ namespace MiniIT.Snipe
 
 				_logger.LogTrace($"<<< request [id: {requestId}] {requestType} {json}");
 
-				using (var response = await _client.PostJson(uri, json))
+				response = await _client.PostJson(uri, json);
+
+				// response.StatusCode:
+				//   200 - ok
+				//   401 - wrong auth token,
+				//   429 - {"errorCode":"rateLimit"}
+				//   500 - {"errorCode":"requestTimeout"}
+
+				_logger.LogTrace($">>> response [id: {requestId}] {requestType} ({response.ResponseCode}) {response.Error}");
+
+				if (response.IsSuccess)
 				{
-					// response.StatusCode:
-					//   200 - ok
-					//   401 - wrong auth token,
-					//   429 - {"errorCode":"rateLimit"}
-					//   500 - {"errorCode":"requestTimeout"}
-
-					_logger.LogTrace($">>> response [id: {requestId}] {requestType} ({response.ResponseCode}) {response.Error}");
-
-					if (response.IsSuccess)
-					{
-						responseMessage = await response.GetStringContentAsync();
-						_logger.LogTrace(responseMessage);
-					}
-					else if (response.ResponseCode != 429) // HttpStatusCode.TooManyRequests
-					{
-						Disconnect();
-					}
+					responseMessage = await response.GetStringContentAsync();
+					_logger.LogTrace(responseMessage);
 				}
-			}
-			catch (HttpRequestException httpException)
-			{
-				_logger.LogError(httpException, "Request failed {0}", httpException);
-				InternalDisconnect();
+				else if (response.ResponseCode != 429) // HttpStatusCode.TooManyRequests
+				{
+					Disconnect();
+				}
+
 			}
 			catch (Exception e)
 			{
-				string exceptionMessage = (e is AggregateException) ? LogUtil.GetReducedException(e) : e.ToString();
+				string exceptionMessage = (e.InnerException != null) ? LogUtil.GetReducedException(e) : e.ToString();
 				_logger.LogError(e, "Request failed {0}", exceptionMessage);
+
+				if (e is HttpRequestException)
+				{
+					_config.NextHttpUrl();
+				}
+			}
+			finally
+			{
+				response?.Dispose();
 			}
 
 			try
@@ -343,14 +379,23 @@ namespace MiniIT.Snipe
 					break;
 				}
 
+				if (!CheckSessionAlive())
+				{
+					Disconnect();
+					break;
+				}
+
 				SendMessage(s_pingMessage);
 			}
 		}
 
 		#endregion
 
-		private async void SendHandshake()
+		private async UniTaskVoid SendHandshake()
 		{
+			await UniTask.WaitWhile(() => string.IsNullOrEmpty(_persistentClientId));
+			_client.SetPersistentClientId(_persistentClientId);
+
 			bool semaphoreOccupied = false;
 
 			try
@@ -373,20 +418,9 @@ namespace MiniIT.Snipe
 					}
 				}
 			}
-			catch (HttpRequestException httpException)
-			{
-				if (_connectionEstablished)
-				{
-					_logger.LogError(httpException, httpException.ToString());
-				}
-				else
-				{
-					_logger.LogTrace("SendHandshake error: " + httpException);
-				}
-			}
 			catch (Exception e)
 			{
-				string exceptionMessage = (e is AggregateException) ? LogUtil.GetReducedException(e) : e.ToString();
+				string exceptionMessage = (e.InnerException != null) ? LogUtil.GetReducedException(e) : e.ToString();
 
 				if (_connectionEstablished)
 				{
@@ -408,6 +442,8 @@ namespace MiniIT.Snipe
 			if (!_connected)
 			{
 				InternalDisconnect();
+
+				_config.NextHttpUrl();
 			}
 		}
 

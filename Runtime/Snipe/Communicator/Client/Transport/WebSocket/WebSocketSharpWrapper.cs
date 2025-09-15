@@ -14,7 +14,7 @@ using WebSocketSharp;
 
 namespace MiniIT.Snipe
 {
-	public class WebSocketSharpWrapper : WebSocketWrapper
+	public sealed class WebSocketSharpWrapper : WebSocketWrapper
 	{
 		public override bool AutoPing => false;
 
@@ -90,14 +90,14 @@ namespace MiniIT.Snipe
 			CancellationTokenHelper.Dispose(ref _connectionWaitingCancellation, cancel);
 		}
 
-		protected void OnWebSocketConnected(object sender, EventArgs e)
+		private void OnWebSocketConnected(object sender, EventArgs e)
 		{
 			DisposeConnectionWaitingCancellation(false);
 
 			OnConnectionOpened?.Invoke();
 		}
 
-		protected void OnWebSocketClosed(object sender, CloseEventArgs e)
+		private void OnWebSocketClosed(object sender, CloseEventArgs e)
 		{
 			_logger.LogTrace($"OnWebSocketClosed: {e?.Reason}");
 
@@ -111,7 +111,7 @@ namespace MiniIT.Snipe
 			ProcessMessage?.Invoke(e.RawData);
 		}
 
-		protected void OnWebSocketError(object sender, ErrorEventArgs e)
+		private void OnWebSocketError(object sender, ErrorEventArgs e)
 		{
 			_logger.LogTrace($"OnWebSocketError: {e}");
 			//Analytics.TrackError($"WebSocketError: {e.Message}", e.Exception);

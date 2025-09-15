@@ -7,7 +7,7 @@ using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe
 {
-	public class UdpSocketWrapper : IDisposable
+	public sealed class UdpSocketWrapper : IDisposable
 	{
 		public Action OnConnected;
 		public Action OnDisconnected;
@@ -26,7 +26,7 @@ namespace MiniIT.Snipe
 		public async void Connect(string host, ushort port)
 		{
 			_logger.LogTrace($"connect to {host}:{port}");
-			
+
 			IPAddress[] addresses;
 
 			try
@@ -42,7 +42,7 @@ namespace MiniIT.Snipe
 			if (addresses != null && addresses.Length > 0)
 			{
 				_socket = await ConnectSocket(addresses, port);
-				
+
 				if (_socket != null)
 				{
 					OnConnected?.Invoke();
@@ -57,12 +57,12 @@ namespace MiniIT.Snipe
 		{
 			if (_socket == null)
 				return;
-			
+
 			try
 			{
 				_socket.Send(data, length, SocketFlags.None);
 			}
-			catch (Exception e)
+			catch (Exception)
 			{
 				Dispose();
 				OnDisconnected?.Invoke();
