@@ -10,9 +10,10 @@
 		"MiniIT.Snipe.Integrations.Amazon",
         "MiniIT.AdvertisingIdFetcher",
         "MiniIT.Framework.StreamingAssetsReader",
+		"MiniIT.Framework.Utilities",
         "MiniIT.HttpClient.Abstraction",
         "MiniIT.AlterTask",
-        "fastJSON",
+		"fastJSON",
         "UniTask"
     ],
     "includePlatforms": [],

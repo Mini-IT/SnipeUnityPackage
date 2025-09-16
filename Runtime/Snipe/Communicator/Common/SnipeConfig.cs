@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using MiniIT.Snipe.Configuration;
+using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {

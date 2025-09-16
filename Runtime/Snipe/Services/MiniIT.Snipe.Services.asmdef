@@ -6,6 +6,7 @@
         "MiniIT.Snipe.Logging",
         "MiniIT.Snipe.PackageInfo",
         "MiniIT.HttpClient.Abstraction",
+		"MiniIT.Framework.Utilities",
         "fastJSON"
     ],
     "includePlatforms": [],
