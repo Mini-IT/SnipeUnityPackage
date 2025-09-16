@@ -88,14 +88,14 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		protected void OnWebSocketConnected(WebSocket webSocket)
+		private void OnWebSocketConnected(WebSocket webSocket)
 		{
 			_connectionWaitingCancellation = null;
 
 			OnConnectionOpened?.Invoke();
 		}
 
-		protected void OnWebSocketClosed(WebSocket webSocket, WebSocketStatusCodes code, string message)
+		private void OnWebSocketClosed(WebSocket webSocket, WebSocketStatusCodes code, string message)
 		{
 			_logger.LogTrace($"OnWebSocketClosed: {code} - {message}");
 
