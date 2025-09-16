@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
+using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {

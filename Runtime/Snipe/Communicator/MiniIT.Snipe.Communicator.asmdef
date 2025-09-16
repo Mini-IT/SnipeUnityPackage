@@ -10,6 +10,7 @@
         "MiniIT.Storage.SharedPrefs",
         "MiniIT.HttpClient.Abstraction",
         "MiniIT.AlterTask",
+        "MiniIT.Framework.Utilities",
         "WebSocketSharp",
         "WebSocketJS",
         "kcp2k",
