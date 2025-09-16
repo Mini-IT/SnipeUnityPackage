@@ -28,12 +28,14 @@ namespace MiniIT.Snipe
 		private readonly TablesVersionsLoader _versionsLoader;
 		private readonly BuiltInTablesListService _builtInTablesListService;
 		private readonly SnipeAnalyticsTracker _analyticsTracker;
+		private readonly IInternetReachabilityProvider _internetReachabilityProvider;
 		private readonly ILogger _logger;
 
 		public TablesLoader()
 		{
 			StreamingAssetsReader.Initialize();
 			_analyticsTracker = SnipeServices.Analytics.GetTracker();
+			_internetReachabilityProvider = SnipeServices.InternetReachabilityProvider;
 			_builtInTablesListService = new BuiltInTablesListService();
 			_versionsLoader = new TablesVersionsLoader(_builtInTablesListService, _analyticsTracker);
 			_logger = SnipeServices.LogService.GetLogger(nameof(TablesLoader));
@@ -77,6 +79,11 @@ namespace MiniIT.Snipe
 			if (fallbackEnabled)
 			{
 				RemoveOutdatedCache();
+			}
+
+			if (!_internetReachabilityProvider.IsInternetAvailable)
+			{
+				loadExternal = false;
 			}
 
 			bool loaded = await LoadAll(loadExternal);

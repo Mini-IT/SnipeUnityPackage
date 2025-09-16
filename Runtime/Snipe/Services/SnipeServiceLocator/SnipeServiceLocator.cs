@@ -14,12 +14,14 @@ namespace MiniIT.Snipe
 		public IApplicationInfo ApplicationInfo => _applicationInfo;
 		public IStopwatchFactory FuzzyStopwatchFactory => _fuzzyStopwatchFactory ??= _factory.CreateFuzzyStopwatchFactory();
 		public IHttpClientFactory HttpClientFactory => _httpClientFactory ??= _factory.CreateHttpClientFactory();
+		public IInternetReachabilityProvider InternetReachabilityProvider => _internetReachabilityProvider;
 
 		private ISharedPrefs _sharedPrefs;
 		private ILogService _logService;
 		private ISnipeAnalyticsService _analyticsService;
 		private readonly IMainThreadRunner _mainThreadRunner;
 		private readonly IApplicationInfo _applicationInfo;
+		private readonly IInternetReachabilityProvider _internetReachabilityProvider;
 		private IStopwatchFactory _fuzzyStopwatchFactory;
 		private IHttpClientFactory _httpClientFactory;
 
@@ -30,6 +32,7 @@ namespace MiniIT.Snipe
 			_factory = factory;
 			_mainThreadRunner = _factory.CreateMainThreadRunner();
 			_applicationInfo = _factory.CreateApplicationInfo();
+			_internetReachabilityProvider = _factory.CreateInternetReachabilityProvider();
 		}
 
 		public void Dispose()
@@ -39,6 +42,7 @@ namespace MiniIT.Snipe
 			(_analyticsService as IDisposable)?.Dispose();
 			(_mainThreadRunner as IDisposable)?.Dispose();
 			(_applicationInfo as IDisposable)?.Dispose();
+			(_internetReachabilityProvider as IDisposable)?.Dispose();
 		}
 	}
 }
