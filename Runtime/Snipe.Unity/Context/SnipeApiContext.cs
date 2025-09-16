@@ -40,7 +40,7 @@ namespace MiniIT.Snipe
 
 			var calendarTable = tables.GetTable<SnipeTableCalendarItem>();
 			var calendarV2Table = tables.GetTable<SnipeTableCalendarV2Item>();
-			
+
 			if (calendarTable != null || calendarV2Table != null)
 			{
 				TimeSpan serverTimeZoneOffset = itemsFactory.GetServerTimeZoneOffset();
@@ -56,8 +56,6 @@ namespace MiniIT.Snipe
 					CalendarV2Manager = new CalendarV2Manager(calendarV2Table, serverTimeZone);
 				}
 			}
-
-			Communicator.ConnectionSucceeded += OnCommunicatorConnected;
 		}
 
 		public AbstractSnipeApiService GetSnipeApiService() => _api;
