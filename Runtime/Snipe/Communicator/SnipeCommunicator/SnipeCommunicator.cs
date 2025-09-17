@@ -25,6 +25,7 @@ namespace MiniIT.Snipe
 		public event ConnectionFailedHandler ConnectionFailed;
 		public event MessageReceivedHandler MessageReceived;
 		public event PreDestroyHandler PreDestroy;
+		public event Action ConnectionDisrupted;
 
 		public string ConnectionId => Client?.ConnectionId;
 		public TimeSpan CurrentRequestElapsed => Client?.CurrentRequestElapsed ?? new TimeSpan(0);
@@ -110,7 +111,7 @@ namespace MiniIT.Snipe
 				Client = new SnipeClient(_config);
 				Client.ConnectionOpened += OnClientConnectionOpened;
 				Client.ConnectionClosed += OnClientConnectionClosed;
-				Client.InternalConnectionClosed += OnInternalClientConnectionClosed;
+				Client.ConnectionDisrupted += OnClientConnectionDisrupted;
 				Client.UdpConnectionFailed += OnClientUdpConnectionFailed;
 				Client.MessageReceived += OnMessageReceived;
 			}
@@ -183,11 +184,16 @@ namespace MiniIT.Snipe
 			DisposeRequests();
 		}
 
-		private void OnInternalClientConnectionClosed()
+		private void OnClientConnectionDisrupted()
 		{
-			_logger.LogTrace($"({InstanceId}) [{Client?.ConnectionId}] Client internal event - connection closed");
+			_logger.LogTrace($"({InstanceId}) [{Client?.ConnectionId}] Client connection disrupted");
 
 			DisposeRequests();
+
+			//_mainThreadRunner.RunInMainThread(() =>
+			//{
+				ConnectionDisrupted?.Invoke();
+			//});
 		}
 
 		private void OnClientUdpConnectionFailed()
@@ -342,7 +348,7 @@ namespace MiniIT.Snipe
 			{
 				Client.ConnectionOpened -= OnClientConnectionOpened;
 				Client.ConnectionClosed -= OnClientConnectionClosed;
-				Client.InternalConnectionClosed -= OnInternalClientConnectionClosed;
+				Client.ConnectionDisrupted -= OnClientConnectionDisrupted;
 				Client.UdpConnectionFailed -= OnClientUdpConnectionFailed;
 				Client.MessageReceived -= OnMessageReceived;
 			}
