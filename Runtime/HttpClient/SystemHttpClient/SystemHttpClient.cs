@@ -53,20 +53,28 @@ namespace MiniIT.Http
 			return new SystemHttpClientResponse(response);
 		}
 
-		public async UniTask<IHttpClientResponse> PostJson(Uri uri, string content)
+		public async UniTask<IHttpClientResponse> PostJson(Uri uri, string content, TimeSpan timeout)
 		{
 			using var requestContent = new StringContent(content, Encoding.UTF8, "application/json");
 
+			TimeSpan prevTimeout = _httpClient.Timeout;
+			_httpClient.Timeout = timeout;
 			var response = await _httpClient.PostAsync(uri, requestContent);
+			_httpClient.Timeout = prevTimeout;
+
 			return new SystemHttpClientResponse(response);
 		}
 
-		public async UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content)
+		public async UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content, TimeSpan timeout)
 		{
 			using var requestContent = new MultipartFormDataContent();
 			requestContent.Add(new ByteArrayContent(content), name);
 
+			TimeSpan prevTimeout = _httpClient.Timeout;
+			_httpClient.Timeout = timeout;
 			var response = await _httpClient.PostAsync(uri, requestContent);
+			_httpClient.Timeout = prevTimeout;
+
 			return new SystemHttpClientResponse(response);
 		}
 

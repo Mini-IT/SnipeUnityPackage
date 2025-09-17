@@ -61,7 +61,7 @@ namespace MiniIT.Snipe.Internal
 
 				try
 				{
-					response = await httpClient.PostJson(new Uri(url), content);
+					response = await httpClient.PostJson(new Uri(url), content, TimeSpan.FromSeconds(5));
 					statusCode = (HttpStatusCode)response.ResponseCode;
 
 					if (!response.IsSuccess)
