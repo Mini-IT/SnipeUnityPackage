@@ -5,6 +5,7 @@ using Cysharp.Threading.Tasks;
 using fastJSON;
 using Microsoft.Extensions.Logging;
 using MiniIT.Http;
+using MiniIT.Snipe.Logging;
 
 namespace MiniIT.Snipe
 {
@@ -78,7 +79,7 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception e)
 			{
-				_logger.LogTrace($"loader failed: {e}");
+				_logger.LogTrace($"loader failed: {LogUtil.GetReducedException(e)}");
 			}
 			finally
 			{
