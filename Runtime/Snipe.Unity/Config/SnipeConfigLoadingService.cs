@@ -50,7 +50,9 @@ namespace MiniIT.Snipe
 
 			if (Loading)
 			{
-				await UniTask.WaitWhile(() => _config == null, PlayerLoopTiming.Update, cancellationToken);
+				await UniTask.WaitWhile(() => _config == null, PlayerLoopTiming.Update, cancellationToken)
+					.SuppressCancellationThrow();
+				
 				return _config;
 			}
 
