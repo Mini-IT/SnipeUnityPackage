@@ -81,6 +81,13 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public void Start()
 		{
+			if (!SnipeServices.InternetReachabilityProvider.IsInternetAvailable)
+			{
+				_logger.LogInformation("Internet is not available");
+				RaiseEvent(ConnectionFailed, false);
+				return;
+			}
+
 			if (InitClient())
 			{
 				_restoreConnectionAttempt = 0;
