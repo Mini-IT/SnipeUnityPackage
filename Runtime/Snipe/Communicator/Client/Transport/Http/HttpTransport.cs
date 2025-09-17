@@ -284,7 +284,7 @@ namespace MiniIT.Snipe
 
 				_logger.LogTrace($"<<< request [id: {requestId}] {requestType} {json}");
 
-				response = await _client.PostJson(uri, json);
+				response = await _client.PostJson(uri, json, TimeSpan.FromSeconds(3));
 
 				// response.StatusCode:
 				//   200 - ok
