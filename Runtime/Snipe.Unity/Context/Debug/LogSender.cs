@@ -5,6 +5,7 @@ using UnityEngine;
 using Cysharp.Threading.Tasks;
 using System.IO;
 using MiniIT.Http;
+using MiniIT.Snipe.Logging;
 using UnityEngine.Networking;
 
 #if ZSTRING
@@ -81,7 +82,7 @@ namespace MiniIT.Snipe.Internal
 
 					if (!succeeded)
 					{
-						DebugLogger.LogError($"[{nameof(LogSender)}] Error posting log portion: {ex}");
+						DebugLogger.LogError($"[{nameof(LogSender)}] Error posting log portion: {LogUtil.GetReducedException(ex)}");
 						break;
 					}
 
