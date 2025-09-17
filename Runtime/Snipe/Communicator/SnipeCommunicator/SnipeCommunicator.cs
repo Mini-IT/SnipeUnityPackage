@@ -93,6 +93,13 @@ namespace MiniIT.Snipe
 		{
 			//_mainThreadRunner.SetMainThread();
 
+			if (!SnipeServices.InternetReachabilityProvider.IsInternetAvailable)
+			{
+				_logger.LogInformation("Internet is not available");
+				RaiseEvent(ConnectionFailed, false);
+				return;
+			}
+
 			InitClient();
 		}
 
