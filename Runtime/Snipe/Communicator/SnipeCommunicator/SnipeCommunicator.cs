@@ -84,7 +84,7 @@ namespace MiniIT.Snipe
 			if (!SnipeServices.InternetReachabilityProvider.IsInternetAvailable)
 			{
 				_logger.LogInformation("Internet is not available");
-				RaiseEvent(ConnectionFailed, false);
+				ConnectionClosed?.Invoke();
 				return;
 			}
 
