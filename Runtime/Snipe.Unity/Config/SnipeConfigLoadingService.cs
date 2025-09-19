@@ -50,7 +50,9 @@ namespace MiniIT.Snipe
 
 			if (Loading)
 			{
-				await UniTask.WaitWhile(() => _config == null, PlayerLoopTiming.Update, cancellationToken);
+				await UniTask.WaitWhile(() => _config == null, cancellationToken: cancellationToken)
+					.SuppressCancellationThrow();
+
 				return _config;
 			}
 
@@ -70,10 +72,10 @@ namespace MiniIT.Snipe
 
 			if (_loader == null)
 			{
-				await UniTask.WaitUntil(() => SnipeServices.IsInitialized, PlayerLoopTiming.Update, loadingToken)
+				bool initialized = await UniTask.WaitUntil(() => SnipeServices.IsInitialized, cancellationToken: loadingToken)
 					.SuppressCancellationThrow();
 
-				if (loadingToken.IsCancellationRequested)
+				if (loadingToken.IsCancellationRequested || !initialized)
 				{
 					lock (_statisticsLock)
 					{
