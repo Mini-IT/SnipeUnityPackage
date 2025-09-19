@@ -149,7 +149,8 @@ namespace MiniIT.Snipe
 
 			IHttpClient httpClient = loadExternal ? SnipeServices.HttpClientFactory.CreateHttpClient() : null;
 
-			_versions = await _versionsLoader.Load(httpClient, cancellationToken);
+			var versionsLoadResult = await _versionsLoader.Load(httpClient, cancellationToken);
+			_versions = versionsLoadResult.Vesions;
 
 			if (cancellationToken.IsCancellationRequested || _loadingItems == null)
 			{
@@ -160,7 +161,8 @@ namespace MiniIT.Snipe
 			var tasks = new List<UniTask>(_loadingItems.Count);
 			foreach (var item in _loadingItems)
 			{
-				tasks.Add(LoadTable(item, httpClient, cancellationToken));
+				var http = versionsLoadResult.LoadedFromWeb ? httpClient : null;
+				tasks.Add(LoadTable(item, http, cancellationToken));
 			}
 
 			await UniTask.WhenAll(tasks);
@@ -212,7 +214,7 @@ namespace MiniIT.Snipe
 			}
 			finally
 			{
-				if(semaphoreOccupied)
+				if (semaphoreOccupied)
 				{
 					_subloadersSemaphore.Release();
 				}
