@@ -14,13 +14,13 @@ namespace MiniIT.Snipe
 {
 	public class TablesLoader
 	{
-		private const int MAX_LOADERS_COUNT = 4;
+		private const int MAX_LOADERS_COUNT = 1;
 
 		private Dictionary<string, long> _versions = null;
 
 		private CancellationTokenSource _cancellation;
 
-		private readonly AlterSemaphore _semaphore = new AlterSemaphore(MAX_LOADERS_COUNT);
+		private readonly AlterSemaphore _semaphore = new AlterSemaphore(MAX_LOADERS_COUNT, MAX_LOADERS_COUNT);
 
 		private bool _failed = false;
 
