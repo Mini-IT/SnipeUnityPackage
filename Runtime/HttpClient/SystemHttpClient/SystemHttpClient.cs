@@ -40,7 +40,17 @@ namespace MiniIT.Http
 
 		public async UniTask<IHttpClientResponse> Get(Uri uri)
 		{
-			HttpResponseMessage response = await _httpClient.GetAsync(uri);
+			HttpResponseMessage response;
+
+			try
+			{
+				response = await _httpClient.GetAsync(uri);
+			}
+			catch (Exception e)
+			{
+				return new SystemHttpClientResponse(400, false, e.Message);
+			}
+
 			return new SystemHttpClientResponse(response);
 		}
 
@@ -48,8 +58,21 @@ namespace MiniIT.Http
 		{
 			TimeSpan prevTimeout = _httpClient.Timeout;
 			_httpClient.Timeout = timeout;
-			HttpResponseMessage response = await _httpClient.GetAsync(uri);
-			_httpClient.Timeout = prevTimeout;
+
+			HttpResponseMessage response;
+			try
+			{
+				response = await _httpClient.GetAsync(uri);
+			}
+			catch (Exception e)
+			{
+				return new SystemHttpClientResponse(400, false, e.Message);
+			}
+			finally
+			{
+				_httpClient.Timeout = prevTimeout;
+			}
+
 			return new SystemHttpClientResponse(response);
 		}
 
@@ -59,8 +82,20 @@ namespace MiniIT.Http
 
 			TimeSpan prevTimeout = _httpClient.Timeout;
 			_httpClient.Timeout = timeout;
-			var response = await _httpClient.PostAsync(uri, requestContent);
-			_httpClient.Timeout = prevTimeout;
+
+			HttpResponseMessage response;
+			try
+			{
+				response = await _httpClient.PostAsync(uri, requestContent);
+			}
+			catch (Exception e)
+			{
+				return new SystemHttpClientResponse(400, false, e.Message);
+			}
+			finally
+			{
+				_httpClient.Timeout = prevTimeout;
+			}
 
 			return new SystemHttpClientResponse(response);
 		}
@@ -72,8 +107,20 @@ namespace MiniIT.Http
 
 			TimeSpan prevTimeout = _httpClient.Timeout;
 			_httpClient.Timeout = timeout;
-			var response = await _httpClient.PostAsync(uri, requestContent);
-			_httpClient.Timeout = prevTimeout;
+
+			HttpResponseMessage response;
+			try
+			{
+				response = await _httpClient.PostAsync(uri, requestContent);
+			}
+			catch (Exception e)
+			{
+				return new SystemHttpClientResponse(400, false, e.Message);
+			}
+			finally
+			{
+				_httpClient.Timeout = prevTimeout;
+			}
 
 			return new SystemHttpClientResponse(response);
 		}
