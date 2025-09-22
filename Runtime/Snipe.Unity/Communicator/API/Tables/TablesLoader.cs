@@ -272,15 +272,20 @@ namespace MiniIT.Snipe
 
 			// If loading from cache failed
 			// try loading from web
-			return await LoadTableAsync(loaderItem.Table,
-				SnipeTable.LoadingLocation.Network,
-				new SnipeTableWebLoader().LoadAsync(
-					httpClient,
-					loaderItem.WrapperType,
-					loaderItem.Table.GetItems(),
-					loaderItem.Name,
-					version,
-					cancellationToken));
+			if (httpClient != null)
+			{
+				return await LoadTableAsync(loaderItem.Table,
+					SnipeTable.LoadingLocation.Network,
+					new SnipeTableWebLoader().LoadAsync(
+						httpClient,
+						loaderItem.WrapperType,
+						loaderItem.Table.GetItems(),
+						loaderItem.Name,
+						version,
+						cancellationToken));
+			}
+
+			return false;
 		}
 
 		private async UniTask<bool> LoadTableAsync(SnipeTable table, SnipeTable.LoadingLocation loadingLocation, UniTask<bool> task)

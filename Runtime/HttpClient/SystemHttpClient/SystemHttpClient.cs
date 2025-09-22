@@ -1,5 +1,6 @@
 
 using System;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -15,6 +16,7 @@ namespace MiniIT.Http
 		public SystemHttpClient()
 		{
 			_httpClient = new HttpClient();
+			_httpClient.Timeout = TimeSpan.FromSeconds(4);
 		}
 
 		public void Reset()
@@ -41,21 +43,37 @@ namespace MiniIT.Http
 
 		public async UniTask<IHttpClientResponse> Get(Uri uri)
 		{
-			HttpResponseMessage response = await _httpClient.GetAsync(uri);
+			HttpResponseMessage response;
+
+			try
+			{
+				response = await _httpClient.GetAsync(uri);
+			}
+			catch (Exception e)
+			{
+				return new SystemHttpClientResponse(HttpStatusCode.BadRequest, e.Message);
+			}
+
 			return new SystemHttpClientResponse(response);
 		}
 
 		public async UniTask<IHttpClientResponse> Get(Uri uri, TimeSpan timeout)
 		{
 			HttpResponseMessage response;
-			var cts = new CancellationTokenSource(timeout);
+
+			using var cts = new CancellationTokenSource(timeout);
+
 			try
 			{
 				response = await _httpClient.GetAsync(uri, cts.Token);
 			}
 			catch (OperationCanceledException)
 			{
-				response = null;
+				return new SystemHttpClientResponse(HttpStatusCode.RequestTimeout, "RequestTimeout");
+			}
+			catch (Exception e)
+			{
+				return new SystemHttpClientResponse(HttpStatusCode.BadRequest, e.Message);
 			}
 
 			return new SystemHttpClientResponse(response);
@@ -65,10 +83,22 @@ namespace MiniIT.Http
 		{
 			using var requestContent = new StringContent(content, Encoding.UTF8, "application/json");
 
-			TimeSpan prevTimeout = _httpClient.Timeout;
-			_httpClient.Timeout = timeout;
-			var response = await _httpClient.PostAsync(uri, requestContent);
-			_httpClient.Timeout = prevTimeout;
+			HttpResponseMessage response;
+
+			using var cts = new CancellationTokenSource(timeout);
+
+			try
+			{
+				response = await _httpClient.PostAsync(uri, requestContent, cts.Token);
+			}
+			catch (OperationCanceledException)
+			{
+				return new SystemHttpClientResponse(HttpStatusCode.RequestTimeout, "RequestTimeout");
+			}
+			catch (Exception e)
+			{
+				return new SystemHttpClientResponse(HttpStatusCode.BadRequest, e.Message);
+			}
 
 			return new SystemHttpClientResponse(response);
 		}
@@ -78,10 +108,22 @@ namespace MiniIT.Http
 			using var requestContent = new MultipartFormDataContent();
 			requestContent.Add(new ByteArrayContent(content), name);
 
-			TimeSpan prevTimeout = _httpClient.Timeout;
-			_httpClient.Timeout = timeout;
-			var response = await _httpClient.PostAsync(uri, requestContent);
-			_httpClient.Timeout = prevTimeout;
+			HttpResponseMessage response;
+
+			using var cts = new CancellationTokenSource(timeout);
+
+			try
+			{
+				response = await _httpClient.PostAsync(uri, requestContent, cts.Token);
+			}
+			catch (OperationCanceledException)
+			{
+				return new SystemHttpClientResponse(HttpStatusCode.RequestTimeout, "RequestTimeout");
+			}
+			catch (Exception e)
+			{
+				return new SystemHttpClientResponse(HttpStatusCode.BadRequest, e.Message);
+			}
 
 			return new SystemHttpClientResponse(response);
 		}
