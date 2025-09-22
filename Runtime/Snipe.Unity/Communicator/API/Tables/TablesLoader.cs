@@ -14,13 +14,13 @@ namespace MiniIT.Snipe
 {
 	public class TablesLoader
 	{
-		private const int MAX_LOADERS_COUNT = 4;
+		private const int MAX_LOADERS_COUNT = 1;
 
 		private Dictionary<string, long> _versions = null;
 
 		private CancellationTokenSource _cancellation;
 
-		private readonly AlterSemaphore _subloadersSemaphore = new AlterSemaphore(MAX_LOADERS_COUNT);
+		private readonly AlterSemaphore _subloadersSemaphore = new AlterSemaphore(MAX_LOADERS_COUNT, MAX_LOADERS_COUNT);
 
 		private bool _failed = false;
 
@@ -90,24 +90,29 @@ namespace MiniIT.Snipe
 
 		private async UniTask<bool> DoLoad(CancellationToken cancellationToken = default)
 		{
+			StopLoading();
+
 			try
 			{
-				bool fallbackEnabled = (TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceExternal);
-				bool loadExternal = (TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceBuiltIn);
-
 				await _builtInTablesListService.InitializeAsync(cancellationToken);
+
+				bool fallbackEnabled = TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceExternal;
+				bool loadExternal = TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceBuiltIn
+				                    && _internetReachabilityProvider.IsInternetAvailable;
 
 				if (fallbackEnabled)
 				{
 					RemoveOutdatedCache();
 				}
 
-				if (!_internetReachabilityProvider.IsInternetAvailable)
-				{
-					loadExternal = false;
-				}
+				IHttpClient httpClient = loadExternal ? SnipeServices.HttpClientFactory.CreateHttpClient() : null;
 
-				bool loaded = await LoadAll(loadExternal);
+				bool loaded = await LoadAll(httpClient);
+
+				if (httpClient is IDisposable disposableHttpClient)
+				{
+					AlterTask.RunAndForget(disposableHttpClient.Dispose, CancellationToken.None);
+				}
 
 				if (loaded)
 				{
@@ -116,7 +121,7 @@ namespace MiniIT.Snipe
 				else if (loadExternal && fallbackEnabled)
 				{
 					_versions = null;
-					loaded = await LoadAll(false);
+					loaded = await LoadAll(null);
 				}
 
 				_analyticsTracker.TrackEvent($"TablesLoader - " + (loaded ? "Loaded" : "Failed"));
@@ -135,10 +140,8 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async UniTask<bool> LoadAll(bool loadExternal)
+		private async UniTask<bool> LoadAll(IHttpClient httpClient)
 		{
-			StopLoading();
-
 			if (_loadingItems == null || _loadingItems.Count == 0)
 			{
 				return true;
@@ -146,8 +149,6 @@ namespace MiniIT.Snipe
 
 			_cancellation = new CancellationTokenSource();
 			CancellationToken cancellationToken = _cancellation.Token;
-
-			IHttpClient httpClient = loadExternal ? SnipeServices.HttpClientFactory.CreateHttpClient() : null;
 
 			var versionsLoadResult = await _versionsLoader.Load(httpClient, cancellationToken);
 			_versions = versionsLoadResult.Vesions;
@@ -157,20 +158,19 @@ namespace MiniIT.Snipe
 				return false;
 			}
 
+			if (!versionsLoadResult.LoadedFromWeb)
+			{
+				httpClient = null;
+			}
+
 			_failed = false;
 			var tasks = new List<UniTask>(_loadingItems.Count);
 			foreach (var item in _loadingItems)
 			{
-				var http = versionsLoadResult.LoadedFromWeb ? httpClient : null;
-				tasks.Add(LoadTable(item, http, cancellationToken));
+				tasks.Add(LoadTable(item, httpClient, cancellationToken));
 			}
 
 			await UniTask.WhenAll(tasks);
-
-			if (httpClient is IDisposable disposableHttpClient)
-			{
-				disposableHttpClient.Dispose();
-			}
 
 			_cancellation?.Dispose();
 			_cancellation = null;
