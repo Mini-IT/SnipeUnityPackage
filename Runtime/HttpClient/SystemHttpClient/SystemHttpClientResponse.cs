@@ -1,9 +1,10 @@
+using System.Net;
 using System.Net.Http;
 using Cysharp.Threading.Tasks;
 
 namespace MiniIT.Http
 {
-	public struct SystemHttpClientResponse : IHttpClientResponse
+	public readonly struct SystemHttpClientResponse : IHttpClientResponse
 	{
 		public long ResponseCode { get; }
 		public bool IsSuccess { get; }
@@ -14,24 +15,27 @@ namespace MiniIT.Http
 		public SystemHttpClientResponse(HttpResponseMessage response) : this()
 		{
 			_response = response;
-			ResponseCode = response != null ? (long)response.StatusCode : 0;
-			IsSuccess = _response?.IsSuccessStatusCode ?? false;
 
 			if (response != null)
 			{
-				Error = IsSuccess ? null : $"{(int)response.StatusCode} {response.StatusCode}";
+				IsSuccess = response.IsSuccessStatusCode;
+				ResponseCode = (long)response.StatusCode;
+				Error = response.IsSuccessStatusCode ? null : $"{(int)response.StatusCode} {response.StatusCode}";
 			}
 			else
 			{
-				Error = "No response";
+				IsSuccess = false;
+				var statusCode = HttpStatusCode.RequestTimeout;
+				ResponseCode = (long)statusCode;
+				Error = $"{(int)statusCode} {statusCode}";
 			}
 		}
 
-		public SystemHttpClientResponse(long responseCode, bool isSuccess, string error)
+		public SystemHttpClientResponse(HttpStatusCode responseCode, string error)
 		{
 			_response = null;
-			ResponseCode = responseCode;
-			IsSuccess = isSuccess;
+			ResponseCode = (long)responseCode;
+			IsSuccess = ResponseCode >= 200 && ResponseCode < 300;
 			Error = error;
 		}
 
