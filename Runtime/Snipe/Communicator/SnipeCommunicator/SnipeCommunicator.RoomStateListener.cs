@@ -26,7 +26,7 @@ namespace MiniIT.Snipe
 			DisposeRoomRequests();
 		}
 
-		private void SetIntensiveHeartbeat(bool value)
+		public void SetIntensiveHeartbeat(bool value)
 		{
 			if (_client.GetTransport() is HttpTransport httpTransport)
 			{
