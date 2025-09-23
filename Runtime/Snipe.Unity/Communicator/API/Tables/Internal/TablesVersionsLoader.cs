@@ -99,7 +99,7 @@ namespace MiniIT.Snipe.Tables
 
 						if (versions == null)
 						{
-							_analyticsTracker.TrackEvent("Tables - LoadVersion Failed to prase versions json", new SnipeObject()
+							_analyticsTracker.TrackEvent("Tables - LoadVersion Failed to prase versions json", new Dictionary<string, object>()
 							{
 								["url"] = url,
 								["json"] = json,
@@ -116,7 +116,7 @@ namespace MiniIT.Snipe.Tables
 					{
 						long responseCode = webRequest.ResponseCode;
 
-						_analyticsTracker.TrackEvent("Tables - LoadVersion Failed to load url", new SnipeObject()
+						_analyticsTracker.TrackEvent("Tables - LoadVersion Failed to load url", new Dictionary<string, object>()
 						{
 							["HttpStatus"] = (HttpStatusCode)responseCode,
 							["HttpStatusCode"] = responseCode,

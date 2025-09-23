@@ -45,12 +45,12 @@ namespace MiniIT.MessagePack
 			return new ArraySegment<byte>(_buffer, 0, length);
 		}
 
-		public Span<byte> Serialize(Dictionary<string, object> data)
+		public Span<byte> Serialize(IDictionary<string, object> data)
 		{
 			return Serialize(0, data);
 		}
 
-		public Span<byte> Serialize(int position, Dictionary<string, object> data)
+		public Span<byte> Serialize(int position, IDictionary<string, object> data)
 		{
 			_position = position;
 			Span<byte> bufferSpan = _buffer.AsSpan();
@@ -82,8 +82,8 @@ namespace MiniIT.MessagePack
 				case IList list:
 					WirteArray(ref bufferSpan, list);
 					break;
-				case ISnipeObjectConvertable soc:
-					WriteMap(ref bufferSpan, soc.ConvertToSnipeObject());
+				case IMapConvertible soc:
+					WriteMap(ref bufferSpan, soc.ToMap());
 					break;
 				default:
 					WriteInternalValueType(ref bufferSpan, val);
@@ -208,6 +208,34 @@ namespace MiniIT.MessagePack
 			if (enumerator is IDisposable disposable)
 			{
 				disposable.Dispose();
+			}
+		}
+
+		private void WriteMap(ref Span<byte> bufferSpan, IDictionary<string, object> map)
+		{
+			int len = map.Count;
+
+			EnsureBufferCapacity(ref bufferSpan, len + 5);
+
+			if (len <= 0x0F)
+			{
+				bufferSpan[_position++] = (byte)(0x80 | len);
+			}
+			else if (len <= 0xFFFF)
+			{
+				bufferSpan[_position++] = (byte)0xDE;
+				CopyBytesUnsafe(bufferSpan, _bigEndianConverter.GetBytes((UInt16)len), 2);
+			}
+			else
+			{
+				bufferSpan[_position] = (byte)0xDF;
+				CopyBytesUnsafe(bufferSpan, _bigEndianConverter.GetBytes((UInt32)len), 4);
+			}
+
+			foreach (var item in map)
+			{
+				DoSerialize(ref bufferSpan, item.Key);
+				DoSerialize(ref bufferSpan, item.Value);
 			}
 		}
 

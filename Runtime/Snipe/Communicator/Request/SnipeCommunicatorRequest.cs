@@ -1,4 +1,5 @@
 ﻿
+using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 
 namespace MiniIT.Snipe
@@ -10,11 +11,11 @@ namespace MiniIT.Snipe
 		private ILogger _logger;
 
 		private readonly AuthSubsystem _authSubsystem;
-		
+
 		public SnipeCommunicatorRequest(SnipeCommunicator communicator,
 			AuthSubsystem authSubsystem,
 			string messageType = null,
-			SnipeObject data = null)
+			IDictionary<string, object> data = null)
 			: base(communicator, messageType, data)
 		{
 			_authSubsystem = authSubsystem;
@@ -39,17 +40,16 @@ namespace MiniIT.Snipe
 			{
 				WaitingForRoomJoined = true;
 			}
-			
-			_communicator.ConnectionFailed -= OnConnectionClosed;
-			_communicator.ConnectionFailed += OnConnectionClosed;
-			
+
+			SubscribeDisconnectionEvents();
+
 			if ((_callback != null || WaitingForRoomJoined) && MessageType != SnipeMessageTypes.ROOM_LEAVE)
 			{
 				_waitingForResponse = true;
 				_communicator.MessageReceived -= OnMessageReceived;
 				_communicator.MessageReceived += OnMessageReceived;
 			}
-			
+
 			if (!WaitingForRoomJoined)
 			{
 				DoSendRequest();
@@ -58,15 +58,16 @@ namespace MiniIT.Snipe
 
 		protected override void OnWillReconnect()
 		{
-			_communicator.ConnectionSucceeded -= OnCommunicatorReady;
-			_authSubsystem.LoginSucceeded -= OnCommunicatorReady;
+			_communicator.ConnectionEstablished -= OnCommunicatorReady;
+			_authSubsystem.LoginSucceeded -= OnLoginSucceeded;
 			_communicator.MessageReceived -= OnMessageReceived;
 
 			if (_communicator.AllowRequestsToWaitForLogin)
 			{
-				GetLogger().LogTrace($"Waiting for login - {MessageType} - {Data?.ToJSONString()}");
+				string dataJson = Data != null ? JsonUtility.ToJson(Data) : null;
+				GetLogger().LogTrace($"Waiting for login - {MessageType} - {dataJson}");
 
-				_authSubsystem.LoginSucceeded += OnCommunicatorReady;
+				_authSubsystem.LoginSucceeded += OnLoginSucceeded;
 			}
 			else
 			{
@@ -74,26 +75,26 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		protected override void OnMessageReceived(string message_type, string error_code, SnipeObject response_data, int request_id)
+		protected override void OnMessageReceived(string message_type, string error_code, IDictionary<string, object> response_data, int request_id)
 		{
 			if (_communicator == null)
 				return;
-			
+
 			if (WaitingForRoomJoined && _communicator.RoomJoined == true)
 			{
 				GetLogger().LogTrace($"OnMessageReceived - Room joined. Send {MessageType}, id = {_requestId}");
-				
+
 				WaitingForRoomJoined = false;
 				DoSendRequest();
 				return;
 			}
-			
+
 			base.OnMessageReceived(message_type, error_code, response_data, request_id);
 		}
 
 		public override void Dispose()
 		{
-			_authSubsystem.LoginSucceeded -= OnCommunicatorReady;
+			_authSubsystem.LoginSucceeded -= OnLoginSucceeded;
 			base.Dispose();
 		}
 

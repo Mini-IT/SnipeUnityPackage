@@ -12,7 +12,7 @@ namespace MiniIT.Snipe.Api
 		public int startDate;
 		public int endDate;
 		public bool isInfinite;
-		public SnipeObject data;
+		public IDictionary<string, object> data;
 		public List<SnipeTableCalendarItemStage> stages;
 	}
 }

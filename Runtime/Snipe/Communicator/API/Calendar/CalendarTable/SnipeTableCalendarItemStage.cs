@@ -16,6 +16,6 @@ namespace MiniIT.Snipe.Api
 		public int repeatNumber;
 		public int[] repeatWeekDays;
 		public int repeatMonthDay;
-		public SnipeObject data;
+		public IDictionary<string, object> data;
 	}
 }

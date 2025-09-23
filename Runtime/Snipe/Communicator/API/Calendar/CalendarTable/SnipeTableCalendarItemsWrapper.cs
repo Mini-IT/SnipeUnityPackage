@@ -30,8 +30,8 @@ namespace MiniIT.Snipe.Api
 					if (calendar_item_data.TryGetValue("isInfinite", out var calendar_event_isInfinite))
 						calendar_event.isInfinite = Convert.ToBoolean(calendar_event_isInfinite);
 					if (calendar_item_data.TryGetValue("data", out var calendar_event_data))
-						calendar_event.data = calendar_event_data as SnipeObject;
-					
+						calendar_event.data = calendar_event_data as IDictionary<string, object>;
+
 					calendar_event.stages = new List<SnipeTableCalendarItemStage>();
 					if (calendar_item_data.TryGetValue("stages", out var calendar_event_stages) && calendar_event_stages is IList calendar_event_stages_list)
 					{
@@ -53,7 +53,7 @@ namespace MiniIT.Snipe.Api
 							if (stage_item_data.TryGetValue("repeatMonthDay", out var stage_repeatMonthDay))
 								stage.repeatMonthDay = Convert.ToInt32(stage_repeatMonthDay);
 							if (stage_item_data.TryGetValue("data", out var stage_data))
-								stage.data = stage_data as SnipeObject;
+								stage.data = stage_data as IDictionary<string, object>;
 
 							if (stage_item_data.TryGetValue("repeatWeekDays", out var days) && days is IList days_list)
 							{
@@ -73,7 +73,7 @@ namespace MiniIT.Snipe.Api
 				}
 				return calendar_list_wrapper;
 			}
-			
+
 			return null;
 		}
 	}

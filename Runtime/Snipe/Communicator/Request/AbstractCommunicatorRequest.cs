@@ -10,12 +10,12 @@ namespace MiniIT.Snipe
 		protected const int RETRIES_COUNT = 3;
 		protected const int RETRY_DELAY_MS = 1000;
 
-		protected static readonly SnipeObject EMPTY_DATA = new SnipeObject();
+		protected static readonly Dictionary<string, object> EMPTY_DATA = new (0);
 
 		public string MessageType { get; private set; }
-		public SnipeObject Data { get; set; }
+		public IDictionary<string, object> Data { get; set; }
 
-		public delegate void ResponseHandler(string error_code, SnipeObject data);
+		public delegate void ResponseHandler(string errorCode, IDictionary<string, object> data);
 
 		protected SnipeCommunicator _communicator;
 		protected ResponseHandler _callback;
@@ -28,7 +28,7 @@ namespace MiniIT.Snipe
 
 		private ILogger _logger;
 
-		public AbstractCommunicatorRequest(SnipeCommunicator communicator, string messageType = null, SnipeObject data = null)
+		public AbstractCommunicatorRequest(SnipeCommunicator communicator, string messageType = null, IDictionary<string, object> data = null)
 		{
 			_communicator = communicator;
 			MessageType = messageType;
@@ -37,7 +37,7 @@ namespace MiniIT.Snipe
 			_communicator?.Requests.Add(this);
 		}
 
-		public void Request(SnipeObject data, ResponseHandler callback = null)
+		public void Request(IDictionary<string, object> data, ResponseHandler callback = null)
 		{
 			Data = data;
 			Request(callback);
@@ -79,7 +79,7 @@ namespace MiniIT.Snipe
 			}
 			else
 			{
-				OnConnectionClosed(true);
+				OnReconnectionScheduled();
 			}
 		}
 
@@ -93,10 +93,14 @@ namespace MiniIT.Snipe
 			return _communicator.Connected;
 		}
 
+		protected virtual void OnLoginSucceeded(int userId)
+		{
+			OnCommunicatorReady();
+		}
+
 		protected virtual void OnCommunicatorReady()
 		{
-			_communicator.ConnectionFailed -= OnConnectionClosed;
-			_communicator.ConnectionFailed += OnConnectionClosed;
+			SubscribeDisconnectionEvents();
 
 			if (_callback != null)
 			{
@@ -106,6 +110,15 @@ namespace MiniIT.Snipe
 			}
 
 			DoSendRequest();
+		}
+
+		protected void SubscribeDisconnectionEvents()
+		{
+			_communicator.ConnectionClosed -= OnConnectionClosed;
+			_communicator.ReconnectionScheduled -= OnReconnectionScheduled;
+
+			_communicator.ConnectionClosed += OnConnectionClosed;
+			_communicator.ReconnectionScheduled += OnReconnectionScheduled;
 		}
 
 		protected void DoSendRequest()
@@ -176,7 +189,7 @@ namespace MiniIT.Snipe
 
 			if (CheckCommunicatorReady())
 			{
-				_requestId = _communicator.Client.SendRequest(MessageType, Data);
+				_requestId = _communicator.SendRequest(MessageType, Data);
 			}
 
 			if (_requestId == 0)
@@ -191,35 +204,38 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		protected void OnConnectionClosed(bool will_retry = false)
+		protected void OnReconnectionScheduled()
 		{
-			if (will_retry && _requestId == 0)
+			if (_requestId != 0)
 			{
-				_waitingForResponse = false;
-				OnWillReconnect();
+				return;
 			}
-			else
+
+			_waitingForResponse = false;
+			OnWillReconnect();
+		}
+
+		protected void OnConnectionClosed()
+		{
+			if (_requestId != 0) // if the request is considered sent but not responsed yet
 			{
-				if (_requestId != 0) // if the request is considered sent but not responsed yet
-				{
-					GetLogger().LogTrace($"Disposing request {_requestId} {MessageType}");
-					InvokeCallback(SnipeErrorCodes.NOT_READY, EMPTY_DATA);
-				}
-				Dispose();
+				GetLogger().LogTrace($"Disposing request {_requestId} {MessageType}");
+				InvokeCallback(SnipeErrorCodes.NOT_READY, EMPTY_DATA);
 			}
+			Dispose();
 		}
 
 		protected virtual void OnWillReconnect()
 		{
-			_communicator.ConnectionSucceeded -= OnCommunicatorReady;
+			_communicator.ConnectionEstablished -= OnCommunicatorReady;
 			_communicator.MessageReceived -= OnMessageReceived;
 
 			GetLogger().LogTrace($"Waiting for connection - {MessageType}");
 
-			_communicator.ConnectionSucceeded += OnCommunicatorReady;
+			_communicator.ConnectionEstablished += OnCommunicatorReady;
 		}
 
-		protected virtual void OnMessageReceived(string message_type, string error_code, SnipeObject response_data, int request_id)
+		protected virtual void OnMessageReceived(string message_type, string error_code, IDictionary<string, object> response_data, int request_id)
 		{
 			if (_communicator == null)
 				return;
@@ -237,7 +253,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		protected void InvokeCallback(string error_code, SnipeObject response_data)
+		protected void InvokeCallback(string error_code, IDictionary<string, object> response_data)
 		{
 			var callback = _callback;
 
@@ -281,8 +297,9 @@ namespace MiniIT.Snipe
 					_communicator.Requests.Remove(this);
 				}
 
-				_communicator.ConnectionSucceeded -= OnCommunicatorReady;
-				_communicator.ConnectionFailed -= OnConnectionClosed;
+				_communicator.ConnectionEstablished -= OnCommunicatorReady;
+				_communicator.ReconnectionScheduled -= OnReconnectionScheduled;
+				_communicator.ConnectionClosed -= OnConnectionClosed;
 				_communicator.MessageReceived -= OnMessageReceived;
 				_communicator = null;
 			}
@@ -293,14 +310,14 @@ namespace MiniIT.Snipe
 
 		public override bool Equals(object obj) => obj is AbstractCommunicatorRequest request
 			&& string.Equals(request.MessageType, MessageType, StringComparison.Ordinal)
-			&& SnipeObject.ContentEquals(request.Data, Data);
+			&& request.Data.ContentEquals(Data);
 
 		public override int GetHashCode()
 		{
 			// Autogenerated
 			int hashCode = -1826397615;
 			hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(MessageType);
-			hashCode = hashCode * -1521134295 + EqualityComparer<SnipeObject>.Default.GetHashCode(Data);
+			hashCode = hashCode * -1521134295 + EqualityComparer<IDictionary<string, object>>.Default.GetHashCode(Data);
 			return hashCode;
 		}
 

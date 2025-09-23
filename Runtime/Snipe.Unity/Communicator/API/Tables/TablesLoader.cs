@@ -20,7 +20,7 @@ namespace MiniIT.Snipe
 
 		private CancellationTokenSource _cancellation;
 
-		private readonly AlterSemaphore _semaphore = new AlterSemaphore(MAX_LOADERS_COUNT, MAX_LOADERS_COUNT);
+		private readonly AlterSemaphore _subloadersSemaphore = new AlterSemaphore(MAX_LOADERS_COUNT, MAX_LOADERS_COUNT);
 
 		private bool _failed = false;
 
@@ -30,6 +30,9 @@ namespace MiniIT.Snipe
 		private readonly SnipeAnalyticsTracker _analyticsTracker;
 		private readonly IInternetReachabilityProvider _internetReachabilityProvider;
 		private readonly ILogger _logger;
+
+		private UniTaskCompletionSource<bool> _loadingTaskCompletion;
+		private readonly object _loadingTaskCompletionLock = new();
 
 		public TablesLoader()
 		{
@@ -60,6 +63,7 @@ namespace MiniIT.Snipe
 
 			_versions = null;
 			_failed = false;
+			_loadingTaskCompletion = null;
 		}
 
 		public void Add<TItem>(SnipeTable<TItem> table, string name)
@@ -69,43 +73,71 @@ namespace MiniIT.Snipe
 			_loadingItems.Add(new TablesLoaderItem(typeof(SnipeTableItemsListWrapper<TItem>), table, name));
 		}
 
-		public async UniTask<bool> Load(CancellationToken cancellationToken = default)
+		public UniTask<bool> Load(CancellationToken cancellationToken = default)
+		{
+			lock (_loadingTaskCompletionLock)
+			{
+				if (_loadingTaskCompletion != null)
+				{
+					return _loadingTaskCompletion.Task;
+				}
+
+				_loadingTaskCompletion = new UniTaskCompletionSource<bool>();
+			}
+
+			return DoLoad(cancellationToken);
+		}
+
+		private async UniTask<bool> DoLoad(CancellationToken cancellationToken = default)
 		{
 			StopLoading();
 
-			await _builtInTablesListService.InitializeAsync(cancellationToken);
-
-			bool fallbackEnabled = TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceExternal;
-			bool loadExternal = TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceBuiltIn
-			                    && _internetReachabilityProvider.IsInternetAvailable;
-
-			if (fallbackEnabled)
+			try
 			{
-				RemoveOutdatedCache();
+				await _builtInTablesListService.InitializeAsync(cancellationToken);
+
+				bool fallbackEnabled = TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceExternal;
+				bool loadExternal = TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceBuiltIn
+				                    && _internetReachabilityProvider.IsInternetAvailable;
+
+				if (fallbackEnabled)
+				{
+					RemoveOutdatedCache();
+				}
+
+				IHttpClient httpClient = loadExternal ? SnipeServices.HttpClientFactory.CreateHttpClient() : null;
+
+				bool loaded = await LoadAll(httpClient);
+
+				if (httpClient is IDisposable disposableHttpClient)
+				{
+					AlterTask.RunAndForget(disposableHttpClient.Dispose, CancellationToken.None);
+				}
+
+				if (loaded)
+				{
+					RemoveMisversionedCache();
+				}
+				else if (loadExternal && fallbackEnabled)
+				{
+					_versions = null;
+					loaded = await LoadAll(null);
+				}
+
+				_analyticsTracker.TrackEvent($"TablesLoader - " + (loaded ? "Loaded" : "Failed"));
+				_loadingTaskCompletion.TrySetResult(loaded);
+				return loaded;
 			}
-
-			IHttpClient httpClient = loadExternal ? SnipeServices.HttpClientFactory.CreateHttpClient() : null;
-
-			bool loaded = await LoadAll(httpClient);
-
-			if (httpClient is IDisposable disposableHttpClient)
+			catch (Exception ex)
 			{
-				AlterTask.RunAndForget(disposableHttpClient.Dispose, CancellationToken.None);
+				_logger.LogError($"Tables loading failed: {ex}");
+				_loadingTaskCompletion.TrySetException(ex);
+				throw;
 			}
-
-			if (loaded)
+			finally
 			{
-				RemoveMisversionedCache();
+				_loadingTaskCompletion = null;
 			}
-			else if (loadExternal && fallbackEnabled)
-			{
-				_versions = null;
-				loaded = await LoadAll(null);
-			}
-
-			_analyticsTracker.TrackEvent("TablesLoader - " + (loaded ? "Loaded" : "Failed"));
-
-			return loaded;
 		}
 
 		private async UniTask<bool> LoadAll(IHttpClient httpClient)
@@ -156,7 +188,7 @@ namespace MiniIT.Snipe
 
 			try
 			{
-				await _semaphore.WaitAsync(cancellationToken);
+				await _subloadersSemaphore.WaitAsync(cancellationToken);
 				semaphoreOccupied = true;
 
 				if (!cancellationToken.IsCancellationRequested)
@@ -184,7 +216,7 @@ namespace MiniIT.Snipe
 			{
 				if (semaphoreOccupied)
 				{
-					_semaphore.Release();
+					_subloadersSemaphore.Release();
 				}
 			}
 
@@ -329,7 +361,7 @@ namespace MiniIT.Snipe
 		{
 			string fileName = Path.GetFileName(filePath.Substring(0, filePath.Length - extension.Length));
 
-			int underscoreIndex = fileName.IndexOf("_");
+			int underscoreIndex = fileName.IndexOf('_');
 			if (underscoreIndex < 1)
 			{
 				name = null;

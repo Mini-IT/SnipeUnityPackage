@@ -20,10 +20,10 @@ namespace MiniIT.Snipe.Api
 		public int timeleft = -1; // seconds left. (-1) means that the node does not have a timer
 		public bool isTimeout { get; private set; }
 
-		public LogicNode(SnipeObject data, ISnipeTable<SnipeTableLogicItem> logic_table)
+		public LogicNode(IDictionary<string, object> data, ISnipeTable<SnipeTableLogicItem> logic_table)
 		{
 			id = data.SafeGetValue<int>("id");
-			
+
 			foreach (var table_tree in logic_table.Values)
 			{
 				foreach (var table_node in table_tree.nodes)
@@ -48,7 +48,7 @@ namespace MiniIT.Snipe.Api
 				logger.LogError($"Table node not found. id = {id}");
 				return;
 			}
-			
+
 			foreach (var node_check in node.checks)
 			{
 				RefreshTimerVar(node_check.type, node_check.value);
@@ -58,7 +58,7 @@ namespace MiniIT.Snipe.Api
 			{
 				vars = new List<SnipeLogicNodeVar>(Math.Max(data_vars.Count, node.vars.Count));
 
-				foreach (SnipeObject data_var in data_vars)
+				foreach (IDictionary<string, object> data_var in data_vars)
 				{
 					if (data_var == null)
 					{
@@ -122,7 +122,7 @@ namespace MiniIT.Snipe.Api
 			{
 				return false;
 			}
-			
+
 			foreach (var node_check in node.checks)
 			{
 				if (node_check.type == check_type)
@@ -139,7 +139,7 @@ namespace MiniIT.Snipe.Api
 			{
 				return false;
 			}
-			
+
 			foreach (var node_check in node.checks)
 			{
 				if (node_check.name == check_name)
@@ -156,7 +156,7 @@ namespace MiniIT.Snipe.Api
 			{
 				return null;
 			}
-			
+
 			foreach (var node_check in node.checks)
 			{
 				if (node_check.type == SnipeTableLogicNodeCheck.TYPE_PAYMENT_ITEM_STRING_ID)

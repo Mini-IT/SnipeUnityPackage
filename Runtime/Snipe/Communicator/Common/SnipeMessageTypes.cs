@@ -25,6 +25,10 @@ namespace MiniIT.Snipe
 		public const string ROOM_DEAD = "room.dead";
 		public const string ROOM_LEAVE = "room.leave";
 
+		public const string MATCHMAKING_ADD = "matchmaking.add";
+		public const string MATCHMAKING_START = "matchmaking.start";
+		public const string MATCHMAKING_REMOVE = "matchmaking.remove";
+
 		public const string LOGIC_GET = "logic.get";
 		public const string LOGIC_INC_VAR = "logic.incVar";
 

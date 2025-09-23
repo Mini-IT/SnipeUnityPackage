@@ -91,7 +91,7 @@ namespace MiniIT.Snipe.Api
 			graph.State.Vars[name] = value;
 
 			var request = _requestFactory.Invoke("graph.set",
-				new SnipeObject()
+				new Dictionary<string, object>()
 				{
 					["graphID"] = graphID,
 					["name"] = name,
@@ -112,7 +112,7 @@ namespace MiniIT.Snipe.Api
 			graph.State.Vars[name] = currentValue + delta;
 
 			var request = _requestFactory.Invoke("graph.change",
-				new SnipeObject()
+				new Dictionary<string, object>()
 				{
 					["graphID"] = graphID,
 					["name"] = name,
@@ -121,7 +121,7 @@ namespace MiniIT.Snipe.Api
 			request?.Request();
 		}
 
-		protected override void OnSnipeMessageReceived(string messageType, string errorCode, SnipeObject data, int requestId)
+		protected override void OnSnipeMessageReceived(string messageType, string errorCode, IDictionary<string, object> data, int requestId)
 		{
 			switch (messageType)
 			{
@@ -157,7 +157,7 @@ namespace MiniIT.Snipe.Api
 			}
 		}
 
-		private void OnGraphGet(string errorCode, SnipeObject responseData)
+		private void OnGraphGet(string errorCode, IDictionary<string, object> responseData)
 		{
 			if (responseData == null || errorCode != "ok")
 			{
@@ -173,7 +173,7 @@ namespace MiniIT.Snipe.Api
 
 			foreach (var item in graphsList)
 			{
-				if (item is SnipeObject so && _graphParser.TryParse(so, out var graph))
+				if (item is IDictionary<string, object> so && _graphParser.TryParse(so, out var graph))
 				{
 					Graphs[graph.ID] = graph;
 				}
@@ -182,7 +182,7 @@ namespace MiniIT.Snipe.Api
 			GraphUpdated?.Invoke(Graphs);
 		}
 
-		private void ProcessGraphEnded(string errorCode, SnipeObject data, Action<LogicGraph> callback)
+		private void ProcessGraphEnded(string errorCode, IDictionary<string, object> data, Action<LogicGraph> callback)
 		{
 			if (data == null || errorCode != "ok")
 			{

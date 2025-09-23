@@ -75,7 +75,7 @@ namespace MiniIT.Snipe.Api
 			return false;
 		}
 
-		protected override void OnSnipeMessageReceived(string messageType, string errorCode, SnipeObject data, int requestId)
+		protected override void OnSnipeMessageReceived(string messageType, string errorCode, IDictionary<string, object> data, int requestId)
 		{
 			if (errorCode != SnipeErrorCodes.OK)
 			{
@@ -98,12 +98,12 @@ namespace MiniIT.Snipe.Api
 			}
 		}
 
-		private void OnBadgesGet(string errorCode, SnipeObject data)
+		private void OnBadgesGet(string errorCode, IDictionary<string, object> data)
 		{
 			if (data["list"] is IList list)
 			{
 				_badges.Clear();
-				foreach (SnipeObject o in list)
+				foreach (IDictionary<string, object> o in list)
 				{
 					_badges.Add(new UserBadge(o));
 				}
@@ -117,7 +117,7 @@ namespace MiniIT.Snipe.Api
 			}
 		}
 
-		private void OnBadgeLevel(string errorCode, SnipeObject data)
+		private void OnBadgeLevel(string errorCode, IDictionary<string, object> data)
 		{
 			int badgeId = data.SafeGetValue<int>("id");
 			int badgeLevel = data.SafeGetValue<int>("level");
@@ -129,7 +129,7 @@ namespace MiniIT.Snipe.Api
 			}
 		}
 
-		private void OnBadgeProgress(string errorCode, SnipeObject data)
+		private void OnBadgeProgress(string errorCode, IDictionary<string, object> data)
 		{
 			int badgeId = data.SafeGetValue<int>("id");
 			int badgeLevel = data.SafeGetValue<int>("level");

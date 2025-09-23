@@ -5,7 +5,7 @@ namespace MiniIT.Snipe.Api
 {
 	public abstract class AbstractSnipeApiService
 	{
-		public delegate AbstractCommunicatorRequest RequestFactoryMethod(string messageType, SnipeObject data = null);
+		public delegate AbstractCommunicatorRequest RequestFactoryMethod(string messageType, IDictionary<string, object> data = null);
 
 		protected readonly SnipeCommunicator _communicator;
 		private readonly RequestFactoryMethod _requestFactory;
@@ -15,7 +15,7 @@ namespace MiniIT.Snipe.Api
 		{
 			_communicator = communicator;
 
-			_requestFactory = (string messageType, SnipeObject data) =>
+			_requestFactory = (messageType, data) =>
 			{
 				if (communicator.BatchMode && !communicator.LoggedIn)
 				{
@@ -29,7 +29,7 @@ namespace MiniIT.Snipe.Api
 			InitMergeableRequestTypes();
 		}
 
-		public AbstractCommunicatorRequest CreateRequest(string messageType, SnipeObject data = null)
+		public AbstractCommunicatorRequest CreateRequest(string messageType, IDictionary<string, object> data = null)
 		{
 			return _requestFactory.Invoke(messageType, data);
 		}

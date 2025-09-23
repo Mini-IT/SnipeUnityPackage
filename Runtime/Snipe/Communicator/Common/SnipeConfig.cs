@@ -2,70 +2,42 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using fastJSON;
+using MiniIT.Snipe.Configuration;
 using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
-	public enum SnipeProjectMode
-	{
-		Live = 0,
-		Dev = 1,
-	}
-
-	public struct SnipeProjectInfo
-	{
-		public string ProjectID;
-		public string ClientKey;
-		public SnipeProjectMode Mode;
-	}
-
 	public class SnipeConfig
 	{
-		public class UdpAddress
-		{
-			public string Host;
-			public ushort Port;
-		}
-
-		public enum WebSocketImplementations
-		{
-			WebSocketSharp,
-			ClientWebSocket,
-			BestWebSocket,
-		}
-
-		public WebSocketImplementations WebSocketImplementation { get; set; } = WebSocketImplementations.WebSocketSharp;
-
 		public int ContextId { get; }
 
-		public SnipeProjectInfo Project => _project;
-		public string ClientKey => _project.ClientKey;
+		public SnipeProjectInfo Project => _data.ProjectInfo;
+		public string ClientKey => _data.ProjectInfo.ClientKey;
 
 		public string ProjectName { get; private set; }
 		public string AppInfo { get; private set; }
 		public string DebugId { get; private set; }
 
-		public bool AutoJoinRoom { get; set; } = true;
+		public bool AutoJoinRoom => _data.AutoJoinRoom;
 
-		public List<string> ServerWebSocketUrls { get; } = new List<string>();
-		public List<UdpAddress> ServerUdpUrls { get; } = new List<UdpAddress>();
-		public List<string> ServerHttpUrls { get; } = new List<string>();
+		public List<string> ServerWebSocketUrls => _data.ServerWebSocketUrls;
+		public List<UdpAddress> ServerUdpUrls => _data.ServerUdpUrls;
+		public List<string> ServerHttpUrls => _data.ServerHttpUrls;
+
+		public WebSocketImplementations WebSocketImplementation => _data.WebSocketImplementation;
 
 		/// <summary>
 		/// Http transport heartbeat interval.
 		/// If the value is less than 1 second then heartbeat is turned off.
 		/// </summary>
-		public TimeSpan HttpHeartbeatInterval { get; set; } = TimeSpan.FromMinutes(1);
+		public TimeSpan HttpHeartbeatInterval => _data.HttpHeartbeatInterval;
 
-		public bool CompressionEnabled { get; set; } = true;
-		public int MinMessageBytesToCompress { get; set; } = 13 * 1024;
+		public bool CompressionEnabled => _data.CompressionEnabled;
+		public int MinMessageBytesToCompress => _data.MinMessageBytesToCompress;
 
-		public IDictionary<string, object> LoginParameters { get; set; }
+		public IDictionary<string, object> LoginParameters => _data.LoginParameters;
 
-		public string LogReporterUrl { get; set; }
-
-		private SnipeProjectInfo _project;
+		public string LogReporterUrl => _data.LogReporterUrl;
 
 		private int _serverWebSocketUrlIndex = 0;
 		private int _serverUdpUrlIndex = 0;
@@ -73,52 +45,28 @@ namespace MiniIT.Snipe
 		private readonly IMainThreadRunner _mainThreadRunner;
 		private readonly IApplicationInfo _applicationInfo;
 
-		public SnipeConfig(int contextId)
+		private readonly SnipeConfigData _data;
+
+		public SnipeConfig(int contextId, SnipeConfigData data)
 		{
 			_mainThreadRunner = SnipeServices.MainThreadRunner;
 			_applicationInfo = SnipeServices.ApplicationInfo;
 
 			ContextId = contextId;
+			_data = data;
+
+			Initialize();
 		}
 
-		/// <summary>
-		/// Should be called from the main Unity thread
-		/// </summary>
-		//public void InitializeFromJSON(string json_string)
-		//{
-		//	Initialize(SnipeObject.FromJSONString(json_string));
-		//}
-
-		/// <summary>
-		/// Should be called from the main Unity thread
-		/// </summary>
-		//public void Initialize(IDictionary<string, object> data)
-		//{
-		//	ParseOld(data);
-		//	ParseNew(data);
-		//}
-
-		public void Initialize(SnipeProjectInfo project, IDictionary<string, object> data)
+		private void Initialize()
 		{
-			if (data == null || data.Count == 0)
-			{
-				InitializeDefault(project);
-				return;
-			}
+			// if (!CheckConnectionParametersValid())
+			// {
+			// 	InitializeDefault(project);
+			// 	return;
+			// }
 
-			SetProject(project);
-
-			ParseNew(data);
-			ParseLogReporterSection(data);
-			ParseCompressionSection(data);
-
-			if (!CheckConnectionParametersValid())
-			{
-				InitializeDefault(project);
-				return;
-			}
-
-			if (project.Mode == SnipeProjectMode.Dev)
+			if (Project.Mode == SnipeProjectMode.Dev)
 			{
 				InitializeDefaultTablesConfigDev();
 			}
@@ -127,79 +75,12 @@ namespace MiniIT.Snipe
 				InitializeDefaultTablesConfigLive();
 			}
 
-			InitializeUrlIndices();
-
-			InitializeAppInfo();
-		}
-
-		/// <summary>
-		/// Initialize with default values
-		/// </summary>
-		public void InitializeDefault(SnipeProjectInfo project)
-		{
-			SetProject(project);
-
-			if (project.Mode == SnipeProjectMode.Dev)
-			{
-				InitializeDefaultConnectionDev();
-				InitializeDefaultTablesConfigDev();
-			}
-			else
-			{
-				InitializeDefaultConnectionLive();
-				InitializeDefaultTablesConfigLive();
-			}
+			ProjectName = (_data.ProjectInfo.Mode == SnipeProjectMode.Dev) ?
+				$"{_data.ProjectInfo.ProjectID}_dev" :
+				$"{_data.ProjectInfo.ProjectID}_live";
 
 			InitializeUrlIndices();
-
 			InitializeAppInfo();
-		}
-
-		private void SetProject(SnipeProjectInfo project)
-		{
-			_project = project;
-
-			ProjectName = (project.Mode == SnipeProjectMode.Dev) ?
-				$"{project.ProjectID}_dev" :
-				$"{project.ProjectID}_live";
-		}
-
-		#region Default config
-
-		private void InitializeDefaultConnectionDev()
-		{
-			ServerUdpUrls.Clear();
-			ServerUdpUrls.Add(new UdpAddress() { Host = "dev.snipe.dev", Port = 10666 });
-
-			ServerWebSocketUrls.Clear();
-			ServerWebSocketUrls.Add("wss://dev.snipe.dev/wss_11000/");
-			ServerWebSocketUrls.Add("wss://dev-proxy.snipe.dev/wss_11000/");
-			ServerWebSocketUrls.Add("wss://dev2.snipe.dev/wss_11000/");
-			ServerWebSocketUrls.Add("wss://dev-proxy2.snipe.dev/wss_11000/");
-
-			ServerHttpUrls.Clear();
-			ServerHttpUrls.Add("https://dev.snipe.dev/");
-			HttpHeartbeatInterval = TimeSpan.FromMinutes(1);
-
-			LogReporterUrl = "https://logs-dev.snipe.dev/api/v1/log/batch";
-		}
-
-		private void InitializeDefaultConnectionLive()
-		{
-			ServerUdpUrls.Clear();
-			ServerUdpUrls.Add(new UdpAddress() { Host = "live.snipe.dev", Port = 16666 });
-
-			ServerWebSocketUrls.Clear();
-			ServerWebSocketUrls.Add("wss://live.snipe.dev/wss_16000/");
-			ServerWebSocketUrls.Add("wss://live-proxy.snipe.dev/wss_16000/");
-			ServerWebSocketUrls.Add("wss://live2.snipe.dev/wss_16000/");
-			ServerWebSocketUrls.Add("wss://live-proxy2.snipe.dev/wss_16000/");
-
-			ServerHttpUrls.Clear();
-			ServerHttpUrls.Add("https://live.snipe.dev/");
-			HttpHeartbeatInterval = TimeSpan.Zero;
-
-			LogReporterUrl = "https://logs.snipe.dev/api/v1/log/batch";
 		}
 
 		private void InitializeUrlIndices()
@@ -223,159 +104,9 @@ namespace MiniIT.Snipe
 			TablesConfig.AddTableUrl($"https://snipe.tuner-life.com/{ProjectName}/");
 		}
 
-		#endregion Default config
-
-		private void ParseNew(IDictionary<string, object> data)
-		{
-			if (SnipeObject.TryGetValue(data, "snipeUdpHost", out string udpHost) && !string.IsNullOrWhiteSpace(udpHost) &&
-				SnipeObject.TryGetValue(data, "snipeUdpPort", out string udpPort) && ushort.TryParse(udpPort, out ushort port))
-			{
-				ServerUdpUrls.Clear();
-				ServerUdpUrls.Add(new UdpAddress() { Host = udpHost.Trim(), Port = port });
-			}
-
-			if (data.TryGetValue("snipeHttpUrls", out object httpUrls))
-			{
-				ParseHttpUrls(ServerHttpUrls, httpUrls);
-			}
-			else if (SnipeObject.TryGetValue(data, "snipeHttpUrl", out string httpUrl) && !string.IsNullOrWhiteSpace(httpUrl))
-			{
-				ServerHttpUrls.Clear();
-				ServerHttpUrls.Add(httpUrl.Trim());
-			}
-
-			if (SnipeObject.TryGetValue(data, "snipeWssUrl", out object wssUrl))
-			{
-				ParseWebSocketUrls(ServerWebSocketUrls, wssUrl);
-			}
-
-			if (SnipeObject.TryGetValue(data, "snipeDev", out bool dev))
-			{
-				_project.Mode = dev ? SnipeProjectMode.Dev : SnipeProjectMode.Live;
-			}
-
-			ParseLogReporterSection(data);
-			ParseCompressionSection(data);
-		}
-
-		// [Testable]
-		internal static void ParseWebSocketUrls(List<string> outputList, object input)
-		{
-			ParseUrls(outputList, input, (url) => url.ToLower().StartsWith("wss://"));
-		}
-
-		// [Testable]
-		internal static void ParseHttpUrls(List<string> outputList, object input)
-		{
-			ParseUrls(outputList, input, (url) => url.ToLower().StartsWith("https://"));
-		}
-
-		private static void ParseUrls(List<string> outputList, object input, Func<string, bool> urlChecker)
-		{
-			if (input is IList urlList && urlList.Count > 0)
-			{
-				SetUrls(outputList, urlList, urlChecker);
-			}
-			else if (input is string urlString && !string.IsNullOrWhiteSpace(urlString))
-			{
-				urlString = urlString.Trim();
-				string lowerUrl = urlString.ToLower();
-
-				if (lowerUrl.StartsWith('['))
-				{
-					IList list;
-					try
-					{
-						list = (IList)JSON.Parse(urlString);
-					}
-					catch (Exception)
-					{
-						list = null;
-					}
-
-					if (list != null && list.Count > 0)
-					{
-						SetUrls(outputList, list, urlChecker);
-					}
-				}
-				else if (urlChecker.Invoke(lowerUrl))
-				{
-					outputList.Clear();
-					outputList.Add(urlString);
-				}
-			}
-		}
-
-		private static void SetUrls(List<string> outputList, IList wssUrlList, Func<string, bool> urlChecker)
-		{
-			outputList.Clear();
-
-			foreach (var listItem in wssUrlList)
-			{
-				if (listItem is string url && !string.IsNullOrWhiteSpace(url))
-				{
-					url = url.Trim();
-					if (urlChecker.Invoke(url))
-					{
-						outputList.Add(url);
-					}
-				}
-			}
-		}
-
-		private void ParseLogReporterSection(IDictionary<string, object> data)
-		{
-			if (data.TryGetValue("log_reporter", out var logReporterField))
-			{
-				if (logReporterField is IDictionary<string, object> logReporterSection)
-				{
-					LogReporterUrl = SnipeObject.SafeGetString(logReporterSection, "url").Trim();
-				}
-				else if (logReporterField is string logReporterString)
-				{
-					var regex = new Regex(@"^http.?://.*", RegexOptions.IgnoreCase); // == StartsWith("http(s)://")
-
-					if (regex.IsMatch(logReporterString))
-					{
-						LogReporterUrl = logReporterString;
-					}
-					else
-					{
-						var dict = (Dictionary<string, object>)JSON.Parse(logReporterString);
-						if (dict != null)
-						{
-							LogReporterUrl = SnipeObject.SafeGetString(dict, "url").Trim();
-						}
-					}
-				}
-			}
-		}
-
-		private void ParseCompressionSection(IDictionary<string, object> data)
-		{
-			if (!data.TryGetValue("compression", out var compressionField) ||
-			    compressionField is not IDictionary<string, object> compression)
-			{
-				return;
-			}
-
-			CompressionEnabled = SnipeObject.SafeGetValue<bool>(compression, "enabled");
-
-			if (!CompressionEnabled)
-			{
-				return;
-			}
-
-			if (SnipeObject.TryGetValue(compression, "min_size", out int minSize) ||
-			    SnipeObject.TryGetValue(compression, "minSize", out minSize))
-			{
-				MinMessageBytesToCompress = minSize;
-			}
-		}
-
 		private void InitializeAppInfo()
 		{
-			var appInfo = new SnipeObject()
+			var appInfo = new Dictionary<string, object>()
 			{
 				["identifier"] = _applicationInfo.ApplicationIdentifier,
 				["version"] = _applicationInfo.ApplicationVersion,
@@ -392,7 +123,7 @@ namespace MiniIT.Snipe
 				appInfo["osVersion"] = $"{systemInfo.OperatingSystemVersion.Major}.{systemInfo.OperatingSystemVersion.Minor}";
 			}
 
-			AppInfo = appInfo.ToJSONString();
+			AppInfo = JsonUtility.ToJson(appInfo);
 
 			DebugId = GenerateDebugId();
 			SnipeServices.Analytics.GetTracker(ContextId).SetDebugId(DebugId);

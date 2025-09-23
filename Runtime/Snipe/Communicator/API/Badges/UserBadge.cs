@@ -1,8 +1,10 @@
 
+using System.Collections.Generic;
+
 namespace MiniIT.Snipe.Api
 {
 	[System.Serializable]
-	public class UserBadge : ISnipeObjectConvertable
+	public class UserBadge : IMapConvertible
 	{
 		public int id;
 		public string stringID;
@@ -11,7 +13,7 @@ namespace MiniIT.Snipe.Api
 		public int startValue;
 		public int targetValue;
 
-		public UserBadge(SnipeObject data = null)
+		public UserBadge(IDictionary<string, object> data = null)
 		{
 			if (data == null)
 				return;
@@ -19,7 +21,7 @@ namespace MiniIT.Snipe.Api
 			Update(data);
 		}
 
-		internal void Update(SnipeObject data)
+		internal void Update(IDictionary<string, object> data)
 		{
 			this.id = data.SafeGetValue<int>("id");
 			this.stringID = data.SafeGetString("stringID");
@@ -29,14 +31,14 @@ namespace MiniIT.Snipe.Api
 			this.targetValue = data.SafeGetValue<int>("target");
 		}
 
-		public static implicit operator UserBadge(SnipeObject data)
+		public static implicit operator UserBadge(Dictionary<string, object> data)
 		{
 			return new UserBadge(data);
 		}
 
-		public SnipeObject ConvertToSnipeObject()
+		public IDictionary<string, object> ToMap()
 		{
-			return new SnipeObject()
+			return new Dictionary<string, object>()
 			{
 				["id"] = this.id,
 				["stringID"] = this.stringID ?? "",

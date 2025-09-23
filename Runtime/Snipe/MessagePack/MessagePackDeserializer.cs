@@ -238,9 +238,9 @@ namespace MiniIT.MessagePack
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static SnipeObject ReadMap(ReadOnlySpan<byte> input, ref int position, int len)
+		private static Dictionary<string, object> ReadMap(ReadOnlySpan<byte> input, ref int position, int len)
 		{
-			var data = new SnipeObject();
+			var data = new Dictionary<string, object>();
 			for (int i = 0; i < len; i++)
 			{
 				string key = ReadString(input, ref position);

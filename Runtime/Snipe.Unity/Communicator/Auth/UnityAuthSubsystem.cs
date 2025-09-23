@@ -5,36 +5,9 @@ namespace MiniIT.Snipe.Unity
 {
 	public class UnityAuthSubsystem : AuthSubsystem
 	{
-		public UnityAuthSubsystem(SnipeCommunicator communicator, SnipeConfig config)
-			: base(communicator, config)
+		public UnityAuthSubsystem(int contextId, SnipeCommunicator communicator, SnipeAnalyticsTracker analytics)
+			: base(contextId, communicator, analytics)
 		{
-		}
-
-		protected override void InitDefaultBindings()
-		{
-			if (FindBinding<DeviceIdBinding>(false) == null)
-			{
-				_bindings.Add(new DeviceIdBinding(_communicator, this, _config));
-			}
-
-			if (FindBinding<AdvertisingIdBinding>(false) == null)
-			{
-				_bindings.Add(new AdvertisingIdBinding(_communicator, this, _config));
-			}
-
-#if SNIPE_FACEBOOK
-			if (FindBinding<FacebookBinding>(false) == null)
-			{
-				_bindings.Add(new FacebookBinding(_communicator, this, _config));
-			}
-#endif
-
-#if UNITY_ANDROID
-			if (FindBinding<AmazonBinding>(false) == null)
-			{
-				_bindings.Add(new AmazonBinding(_communicator, this, _config));
-			}
-#endif
 		}
 
 		protected override async UniTaskVoid RegisterAndLogin()
@@ -44,7 +17,7 @@ namespace MiniIT.Snipe.Unity
 				return;
 			}
 
-			var providers = new List<SnipeObject>();
+			var providers = new List<IDictionary<string, object>>();
 
 			if (_bindings.Count > 0)
 			{
@@ -59,11 +32,11 @@ namespace MiniIT.Snipe.Unity
 
 					if (binding is DeviceIdBinding or AdvertisingIdBinding)
 					{
-						tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers, true));
+						tasks.Add(FetchLoginId(binding, providers));
 					}
 					else if (binding.Fetcher is IAuthIdFetcherWithToken)
 					{
-						tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers, false));
+						tasks.Add(FetchLoginId(binding, providers));
 					}
 				}
 
