@@ -72,10 +72,10 @@ namespace MiniIT.Snipe
 
 			if (_loader == null)
 			{
-				bool initialized = await UniTask.WaitUntil(() => SnipeServices.IsInitialized, cancellationToken: loadingToken)
+				bool cancelled = await UniTask.WaitUntil(() => SnipeServices.IsInitialized, cancellationToken: loadingToken)
 					.SuppressCancellationThrow();
 
-				if (loadingToken.IsCancellationRequested || !initialized)
+				if (cancelled || loadingToken.IsCancellationRequested)
 				{
 					lock (_statisticsLock)
 					{
