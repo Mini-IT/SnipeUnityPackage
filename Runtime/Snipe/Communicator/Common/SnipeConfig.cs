@@ -66,6 +66,10 @@ namespace MiniIT.Snipe
 			// 	return;
 			// }
 
+			ProjectName = (_data.ProjectInfo.Mode == SnipeProjectMode.Dev) ?
+				$"{_data.ProjectInfo.ProjectID}_dev" :
+				$"{_data.ProjectInfo.ProjectID}_live";
+
 			if (Project.Mode == SnipeProjectMode.Dev)
 			{
 				InitializeDefaultTablesConfigDev();
@@ -74,10 +78,6 @@ namespace MiniIT.Snipe
 			{
 				InitializeDefaultTablesConfigLive();
 			}
-
-			ProjectName = (_data.ProjectInfo.Mode == SnipeProjectMode.Dev) ?
-				$"{_data.ProjectInfo.ProjectID}_dev" :
-				$"{_data.ProjectInfo.ProjectID}_live";
 
 			InitializeUrlIndices();
 			InitializeAppInfo();
