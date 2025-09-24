@@ -39,7 +39,7 @@ namespace MiniIT.Snipe
 
 		public void InitializeTransports()
 		{
-			_currentTransportIndex = 0;
+			_currentTransportIndex = -1;
 
 			if (_transportFactoriesQueue.Count > 0)
 			{
@@ -73,13 +73,12 @@ namespace MiniIT.Snipe
 
 			StopCurrentTransport();
 
-			if (_currentTransportIndex >= _transportFactoriesQueue.Count - 1)
+			if (_currentTransportIndex >= _transportFactoriesQueue.Count - 1 || _transportFactoriesQueue.Count == 0)
 			{
 				return false;
 			}
 
-			var factory = _transportFactoriesQueue[_currentTransportIndex];
-			_currentTransportIndex++;
+			var factory = _transportFactoriesQueue[++_currentTransportIndex];
 
 			_currentTransport = factory.Invoke();
 
