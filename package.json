@@ -1,6 +1,6 @@
 {
   "name": "com.miniit.snipe.client",
-  "version": "7.3.4",
+  "version": "8.0.0",
   "dependencies": {
     "com.miniit.fastjson": "1.0.0",
     "com.miniit.logger": "1.1.0",
@@ -21,5 +21,5 @@
     "Client"
   ],
   "displayName": "Snipe Client",
-  "description": "Mini IT Snipe client\n\n\n==========\nWorks with Snipe Server V6\n=========="
+  "description": "Mini IT Snipe Client"
 }

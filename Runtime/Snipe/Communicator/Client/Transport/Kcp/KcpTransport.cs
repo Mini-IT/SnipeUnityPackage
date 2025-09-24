@@ -84,12 +84,12 @@ namespace MiniIT.Snipe
 			_connectionVerified = false;
 		}
 
-		public override void SendMessage(SnipeObject message)
+		public override void SendMessage(IDictionary<string, object> message)
 		{
 			DoSendRequest(message);
 		}
 
-		public override void SendBatch(IList<SnipeObject> messages)
+		public override void SendBatch(IList<IDictionary<string, object>> messages)
 		{
 			if (messages.Count == 1)
 			{
@@ -155,7 +155,7 @@ namespace MiniIT.Snipe
 			Array.ConstrainedCopy(buffer.Array, buffer.Offset, data, 0, buffer.Count);
 			buffer = new ArraySegment<byte>(data, 0, buffer.Count);
 
-			SnipeObject message = null;
+			IDictionary<string, object> message = null;
 
 			bool semaphoreOccupied = false;
 
@@ -182,7 +182,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private SnipeObject ReadMessage(ArraySegment<byte> buffer, bool compressed)
+		private IDictionary<string, object> ReadMessage(ArraySegment<byte> buffer, bool compressed)
 		{
 			int len = BitConverter.ToInt32(buffer.Array, buffer.Offset + 1);
 
@@ -199,10 +199,10 @@ namespace MiniIT.Snipe
 				rawData = _messageCompressor.Decompress(rawData);
 			}
 
-			return MessagePackDeserializer.Parse(rawData) as SnipeObject;
+			return MessagePackDeserializer.Parse(rawData) as IDictionary<string, object>;
 		}
 
-		private async void DoSendRequest(SnipeObject message)
+		private async void DoSendRequest(IDictionary<string, object> message)
 		{
 			bool semaphoreOccupied = false;
 
@@ -223,7 +223,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async void DoSendBatch(IList<SnipeObject> messages)
+		private async void DoSendBatch(IList<IDictionary<string, object>> messages)
 		{
 			var data = new List<ArraySegment<byte>>(messages.Count);
 
@@ -259,7 +259,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private ArraySegment<byte> SerializeMessage(SnipeObject message, bool writeLength = true)
+		private ArraySegment<byte> SerializeMessage(IDictionary<string, object> message, bool writeLength = true)
 		{
 			int offset = 1; // opcode (1 byte)
 			if (writeLength)

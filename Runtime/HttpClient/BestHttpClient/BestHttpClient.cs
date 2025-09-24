@@ -81,7 +81,7 @@ namespace MiniIT.Http
 			return new BestHttpClientResponse(request.Response);
 		}
 
-		public async UniTask<IHttpClientResponse> PostJson(Uri uri, string json)
+		public async UniTask<IHttpClientResponse> PostJson(Uri uri, string json, TimeSpan timeout)
 		{
 			var request = HTTPRequest.CreatePost(uri);
 			request.SetHeader("Content-Type", "application/json; charset=UTF-8");
@@ -92,13 +92,14 @@ namespace MiniIT.Http
 			request.UploadSettings.UploadStream = new MemoryStream(data);
 
 			request.TimeoutSettings.ConnectTimeout = _defaultConnectTimeout;
+			request.TimeoutSettings.Timeout = timeout;
 			request.DownloadSettings.DisableCache = true;
 			request.SetHeader("Cache-Control", "no-cache");
 			await request.Send();
 			return new BestHttpClientResponse(request.Response);
 		}
 
-		public async UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content)
+		public async UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content, TimeSpan timeout)
 		{
 			var request = HTTPRequest.CreatePost(uri);
 
@@ -108,6 +109,7 @@ namespace MiniIT.Http
 				.AddField(name, content);
 
 			request.TimeoutSettings.ConnectTimeout = _defaultConnectTimeout;
+			request.TimeoutSettings.Timeout = timeout;
 			request.DownloadSettings.DisableCache = true;
 			request.SetHeader("Cache-Control", "no-cache");
 			await request.Send();

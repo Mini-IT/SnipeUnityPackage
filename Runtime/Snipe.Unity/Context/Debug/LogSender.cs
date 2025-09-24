@@ -5,6 +5,7 @@ using UnityEngine;
 using Cysharp.Threading.Tasks;
 using System.IO;
 using MiniIT.Http;
+using MiniIT.Snipe.Logging;
 using UnityEngine.Networking;
 
 #if ZSTRING
@@ -18,18 +19,20 @@ namespace MiniIT.Snipe.Internal
 		private const int MAX_CHUNK_LENGTH = 200 * 1024;
 
 		private readonly SnipeContext _snipeContext;
+		private readonly string _apiKey;
+		private readonly string _url;
 
-		public LogSender(SnipeContext snipeContext)
+		public LogSender(SnipeContext snipeContext, SnipeConfig snipeConfig)
 		{
 			_snipeContext = snipeContext;
+
+			_apiKey = snipeConfig.ClientKey;
+			_url = snipeConfig.LogReporterUrl;
 		}
 
 		internal async UniTask<bool> SendAsync(StreamReader file)
 		{
-			string apiKey = _snipeContext.Config.ClientKey;
-			string url = _snipeContext.Config.LogReporterUrl;
-
-			if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(url))
+			if (string.IsNullOrEmpty(_apiKey) || string.IsNullOrEmpty(_url))
 			{
 				DebugLogger.LogWarning($"[{nameof(LogSender)}] Invalid apiKey or url");
 				return false;
@@ -51,7 +54,7 @@ namespace MiniIT.Snipe.Internal
 			string line = null;
 
 			IHttpClient httpClient = SnipeServices.HttpClientFactory.CreateHttpClient();
-			httpClient.SetAuthToken(apiKey);
+			httpClient.SetAuthToken(_apiKey);
 
 			while (!file.EndOfStream)
 			{
@@ -61,7 +64,7 @@ namespace MiniIT.Snipe.Internal
 
 				try
 				{
-					response = await httpClient.PostJson(new Uri(url), content);
+					response = await httpClient.PostJson(new Uri(_url), content, TimeSpan.FromSeconds(5));
 					statusCode = (HttpStatusCode)response.ResponseCode;
 
 					if (!response.IsSuccess)
@@ -79,7 +82,7 @@ namespace MiniIT.Snipe.Internal
 
 					if (!succeeded)
 					{
-						DebugLogger.LogError($"[{nameof(LogSender)}] Error posting log portion: {ex}");
+						DebugLogger.LogError($"[{nameof(LogSender)}] Error posting log portion: {LogUtil.GetReducedException(ex)}");
 						break;
 					}
 

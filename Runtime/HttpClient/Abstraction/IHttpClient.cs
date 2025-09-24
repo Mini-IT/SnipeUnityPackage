@@ -10,7 +10,7 @@ namespace MiniIT.Http
 		void SetPersistentClientId(string token);
 		UniTask<IHttpClientResponse> Get(Uri uri);
 		UniTask<IHttpClientResponse> Get(Uri uri, TimeSpan timeout);
-		UniTask<IHttpClientResponse> PostJson(Uri uri, string content);
-		UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content);
+		UniTask<IHttpClientResponse> PostJson(Uri uri, string content, TimeSpan timeout);
+		UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content, TimeSpan timeout);
 	}
 }

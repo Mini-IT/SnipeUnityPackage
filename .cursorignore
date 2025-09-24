@@ -1,11 +1,14 @@
+**/*.meta
+**/.gitignore
 **/.git
 **/.git/*
-
-**/*.meta
-**/*~
-
+**/.github
+**/.vscode
+**/.idea
 **/.DS_Store
+**/.vscode
 
+**/*~
 **/.*ignore
 
 Documentation~

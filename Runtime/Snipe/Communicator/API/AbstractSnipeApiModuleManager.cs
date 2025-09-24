@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace MiniIT.Snipe.Api
 {
@@ -8,7 +9,7 @@ namespace MiniIT.Snipe.Api
 		{
 			internal string _messageType;
 			internal string _errorCode;
-			internal SnipeObject _data;
+			internal IDictionary<string, object> _data;
 		}
 
 		protected SnipeCommunicator _snipeCommunicator;
@@ -44,6 +45,6 @@ namespace MiniIT.Snipe.Api
 			}
 		}
 
-		protected abstract void OnSnipeMessageReceived(string messageType, string errorCode, SnipeObject data, int requestId);
+		protected abstract void OnSnipeMessageReceived(string messageType, string errorCode, IDictionary<string, object> data, int requestId);
 	}
 }

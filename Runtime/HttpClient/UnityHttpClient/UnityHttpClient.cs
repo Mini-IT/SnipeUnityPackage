@@ -39,21 +39,33 @@ namespace MiniIT.Http
 			return await SendRequestAsync(request);
 		}
 
-		public async UniTask<IHttpClientResponse> PostJson(Uri uri, string content)
+		public async UniTask<IHttpClientResponse> PostJson(Uri uri, string content, TimeSpan timeout)
 		{
 			var request = UnityWebRequest.Post(uri, content, "application/json");
 			FillHeaders(request);
 
+			int timeoutSeconds = (int)timeout.TotalSeconds;
+			if (timeoutSeconds > 0)
+			{
+				request.timeout = timeoutSeconds;
+			}
+
 			return await SendRequestAsync(request);
 		}
 
-		public async UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content)
+		public async UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content, TimeSpan timeout)
 		{
 			var form = new WWWForm();
 			form.AddBinaryData(name, content);
 
 			var request = UnityWebRequest.Post(uri, form);
 			FillHeaders(request);
+
+			int timeoutSeconds = (int)timeout.TotalSeconds;
+			if (timeoutSeconds > 0)
+			{
+				request.timeout = timeoutSeconds;
+			}
 
 			return await SendRequestAsync(request);
 		}

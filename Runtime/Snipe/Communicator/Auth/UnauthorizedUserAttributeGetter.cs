@@ -1,13 +1,15 @@
 ﻿
+using System.Collections.Generic;
+
 namespace MiniIT.Snipe
 {
-	
+
 	public class UnauthorizedUserAttributeGetter
 	{
 		public delegate void GetUserAttributeCallback(string error_code, string user_name, string key, object value);
-		
+
 		private readonly SnipeCommunicator _communicator;
-		
+
 		public UnauthorizedUserAttributeGetter(SnipeCommunicator communicator)
 		{
 			_communicator = communicator;
@@ -22,7 +24,7 @@ namespace MiniIT.Snipe
 			}
 
 			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_ATTR_GET).Request(
-				new SnipeObject()
+				new Dictionary<string, object>()
 				{
 					["provider"] = provider_id,
 					["login"] = user_id,

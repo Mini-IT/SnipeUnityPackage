@@ -24,6 +24,7 @@ namespace MiniIT
 		private static FileStream s_file;
 		private static int s_bytesWritten;
 		private SnipeContext _snipeContext;
+		private SnipeConfig _snipeConfig;
 
 		private static bool s_canWrite = true;
 
@@ -48,7 +49,8 @@ namespace MiniIT
 					}
 					catch (Exception ex)
 					{
-						DebugLogger.LogWarning($"[{nameof(LogReporter)}] Error closing previous log file: {ex.Message}");
+						string exceptionMessage = LogUtil.GetReducedException(ex);
+						DebugLogger.LogWarning($"[{nameof(LogReporter)}] Error closing previous log file: {exceptionMessage}");
 					}
 				}
 
@@ -62,7 +64,8 @@ namespace MiniIT
 					}
 					catch (Exception ex)
 					{
-						DebugLogger.LogError($"[{nameof(LogReporter)}] Failed to create cache directory: {ex.Message}");
+						string exceptionMessage = LogUtil.GetReducedException(ex);
+						DebugLogger.LogError($"[{nameof(LogReporter)}] Failed to create cache directory: {exceptionMessage}");
 						s_canWrite = false;
 						return;
 					}
@@ -80,33 +83,38 @@ namespace MiniIT
 				catch (IOException ioEx)
 				{
 					// I/O error handling, including full disk drive
-					DebugLogger.LogError($"[{nameof(LogReporter)}] IO Error creating log file: {ioEx.Message}");
+					string exceptionMessage = LogUtil.GetReducedException(ioEx);
+					DebugLogger.LogError($"[{nameof(LogReporter)}] IO Error creating log file: {exceptionMessage}");
 					s_canWrite = false;
 				}
 				catch (UnauthorizedAccessException uaEx)
 				{
 					// Access error handling
-					DebugLogger.LogError($"[{nameof(LogReporter)}] Access denied when creating log file: {uaEx.Message}");
+					string exceptionMessage = LogUtil.GetReducedException(uaEx);
+					DebugLogger.LogError($"[{nameof(LogReporter)}] Access denied when creating log file: {exceptionMessage}");
 					s_canWrite = false;
 				}
 				catch (Exception ex)
 				{
 					// Handling other errors
-					DebugLogger.LogError($"[{nameof(LogReporter)}] Error creating log file: {ex.Message}");
+					string exceptionMessage = LogUtil.GetReducedException(ex);
+					DebugLogger.LogError($"[{nameof(LogReporter)}] Error creating log file: {exceptionMessage}");
 					s_canWrite = false;
 				}
 			}
 			catch (Exception ex)
 			{
 				// Handling any unforeseen errors
-				DebugLogger.LogError($"[{nameof(LogReporter)}] Unexpected error in CreateNewFile: {ex.Message}");
+				string exceptionMessage = LogUtil.GetReducedException(ex);
+				DebugLogger.LogError($"[{nameof(LogReporter)}] Unexpected error in CreateNewFile: {exceptionMessage}");
 				s_canWrite = false;
 			}
 		}
 
-		internal void SetSnipeContext(SnipeContext snipeContext)
+		public void Initialize(SnipeContext snipeContext, SnipeConfig snipeConfig)
 		{
 			_snipeContext = snipeContext;
+			_snipeConfig = snipeConfig;
 		}
 
 		public async UniTask<bool> SendAsync()
@@ -147,7 +155,7 @@ namespace MiniIT
 			try
 			{
 				file = File.OpenText(filepath);
-				var sender = new LogSender(_snipeContext);
+				var sender = new LogSender(_snipeContext, _snipeConfig);
 				result = await sender.SendAsync(file);
 			}
 			catch (Exception ex)
@@ -218,28 +226,29 @@ namespace MiniIT
 						await s_file.WriteAsync(bytes, 0, bytes.Length);
 #endif
 
-						s_bytesWritten += bytes.Length;
-						if (s_bytesWritten >= MIN_BYTES_TO_FLUSH)
+						// During the awaiting Dispose could be invoked.
+						if (s_file != null && s_canWrite)
 						{
-							s_bytesWritten = 0;
+							s_bytesWritten += bytes.Length;
+							if (s_bytesWritten >= MIN_BYTES_TO_FLUSH)
+							{
+								s_bytesWritten = 0;
 #if SINGLE_THREAD
-							s_file.Flush();
+								s_file.Flush();
 #else
-							await s_file.FlushAsync();
+								await s_file.FlushAsync();
 #endif
+							}
 						}
-					}
-					catch (IOException ioEx)
-					{
-						// I/O error handling, including full disk drive
-						DebugLogger.LogError($"[{nameof(LogReporter)}] IO Error writing to log file: {ioEx.Message}");
-						s_canWrite = false;
-						StaticDispose();
+						else
+						{
+							DebugLogger.Log($"[{nameof(LogReporter)}] Could not write to log file. The file seems to be closed.");
+						}
 					}
 					catch (Exception ex)
 					{
-						// Handling other errors
-						DebugLogger.LogError($"[{nameof(LogReporter)}] Error writing to log file: {ex.Message}");
+						string exceptionMessage = LogUtil.GetReducedException(ex);
+						DebugLogger.LogError($"[{nameof(LogReporter)}] Error writing to log file: {exceptionMessage}");
 						s_canWrite = false;
 						StaticDispose();
 					}
@@ -247,7 +256,8 @@ namespace MiniIT
 			}
 			catch (Exception ex)
 			{
-				DebugLogger.LogError($"[{nameof(LogReporter)}] Error in ProcessLogMessageAsync: {ex.Message}");
+				string exceptionMessage = LogUtil.GetReducedException(ex);
+				DebugLogger.LogError($"[{nameof(LogReporter)}] Error in ProcessLogMessageAsync: {exceptionMessage}");
 				s_canWrite = false;
 				StaticDispose();
 			}
@@ -321,7 +331,8 @@ namespace MiniIT
 					}
 					catch (Exception ex)
 					{
-						DebugLogger.LogWarning($"[{nameof(LogReporter)}] Error disposing log file: {ex.Message}");
+						string exceptionMessage = LogUtil.GetReducedException(ex);
+						DebugLogger.LogWarning($"[{nameof(LogReporter)}] Error disposing log file: {exceptionMessage}");
 					}
 					finally
 					{
@@ -345,7 +356,8 @@ namespace MiniIT
 			}
 			catch (Exception ex)
 			{
-				DebugLogger.LogError($"[{nameof(LogReporter)}] Error in StaticDispose: {ex.Message}");
+				string exceptionMessage = LogUtil.GetReducedException(ex);
+				DebugLogger.LogError($"[{nameof(LogReporter)}] Error in StaticDispose: {exceptionMessage}");
 			}
 			finally
 			{

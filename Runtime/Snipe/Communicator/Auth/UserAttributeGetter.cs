@@ -1,14 +1,15 @@
 ﻿using System.Collections;
+using System.Collections.Generic;
 
 namespace MiniIT.Snipe
 {
 	public class UserAttributeGetter
 	{
 		public delegate void GetUserAttributeCallback(string errorCode, string key, object value);
-		public delegate void GetUserAttributesCallback(string errorCode, SnipeObject values);
+		public delegate void GetUserAttributesCallback(string errorCode, IDictionary<string, object> values);
 
 		private readonly SnipeCommunicator _communicator;
-		
+
 		public UserAttributeGetter(SnipeCommunicator communicator)
 		{
 			_communicator = communicator;
@@ -16,7 +17,7 @@ namespace MiniIT.Snipe
 
 		public void GetUserAttribute(int userId, string key, GetUserAttributeCallback callback)
 		{
-			GetUserAttribute(new SnipeObject()
+			GetUserAttribute(new Dictionary<string, object>()
 			{
 				["userID"] = userId,
 			},
@@ -26,7 +27,7 @@ namespace MiniIT.Snipe
 
 		public void GetUserAttribute(string providerId, string loginId, string key, GetUserAttributeCallback callback)
 		{
-			GetUserAttribute(new SnipeObject()
+			GetUserAttribute(new Dictionary<string, object>()
 			{
 				["provider"] = providerId,
 				["login"] = loginId,
@@ -38,7 +39,7 @@ namespace MiniIT.Snipe
 		public void GetUserAttributes(int userId, string[] keys, GetUserAttributesCallback callback)
 		{
 			GetUserAttributes(
-				new SnipeObject()
+				new Dictionary<string, object>()
 				{
 					["userID"] = userId,
 					["keys"] = keys,
@@ -49,7 +50,7 @@ namespace MiniIT.Snipe
 		public void GetUserAttributes(string providerId, string loginId, string[] keys, GetUserAttributesCallback callback)
 		{
 			GetUserAttributes(
-				new SnipeObject()
+				new Dictionary<string, object>()
 				{
 					["provider"] = providerId,
 					["login"] = loginId,
@@ -58,7 +59,7 @@ namespace MiniIT.Snipe
 				callback);
 		}
 
-		private void GetUserAttribute(SnipeObject requestData, string key, GetUserAttributeCallback callback)
+		private void GetUserAttribute(IDictionary<string, object> requestData, string key, GetUserAttributeCallback callback)
 		{
 			if (_communicator == null)
 			{
@@ -86,7 +87,7 @@ namespace MiniIT.Snipe
 				});
 		}
 
-		private void GetUserAttributes(SnipeObject requestData, GetUserAttributesCallback callback)
+		private void GetUserAttributes(IDictionary<string, object> requestData, GetUserAttributesCallback callback)
 		{
 			if (_communicator == null)
 			{
@@ -103,10 +104,10 @@ namespace MiniIT.Snipe
 
 					if (response != null && response.TryGetValue("data", out IList items))
 					{
-						SnipeObject result = new SnipeObject();
+						IDictionary<string, object> result = new Dictionary<string, object>();
 						foreach (var listItem in items)
 						{
-							if (listItem is SnipeObject item)
+							if (listItem is IDictionary<string, object> item)
 							{
 								result.Add(item.SafeGetString("key"), item["val"]);
 							}

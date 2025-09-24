@@ -22,7 +22,7 @@ namespace MiniIT.Snipe.Api
 		private ISnipeTable<SnipeTableLogicItem> _logicTable = null;
 
 		private TimeSpan _updateRequestedTime = TimeSpan.Zero;
-		private SnipeObject _logicGetRequestParameters;
+		private IDictionary<string, object> _logicGetRequestParameters;
 
 		private readonly Stopwatch _refTime = Stopwatch.StartNew();
 		private UniTimer _secondsTimer;
@@ -133,7 +133,7 @@ namespace MiniIT.Snipe.Api
 
 			if (_logicGetRequestParameters == null)
 			{
-				_logicGetRequestParameters = new SnipeObject() { ["noDump"] = false };
+				_logicGetRequestParameters = new Dictionary<string, object>() { ["noDump"] = false };
 			}
 
 			var request = _requestFactory.Invoke("logic.get", _logicGetRequestParameters);
@@ -147,7 +147,7 @@ namespace MiniIT.Snipe.Api
 
 		public void IncVar(string name, int tree_id = 0) //, int amount = 0)
 		{
-			SnipeObject requestData = new SnipeObject()
+			IDictionary<string, object> requestData = new Dictionary<string, object>()
 			{
 				["name"] = name,
 			};
@@ -166,7 +166,7 @@ namespace MiniIT.Snipe.Api
 			_updateRequestedTime = TimeSpan.Zero; // reset timer
 		}
 
-		protected override void OnSnipeMessageReceived(string messageType, string errorCode, SnipeObject data, int requestId)
+		protected override void OnSnipeMessageReceived(string messageType, string errorCode, IDictionary<string, object> data, int requestId)
 		{
 			switch (messageType)
 			{
@@ -188,7 +188,7 @@ namespace MiniIT.Snipe.Api
 			}
 		}
 
-		private void OnLogicGet(string errorCode, SnipeObject responseData)
+		private void OnLogicGet(string errorCode, IDictionary<string, object> responseData)
 		{
 			_updateRequestedTime = TimeSpan.Zero; // reset timer  // ????????
 
@@ -202,7 +202,7 @@ namespace MiniIT.Snipe.Api
 			{
 				foreach (object o in srcLogic)
 				{
-					if (o is SnipeObject so && so?["node"] is SnipeObject node)
+					if (o is IDictionary<string, object> so && so?["node"] is IDictionary<string, object> node)
 					{
 						logicNodes.Add(new LogicNode(node, _logicTable));
 					}
@@ -309,7 +309,7 @@ namespace MiniIT.Snipe.Api
 			}
 		}
 
-		private void OnLogicExitNode(string errorCode, SnipeObject data)
+		private void OnLogicExitNode(string errorCode, IDictionary<string, object> data)
 		{
 			LogicNode node = GetNodeById(data.SafeGetValue("id", 0));
 			ExitNode?.Invoke(node, data["results"] as List<object>);
@@ -317,7 +317,7 @@ namespace MiniIT.Snipe.Api
 			RequestLogicGet(true);
 		}
 
-		private void OnLogicProgress(string errorCode, SnipeObject data)
+		private void OnLogicProgress(string errorCode, IDictionary<string, object> data)
 		{
 			//Progress?.Invoke(data.SafeGetValue<int>("id"),
 			//			data.SafeGetValue<int>("treeID"),

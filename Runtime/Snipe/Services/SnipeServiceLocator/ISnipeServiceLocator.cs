@@ -2,6 +2,7 @@ using System;
 using MiniIT.Http;
 using MiniIT.Snipe.Logging;
 using MiniIT.Storage;
+using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
@@ -14,6 +15,7 @@ namespace MiniIT.Snipe
 		IApplicationInfo ApplicationInfo { get; }
 		IStopwatchFactory FuzzyStopwatchFactory { get; }
 		IHttpClientFactory HttpClientFactory { get; }
+		IInternetReachabilityProvider InternetReachabilityProvider { get; }
 	}
 
 	public interface ISnipeServiceLocatorFactory
@@ -25,5 +27,6 @@ namespace MiniIT.Snipe
 		IApplicationInfo CreateApplicationInfo();
 		IStopwatchFactory CreateFuzzyStopwatchFactory();
 		IHttpClientFactory CreateHttpClientFactory();
+		IInternetReachabilityProvider CreateInternetReachabilityProvider();
 	}
 }

@@ -24,7 +24,7 @@ namespace MiniIT.Snipe
 	{
 		public Action<Transport> ConnectionOpenedHandler;
 		public Action<Transport> ConnectionClosedHandler;
-		public Action<SnipeObject> MessageReceivedHandler;
+		public Action<IDictionary<string, object>> MessageReceivedHandler;
 
 		public virtual bool Started { get; } = false;
 		public virtual bool Connected { get; } = false;
@@ -35,7 +35,7 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public virtual bool ConnectionVerified { get; } = false;
 
-		public virtual TransportInfo Info { get; protected set; }
+		public TransportInfo Info { get; protected set; }
 
 		protected readonly SnipeConfig _config;
 		protected readonly SnipeAnalyticsTracker _analytics;
@@ -52,8 +52,8 @@ namespace MiniIT.Snipe
 
 		public abstract void Connect();
 		public abstract void Disconnect();
-		public abstract void SendMessage(SnipeObject message);
-		public abstract void SendBatch(IList<SnipeObject> messages);
+		public abstract void SendMessage(IDictionary<string, object> message);
+		public abstract void SendBatch(IList<IDictionary<string, object>> messages);
 
 		protected readonly SnipeMessageCompressor _messageCompressor = new SnipeMessageCompressor();
 		protected readonly MessagePackSerializer _messageSerializer = new MessagePackSerializer();
@@ -70,10 +70,14 @@ namespace MiniIT.Snipe
 
 			_disposed = true;
 
-			Disconnect();
+			// Remove connection events handlers before calling Disconnect()
+			// to prevent attempts to start next transport on disconnection
 			ConnectionOpenedHandler = null;
 			ConnectionClosedHandler = null;
 			MessageReceivedHandler = null;
+
+			Disconnect();
+
 			_messageSerializationSemaphore.Dispose();
 			_messageProcessingSemaphore.Dispose();
 		}

@@ -1,0 +1,25 @@
+{
+    "name": "MiniIT.Snipe.Integrations.Facebook",
+    "rootNamespace": "MiniIT.Snipe",
+    "references": [
+        "MiniIT.AlterTask",
+        "MiniIT.Snipe.Communicator",
+        "MiniIT.Framework.Social",
+        "fastJSON"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+		{
+			"name": "com.miniit.framework.social.core",
+			"expression": "1.1.0",
+			"define": "MINIIT_SOCIAL_CORE_1_1"
+		}
+	],
+    "noEngineReferences": false
+}

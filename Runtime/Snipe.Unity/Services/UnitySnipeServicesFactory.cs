@@ -2,6 +2,7 @@ using MiniIT.Http;
 using MiniIT.Snipe.Logging;
 using MiniIT.Snipe.Logging.Unity;
 using MiniIT.Storage;
+using MiniIT.Utils;
 
 namespace MiniIT.Snipe.Unity
 {
@@ -17,5 +18,6 @@ namespace MiniIT.Snipe.Unity
 		public virtual IApplicationInfo CreateApplicationInfo() => new UnityApplicationInfo();
 		public virtual IStopwatchFactory CreateFuzzyStopwatchFactory() => new FuzzyStopwatchFactory();
 		public virtual IHttpClientFactory CreateHttpClientFactory() => new DefaultHttpClientFactory();
+		public virtual IInternetReachabilityProvider CreateInternetReachabilityProvider() => new UnityInternetReachabilityProvider();
 	}
 }

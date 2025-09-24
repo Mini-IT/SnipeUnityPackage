@@ -41,7 +41,7 @@ namespace MiniIT.Snipe.Api
 			_table = null;
 		}
 
-		protected void ProcessMessage(string messageType, string errorCode, SnipeObject data, Action<string, SnipeObject> handler)
+		protected void ProcessMessage(string messageType, string errorCode, IDictionary<string, object> data, Action<string, IDictionary<string, object>> handler)
 		{
 			if (_table == null)
 			{

@@ -13,6 +13,12 @@ namespace MiniIT.Snipe.Tables
 {
 	public class TablesVersionsLoader
 	{
+		public struct LoadResult
+		{
+			public Dictionary<string, long> Vesions;
+			public bool LoadedFromWeb;
+		}
+
 		private readonly BuiltInTablesListService _builtInTablesListService;
 		private readonly SnipeAnalyticsTracker _analyticsTracker;
 		private readonly ILogger _logger;
@@ -24,19 +30,21 @@ namespace MiniIT.Snipe.Tables
 			_logger = SnipeServices.LogService.GetLogger(nameof(TablesVersionsLoader));
 		}
 
-		public async UniTask<Dictionary<string, long>> Load(IHttpClient httpClient, CancellationToken cancellationToken)
+		public async UniTask<LoadResult> Load(IHttpClient httpClient, CancellationToken cancellationToken)
 		{
-			Dictionary<string, long> versions = null;
+			LoadResult result = new LoadResult() { LoadedFromWeb = true };
 
 			bool loadExternal = httpClient != null;
 
 			if (loadExternal)
 			{
-				versions = await LoadFromWeb(httpClient, cancellationToken);
+				result.Vesions = await LoadFromWeb(httpClient, cancellationToken);
 			}
 
-			if (versions == null)
+			if (result.Vesions == null)
 			{
+				result.LoadedFromWeb = false;
+
 				if (cancellationToken.IsCancellationRequested)
 				{
 					_logger.LogTrace("LoadVersion task canceled");
@@ -49,11 +57,11 @@ namespace MiniIT.Snipe.Tables
 						_analyticsTracker.TrackEvent("Tables - LoadVersion Failed");
 					}
 
-					versions = await LoadBuiltIn();
+					result.Vesions = await LoadBuiltIn();
 				}
 			}
 
-			return versions;
+			return result;
 		}
 
 		private async UniTask<Dictionary<string, long>> LoadFromWeb(IHttpClient httpClient, CancellationToken cancellationToken)
@@ -91,7 +99,7 @@ namespace MiniIT.Snipe.Tables
 
 						if (versions == null)
 						{
-							_analyticsTracker.TrackEvent("Tables - LoadVersion Failed to prase versions json", new SnipeObject()
+							_analyticsTracker.TrackEvent("Tables - LoadVersion Failed to prase versions json", new Dictionary<string, object>()
 							{
 								["url"] = url,
 								["json"] = json,
@@ -108,7 +116,7 @@ namespace MiniIT.Snipe.Tables
 					{
 						long responseCode = webRequest.ResponseCode;
 
-						_analyticsTracker.TrackEvent("Tables - LoadVersion Failed to load url", new SnipeObject()
+						_analyticsTracker.TrackEvent("Tables - LoadVersion Failed to load url", new Dictionary<string, object>()
 						{
 							["HttpStatus"] = (HttpStatusCode)responseCode,
 							["HttpStatusCode"] = responseCode,
