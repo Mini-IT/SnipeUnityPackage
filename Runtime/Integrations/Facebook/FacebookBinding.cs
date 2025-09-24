@@ -11,6 +11,7 @@ namespace MiniIT.Snipe.Unity
 		public FacebookBinding()
 			: base("fb")
 		{
+			UseContextIdPrefix = false;
 		}
 
 		protected override string GetAuthToken()
