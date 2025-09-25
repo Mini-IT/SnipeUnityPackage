@@ -41,7 +41,7 @@ namespace MiniIT.Snipe
 		protected SnipeCommunicator _communicator;
 		protected AuthSubsystem _authSubsystem;
 		private readonly ISharedPrefs _sharedPrefs;
-		private readonly ILogger _logger;
+		protected readonly ILogger _logger;
 
 		public AuthBinding(string providerId, AuthIdFetcher fetcher)
 		{
