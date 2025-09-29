@@ -158,7 +158,7 @@ namespace MiniIT.Snipe
 			}
 
 			// If disconnected twice during 10 seconds, then force transport change
-			TimeSpan now = DateTimeOffset.UtcNow.Offset;
+			TimeSpan now = TimeSpan.FromSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
 			TimeSpan dif = now - _prevDisconnectTime;
 			_prevDisconnectTime = now;
 
