@@ -24,7 +24,88 @@ namespace MiniIT.Snipe
 		private int _restoreConnectionAttempt;
 
 		private List<AbstractCommunicatorRequest> _requests;
-		public List<AbstractCommunicatorRequest> Requests => _requests ??= new List<AbstractCommunicatorRequest>();
+		private readonly object _requestsLock = new object();
+		public List<AbstractCommunicatorRequest> Requests
+		{
+			get
+			{
+				if (_requests != null)
+				{
+					return _requests;
+				}
+
+				lock (_requestsLock)
+				{
+					return _requests ??= new List<AbstractCommunicatorRequest>();
+				}
+			}
+		}
+
+		internal void AddRequest(AbstractCommunicatorRequest request)
+		{
+			if (request == null)
+			{
+				return;
+			}
+
+			lock (_requestsLock)
+			{
+				(_requests ??= new List<AbstractCommunicatorRequest>()).Add(request);
+			}
+		}
+
+		internal bool RemoveRequest(AbstractCommunicatorRequest request)
+		{
+			if (request == null)
+			{
+				return false;
+			}
+
+			lock (_requestsLock)
+			{
+				return _requests != null && _requests.Remove(request);
+			}
+		}
+
+		internal List<AbstractCommunicatorRequest> GetRequestsSnapshot()
+		{
+			lock (_requestsLock)
+			{
+				if (_requests == null || _requests.Count == 0)
+				{
+					return null;
+				}
+
+				return new List<AbstractCommunicatorRequest>(_requests);
+			}
+		}
+
+		internal List<AbstractCommunicatorRequest> GetRequestsSnapshot(Func<AbstractCommunicatorRequest, bool> predicate)
+		{
+			lock (_requestsLock)
+			{
+				if (_requests == null || _requests.Count == 0)
+				{
+					return null;
+				}
+
+				if (predicate == null)
+				{
+					return new List<AbstractCommunicatorRequest>(_requests);
+				}
+
+				var result = new List<AbstractCommunicatorRequest>(_requests.Count);
+				foreach (var request in _requests)
+				{
+					if (predicate(request))
+					{
+						result.Add(request);
+					}
+				}
+
+				return result.Count > 0 ? result : null;
+			}
+		}
 
 		public HashSet<SnipeRequestDescriptor> MergeableRequestTypes { get; } = new HashSet<SnipeRequestDescriptor>();
 
@@ -300,24 +381,22 @@ namespace MiniIT.Snipe
 
 		public void DisposeRoomRequests()
 		{
-			_logger.LogTrace("DisposeRoomRequests");
+		        _logger.LogTrace("DisposeRoomRequests");
 
-			List<AbstractCommunicatorRequest> roomRequests = null;
-			foreach (var request in Requests)
-			{
-				if (request != null && request.MessageType.StartsWith(SnipeMessageTypes.PREFIX_ROOM))
-				{
-					roomRequests ??= new List<AbstractCommunicatorRequest>();
-					roomRequests.Add(request);
-				}
-			}
-			if (roomRequests != null)
-			{
-				foreach (var request in roomRequests)
-				{
-					request?.Dispose();
-				}
-			}
+		        var roomRequests = GetRequestsSnapshot(request =>
+		                request != null &&
+		                !string.IsNullOrEmpty(request.MessageType) &&
+		                request.MessageType.StartsWith(SnipeMessageTypes.PREFIX_ROOM, StringComparison.Ordinal));
+
+		        if (roomRequests == null)
+		        {
+		                return;
+		        }
+
+		        foreach (var request in roomRequests)
+		        {
+		                request?.Dispose();
+		        }
 		}
 
 		public void Dispose()
@@ -351,17 +430,32 @@ namespace MiniIT.Snipe
 
 		public void DisposeRequests()
 		{
-			_logger.LogTrace("DisposeRequests");
+		        _logger.LogTrace("DisposeRequests");
 
-			if (_requests != null)
-			{
-				var tempRequests = _requests;
-				_requests = null;
-				foreach (var request in tempRequests)
-				{
-					request?.Dispose();
-				}
-			}
+		        List<AbstractCommunicatorRequest> requestsToDispose = null;
+
+		        lock (_requestsLock)
+		        {
+		                if (_requests == null || _requests.Count == 0)
+		                {
+		                        _requests = null;
+		                }
+		                else
+		                {
+		                        requestsToDispose = _requests;
+		                        _requests = null;
+		                }
+		        }
+
+		        if (requestsToDispose == null)
+		        {
+		                return;
+		        }
+
+		        foreach (var request in requestsToDispose)
+		        {
+		                request?.Dispose();
+		        }
 		}
 	}
 }

@@ -34,7 +34,7 @@ namespace MiniIT.Snipe
 			MessageType = messageType;
 			Data = data;
 
-			_communicator?.Requests.Add(this);
+			_communicator?.AddRequest(this);
 		}
 
 		public void Request(IDictionary<string, object> data, ResponseHandler callback = null)
@@ -155,26 +155,30 @@ namespace MiniIT.Snipe
 				}
 			}
 
-			if (check_duplication)
-			{
-				for (int i = 0; i < _communicator.Requests.Count; i++)
-				{
-					var request = _communicator.Requests[i];
+                        if (check_duplication && _communicator != null)
+                        {
+                                var requestsSnapshot = _communicator.GetRequestsSnapshot();
+                                if (requestsSnapshot != null)
+                                {
+                                        for (int i = 0; i < requestsSnapshot.Count; i++)
+                                        {
+                                                var request = requestsSnapshot[i];
 
-					if (request == null)
-						continue;
+                                                if (request == null)
+                                                        continue;
 
-					if (object.ReferenceEquals(request, this))
-						break;
+                                                if (ReferenceEquals(request, this))
+                                                        break;
 
-					if (string.Equals(request.MessageType, this.MessageType, StringComparison.Ordinal) &&
-					    CheckDataIsFullyContained(request.Data, this.Data))
-					{
-						_requestId = request._requestId;
-						break;
-					}
-				}
-			}
+                                                if (string.Equals(request.MessageType, this.MessageType, StringComparison.Ordinal) &&
+                                                    CheckDataIsFullyContained(request.Data, this.Data))
+                                                {
+                                                        _requestId = request._requestId;
+                                                        break;
+                                                }
+                                        }
+                                }
+                        }
 
 			if (_requestId != 0)
 			{
@@ -292,10 +296,7 @@ namespace MiniIT.Snipe
 		{
 			if (_communicator != null)
 			{
-				if (_communicator.Requests != null)
-				{
-					_communicator.Requests.Remove(this);
-				}
+                                _communicator.RemoveRequest(this);
 
 				_communicator.ConnectionEstablished -= OnCommunicatorReady;
 				_communicator.ReconnectionScheduled -= OnReconnectionScheduled;
