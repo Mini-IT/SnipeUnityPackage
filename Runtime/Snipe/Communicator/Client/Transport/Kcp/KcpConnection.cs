@@ -474,8 +474,11 @@ namespace MiniIT.Snipe
 
 			try
 			{
-				uint time = (uint)_refTime.ElapsedMilliseconds;
-				_kcp.Update(time);
+				lock (_lock)
+				{
+					uint time = (uint)_refTime.ElapsedMilliseconds;
+					_kcp.Update(time);
+				}
 			}
 			catch (SocketException exception)
 			{
@@ -560,17 +563,16 @@ namespace MiniIT.Snipe
 
 			while (true)
 			{
-				int msgLength;
+				int msgLength = 0;
 
 				lock (_lock)
 				{
 					try
 					{
-						if (!_socket.Poll(0, SelectMode.SelectRead))
+						if (_socket.Poll(0, SelectMode.SelectRead))
 						{
-							break;
+							msgLength = _socket.Receive(_socketReceiveBuffer);
 						}
-						msgLength = _socket.Receive(_socketReceiveBuffer);
 					}
 					catch (SocketException)
 					{
@@ -586,6 +588,12 @@ namespace MiniIT.Snipe
 						// The socket is disposed during disconnection
 						break;
 					}
+				}
+
+				if (msgLength == 0)
+				{
+					// no data received
+					break;
 				}
 
 				if (msgLength < 0)
@@ -628,6 +636,12 @@ namespace MiniIT.Snipe
 					int input;
 					lock (_lock)
 					{
+						if (_kcp == null)
+						{
+							_logger.LogTrace("KCP RawInput skipped: reliable packet arrived before KCP was ready.");
+							return;
+						}
+
 						input = _kcp.Input(buffer, 1, msgLength - 1);
 					}
 					if (input != 0)
@@ -875,12 +889,16 @@ namespace MiniIT.Snipe
 			// disconnect connections that can't process the load.
 			// see QueueSizeDisconnect comments.
 			// => include all of kcp's buffers and the unreliable queue!
-			int total = _kcp.GetRcvQueueCount() + _kcp.GetSndQueueCount() +
-						_kcp.GetRcvBufCount() + _kcp.GetSndBufCount();
+			int rcvQueueCount = _kcp.GetRcvQueueCount();
+			int sndQueueCount = _kcp.GetSndQueueCount();
+			int rcvBufCount = _kcp.GetRcvBufCount();
+			int sndBufCount = _kcp.GetSndBufCount();
+			int total = rcvQueueCount + sndQueueCount +
+			            rcvBufCount + sndBufCount;
 			if (total >= QUEUE_DISCONNECT_THRESHOLD)
 			{
 				_logger.LogWarning($"KCP: disconnecting connection because it can't process data fast enough.\n" +
-								 $"Queue total {total}>{QUEUE_DISCONNECT_THRESHOLD}. rcv_queue={_kcp.GetRcvQueueCount()} snd_queue={_kcp.GetSndQueueCount()} rcv_buf={_kcp.GetRcvBufCount()} snd_buf={_kcp.GetSndBufCount()}\n" +
+								 $"Queue total {total}>{QUEUE_DISCONNECT_THRESHOLD}. rcv_queue={rcvQueueCount} snd_queue={sndQueueCount} rcv_buf={rcvBufCount} snd_buf={sndBufCount}\n" +
 								 $"* Try to Enable NoDelay, decrease INTERVAL, disable Congestion Window (= enable NOCWND!), increase SEND/RECV WINDOW or compress data.\n" +
 								 $"* Or perhaps the network is simply too slow on our end, or on the other end.\n");
 
