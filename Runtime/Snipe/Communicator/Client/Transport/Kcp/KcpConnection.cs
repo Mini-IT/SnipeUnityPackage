@@ -636,6 +636,12 @@ namespace MiniIT.Snipe
 					int input;
 					lock (_lock)
 					{
+						if (_kcp == null)
+						{
+							_logger.LogTrace("KCP RawInput skipped: reliable packet arrived before KCP was ready.");
+							return;
+						}
+
 						input = _kcp.Input(buffer, 1, msgLength - 1);
 					}
 					if (input != 0)
