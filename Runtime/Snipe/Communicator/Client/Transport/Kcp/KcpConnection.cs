@@ -474,8 +474,11 @@ namespace MiniIT.Snipe
 
 			try
 			{
-				uint time = (uint)_refTime.ElapsedMilliseconds;
-				_kcp.Update(time);
+				lock (_lock)
+				{
+					uint time = (uint)_refTime.ElapsedMilliseconds;
+					_kcp.Update(time);
+				}
 			}
 			catch (SocketException exception)
 			{
@@ -875,12 +878,16 @@ namespace MiniIT.Snipe
 			// disconnect connections that can't process the load.
 			// see QueueSizeDisconnect comments.
 			// => include all of kcp's buffers and the unreliable queue!
-			int total = _kcp.GetRcvQueueCount() + _kcp.GetSndQueueCount() +
-						_kcp.GetRcvBufCount() + _kcp.GetSndBufCount();
+			int rcvQueueCount = _kcp.GetRcvQueueCount();
+			int sndQueueCount = _kcp.GetSndQueueCount();
+			int rcvBufCount = _kcp.GetRcvBufCount();
+			int sndBufCount = _kcp.GetSndBufCount();
+			int total = rcvQueueCount + sndQueueCount +
+			            rcvBufCount + sndBufCount;
 			if (total >= QUEUE_DISCONNECT_THRESHOLD)
 			{
 				_logger.LogWarning($"KCP: disconnecting connection because it can't process data fast enough.\n" +
-								 $"Queue total {total}>{QUEUE_DISCONNECT_THRESHOLD}. rcv_queue={_kcp.GetRcvQueueCount()} snd_queue={_kcp.GetSndQueueCount()} rcv_buf={_kcp.GetRcvBufCount()} snd_buf={_kcp.GetSndBufCount()}\n" +
+								 $"Queue total {total}>{QUEUE_DISCONNECT_THRESHOLD}. rcv_queue={rcvQueueCount} snd_queue={sndQueueCount} rcv_buf={rcvBufCount} snd_buf={sndBufCount}\n" +
 								 $"* Try to Enable NoDelay, decrease INTERVAL, disable Congestion Window (= enable NOCWND!), increase SEND/RECV WINDOW or compress data.\n" +
 								 $"* Or perhaps the network is simply too slow on our end, or on the other end.\n");
 
