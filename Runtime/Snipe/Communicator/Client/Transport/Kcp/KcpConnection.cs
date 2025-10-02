@@ -563,17 +563,16 @@ namespace MiniIT.Snipe
 
 			while (true)
 			{
-				int msgLength;
+				int msgLength = 0;
 
 				lock (_lock)
 				{
 					try
 					{
-						if (!_socket.Poll(0, SelectMode.SelectRead))
+						if (_socket.Poll(0, SelectMode.SelectRead))
 						{
-							break;
+							msgLength = _socket.Receive(_socketReceiveBuffer);
 						}
-						msgLength = _socket.Receive(_socketReceiveBuffer);
 					}
 					catch (SocketException)
 					{
@@ -589,6 +588,12 @@ namespace MiniIT.Snipe
 						// The socket is disposed during disconnection
 						break;
 					}
+				}
+
+				if (msgLength == 0)
+				{
+					// no data received
+					break;
 				}
 
 				if (msgLength < 0)
