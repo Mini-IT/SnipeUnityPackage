@@ -43,64 +43,67 @@ namespace MiniIT.Http
 
 		public async UniTask<IHttpClientResponse> Get(Uri uri)
 		{
-			HttpResponseMessage response;
+			SystemHttpClientResponse result;
 
 			try
 			{
-				response = await _httpClient.GetAsync(uri);
+				HttpResponseMessage response = await _httpClient.GetAsync(uri);
+				result = new SystemHttpClientResponse(response);
 			}
 			catch (Exception e)
 			{
-				return new SystemHttpClientResponse(HttpStatusCode.BadRequest, e.Message);
+				result = new SystemHttpClientResponse(HttpStatusCode.BadRequest, e.Message);
 			}
 
-			return new SystemHttpClientResponse(response);
+			return result;
 		}
 
 		public async UniTask<IHttpClientResponse> Get(Uri uri, TimeSpan timeout)
 		{
-			HttpResponseMessage response;
+			SystemHttpClientResponse result;
 
 			using var cts = new CancellationTokenSource(timeout);
 
 			try
 			{
-				response = await _httpClient.GetAsync(uri, cts.Token);
+				HttpResponseMessage response = await _httpClient.GetAsync(uri, cts.Token);
+				result = new SystemHttpClientResponse(response);
 			}
 			catch (OperationCanceledException)
 			{
-				return new SystemHttpClientResponse(HttpStatusCode.RequestTimeout, "RequestTimeout");
+				result = new SystemHttpClientResponse(HttpStatusCode.RequestTimeout, "RequestTimeout");
 			}
 			catch (Exception e)
 			{
-				return new SystemHttpClientResponse(HttpStatusCode.BadRequest, e.Message);
+				result = new SystemHttpClientResponse(HttpStatusCode.BadRequest, e.Message);
 			}
 
-			return new SystemHttpClientResponse(response);
+			return result;
 		}
 
 		public async UniTask<IHttpClientResponse> PostJson(Uri uri, string content, TimeSpan timeout)
 		{
 			using var requestContent = new StringContent(content, Encoding.UTF8, "application/json");
 
-			HttpResponseMessage response;
+			SystemHttpClientResponse result;
 
 			using var cts = new CancellationTokenSource(timeout);
 
 			try
 			{
-				response = await _httpClient.PostAsync(uri, requestContent, cts.Token);
+				HttpResponseMessage response = await _httpClient.PostAsync(uri, requestContent, cts.Token);
+				result = new SystemHttpClientResponse(response);
 			}
 			catch (OperationCanceledException)
 			{
-				return new SystemHttpClientResponse(HttpStatusCode.RequestTimeout, "RequestTimeout");
+				result = new SystemHttpClientResponse(HttpStatusCode.RequestTimeout, "RequestTimeout");
 			}
 			catch (Exception e)
 			{
-				return new SystemHttpClientResponse(HttpStatusCode.BadRequest, e.Message);
+				result = new SystemHttpClientResponse(HttpStatusCode.BadRequest, e.Message);
 			}
 
-			return new SystemHttpClientResponse(response);
+			return result;
 		}
 
 		public async UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content, TimeSpan timeout)
@@ -108,24 +111,25 @@ namespace MiniIT.Http
 			using var requestContent = new MultipartFormDataContent();
 			requestContent.Add(new ByteArrayContent(content), name);
 
-			HttpResponseMessage response;
+			SystemHttpClientResponse result;
 
 			using var cts = new CancellationTokenSource(timeout);
 
 			try
 			{
-				response = await _httpClient.PostAsync(uri, requestContent, cts.Token);
+				HttpResponseMessage response = await _httpClient.PostAsync(uri, requestContent, cts.Token);
+				result = new SystemHttpClientResponse(response);
 			}
 			catch (OperationCanceledException)
 			{
-				return new SystemHttpClientResponse(HttpStatusCode.RequestTimeout, "RequestTimeout");
+				result = new SystemHttpClientResponse(HttpStatusCode.RequestTimeout, "RequestTimeout");
 			}
 			catch (Exception e)
 			{
-				return new SystemHttpClientResponse(HttpStatusCode.BadRequest, e.Message);
+				result = new SystemHttpClientResponse(HttpStatusCode.BadRequest, e.Message);
 			}
 
-			return new SystemHttpClientResponse(response);
+			return result;
 		}
 
 		public void Dispose()
