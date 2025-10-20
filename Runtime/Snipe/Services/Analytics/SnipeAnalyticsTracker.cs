@@ -27,7 +27,7 @@ namespace MiniIT.Snipe
 		#endregion
 
 		private ISnipeCommunicatorAnalyticsTracker _externalTracker;
-		private readonly ISnipeErrorsTracker _errorsTracker;
+		private readonly Func<ISnipeErrorsTracker> _errorsTrackerGetter;
 
 		private string _userId = null;
 		private string _debugId = null;
@@ -36,11 +36,11 @@ namespace MiniIT.Snipe
 		private readonly SnipeAnalyticsService _analyticsService;
 		private readonly IMainThreadRunner _mainThreadRunner;
 
-		internal SnipeAnalyticsTracker(SnipeAnalyticsService analyticsService, int contextId, ISnipeErrorsTracker errorsTracker)
+		internal SnipeAnalyticsTracker(SnipeAnalyticsService analyticsService, int contextId, Func<ISnipeErrorsTracker> errorsTrackerGetter)
 		{
 			_analyticsService = analyticsService;
 			_contextId = contextId;
-			_errorsTracker = errorsTracker;
+			_errorsTrackerGetter = errorsTrackerGetter;
 			_mainThreadRunner = SnipeServices.MainThreadRunner;
 		}
 
@@ -212,9 +212,9 @@ namespace MiniIT.Snipe
 				["error_code"] = errorCode,
 				["data"] = data != null ? fastJSON.JSON.ToJSON(data) : null,
 			};
-			TrackEvent(EVENT_ERROR_CODE_NOT_OK, properties);
 
-			_errorsTracker?.TrackNotOk(properties);
+			TrackEvent(EVENT_ERROR_CODE_NOT_OK, properties);
+			_errorsTrackerGetter()?.TrackNotOk(properties);
 		}
 
 		public void TrackError(string name, Exception exception = null, IDictionary<string, object> properties = null)
