@@ -214,6 +214,7 @@ namespace MiniIT.Snipe
 			};
 
 			TrackEvent(EVENT_ERROR_CODE_NOT_OK, properties);
+
 			_errorsTrackerGetter?.Invoke()?.TrackNotOk(properties);
 		}
 
