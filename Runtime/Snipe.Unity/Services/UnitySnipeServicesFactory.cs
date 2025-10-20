@@ -1,5 +1,4 @@
 using MiniIT.Http;
-using MiniIT.Snipe.Debugging;
 using MiniIT.Snipe.Logging;
 using MiniIT.Snipe.Logging.Unity;
 using MiniIT.Storage;
