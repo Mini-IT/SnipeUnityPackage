@@ -96,12 +96,15 @@ namespace MiniIT.Snipe
 		{
 			var requestParams = new Dictionary<string, object>
 			{
-				{ "project", _projectID },
-				{ "deviceID", _appInfo.DeviceIdentifier },
-				{ "identifier", _appInfo.ApplicationIdentifier },
-				{ "version", _appInfo.ApplicationVersion },
-				{ "platform", _appInfo.ApplicationPlatform },
-				{ "packageVersion", PackageInfo.VERSION_CODE }
+				["project"] = _projectID,
+				["deviceID"] = _appInfo.DeviceIdentifier,
+				["identifier"] = _appInfo.ApplicationIdentifier,
+				["version"] = _appInfo.ApplicationVersion,
+				["platform"] = _appInfo.ApplicationPlatform,
+				["packageVersion"] = PackageInfo.VERSION_CODE,
+				["deviceName"] = _appInfo.DeviceManufacturer,
+				["osName"] = _appInfo.OperatingSystemFamily,
+				["osVersion"] = _appInfo.OperatingSystemVersion,
 			};
 
 			if (additionalParams != null)
