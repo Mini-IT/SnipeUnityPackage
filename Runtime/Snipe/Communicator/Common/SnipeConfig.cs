@@ -382,15 +382,10 @@ namespace MiniIT.Snipe
 				["platform"] = _applicationInfo.ApplicationPlatform,
 				["packageVersion"] = PackageInfo.VERSION_CODE,
 				["packageVersionName"] = PackageInfo.VERSION_NAME,
+				["deviceName"] = _applicationInfo.DeviceManufacturer,
+				["osName"] = _applicationInfo.OperatingSystemFamily,
+				["osVersion"] = _applicationInfo.OperatingSystemVersion,
 			};
-
-			// ReSharper disable once SuspiciousTypeConversion.Global
-			if (_applicationInfo is ISystemInfo systemInfo)
-			{
-				appInfo["deviceName"] = systemInfo.DeviceManufacturer;
-				appInfo["osName"] = systemInfo.OperatingSystemFamily;
-				appInfo["osVersion"] = $"{systemInfo.OperatingSystemVersion.Major}.{systemInfo.OperatingSystemVersion.Minor}";
-			}
 
 			AppInfo = appInfo.ToJSONString();
 
