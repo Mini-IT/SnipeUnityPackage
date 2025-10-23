@@ -8,5 +8,9 @@ namespace MiniIT.Snipe
 		string DeviceIdentifier { get; }
 		string PersistentDataPath { get; }
 		string StreamingAssetsPath { get; }
+
+		string DeviceManufacturer { get; }
+		string OperatingSystemFamily { get; }
+		string OperatingSystemVersion { get; }
 	}
 }
