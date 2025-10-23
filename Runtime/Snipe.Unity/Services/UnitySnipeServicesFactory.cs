@@ -13,7 +13,7 @@ namespace MiniIT.Snipe.Unity
 		public virtual ISharedPrefs CreateSharedPrefs() => SharedPrefs.Instance;
 
 		public virtual ILogService CreateLogService() => new UnityLogService();
-		public virtual ISnipeAnalyticsService CreateAnalyticsService() => new SnipeAnalyticsService(DebugErrorsTracker);
+		public virtual ISnipeAnalyticsService CreateAnalyticsService() => new SnipeAnalyticsService(() => DebugErrorsTracker);
 		public virtual IMainThreadRunner CreateMainThreadRunner() => new MainThreadRunner();
 		public virtual IApplicationInfo CreateApplicationInfo() => new UnityApplicationInfo();
 		public virtual IStopwatchFactory CreateFuzzyStopwatchFactory() => new FuzzyStopwatchFactory();
