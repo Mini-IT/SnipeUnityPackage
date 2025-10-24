@@ -385,7 +385,7 @@ namespace MiniIT.Snipe
 						DoSendRequest(message);
 					}
 
-					await AlterTask.Delay(100);
+					await AlterTask.Delay(30);
 				}
 			}
 			catch (Exception ex)

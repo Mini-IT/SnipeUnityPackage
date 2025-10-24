@@ -340,7 +340,7 @@ namespace MiniIT.Snipe
 
 				try
 				{
-					await Task.Delay(100, cancellation);
+					await Task.Delay(30, cancellation);
 				}
 				catch (TaskCanceledException)
 				{
