@@ -18,6 +18,7 @@ namespace MiniIT.Snipe
 
 		private KcpConnection _kcpConnection;
 		private CancellationTokenSource _networkLoopCancellation;
+		private TaskCompletionSource<bool> _wakeSignal = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
 		private bool _connectionEstablished = false;
 		private bool _connectionVerified = false;
@@ -205,6 +206,7 @@ namespace MiniIT.Snipe
 		private async void DoSendRequest(IDictionary<string, object> message)
 		{
 			bool semaphoreOccupied = false;
+			bool sent = false;
 
 			try
 			{
@@ -213,6 +215,11 @@ namespace MiniIT.Snipe
 
 				ArraySegment<byte> msgData = await Task.Run(() => SerializeMessage(message));
 				_kcpConnection?.SendData(msgData, KcpChannel.Reliable);
+				sent = true;
+			}
+			catch (Exception)
+			{
+				sent = false;
 			}
 			finally
 			{
@@ -220,6 +227,12 @@ namespace MiniIT.Snipe
 				{
 					_messageSerializationSemaphore.Release();
 				}
+			}
+
+			if (sent)
+			{
+				// Wake the loop immediately
+				_wakeSignal.TrySetResult(true);
 			}
 		}
 
@@ -257,6 +270,9 @@ namespace MiniIT.Snipe
 			{
 				ArrayPool<byte>.Shared.Return(item.Array);
 			}
+
+			// Wake the loop immediately
+			_wakeSignal.TrySetResult(true);
 		}
 
 		private ArraySegment<byte> SerializeMessage(IDictionary<string, object> message, bool writeLength = true)
@@ -319,6 +335,7 @@ namespace MiniIT.Snipe
 			_logger.LogTrace("StopNetworkLoop");
 
 			CancellationTokenHelper.CancelAndDispose(ref _networkLoopCancellation);
+			_wakeSignal.TrySetResult(true); // wake loop to let it exit
 		}
 
 		private async void NetworkLoop(CancellationToken cancellation)
@@ -340,7 +357,18 @@ namespace MiniIT.Snipe
 
 				try
 				{
-					await Task.Delay(30, cancellation);
+					// Wait either 100 ms or until explicitly woken
+					var delayTask = Task.Delay(30, cancellation);
+					var wakeTask = _wakeSignal.Task;
+
+					await Task.WhenAny(delayTask, wakeTask);
+
+					// Reset the wake signal if it was triggered
+					if (wakeTask.IsCompleted)
+					{
+						// Create a new TCS for the next iteration
+						_wakeSignal = new(TaskCreationOptions.RunContinuationsAsynchronously);
+					}
 				}
 				catch (TaskCanceledException)
 				{
