@@ -562,7 +562,7 @@ namespace MiniIT.Snipe
 
 				if (pinging)
 				{
-					await AlterTask.Delay(100);
+					await AlterTask.Delay(30);
 				}
 				else
 				{
