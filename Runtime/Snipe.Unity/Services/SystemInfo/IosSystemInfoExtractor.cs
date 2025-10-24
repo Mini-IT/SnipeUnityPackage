@@ -1,3 +1,5 @@
+#if UNITY_IOS
+
 namespace MiniIT.Snipe
 {
 	public class IosSystemInfoExtractor : ISystemInformationExtractor
@@ -13,3 +15,5 @@ namespace MiniIT.Snipe
 		}
 	}
 }
+
+#endif
