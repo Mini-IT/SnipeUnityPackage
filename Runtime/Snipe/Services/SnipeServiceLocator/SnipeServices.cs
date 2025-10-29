@@ -19,6 +19,7 @@ namespace MiniIT.Snipe
 		public static IStopwatchFactory FuzzyStopwatchFactory => s_locator.FuzzyStopwatchFactory;
 		public static IHttpClientFactory HttpClientFactory => s_locator.HttpClientFactory;
 		public static IInternetReachabilityProvider InternetReachabilityProvider => s_locator.InternetReachabilityProvider;
+		public static ITicker Ticker => s_locator.Ticker;
 
 		#endregion
 

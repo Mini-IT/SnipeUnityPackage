@@ -18,11 +18,15 @@ namespace MiniIT.Snipe
 
 		private KcpConnection _kcpConnection;
 		private CancellationTokenSource _networkLoopCancellation;
-		private TaskCompletionSource<bool> _wakeSignal = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
 		private bool _connectionEstablished = false;
 		private bool _connectionVerified = false;
 		private readonly object _lock = new object();
+
+		private readonly SemaphoreSlim _updateSignal = new SemaphoreSlim(0, 1);
+		private int _pending; // 0/1
+		private readonly ITicker _updateTicker;
+		private Task _networkLoop;
 
 		internal KcpTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
 			: base(config, analytics)
@@ -32,6 +36,8 @@ namespace MiniIT.Snipe
 				Protocol = TransportProtocol.Kcp,
 				ClientImplementation = "kcp"
 			};
+
+			_updateTicker = SnipeServices.Ticker;
 		}
 
 		public override void Connect()
@@ -232,7 +238,7 @@ namespace MiniIT.Snipe
 			if (sent)
 			{
 				// Wake the loop immediately
-				_wakeSignal.TrySetResult(true);
+				OnTick();
 			}
 		}
 
@@ -272,7 +278,7 @@ namespace MiniIT.Snipe
 			}
 
 			// Wake the loop immediately
-			_wakeSignal.TrySetResult(true);
+			OnTick();
 		}
 
 		private ArraySegment<byte> SerializeMessage(IDictionary<string, object> message, bool writeLength = true)
@@ -326,19 +332,56 @@ namespace MiniIT.Snipe
 			CancellationTokenHelper.CancelAndDispose(ref _networkLoopCancellation);
 
 			_networkLoopCancellation = new CancellationTokenSource();
-			Task.Run(() => NetworkLoop(_networkLoopCancellation.Token));
-			//Task.Run(() => UdpConnectionTimeout(_networkLoopCancellation.Token));
+			_networkLoop = Task.Run(() => NetworkLoop(_networkLoopCancellation.Token));
+
+			_updateTicker.OnTick -= OnTick;
+			_updateTicker.OnTick += OnTick;
+
+			// Clear pending
+			Interlocked.Exchange(ref _pending, 0);
 		}
 
 		private void StopNetworkLoop()
 		{
 			_logger.LogTrace("StopNetworkLoop");
 
-			CancellationTokenHelper.CancelAndDispose(ref _networkLoopCancellation);
-			_wakeSignal.TrySetResult(true); // wake loop to let it exit
+			var cts = _networkLoopCancellation;
+			if (cts == null) return;
+
+			_updateTicker.OnTick -= OnTick;
+			cts.Cancel();
+			OnTick(); // wake waiter if it's currently blocked
+
+			var loop = _networkLoop;
+			_networkLoop = null;
+			_networkLoopCancellation = null;
+
+			if (loop != null)
+			{
+				_ = loop.ContinueWith(static t =>
+					{
+						// loop finished; safe to dispose CTS
+						// ignore exceptions — we are shutting down
+					}, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default)
+					.ContinueWith(static (_, state) => ((CancellationTokenSource)state!).Dispose(),
+						cts, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+			}
+			else
+			{
+				cts.Dispose();
+			}
 		}
 
-		private async void NetworkLoop(CancellationToken cancellation)
+		private void OnTick()
+		{
+			// Set pending=1; only release when transitioning 0 -> 1
+			if (Interlocked.Exchange(ref _pending, 1) == 0)
+			{
+				_updateSignal.Release();
+			}
+		}
+
+		private async Task NetworkLoop(CancellationToken cancellation)
 		{
 			while (!cancellation.IsCancellationRequested)
 			{
@@ -357,23 +400,17 @@ namespace MiniIT.Snipe
 
 				try
 				{
-					// Wait either 100 ms or until explicitly woken
-					var delayTask = Task.Delay(30, cancellation);
-					var wakeTask = _wakeSignal.Task;
-
-					await Task.WhenAny(delayTask, wakeTask);
-
-					// Reset the wake signal if it was triggered
-					if (wakeTask.IsCompleted)
-					{
-						// Create a new TCS for the next iteration
-						_wakeSignal = new(TaskCreationOptions.RunContinuationsAsynchronously);
-					}
+					await _updateSignal.WaitAsync(cancellation).ConfigureAwait(false);
 				}
 				catch (TaskCanceledException)
 				{
 					// This is OK. Just terminating the task
 					return;
+				}
+				finally
+				{
+					// Clear pending; ticks racing with this will still cause a Release()
+					Interlocked.Exchange(ref _pending, 0);
 				}
 			}
 		}

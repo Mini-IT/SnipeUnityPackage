@@ -16,6 +16,7 @@ namespace MiniIT.Snipe
 		public IStopwatchFactory FuzzyStopwatchFactory => _fuzzyStopwatchFactory ??= _factory.CreateFuzzyStopwatchFactory();
 		public IHttpClientFactory HttpClientFactory => _httpClientFactory ??= _factory.CreateHttpClientFactory();
 		public IInternetReachabilityProvider InternetReachabilityProvider => _internetReachabilityProvider;
+		public ITicker Ticker => _ticker ??= _factory.CreateTicker();
 
 		private ISharedPrefs _sharedPrefs;
 		private ILogService _logService;
@@ -25,6 +26,7 @@ namespace MiniIT.Snipe
 		private readonly IInternetReachabilityProvider _internetReachabilityProvider;
 		private IStopwatchFactory _fuzzyStopwatchFactory;
 		private IHttpClientFactory _httpClientFactory;
+		private ITicker _ticker;
 
 		private readonly ISnipeServiceLocatorFactory _factory;
 
@@ -44,6 +46,7 @@ namespace MiniIT.Snipe
 			(_mainThreadRunner as IDisposable)?.Dispose();
 			(_applicationInfo as IDisposable)?.Dispose();
 			(_internetReachabilityProvider as IDisposable)?.Dispose();
+			(_ticker as IDisposable)?.Dispose();
 		}
 	}
 }
