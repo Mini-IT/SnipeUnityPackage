@@ -97,6 +97,10 @@ namespace MiniIT.Snipe
 		private readonly object _lock = new object();
 		private readonly ILogger _logger;
 
+		private string _host;
+		private ushort _port;
+		private bool _selfDisconnecting;
+
 		public KcpConnection()
 		{
 			_logger = SnipeServices.LogService.GetLogger(nameof(KcpConnection));
@@ -111,6 +115,8 @@ namespace MiniIT.Snipe
 
 				_timeout = timeout;
 				_authenticationTimeout = authenticationTimeout > 0 ? authenticationTimeout : timeout;
+				_host = host;
+				_port = port;
 
 				_state = KcpState.Disconnected;
 
@@ -160,7 +166,6 @@ namespace MiniIT.Snipe
 					_kcpSendBuffer = new byte[bufferSize];
 
 					_chunkedMessages = new Dictionary<byte, ChunkedMessageItem>(1);
-
 				}
 
 				_state = KcpState.Connected;
@@ -178,15 +183,24 @@ namespace MiniIT.Snipe
 
 		private void OnSocketDisconnected()
 		{
-			_state = KcpState.Disconnected;
-			OnDisconnected?.Invoke();
+			if (_selfDisconnecting)
+				return;
+
+			Disconnect(true);
 		}
 
 		public void Disconnect()
 		{
+			Disconnect(false);
+		}
+
+		private void Disconnect(bool attemptReconnect)
+		{
 			// only if not disconnected yet
 			if (_state == KcpState.Disconnected)
 				return;
+
+			_selfDisconnecting = true;
 
 			// send a disconnect message
 			if (_socket != null && _socket.Connected)
@@ -225,6 +239,17 @@ namespace MiniIT.Snipe
 			OnDisconnected?.Invoke();
 
 			DisposeSocket();
+
+			if (attemptReconnect)
+			{
+				AttemptReconnect();
+			}
+			else
+			{
+				ReleaseKcp();
+			}
+
+			_selfDisconnecting = false;
 		}
 
 		public void SendData(ArraySegment<byte> data, KcpChannel channel)
@@ -396,7 +421,7 @@ namespace MiniIT.Snipe
 					if (header == KcpHeader.Disconnect)
 					{
 						_logger.LogTrace("KCP: received disconnect message");
-						Disconnect();
+						Disconnect(true);
 						break;
 					}
 
@@ -421,7 +446,7 @@ namespace MiniIT.Snipe
 						{
 							// should never receive another handshake after auth
 							_logger.LogWarning($"KCP: received invalid header {header} while Connected. Disconnecting the connection.");
-							Disconnect();
+							Disconnect(false);
 							break;
 						}
 					}
@@ -433,7 +458,7 @@ namespace MiniIT.Snipe
 							case KcpHeader.Handshake:
 								// should never receive another handshake after auth
 								_logger.LogWarning($"KCP: received invalid header {header} while Authenticated. Disconnecting the connection.");
-								Disconnect();
+								Disconnect(false);
 								break;
 
 							case KcpHeader.Data:
@@ -455,19 +480,19 @@ namespace MiniIT.Snipe
 			{
 				// this is ok, the connection was closed
 				_logger.LogTrace($"KCP Connection: Disconnecting because {exception}. This is fine.");
-				Disconnect();
+				Disconnect(false);
 			}
 			catch (ObjectDisposedException exception)
 			{
 				// fine, socket was closed
 				_logger.LogTrace($"KCP Connection: Disconnecting because {exception}. This is fine.");
-				Disconnect();
+				Disconnect(false);
 			}
 			catch (Exception ex)
 			{
 				// unexpected
 				_logger.LogError(ex.ToString());
-				Disconnect();
+				Disconnect(false);
 			}
 		}
 
@@ -488,19 +513,19 @@ namespace MiniIT.Snipe
 			{
 				// this is ok, the connection was closed
 				_logger.LogTrace($"KCP Connection: Disconnecting because {exception}. This is fine.");
-				Disconnect();
+				Disconnect(false);
 			}
 			catch (ObjectDisposedException exception)
 			{
 				// fine, socket was closed
 				_logger.LogTrace($"KCP Connection: Disconnecting because {exception}. This is fine.");
-				Disconnect();
+				Disconnect(false);
 			}
 			catch (Exception ex)
 			{
 				// unexpected
 				_logger.LogError(ex.ToString());
-				Disconnect();
+				Disconnect(false);
 			}
 		}
 
@@ -602,7 +627,7 @@ namespace MiniIT.Snipe
 
 				if (msgLength < 0)
 				{
-					Disconnect();
+					Disconnect(true);
 					break;
 				}
 
@@ -619,7 +644,7 @@ namespace MiniIT.Snipe
 				else
 				{
 					_logger.LogError($"KCP ClientConnection: message of size {msgLength} does not fit into buffer of size {_socketReceiveBuffer.Length}. The excess was silently dropped. Disconnecting.");
-					Disconnect();
+					Disconnect(false);
 					break;
 				}
 			}
@@ -700,7 +725,7 @@ namespace MiniIT.Snipe
 					{
 						// should never
 						_logger.LogWarning($"KCP: received unreliable message in state {_state}. Disconnecting the connection.");
-						Disconnect();
+						Disconnect(false);
 					}
 					break;
 
@@ -745,7 +770,7 @@ namespace MiniIT.Snipe
 					{
 						// if receive failed, close everything
 						_logger.LogWarning($"Receive failed with error={received}. closing connection.");
-						Disconnect();
+						Disconnect(false);
 					}
 				}
 				// we don't allow sending messages > Max, so this must be an
@@ -753,7 +778,7 @@ namespace MiniIT.Snipe
 				else
 				{
 					_logger.LogWarning($"KCP: possible allocation attack for msgSize {msgSize} > buffer {_kcpReceiveBuffer.Length}. Disconnecting the connection.");
-					Disconnect();
+					Disconnect(false);
 				}
 			}
 
@@ -782,7 +807,7 @@ namespace MiniIT.Snipe
 			else // empty data = attacker, or something went wrong
 			{
 				_logger.LogWarning("KCP: received empty Data message while Authenticated. Disconnecting the connection.");
-				Disconnect();
+				Disconnect(false);
 			}
 		}
 
@@ -842,7 +867,7 @@ namespace MiniIT.Snipe
 			else
 			{
 				_logger.LogWarning("KCP: received empty Chunk message while Authenticated. Disconnecting the connection.");
-				Disconnect();
+				Disconnect(false);
 			}
 		}
 
@@ -861,7 +886,7 @@ namespace MiniIT.Snipe
 				}
 
 				_logger.LogWarning($"KCP: Connection timed out after not receiving any message for {timeout}ms. Disconnecting.");
-				Disconnect();
+				Disconnect(true);
 			}
 		}
 
@@ -871,7 +896,7 @@ namespace MiniIT.Snipe
 			if (_kcp.GetState() == -1)
 			{
 				_logger.LogWarning($"KCP Connection dead_link detected: a message was retransmitted {_kcp.dead_link} times without ack. Disconnecting.");
-				Disconnect();
+				Disconnect(false);
 			}
 		}
 
@@ -912,7 +937,7 @@ namespace MiniIT.Snipe
 				// this is just faster and more robust.
 				_kcp.ClearSndQueue();
 
-				Disconnect();
+				Disconnect(false);
 			}
 		}
 
@@ -924,6 +949,44 @@ namespace MiniIT.Snipe
 				_socket.OnDisconnected -= OnSocketDisconnected;
 				_socket.Dispose();
 				_socket = null;
+			}
+		}
+
+		private void ReleaseKcp()
+		{
+			if (_chunkedMessages != null)
+			{
+				foreach (var kv in _chunkedMessages)
+				{
+					if (kv.Value != null && kv.Value.buffer != null)
+					{
+						ArrayPool<byte>.Shared.Return(kv.Value.buffer);
+					}
+				}
+				_chunkedMessages.Clear();
+				_chunkedMessages = null;
+			}
+
+			_kcpReceiveBuffer = null;
+			_kcpSendBuffer = null;
+			_kcp = null;
+		}
+
+		private void AttemptReconnect()
+		{
+			// Attempt to reconnect using last known parameters, keeping existing _kcp instance
+			if (string.IsNullOrEmpty(_host) || _port == 0)
+				return;
+
+			_logger.LogTrace("AttemptReconnect");
+
+			try
+			{
+				Connect(_host, _port, _timeout, _authenticationTimeout);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError($"KCP: Reconnect failed: {ex}");
 			}
 		}
 	}
