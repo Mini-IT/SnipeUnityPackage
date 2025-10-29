@@ -125,39 +125,43 @@ namespace MiniIT.Snipe
 		{
 			lock (_lock)
 			{
-				// Create a new Kcp instance
-				// even if _kcp != null its buffers may content some data from the previous connection
-				_kcp = new Kcp(0, SocketSendReliable);
+				if (_kcp == null)
+				{
+					// Create a new Kcp instance
+					// even if _kcp != null its buffers may content some data from the previous connection
+					_kcp = new Kcp(0, SocketSendReliable);
 
-				_kcp.SetNoDelay(1u, // NoDelay is recommended to reduce latency
-					10,             // internal update interval. 100ms is KCP default, but a lower interval is recommended to minimize latency and to scale to more networked entities
-					2,              // fastresend. Faster resend for the cost of higher bandwidth. 0 in normal mode, 2 in turbo mode
-					true);          // no congestion window. Congestion window is enabled in normal mode, disabled in turbo mode.
+					_kcp.SetNoDelay(1u, // NoDelay is recommended to reduce latency
+						10, // internal update interval. 100ms is KCP default, but a lower interval is recommended to minimize latency and to scale to more networked entities
+						2, // fastresend. Faster resend for the cost of higher bandwidth. 0 in normal mode, 2 in turbo mode
+						true); // no congestion window. Congestion window is enabled in normal mode, disabled in turbo mode.
 
-				_kcp.SetWindowSize(KCP_SEND_WINDOW_SIZE, KCP_RECEIVE_WINDOW_SIZE);
+					_kcp.SetWindowSize(KCP_SEND_WINDOW_SIZE, KCP_RECEIVE_WINDOW_SIZE);
 
-				// IMPORTANT: high level needs to add 1 channel byte to each raw
-				// message. so while Kcp.MTU_DEF is perfect, we actually need to
-				// tell _kcp to use MTU-1 so we can still put the header into the
-				// message afterwards.
-				_kcp.SetMtu(Kcp.MTU_DEF - CHANNEL_HEADER_SIZE);
+					// IMPORTANT: high level needs to add 1 channel byte to each raw
+					// message. so while Kcp.MTU_DEF is perfect, we actually need to
+					// tell _kcp to use MTU-1 so we can still put the header into the
+					// message afterwards.
+					_kcp.SetMtu(Kcp.MTU_DEF - CHANNEL_HEADER_SIZE);
 
-				// set maximum retransmits (aka dead_link)
-				// KCP will try to retransmit lost messages up to MaxRetransmit (aka dead_link) before disconnecting. default prematurely disconnects a lot of people (#3022). use 2x
-				_kcp.dead_link = Kcp.DEADLINK * 2;
+					// set maximum retransmits (aka dead_link)
+					// KCP will try to retransmit lost messages up to MaxRetransmit (aka dead_link) before disconnecting. default prematurely disconnects a lot of people (#3022). use 2x
+					_kcp.dead_link = Kcp.DEADLINK * 2;
 
-				// create message buffers AFTER window size is set
-				// see comments on buffer definition for the "+1" part
-				//int bufferSize = 1 + ReliableMaxMessageSize(KCP_RECEIVE_WINDOW_SIZE);
+					// create message buffers AFTER window size is set
+					// see comments on buffer definition for the "+1" part
+					//int bufferSize = 1 + ReliableMaxMessageSize(KCP_RECEIVE_WINDOW_SIZE);
 
-				// Server side implementation does not support message fragmentation.
-				// That is why we use custom algorythm of breaking large messages into chunks.
-				// In this case we don't need buffers larger than MAX_KCP_MESSAGE_SIZE
-				int bufferSize = MAX_KCP_MESSAGE_SIZE;
-				_kcpReceiveBuffer = new byte[bufferSize];
-				_kcpSendBuffer = new byte[bufferSize];
+					// Server side implementation does not support message fragmentation.
+					// That is why we use custom algorythm of breaking large messages into chunks.
+					// In this case we don't need buffers larger than MAX_KCP_MESSAGE_SIZE
+					int bufferSize = MAX_KCP_MESSAGE_SIZE;
+					_kcpReceiveBuffer = new byte[bufferSize];
+					_kcpSendBuffer = new byte[bufferSize];
 
-				_chunkedMessages = new Dictionary<byte, ChunkedMessageItem>(1);
+					_chunkedMessages = new Dictionary<byte, ChunkedMessageItem>(1);
+
+				}
 
 				_state = KcpState.Connected;
 			}
