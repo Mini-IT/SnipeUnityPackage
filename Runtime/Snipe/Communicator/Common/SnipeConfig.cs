@@ -30,12 +30,11 @@ namespace MiniIT.Snipe
 
 		public enum WebSocketImplementations
 		{
-			WebSocketSharp,
 			ClientWebSocket,
 			BestWebSocket,
 		}
 
-		public WebSocketImplementations WebSocketImplementation { get; set; } = WebSocketImplementations.WebSocketSharp;
+		public WebSocketImplementations WebSocketImplementation { get; set; } = WebSocketImplementations.ClientWebSocket;
 
 		public int ContextId { get; }
 
