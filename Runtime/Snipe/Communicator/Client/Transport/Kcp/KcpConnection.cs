@@ -604,7 +604,7 @@ namespace MiniIT.Snipe
 					Buffer.BlockCopy(data, offset, _socketSendBuffer, 1, length);
 				}
 				_socket.Send(_socketSendBuffer, length + 1);
-				_logger.LogTrace($"RAW SEND bytes = {BitConverter.ToString(_socketReceiveBuffer, 0, length + 1)}");
+				//_logger.LogTrace($"RAW SEND bytes = {BitConverter.ToString(_socketReceiveBuffer, 0, length + 1)}");
 			}
 		}
 
