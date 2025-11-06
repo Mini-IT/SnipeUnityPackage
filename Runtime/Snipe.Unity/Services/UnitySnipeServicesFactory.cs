@@ -1,4 +1,3 @@
-using System;
 using MiniIT.Http;
 using MiniIT.Snipe.Logging;
 using MiniIT.Snipe.Logging.Unity;
@@ -21,25 +20,5 @@ namespace MiniIT.Snipe.Unity
 		public virtual IHttpClientFactory CreateHttpClientFactory() => new DefaultHttpClientFactory();
 		public virtual IInternetReachabilityProvider CreateInternetReachabilityProvider() => new UnityInternetReachabilityProvider();
 		public ITicker CreateTicker() => new UnityUpdateTicker();
-	}
-
-	public class UnityUpdateTicker : ITicker, IDisposable
-	{
-		public event Action OnTick;
-
-		public UnityUpdateTicker()
-		{
-			UnityEngine.Application.onBeforeRender += OnUpdate;
-		}
-
-		public void Dispose()
-		{
-			UnityEngine.Application.onBeforeRender -= OnUpdate;
-		}
-
-		private void OnUpdate()
-		{
-			OnTick?.Invoke();
-		}
 	}
 }
