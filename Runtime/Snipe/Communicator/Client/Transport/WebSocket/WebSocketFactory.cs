@@ -1,10 +1,5 @@
 namespace MiniIT.Snipe
 {
-	public interface IWebSocketFactory
-	{
-		WebSocketWrapper CreateWebSocket();
-	}
-
 	public class WebSocketFactory : IWebSocketFactory
 	{
 		private readonly SnipeConfig _config;
