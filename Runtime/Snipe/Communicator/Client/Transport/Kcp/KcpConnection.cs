@@ -654,7 +654,7 @@ namespace MiniIT.Snipe
 					break;
 				}
 
-				_logger.LogTrace($"RAW RECV {msgLength} bytes = {BitConverter.ToString(_socketReceiveBuffer, 0, msgLength)}");
+				// _logger.LogTrace($"RAW RECV {msgLength} bytes = {BitConverter.ToString(_socketReceiveBuffer, 0, msgLength)}");
 
 				// IMPORTANT: detect if buffer was too small for the
 				//            received msgLength. otherwise the excess
@@ -803,7 +803,7 @@ namespace MiniIT.Snipe
 						message = new ArraySegment<byte>(_kcpReceiveBuffer, 1, msgSize - 1);
 						UpdateLastReceiveTime();
 
-						_logger.LogTrace($"KCP: raw recv {received} header = {header} bytes ({message.Count}) = {BitConverter.ToString(message.Array, message.Offset, message.Count)}");
+						// _logger.LogTrace($"KCP: raw recv {received} header = {header} bytes ({message.Count}) = {BitConverter.ToString(message.Array, message.Offset, message.Count)}");
 
 						return true;
 					}
@@ -955,7 +955,7 @@ namespace MiniIT.Snipe
 			// enough time elapsed since last ping?
 			if (time >= _lastPingTime + PING_INTERVAL)
 			{
-				_logger.LogTrace($"kcp send ping {_unrespondedPingsCount}");
+				// _logger.LogTrace($"kcp send ping {_unrespondedPingsCount}");
 				SendReliable(KcpHeader.Ping);
 				_lastPingTime = time;
 				_unrespondedPingsCount++;
