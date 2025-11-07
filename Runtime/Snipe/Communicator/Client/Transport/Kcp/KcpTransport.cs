@@ -37,7 +37,7 @@ namespace MiniIT.Snipe
 				ClientImplementation = "kcp"
 			};
 
-			_updateTicker = SnipeServices.Ticker;
+			_updateTicker = SnipeServices.Instance.Ticker;
 		}
 
 		public override void Connect()
