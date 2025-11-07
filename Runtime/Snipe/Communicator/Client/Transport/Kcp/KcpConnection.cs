@@ -11,7 +11,13 @@ namespace MiniIT.Snipe
 {
 	public sealed class KcpConnection
 	{
-		private enum KcpState { Connected, Authenticated, Disconnected }
+		private enum KcpState
+		{
+			Connected,
+			Authenticated,
+			Disconnected,
+			Reconnecting,
+		}
 
 		private class ChunkedMessageItem
 		{
@@ -91,15 +97,20 @@ namespace MiniIT.Snipe
 		private readonly Stopwatch _refTime = new Stopwatch();
 
 		private uint _lastPingTime;
-		private uint _pingsCount = 0;
+		private uint _unrespondedPingsCount = 0;
 		public uint PingTime { get; private set; }
 
 		private readonly object _lock = new object();
 		private readonly ILogger _logger;
 
+		private string _host;
+		private ushort _port;
+		private bool _selfDisconnecting;
+		private bool _hasReceivedValidMessage;
+
 		public KcpConnection()
 		{
-			_logger = SnipeServices.LogService.GetLogger(nameof(KcpConnection));
+			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(KcpConnection));
 		}
 
 		public void Connect(string host, ushort port, int timeout = 10000, int authenticationTimeout = 0)
@@ -111,8 +122,14 @@ namespace MiniIT.Snipe
 
 				_timeout = timeout;
 				_authenticationTimeout = authenticationTimeout > 0 ? authenticationTimeout : timeout;
+				_host = host;
+				_port = port;
+				_hasReceivedValidMessage = false;
 
-				_state = KcpState.Disconnected;
+				if (_state != KcpState.Reconnecting)
+				{
+					_state = KcpState.Disconnected;
+				}
 
 				_socket = new UdpSocketWrapper();
 				_socket.OnConnected += OnSocketConnected;
@@ -125,39 +142,46 @@ namespace MiniIT.Snipe
 		{
 			lock (_lock)
 			{
-				// Create a new Kcp instance
-				// even if _kcp != null its buffers may content some data from the previous connection
-				_kcp = new Kcp(0, SocketSendReliable);
+				if (_kcp == null)
+				{
+					byte[] rndbuf = new byte[sizeof(uint)];
+					new Random().NextBytes(rndbuf);
+					uint convid = BitConverter.ToUInt32(rndbuf, 0);
 
-				_kcp.SetNoDelay(1u, // NoDelay is recommended to reduce latency
-					10,             // internal update interval. 100ms is KCP default, but a lower interval is recommended to minimize latency and to scale to more networked entities
-					2,              // fastresend. Faster resend for the cost of higher bandwidth. 0 in normal mode, 2 in turbo mode
-					true);          // no congestion window. Congestion window is enabled in normal mode, disabled in turbo mode.
+					// Create a new Kcp instance
+					// even if _kcp != null its buffers may content some data from the previous connection
+					_kcp = new Kcp(convid, SocketSendReliable);
 
-				_kcp.SetWindowSize(KCP_SEND_WINDOW_SIZE, KCP_RECEIVE_WINDOW_SIZE);
+					_kcp.SetNoDelay(1u, // NoDelay is recommended to reduce latency
+						10, // internal update interval. 100ms is KCP default, but a lower interval is recommended to minimize latency and to scale to more networked entities
+						2, // fastresend. Faster resend for the cost of higher bandwidth. 0 in normal mode, 2 in turbo mode
+						true); // no congestion window. Congestion window is enabled in normal mode, disabled in turbo mode.
 
-				// IMPORTANT: high level needs to add 1 channel byte to each raw
-				// message. so while Kcp.MTU_DEF is perfect, we actually need to
-				// tell _kcp to use MTU-1 so we can still put the header into the
-				// message afterwards.
-				_kcp.SetMtu(Kcp.MTU_DEF - CHANNEL_HEADER_SIZE);
+					_kcp.SetWindowSize(KCP_SEND_WINDOW_SIZE, KCP_RECEIVE_WINDOW_SIZE);
 
-				// set maximum retransmits (aka dead_link)
-				// KCP will try to retransmit lost messages up to MaxRetransmit (aka dead_link) before disconnecting. default prematurely disconnects a lot of people (#3022). use 2x
-				_kcp.dead_link = Kcp.DEADLINK * 2;
+					// IMPORTANT: high level needs to add 1 channel byte to each raw
+					// message. so while Kcp.MTU_DEF is perfect, we actually need to
+					// tell _kcp to use MTU-1 so we can still put the header into the
+					// message afterwards.
+					_kcp.SetMtu(Kcp.MTU_DEF - CHANNEL_HEADER_SIZE);
 
-				// create message buffers AFTER window size is set
-				// see comments on buffer definition for the "+1" part
-				//int bufferSize = 1 + ReliableMaxMessageSize(KCP_RECEIVE_WINDOW_SIZE);
+					// set maximum retransmits (aka dead_link)
+					// KCP will try to retransmit lost messages up to MaxRetransmit (aka dead_link) before disconnecting. default prematurely disconnects a lot of people (#3022). use 2x
+					_kcp.dead_link = Kcp.DEADLINK * 2;
 
-				// Server side implementation does not support message fragmentation.
-				// That is why we use custom algorythm of breaking large messages into chunks.
-				// In this case we don't need buffers larger than MAX_KCP_MESSAGE_SIZE
-				int bufferSize = MAX_KCP_MESSAGE_SIZE;
-				_kcpReceiveBuffer = new byte[bufferSize];
-				_kcpSendBuffer = new byte[bufferSize];
+					// create message buffers AFTER window size is set
+					// see comments on buffer definition for the "+1" part
+					//int bufferSize = 1 + ReliableMaxMessageSize(KCP_RECEIVE_WINDOW_SIZE);
 
-				_chunkedMessages = new Dictionary<byte, ChunkedMessageItem>(1);
+					// Server side implementation does not support message fragmentation.
+					// That is why we use custom algorythm of breaking large messages into chunks.
+					// In this case we don't need buffers larger than MAX_KCP_MESSAGE_SIZE
+					int bufferSize = MAX_KCP_MESSAGE_SIZE;
+					_kcpReceiveBuffer = new byte[bufferSize];
+					_kcpSendBuffer = new byte[bufferSize];
+
+					_chunkedMessages = new Dictionary<byte, ChunkedMessageItem>(1);
+				}
 
 				_state = KcpState.Connected;
 			}
@@ -174,53 +198,71 @@ namespace MiniIT.Snipe
 
 		private void OnSocketDisconnected()
 		{
-			_state = KcpState.Disconnected;
-			OnDisconnected?.Invoke();
+			if (_selfDisconnecting)
+				return;
+
+			Disconnect(true);
 		}
 
 		public void Disconnect()
+		{
+			Disconnect(false);
+		}
+
+		private void Disconnect(bool attemptReconnect)
 		{
 			// only if not disconnected yet
 			if (_state == KcpState.Disconnected)
 				return;
 
-			// send a disconnect message
-			if (_socket != null && _socket.Connected)
-			{
-				try
-				{
-					SendReliable(KcpHeader.Disconnect);
+			bool canAttemptReconnect = attemptReconnect && _state != KcpState.Reconnecting && _hasReceivedValidMessage;
 
-					lock (_lock)
+			_logger.LogTrace($"canAttemptReconnect = {canAttemptReconnect} | {attemptReconnect} | {_state} | {_hasReceivedValidMessage}");
+
+			_selfDisconnecting = true;
+
+			try
+			{
+				if (_socket != null && _socket.Connected && !canAttemptReconnect)
+				{
+					try
 					{
-						_kcp.Flush();
+						SendReliable(KcpHeader.Disconnect);
+
+						lock (_lock)
+						{
+							_kcp.Flush();
+						}
+					}
+					catch (Exception)
+					{
+						// ignore
 					}
 				}
-				//catch (SocketException)
-				//{
-				//	// this is ok, the connection was already closed
-				//}
-				//catch (ObjectDisposedException)
-				//{
-				//	// this is normal when we stop the server
-				//	// the socket is stopped so we can't send anything anymore
-				//	// to the clients
-				//
-				//	// the clients will eventually timeout and realize they
-				//	// were disconnected
-				//}
-				catch (Exception)
+
+				_logger.LogTrace("KCP Connection: Disconnected.");
+
+				DisposeSocket();
+
+				if (canAttemptReconnect)
 				{
-					// ignore
+					_state = KcpState.Reconnecting;
+
+					if (AttemptReconnect())
+					{
+						return;
+					}
 				}
+
+				_state = KcpState.Disconnected;
+
+				OnDisconnected?.Invoke();
+				ReleaseKcp();
 			}
-
-			// set as Disconnected, call event
-			_logger.LogTrace("KCP Connection: Disconnected.");
-			_state = KcpState.Disconnected;
-			OnDisconnected?.Invoke();
-
-			DisposeSocket();
+			finally
+			{
+				_selfDisconnecting = false;
+			}
 		}
 
 		public void SendData(ArraySegment<byte> data, KcpChannel channel)
@@ -392,23 +434,32 @@ namespace MiniIT.Snipe
 					if (header == KcpHeader.Disconnect)
 					{
 						_logger.LogTrace("KCP: received disconnect message");
-						Disconnect();
+						Disconnect(true);
 						break;
 					}
 
 					if (header == KcpHeader.Ping)
 					{
+						_logger.LogTrace("KCP: received ping message");
+
 						PingTime = time - _lastPingTime;
+
+						if (_state == KcpState.Reconnecting)
+						{
+							_state = KcpState.Authenticated;
+						}
+						_hasReceivedValidMessage = true;
 						continue;
 					}
 
-					if (_state == KcpState.Connected)
+					if (_state == KcpState.Connected || _state == KcpState.Reconnecting)
 					{
 						if (header == KcpHeader.Handshake)
 						{
 							// we were waiting for a handshake.
 							// it proves that the other end speaks our protocol.
 							_logger.LogTrace("KCP: received handshake");
+							_hasReceivedValidMessage = true;
 							_state = KcpState.Authenticated;
 							OnAuthenticated?.Invoke();
 							continue;
@@ -416,8 +467,8 @@ namespace MiniIT.Snipe
 						else // nothing else is expected
 						{
 							// should never receive another handshake after auth
-							_logger.LogWarning($"KCP: received invalid header {header} while Connected. Disconnecting the connection.");
-							Disconnect();
+							_logger.LogWarning($"KCP: received invalid header {header} while {_state}. Disconnecting the connection.");
+							Disconnect(false);
 							break;
 						}
 					}
@@ -429,7 +480,7 @@ namespace MiniIT.Snipe
 							case KcpHeader.Handshake:
 								// should never receive another handshake after auth
 								_logger.LogWarning($"KCP: received invalid header {header} while Authenticated. Disconnecting the connection.");
-								Disconnect();
+								Disconnect(false);
 								break;
 
 							case KcpHeader.Data:
@@ -451,19 +502,19 @@ namespace MiniIT.Snipe
 			{
 				// this is ok, the connection was closed
 				_logger.LogTrace($"KCP Connection: Disconnecting because {exception}. This is fine.");
-				Disconnect();
+				Disconnect(false);
 			}
 			catch (ObjectDisposedException exception)
 			{
 				// fine, socket was closed
 				_logger.LogTrace($"KCP Connection: Disconnecting because {exception}. This is fine.");
-				Disconnect();
+				Disconnect(false);
 			}
 			catch (Exception ex)
 			{
 				// unexpected
 				_logger.LogError(ex.ToString());
-				Disconnect();
+				Disconnect(false);
 			}
 		}
 
@@ -484,19 +535,19 @@ namespace MiniIT.Snipe
 			{
 				// this is ok, the connection was closed
 				_logger.LogTrace($"KCP Connection: Disconnecting because {exception}. This is fine.");
-				Disconnect();
+				Disconnect(false);
 			}
 			catch (ObjectDisposedException exception)
 			{
 				// fine, socket was closed
 				_logger.LogTrace($"KCP Connection: Disconnecting because {exception}. This is fine.");
-				Disconnect();
+				Disconnect(false);
 			}
 			catch (Exception ex)
 			{
 				// unexpected
 				_logger.LogError(ex.ToString());
-				Disconnect();
+				Disconnect(false);
 			}
 		}
 
@@ -553,6 +604,7 @@ namespace MiniIT.Snipe
 					Buffer.BlockCopy(data, offset, _socketSendBuffer, 1, length);
 				}
 				_socket.Send(_socketSendBuffer, length + 1);
+				//_logger.LogTrace($"RAW SEND bytes = {BitConverter.ToString(_socketReceiveBuffer, 0, length + 1)}");
 			}
 		}
 
@@ -598,7 +650,7 @@ namespace MiniIT.Snipe
 
 				if (msgLength < 0)
 				{
-					Disconnect();
+					Disconnect(true);
 					break;
 				}
 
@@ -615,7 +667,7 @@ namespace MiniIT.Snipe
 				else
 				{
 					_logger.LogError($"KCP ClientConnection: message of size {msgLength} does not fit into buffer of size {_socketReceiveBuffer.Length}. The excess was silently dropped. Disconnecting.");
-					Disconnect();
+					Disconnect(false);
 					break;
 				}
 			}
@@ -679,6 +731,7 @@ namespace MiniIT.Snipe
 						//if (!paused)
 						{
 							ArraySegment<byte> message = new ArraySegment<byte>(buffer, 1, msgLength - 1);
+							_hasReceivedValidMessage = true;
 							OnData?.Invoke(message, KcpChannel.Unreliable, false);
 						}
 
@@ -696,7 +749,7 @@ namespace MiniIT.Snipe
 					{
 						// should never
 						_logger.LogWarning($"KCP: received unreliable message in state {_state}. Disconnecting the connection.");
-						Disconnect();
+						Disconnect(false);
 					}
 					break;
 
@@ -713,7 +766,18 @@ namespace MiniIT.Snipe
 
 		private bool ReceiveNextReliable(out KcpHeader header, out ArraySegment<byte> message)
 		{
-			int msgSize = _kcp.PeekSize();
+			int msgSize;
+			lock (_lock)
+			{
+				if (_kcp == null)
+				{
+					message = default;
+					header = KcpHeader.Disconnect;
+					return false;
+				}
+				msgSize = _kcp.PeekSize();
+			}
+
 			if (msgSize > 0)
 			{
 				// only allow receiving up to buffer sized messages.
@@ -724,6 +788,12 @@ namespace MiniIT.Snipe
 					int received;
 					lock (_lock)
 					{
+						if (_kcp == null)
+						{
+							message = default;
+							header = KcpHeader.Disconnect;
+							return false;
+						}
 						received = _kcp.Receive(_kcpReceiveBuffer, msgSize);
 					}
 					if (received >= 0)
@@ -741,7 +811,7 @@ namespace MiniIT.Snipe
 					{
 						// if receive failed, close everything
 						_logger.LogWarning($"Receive failed with error={received}. closing connection.");
-						Disconnect();
+						Disconnect(false);
 					}
 				}
 				// we don't allow sending messages > Max, so this must be an
@@ -749,7 +819,7 @@ namespace MiniIT.Snipe
 				else
 				{
 					_logger.LogWarning($"KCP: possible allocation attack for msgSize {msgSize} > buffer {_kcpReceiveBuffer.Length}. Disconnecting the connection.");
-					Disconnect();
+					Disconnect(false);
 				}
 			}
 
@@ -762,7 +832,7 @@ namespace MiniIT.Snipe
 		private void UpdateLastReceiveTime()
 		{
 			_lastReceiveTime = (uint)_refTime.ElapsedMilliseconds;
-			_pingsCount = 0;
+			_unrespondedPingsCount = 0;
 		}
 
 		private void HandleReliableData(ArraySegment<byte> message)
@@ -773,12 +843,13 @@ namespace MiniIT.Snipe
 			if (message.Count > 0)
 			{
 				//_logger.LogWarning($"Kcp recv msg: {BitConverter.ToString(message.Array, message.Offset, message.Count)}");
+				_hasReceivedValidMessage = true;
 				OnData?.Invoke(message, KcpChannel.Reliable, false);
 			}
 			else // empty data = attacker, or something went wrong
 			{
 				_logger.LogWarning("KCP: received empty Data message while Authenticated. Disconnecting the connection.");
-				Disconnect();
+				Disconnect(false);
 			}
 		}
 
@@ -829,6 +900,7 @@ namespace MiniIT.Snipe
 					// length (4 bytes int)
 					BytesUtil.WriteInt(item.buffer, 1, item.length);
 
+					_hasReceivedValidMessage = true;
 					OnData?.Invoke(new ArraySegment<byte>(item.buffer, 0, item.length + 5), KcpChannel.Reliable, compressed);
 					ArrayPool<byte>.Shared.Return(item.buffer);
 					_chunkedMessages.Remove(message_id);
@@ -838,7 +910,7 @@ namespace MiniIT.Snipe
 			else
 			{
 				_logger.LogWarning("KCP: received empty Chunk message while Authenticated. Disconnecting the connection.");
-				Disconnect();
+				Disconnect(false);
 			}
 		}
 
@@ -850,24 +922,30 @@ namespace MiniIT.Snipe
 			//       only ever happen if the connection is truly gone.
 			if (time >= _lastReceiveTime + timeout)
 			{
-				if (_state == KcpState.Authenticated && _pingsCount < 3 && time < _lastPingTime + MAX_PINGLESS_INTERVAL)
+				if (_state == KcpState.Authenticated && _unrespondedPingsCount < 3 && time < _lastPingTime + MAX_PINGLESS_INTERVAL)
 				{
-					_logger.LogTrace($"KCP: HandleTimeout - Waiting for ping {_pingsCount}");
+					_logger.LogTrace($"KCP: HandleTimeout - Waiting for ping {_unrespondedPingsCount}");
 					return;
 				}
 
 				_logger.LogWarning($"KCP: Connection timed out after not receiving any message for {timeout}ms. Disconnecting.");
-				Disconnect();
+				Disconnect(true);
 			}
 		}
 
 		private void HandleDeadLink()
 		{
 			// kcp has 'dead_link' detection. might as well use it.
-			if (_kcp.GetState() == -1)
+			lock (_lock)
 			{
-				_logger.LogWarning($"KCP Connection dead_link detected: a message was retransmitted {_kcp.dead_link} times without ack. Disconnecting.");
-				Disconnect();
+				if (_kcp == null)
+					return;
+
+				if (_kcp.GetState() == -1)
+				{
+					_logger.LogWarning($"KCP Connection dead_link detected: a message was retransmitted {_kcp.dead_link} times without ack. Disconnecting.");
+					Disconnect(false);
+				}
 			}
 		}
 
@@ -877,10 +955,10 @@ namespace MiniIT.Snipe
 			// enough time elapsed since last ping?
 			if (time >= _lastPingTime + PING_INTERVAL)
 			{
-				// _logger.LogTrace("kcp send ping");
+				// _logger.LogTrace($"kcp send ping {_unrespondedPingsCount}");
 				SendReliable(KcpHeader.Ping);
 				_lastPingTime = time;
-				_pingsCount++;
+				_unrespondedPingsCount++;
 			}
 		}
 
@@ -889,26 +967,32 @@ namespace MiniIT.Snipe
 			// disconnect connections that can't process the load.
 			// see QueueSizeDisconnect comments.
 			// => include all of kcp's buffers and the unreliable queue!
-			int rcvQueueCount = _kcp.GetRcvQueueCount();
-			int sndQueueCount = _kcp.GetSndQueueCount();
-			int rcvBufCount = _kcp.GetRcvBufCount();
-			int sndBufCount = _kcp.GetSndBufCount();
-			int total = rcvQueueCount + sndQueueCount +
-			            rcvBufCount + sndBufCount;
-			if (total >= QUEUE_DISCONNECT_THRESHOLD)
+			lock (_lock)
 			{
-				_logger.LogWarning($"KCP: disconnecting connection because it can't process data fast enough.\n" +
-								 $"Queue total {total}>{QUEUE_DISCONNECT_THRESHOLD}. rcv_queue={rcvQueueCount} snd_queue={sndQueueCount} rcv_buf={rcvBufCount} snd_buf={sndBufCount}\n" +
-								 $"* Try to Enable NoDelay, decrease INTERVAL, disable Congestion Window (= enable NOCWND!), increase SEND/RECV WINDOW or compress data.\n" +
-								 $"* Or perhaps the network is simply too slow on our end, or on the other end.\n");
+				if (_kcp == null)
+					return;
 
-				// let's clear all pending sends before disconnting with 'Bye'.
-				// otherwise a single Flush in Disconnect() won't be enough to
-				// flush thousands of messages to finally deliver 'Bye'.
-				// this is just faster and more robust.
-				_kcp.ClearSndQueue();
+				int rcvQueueCount = _kcp.GetRcvQueueCount();
+				int sndQueueCount = _kcp.GetSndQueueCount();
+				int rcvBufCount = _kcp.GetRcvBufCount();
+				int sndBufCount = _kcp.GetSndBufCount();
+				int total = rcvQueueCount + sndQueueCount +
+				            rcvBufCount + sndBufCount;
+				if (total >= QUEUE_DISCONNECT_THRESHOLD)
+				{
+					_logger.LogWarning($"KCP: disconnecting connection because it can't process data fast enough.\n" +
+									 $"Queue total {total}>{QUEUE_DISCONNECT_THRESHOLD}. rcv_queue={rcvQueueCount} snd_queue={sndQueueCount} rcv_buf={rcvBufCount} snd_buf={sndBufCount}\n" +
+									 $"* Try to Enable NoDelay, decrease INTERVAL, disable Congestion Window (= enable NOCWND!), increase SEND/RECV WINDOW or compress data.\n" +
+									 $"* Or perhaps the network is simply too slow on our end, or on the other end.\n");
 
-				Disconnect();
+					// let's clear all pending sends before disconnting with 'Bye'.
+					// otherwise a single Flush in Disconnect() won't be enough to
+					// flush thousands of messages to finally deliver 'Bye'.
+					// this is just faster and more robust.
+					_kcp.ClearSndQueue();
+
+					Disconnect(false);
+				}
 			}
 		}
 
@@ -920,6 +1004,52 @@ namespace MiniIT.Snipe
 				_socket.OnDisconnected -= OnSocketDisconnected;
 				_socket.Dispose();
 				_socket = null;
+			}
+		}
+
+		private void ReleaseKcp()
+		{
+			if (_chunkedMessages != null)
+			{
+				foreach (var kv in _chunkedMessages)
+				{
+					if (kv.Value != null && kv.Value.buffer != null)
+					{
+						ArrayPool<byte>.Shared.Return(kv.Value.buffer);
+					}
+				}
+				_chunkedMessages.Clear();
+				_chunkedMessages = null;
+			}
+
+			lock (_lock)
+			{
+				_kcpReceiveBuffer = null;
+				_kcpSendBuffer = null;
+				_kcp = null;
+			}
+			_hasReceivedValidMessage = false;
+		}
+
+		private bool AttemptReconnect()
+		{
+			// Attempt to reconnect using last known parameters, keeping existing _kcp instance
+			if (string.IsNullOrEmpty(_host) || _port == 0)
+			{
+				return false;
+			}
+
+			_logger.LogTrace("AttemptReconnect");
+
+			try
+			{
+				Connect(_host, _port, _timeout, _authenticationTimeout);
+				return true;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError($"KCP: Reconnect failed: {ex}");
+				return false;
 			}
 		}
 	}

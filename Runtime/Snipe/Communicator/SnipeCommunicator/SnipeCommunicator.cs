@@ -62,8 +62,8 @@ namespace MiniIT.Snipe
 		{
 			_analytics = analytics;
 
-			_mainThreadRunner = SnipeServices.MainThreadRunner;
-			_logger = SnipeServices.LogService.GetLogger(nameof(SnipeCommunicator));
+			_mainThreadRunner = SnipeServices.Instance.MainThreadRunner;
+			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(SnipeCommunicator));
 			_logger.BeginScope($"{InstanceId}");
 
 			_roomStateObserver = new RoomStateObserver(this);
@@ -81,7 +81,7 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public void Start()
 		{
-			if (!SnipeServices.InternetReachabilityProvider.IsInternetAvailable)
+			if (!SnipeServices.Instance.InternetReachabilityProvider.IsInternetAvailable)
 			{
 				_logger.LogInformation("Internet is not available");
 				ConnectionClosed?.Invoke();

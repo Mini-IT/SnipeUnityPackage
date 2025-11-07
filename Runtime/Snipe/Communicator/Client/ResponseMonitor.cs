@@ -34,7 +34,7 @@ namespace MiniIT.Snipe
 			_items = new ConcurrentDictionary<int, ResponseMonitoringItem>();
 #endif
 
-			_stopwatch = SnipeServices.FuzzyStopwatchFactory.Create();
+			_stopwatch = SnipeServices.Instance.FuzzyStopwatchFactory.Create();
 			_stopwatch.Start();
 		}
 

@@ -45,8 +45,8 @@ namespace MiniIT.Snipe
 
 		public AuthBinding(string providerId, AuthIdFetcher fetcher)
 		{
-			_sharedPrefs = SnipeServices.SharedPrefs;
-			_logger = SnipeServices.LogService.GetLogger(GetType().Name);
+			_sharedPrefs = SnipeServices.Instance.SharedPrefs;
+			_logger = SnipeServices.Instance.LogService.GetLogger(GetType().Name);
 
 			ProviderId = providerId;
 			Fetcher = fetcher;

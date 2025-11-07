@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿using System;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -93,7 +93,7 @@ namespace MiniIT.Snipe.Unity
 
 		private void RunInMainThread(Action action)
 		{
-			SnipeServices.MainThreadRunner.RunInMainThread(action);
+			SnipeServices.Instance.MainThreadRunner.RunInMainThread(action);
 		}
 	}
 }

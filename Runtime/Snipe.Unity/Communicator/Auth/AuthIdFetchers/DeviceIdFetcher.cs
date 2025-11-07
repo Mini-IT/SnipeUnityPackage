@@ -12,7 +12,7 @@ namespace MiniIT.Snipe.Unity
 
 		public DeviceIdFetcher()
 		{
-			_logger = SnipeServices.LogService.GetLogger(nameof(DeviceIdFetcher));
+			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(DeviceIdFetcher));
 		}
 
 		public override void Fetch(bool _, Action<string> callback = null)

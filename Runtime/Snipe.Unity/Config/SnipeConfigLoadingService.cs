@@ -87,7 +87,7 @@ namespace MiniIT.Snipe
 					return _config;
 				}
 
-				_loader ??= new SnipeConfigLoader(_projectID, SnipeServices.ApplicationInfo);
+				_loader ??= new SnipeConfigLoader(_projectID, SnipeServices.Instance.ApplicationInfo);
 			}
 
 			lock (_statisticsLock)
@@ -132,7 +132,7 @@ namespace MiniIT.Snipe
 
 			_statisticsSent = true;
 
-			if (SnipeServices.Analytics.GetTracker() is ISnipeConfigLoadingAnalyticsTracker tracker)
+			if (SnipeServices.Instance.Analytics.GetTracker() is ISnipeConfigLoadingAnalyticsTracker tracker)
 			{
 				tracker.TrackSnipeConfigLoadingStats(Statistics);
 			}

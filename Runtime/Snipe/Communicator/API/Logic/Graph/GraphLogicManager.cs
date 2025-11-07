@@ -27,7 +27,7 @@ namespace MiniIT.Snipe.Api
 			: base(communicator, requestFactory, table)
 		{
 			_graphParser = new LogicGraphParser(table);
-			_logger = SnipeServices.LogService.GetLogger<GraphLogicManager>();
+			_logger = SnipeServices.Instance.LogService.GetLogger<GraphLogicManager>();
 		}
 
 		~GraphLogicManager()

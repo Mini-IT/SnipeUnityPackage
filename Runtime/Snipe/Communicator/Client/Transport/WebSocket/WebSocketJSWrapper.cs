@@ -24,7 +24,7 @@ namespace MiniIT.Snipe
 
 		public WebSocketJSWrapper()
 		{
-			_logger = SnipeServices.LogService.GetLogger(nameof(WebSocketJSWrapper));
+			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(WebSocketJSWrapper));
 		}
 
 		public override void Connect(string url)

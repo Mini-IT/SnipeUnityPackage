@@ -24,7 +24,7 @@ namespace MiniIT.Snipe.Api
 
 			var config = _configBuilder.Build(id);
 
-			var analytics = SnipeServices.Analytics.GetTracker(id);
+			var analytics = SnipeServices.Instance.Analytics.GetTracker(id);
 			var communicator = new SnipeCommunicator(analytics);
 			var auth = new UnityAuthSubsystem(id, communicator, analytics);
 			var logReporter = new LogReporter();

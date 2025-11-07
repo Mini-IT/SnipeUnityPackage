@@ -59,13 +59,13 @@ namespace MiniIT.Snipe
 		internal HttpTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
 			: base(config, analytics)
 		{
-			SnipeServices.MainThreadRunner.RunInMainThread(() =>
+			SnipeServices.Instance.MainThreadRunner.RunInMainThread(() =>
 			{
-				_persistentClientId = SnipeServices.SharedPrefs.GetString(PREFS_PERSISTENT_CLIENT_ID);
+				_persistentClientId = SnipeServices.Instance.SharedPrefs.GetString(PREFS_PERSISTENT_CLIENT_ID);
 				if (string.IsNullOrEmpty(_persistentClientId))
 				{
 					_persistentClientId = Guid.NewGuid().ToString();
-					SnipeServices.SharedPrefs.SetString(PREFS_PERSISTENT_CLIENT_ID, _persistentClientId);
+					SnipeServices.Instance.SharedPrefs.SetString(PREFS_PERSISTENT_CLIENT_ID, _persistentClientId);
 				}
 			});
 		}
@@ -84,7 +84,7 @@ namespace MiniIT.Snipe
 
 				if (_client == null)
 				{
-					_client = SnipeServices.HttpClientFactory.CreateHttpClient();
+					_client = SnipeServices.Instance.HttpClientFactory.CreateHttpClient();
 					//_client.SetPersistentClientId(_persistentClientId);
 				}
 				else

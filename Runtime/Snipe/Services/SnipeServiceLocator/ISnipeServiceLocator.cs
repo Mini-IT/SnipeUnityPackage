@@ -16,6 +16,7 @@ namespace MiniIT.Snipe
 		IStopwatchFactory FuzzyStopwatchFactory { get; }
 		IHttpClientFactory HttpClientFactory { get; }
 		IInternetReachabilityProvider InternetReachabilityProvider { get; }
+		ITicker Ticker { get; }
 	}
 
 	public interface ISnipeServiceLocatorFactory
@@ -28,5 +29,6 @@ namespace MiniIT.Snipe
 		IStopwatchFactory CreateFuzzyStopwatchFactory();
 		IHttpClientFactory CreateHttpClientFactory();
 		IInternetReachabilityProvider CreateInternetReachabilityProvider();
+		ITicker CreateTicker();
 	}
 }

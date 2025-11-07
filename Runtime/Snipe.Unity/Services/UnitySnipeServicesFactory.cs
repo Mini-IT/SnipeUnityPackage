@@ -19,5 +19,6 @@ namespace MiniIT.Snipe.Unity
 		public virtual IStopwatchFactory CreateFuzzyStopwatchFactory() => new FuzzyStopwatchFactory();
 		public virtual IHttpClientFactory CreateHttpClientFactory() => new DefaultHttpClientFactory();
 		public virtual IInternetReachabilityProvider CreateInternetReachabilityProvider() => new UnityInternetReachabilityProvider();
+		public ITicker CreateTicker() => new UnityUpdateTicker();
 	}
 }

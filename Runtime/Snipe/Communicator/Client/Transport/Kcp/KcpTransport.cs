@@ -23,6 +23,11 @@ namespace MiniIT.Snipe
 		private bool _connectionVerified = false;
 		private readonly object _lock = new object();
 
+		private readonly SemaphoreSlim _updateSignal = new SemaphoreSlim(0, 1);
+		private int _pending; // 0/1
+		private readonly ITicker _updateTicker;
+		private Task _networkLoop;
+
 		internal KcpTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
 			: base(config, analytics)
 		{
@@ -31,6 +36,8 @@ namespace MiniIT.Snipe
 				Protocol = TransportProtocol.Kcp,
 				ClientImplementation = "kcp"
 			};
+
+			_updateTicker = SnipeServices.Instance.Ticker;
 		}
 
 		public override void Connect()
@@ -205,6 +212,7 @@ namespace MiniIT.Snipe
 		private async void DoSendRequest(IDictionary<string, object> message)
 		{
 			bool semaphoreOccupied = false;
+			bool sent = false;
 
 			try
 			{
@@ -213,6 +221,11 @@ namespace MiniIT.Snipe
 
 				ArraySegment<byte> msgData = await Task.Run(() => SerializeMessage(message));
 				_kcpConnection?.SendData(msgData, KcpChannel.Reliable);
+				sent = true;
+			}
+			catch (Exception)
+			{
+				sent = false;
 			}
 			finally
 			{
@@ -220,6 +233,12 @@ namespace MiniIT.Snipe
 				{
 					_messageSerializationSemaphore.Release();
 				}
+			}
+
+			if (sent)
+			{
+				// Wake the loop immediately
+				OnTick();
 			}
 		}
 
@@ -257,6 +276,9 @@ namespace MiniIT.Snipe
 			{
 				ArrayPool<byte>.Shared.Return(item.Array);
 			}
+
+			// Wake the loop immediately
+			OnTick();
 		}
 
 		private ArraySegment<byte> SerializeMessage(IDictionary<string, object> message, bool writeLength = true)
@@ -310,18 +332,56 @@ namespace MiniIT.Snipe
 			CancellationTokenHelper.CancelAndDispose(ref _networkLoopCancellation);
 
 			_networkLoopCancellation = new CancellationTokenSource();
-			Task.Run(() => NetworkLoop(_networkLoopCancellation.Token));
-			//Task.Run(() => UdpConnectionTimeout(_networkLoopCancellation.Token));
+			_networkLoop = Task.Run(() => NetworkLoop(_networkLoopCancellation.Token));
+
+			_updateTicker.OnTick -= OnTick;
+			_updateTicker.OnTick += OnTick;
+
+			// Clear pending
+			Interlocked.Exchange(ref _pending, 0);
 		}
 
 		private void StopNetworkLoop()
 		{
 			_logger.LogTrace("StopNetworkLoop");
 
-			CancellationTokenHelper.CancelAndDispose(ref _networkLoopCancellation);
+			var cts = _networkLoopCancellation;
+			if (cts == null) return;
+
+			_updateTicker.OnTick -= OnTick;
+			cts.Cancel();
+			OnTick(); // wake waiter if it's currently blocked
+
+			var loop = _networkLoop;
+			_networkLoop = null;
+			_networkLoopCancellation = null;
+
+			if (loop != null)
+			{
+				_ = loop.ContinueWith(static t =>
+					{
+						// loop finished; safe to dispose CTS
+						// ignore exceptions — we are shutting down
+					}, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default)
+					.ContinueWith(static (_, state) => ((CancellationTokenSource)state!).Dispose(),
+						cts, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+			}
+			else
+			{
+				cts.Dispose();
+			}
 		}
 
-		private async void NetworkLoop(CancellationToken cancellation)
+		private void OnTick()
+		{
+			// Set pending=1; only release when transitioning 0 -> 1
+			if (Interlocked.Exchange(ref _pending, 1) == 0)
+			{
+				_updateSignal.Release();
+			}
+		}
+
+		private async Task NetworkLoop(CancellationToken cancellation)
 		{
 			while (!cancellation.IsCancellationRequested)
 			{
@@ -340,12 +400,17 @@ namespace MiniIT.Snipe
 
 				try
 				{
-					await Task.Delay(100, cancellation);
+					await _updateSignal.WaitAsync(cancellation).ConfigureAwait(false);
 				}
 				catch (TaskCanceledException)
 				{
 					// This is OK. Just terminating the task
 					return;
+				}
+				finally
+				{
+					// Clear pending; ticks racing with this will still cause a Release()
+					Interlocked.Exchange(ref _pending, 0);
 				}
 			}
 		}

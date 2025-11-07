@@ -111,9 +111,9 @@ namespace MiniIT.Snipe
 
 			_contextId = contextId;
 			_analytics = analytics;
-			_sharedPrefs = SnipeServices.SharedPrefs;
-			_mainThreadRunner = SnipeServices.MainThreadRunner;
-			_logger = SnipeServices.LogService.GetLogger(nameof(AuthSubsystem));
+			_sharedPrefs = SnipeServices.Instance.SharedPrefs;
+			_mainThreadRunner = SnipeServices.Instance.MainThreadRunner;
+			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(AuthSubsystem));
 		}
 
 		public void Initialize(SnipeConfig config)
