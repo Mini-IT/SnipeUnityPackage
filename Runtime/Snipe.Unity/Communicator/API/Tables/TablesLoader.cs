@@ -37,16 +37,16 @@ namespace MiniIT.Snipe
 		public TablesLoader()
 		{
 			StreamingAssetsReader.Initialize();
-			_analyticsTracker = SnipeServices.Analytics.GetTracker();
-			_internetReachabilityProvider = SnipeServices.InternetReachabilityProvider;
+			_analyticsTracker = SnipeServices.Instance.Analytics.GetTracker();
+			_internetReachabilityProvider = SnipeServices.Instance.InternetReachabilityProvider;
 			_builtInTablesListService = new BuiltInTablesListService();
 			_versionsLoader = new TablesVersionsLoader(_builtInTablesListService, _analyticsTracker);
-			_logger = SnipeServices.LogService.GetLogger(nameof(TablesLoader));
+			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(TablesLoader));
 		}
 
 		internal static string GetCacheDirectoryPath()
 		{
-			return Path.Combine(SnipeServices.ApplicationInfo.PersistentDataPath ?? "", "SnipeTables");
+			return Path.Combine(SnipeServices.Instance.ApplicationInfo.PersistentDataPath ?? "", "SnipeTables");
 		}
 
 		internal static string GetCachePath(string tableName, long version)
@@ -105,7 +105,7 @@ namespace MiniIT.Snipe
 					RemoveOutdatedCache();
 				}
 
-				IHttpClient httpClient = loadExternal ? SnipeServices.HttpClientFactory.CreateHttpClient() : null;
+				IHttpClient httpClient = loadExternal ? SnipeServices.Instance.HttpClientFactory.CreateHttpClient() : null;
 
 				bool loaded = await LoadAll(httpClient);
 

@@ -1,28 +1,12 @@
 using System;
 using Microsoft.Extensions.Logging;
-using MiniIT.Http;
-using MiniIT.Snipe.Logging;
-using MiniIT.Storage;
-using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
 	public static class SnipeServices
 	{
-		#region static ISnipeServiceLocator
-
-		public static ISharedPrefs SharedPrefs => s_locator.SharedPrefs;
-		public static ILogService LogService => s_locator.LogService;
-		public static ISnipeAnalyticsService Analytics => s_locator.Analytics;
-		public static IMainThreadRunner MainThreadRunner => s_locator.MainThreadRunner;
-		public static IApplicationInfo ApplicationInfo => s_locator.ApplicationInfo;
-		public static IStopwatchFactory FuzzyStopwatchFactory => s_locator.FuzzyStopwatchFactory;
-		public static IHttpClientFactory HttpClientFactory => s_locator.HttpClientFactory;
-		public static IInternetReachabilityProvider InternetReachabilityProvider => s_locator.InternetReachabilityProvider;
-
-		#endregion
-
 		public static bool IsInitialized => s_locator != null;
+		public static ISnipeServiceLocator Instance => s_locator;
 
 		private static ISnipeServiceLocator s_locator;
 

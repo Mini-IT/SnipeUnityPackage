@@ -24,11 +24,11 @@ namespace MiniIT.Snipe.Tables
 #endif
 					{
 						loaded = true;
-						SnipeServices.LogService.GetLogger("SnipeTable").LogTrace("Table ready (from cache) - {tableName}", tableName);
+						SnipeServices.Instance.LogService.GetLogger("SnipeTable").LogTrace("Table ready (from cache) - {tableName}", tableName);
 					}
 					else
 					{
-						SnipeServices.LogService.GetLogger("SnipeTable").LogTrace("Failed to read file - {tableName}", tableName);
+						SnipeServices.Instance.LogService.GetLogger("SnipeTable").LogTrace("Failed to read file - {tableName}", tableName);
 					}
 				}
 			}

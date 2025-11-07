@@ -41,7 +41,7 @@ namespace MiniIT.Snipe
 			_analyticsService = analyticsService;
 			_contextId = contextId;
 			_errorsTrackerGetter = errorsTrackerGetter;
-			_mainThreadRunner = SnipeServices.MainThreadRunner;
+			_mainThreadRunner = SnipeServices.Instance.MainThreadRunner;
 		}
 
 		internal void SetExternalTracker(ISnipeCommunicatorAnalyticsTracker externalTracker)

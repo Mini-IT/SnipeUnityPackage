@@ -27,7 +27,7 @@ namespace MiniIT.Snipe.Tables
 		{
 			_builtInTablesListService = builtInTablesListService;
 			_analyticsTracker = analyticsTracker;
-			_logger = SnipeServices.LogService.GetLogger(nameof(TablesVersionsLoader));
+			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(TablesVersionsLoader));
 		}
 
 		public async UniTask<LoadResult> Load(IHttpClient httpClient, CancellationToken cancellationToken)
