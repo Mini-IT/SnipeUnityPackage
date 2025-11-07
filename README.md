@@ -27,6 +27,5 @@ Alternatively there are some other methods:
 
 ## Third-party libraries used
 
-* [websocket-sharp](https://github.com/sta/websocket-sharp)
 * [fastJSON](https://github.com/mgholam/fastJSON) - modified for IL2CPP compatibility
 * KcpClient inspired by implementation from [Mirror](https://github.com/vis2k/Mirror)

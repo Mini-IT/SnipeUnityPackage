@@ -66,18 +66,7 @@ namespace MiniIT.Snipe
 
 			_logger.LogTrace("WebSocket Connect to " + url);
 
-#if WEBGL_ENVIRONMENT
-			_webSocket = new WebSocketJSWrapper();
-#else
-			_webSocket = _config.WebSocketImplementation switch
-			{
-				SnipeConfig.WebSocketImplementations.ClientWebSocket => new WebSocketClientWrapper(),
-#if BEST_WEBSOCKET
-				SnipeConfig.WebSocketImplementations.BestWebSocket => new WebSocketBestWrapper(),
-#endif
-				_ => new WebSocketSharpWrapper(),
-			};
-#endif
+			_webSocket = new WebSocketFactory(_config).CreateWebSocket();
 
 			Info = new TransportInfo()
 			{
