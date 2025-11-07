@@ -19,7 +19,7 @@ namespace MiniIT.Snipe
 
 		private readonly IMainThreadRunner _mainThreadRunner;
 
-		private readonly SemaphoreSlim _sendSemaphore = new SemaphoreSlim(1, 1);
+		private readonly SemaphoreSlim _sendSignalSemaphore = new SemaphoreSlim(0, int.MaxValue);
 		private readonly SemaphoreSlim _readSemaphore = new SemaphoreSlim(1, 1);
 		private readonly ArraySegment<byte> _receiveBuffer;
 
@@ -88,8 +88,8 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			SendLoop(_webSocket, cancellation);
-			ReceiveLoop(_webSocket, cancellation);
+			_ = SendLoop(_webSocket, cancellation);
+			_ = ReceiveLoop(_webSocket, cancellation);
 
 			OnWebSocketConnected();
 		}
@@ -110,21 +110,19 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async void SendLoop(WebSocket webSocket, CancellationToken cancellation)
+		private async Task SendLoop(WebSocket webSocket, CancellationToken cancellation)
 		{
 			while (webSocket.State == WebSocketState.Open && !cancellation.IsCancellationRequested)
 			{
-				bool semaphoreOccupied = false;
-
 				try
 				{
-					await _sendSemaphore.WaitAsync(cancellation);
-					semaphoreOccupied = true;
+					await _sendSignalSemaphore.WaitAsync(cancellation);
 
 					if (cancellation.IsCancellationRequested)
 						break;
 
-					if (_sendQueue.TryDequeue(out var sendData))
+					// Process all queued items (may be more than one)
+					while (_sendQueue.TryDequeue(out var sendData))
 					{
 						await webSocket.SendAsync(sendData, WebSocketMessageType.Binary, true, cancellation);
 						ArrayPool<byte>.Shared.Return(sendData.Array);
@@ -134,24 +132,16 @@ namespace MiniIT.Snipe
 				{
 					string exceptionMessage = LogUtil.GetReducedException(e);
 					Disconnect($"Send exception: {exceptionMessage}");
+					break;
 				}
 				catch (OperationCanceledException)
 				{
 					break;
 				}
-				finally
-				{
-					if (semaphoreOccupied)
-					{
-						_sendSemaphore.Release();
-					}
-				}
-
-				await Task.Delay(50);
 			}
 		}
 
-		private async void ReceiveLoop(WebSocket webSocket, CancellationToken cancellation)
+		private async Task ReceiveLoop(WebSocket webSocket, CancellationToken cancellation)
 		{
 			int receivedMessageLength = 0;
 
@@ -214,11 +204,6 @@ namespace MiniIT.Snipe
 						_readSemaphore.Release();
 					}
 				}
-
-				if (receivedMessageLength == 0)
-				{
-					await Task.Delay(50);
-				}
 			}
 		}
 
@@ -261,6 +246,7 @@ namespace MiniIT.Snipe
 			byte[] buffer = ArrayPool<byte>.Shared.Rent(bytes.Length);
 			Array.ConstrainedCopy(bytes, 0, buffer, 0, bytes.Length);
 			_sendQueue.Enqueue(new ArraySegment<byte>(buffer, 0, bytes.Length));
+			_sendSignalSemaphore.Release();
 		}
 
 		public override void SendRequest(ArraySegment<byte> data)
@@ -271,6 +257,7 @@ namespace MiniIT.Snipe
 			byte[] buffer = ArrayPool<byte>.Shared.Rent(data.Count);
 			Array.ConstrainedCopy(data.Array, data.Offset, buffer, 0, data.Count);
 			_sendQueue.Enqueue(new ArraySegment<byte>(buffer, 0, data.Count));
+			_sendSignalSemaphore.Release();
 		}
 
 		public override void Ping(Action<bool> callback = null)
@@ -287,6 +274,8 @@ namespace MiniIT.Snipe
 		{
 			base.Dispose();
 			_webSocket?.Dispose();
+			_sendSignalSemaphore?.Dispose();
+			_readSemaphore?.Dispose();
 
 			CancellationTokenHelper.Dispose(ref _cancellation, false);
 		}
