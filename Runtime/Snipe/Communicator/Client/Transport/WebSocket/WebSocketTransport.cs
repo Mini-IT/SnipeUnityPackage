@@ -53,6 +53,9 @@ namespace MiniIT.Snipe
 		private ConcurrentQueue<IDictionary<string, object>> _sendMessages;
 		private ConcurrentQueue<IList<IDictionary<string, object>>> _batchMessages;
 
+		private AlterSemaphore _sendSignal = new AlterSemaphore(0, int.MaxValue);
+		private CancellationTokenSource _sendLoopCancellation;
+
 		private bool _connected;
 		private bool _loggedIn;
 
@@ -101,7 +104,7 @@ namespace MiniIT.Snipe
 
 			lock (_lock)
 			{
-				StopSendTask();
+				StopSendLoop();
 				StopHeartbeat();
 				StopCheckConnection();
 
@@ -158,9 +161,10 @@ namespace MiniIT.Snipe
 		{
 			if (_sendMessages == null)
 			{
-				StartSendTask();
+				StartSendLoop();
 			}
 			_sendMessages!.Enqueue(message);
+			_sendSignal.Release();
 		}
 
 		public override void SendBatch(IList<IDictionary<string, object>> messages)
@@ -172,9 +176,10 @@ namespace MiniIT.Snipe
 
 				if (_sendMessages == null)
 				{
-					StartSendTask();
+					StartSendLoop();
 				}
 			}
+			_sendSignal.Release();
 		}
 
 		private async void DoSendRequest(IDictionary<string, object> message)
@@ -326,69 +331,98 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		#region Send task
+		#region Send loop
 
-		private CancellationTokenSource _sendTaskCancellation;
-
-		private void StartSendTask()
+		private void StartSendLoop()
 		{
-			CancellationTokenHelper.CancelAndDispose(ref _sendTaskCancellation);
+			_logger.LogTrace("StartSendLoop");
+
+			lock (_lock)
+			{
+				if (_sendLoopCancellation != null)
+					return;
 
 #if NET5_0_OR_GREATER
-			if (_sendMessages == null)
-				_sendMessages = new ConcurrentQueue<IDictionary<string, object>>();
-			else
-				_sendMessages.Clear();
+				if (_sendMessages == null)
+					_sendMessages = new ConcurrentQueue<IDictionary<string, object>>();
+				else
+					_sendMessages.Clear();
 #else
-			_sendMessages = new ConcurrentQueue<IDictionary<string, object>>();
+				_sendMessages = new ConcurrentQueue<IDictionary<string, object>>();
 #endif
 
-			_sendTaskCancellation = new CancellationTokenSource();
+				CancellationTokenHelper.CancelAndDispose(ref _sendLoopCancellation);
+				_sendLoopCancellation = new CancellationTokenSource();
 
-			AlterTask.RunAndForget(() => SendTask(_sendTaskCancellation?.Token));
+				AlterTask.RunAndForget(() => SendLoop(_sendLoopCancellation.Token));
+			}
 		}
 
-		private void StopSendTask()
+		private void StopSendLoop()
 		{
+			_logger.LogTrace("StopSendLoop");
+
 			StopCheckConnection();
 
-			CancellationTokenHelper.CancelAndDispose(ref _sendTaskCancellation);
+			lock (_lock)
+			{
+				if (_sendLoopCancellation != null)
+				{
+					_sendLoopCancellation.Cancel();
+					_sendSignal.Release(); // wake waiter if it's currently blocked
+				}
+
+				CancellationTokenHelper.Dispose(ref _sendLoopCancellation, false);
+			}
 
 			_sendMessages = null;
 			_batchMessages = null;
 		}
 
-		private async void SendTask(CancellationToken? cancellation)
+		private async void SendLoop(CancellationToken cancellation)
 		{
-			try
+			while (!cancellation.IsCancellationRequested && Connected)
 			{
-				while (cancellation?.IsCancellationRequested != true && Connected)
+				try
 				{
-					if (_batchMessages != null && !_batchMessages.IsEmpty && _batchMessages.TryDequeue(out var messages) && messages != null && messages.Count > 0)
+					// Wait for signal or cancellation
+					await _sendSignal.WaitAsync(cancellation).ConfigureAwait(false);
+
+					if (cancellation.IsCancellationRequested)
+						break;
+
+					// Process all queued items (may be more than one)
+					// Process batch messages first
+					while (_batchMessages != null && !_batchMessages.IsEmpty && _batchMessages.TryDequeue(out var messages) && messages != null && messages.Count > 0)
 					{
 						DoSendBatch(messages);
 					}
 
-					if (_sendMessages != null && !_sendMessages.IsEmpty && _sendMessages.TryDequeue(out var message) && message != null)
+					// Process single messages
+					while (_sendMessages != null && !_sendMessages.IsEmpty && _sendMessages.TryDequeue(out var message) && message != null)
 					{
 						DoSendRequest(message);
 					}
-
-					await AlterTask.Delay(30);
 				}
-			}
-			catch (Exception ex)
-			{
-				var e = ex is AggregateException ae ? ae.InnerException : ex;
-				string exceptionMessage = LogUtil.GetReducedException(ex);
-				_logger.LogTrace($"SendTask Exception: {exceptionMessage}");
-				_analytics.TrackError("WebSocket SendTask error", e);
+				catch (OperationCanceledException)
+				{
+					// This is OK. Just terminating the task
+					return;
+				}
+				catch (Exception ex)
+				{
+					var e = ex is AggregateException ae ? ae.InnerException : ex;
+					string exceptionMessage = LogUtil.GetReducedException(ex);
+					_logger.LogTrace($"SendLoop Exception: {exceptionMessage}");
+					_analytics.TrackError("WebSocket SendLoop error", e);
 
-				StopSendTask();
+					StopSendLoop();
+					return;
+				}
 			}
 		}
 
-		#endregion // Send task
+		#endregion // Send loop
 
 		#region Heartbeat
 
