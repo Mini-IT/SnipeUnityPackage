@@ -16,7 +16,7 @@ namespace MiniIT.Snipe.Tables
 		public SnipeTableStreamingAssetsLoader(BuiltInTablesListService builtInTablesListService)
 		{
 			_builtInTablesListService = builtInTablesListService;
-			_logger = SnipeServices.LogService.GetLogger("SnipeTable");
+			_logger = SnipeServices.Instance.LogService.GetLogger("SnipeTable");
 		}
 
 		public async UniTask<bool> LoadAsync(Type wrapperType, IDictionary items, string tableName, long version, CancellationToken cancellationToken = default)

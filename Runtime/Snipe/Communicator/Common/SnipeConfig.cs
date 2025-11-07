@@ -49,8 +49,8 @@ namespace MiniIT.Snipe
 
 		public SnipeConfig(int contextId, SnipeConfigData data)
 		{
-			_mainThreadRunner = SnipeServices.MainThreadRunner;
-			_applicationInfo = SnipeServices.ApplicationInfo;
+			_mainThreadRunner = SnipeServices.Instance.MainThreadRunner;
+			_applicationInfo = SnipeServices.Instance.ApplicationInfo;
 
 			ContextId = contextId;
 			_data = data;
@@ -85,8 +85,8 @@ namespace MiniIT.Snipe
 
 		private void InitializeUrlIndices()
 		{
-			_serverWebSocketUrlIndex = SnipeServices.SharedPrefs.GetInt(SnipePrefs.GetWebSocketUrlIndex(ContextId), 0);
-			_serverUdpUrlIndex = SnipeServices.SharedPrefs.GetInt(SnipePrefs.GetUdpUrlIndex(ContextId), 0);
+			_serverWebSocketUrlIndex = SnipeServices.Instance.SharedPrefs.GetInt(SnipePrefs.GetWebSocketUrlIndex(ContextId), 0);
+			_serverUdpUrlIndex = SnipeServices.Instance.SharedPrefs.GetInt(SnipePrefs.GetUdpUrlIndex(ContextId), 0);
 		}
 
 		private void InitializeDefaultTablesConfigDev()
@@ -121,7 +121,7 @@ namespace MiniIT.Snipe
 			AppInfo = JsonUtility.ToJson(appInfo);
 
 			DebugId = GenerateDebugId();
-			SnipeServices.Analytics.GetTracker(ContextId).SetDebugId(DebugId);
+			SnipeServices.Instance.Analytics.GetTracker(ContextId).SetDebugId(DebugId);
 
 		}
 
@@ -177,7 +177,7 @@ namespace MiniIT.Snipe
 			_mainThreadRunner.RunInMainThread(() =>
 			{
 				string key = SnipePrefs.GetWebSocketUrlIndex(ContextId);
-				SnipeServices.SharedPrefs.SetInt(key, _serverWebSocketUrlIndex);
+				SnipeServices.Instance.SharedPrefs.SetInt(key, _serverWebSocketUrlIndex);
 			});
 		}
 
@@ -189,7 +189,7 @@ namespace MiniIT.Snipe
 			_mainThreadRunner.RunInMainThread(() =>
 			{
 				string key = SnipePrefs.GetUdpUrlIndex(ContextId);
-				SnipeServices.SharedPrefs.SetInt(key, _serverUdpUrlIndex);
+				SnipeServices.Instance.SharedPrefs.SetInt(key, _serverUdpUrlIndex);
 			});
 
 			return _serverUdpUrlIndex > prev;
@@ -203,7 +203,7 @@ namespace MiniIT.Snipe
 			_mainThreadRunner.RunInMainThread(() =>
 			{
 				string key = SnipePrefs.GetHttpUrlIndex(ContextId);
-				SnipeServices.SharedPrefs.SetInt(key, _serverHttpUrlIndex);
+				SnipeServices.Instance.SharedPrefs.SetInt(key, _serverHttpUrlIndex);
 			});
 
 			return _serverHttpUrlIndex > prev;

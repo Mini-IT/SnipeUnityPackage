@@ -25,7 +25,7 @@ namespace MiniIT.Snipe
 
 		public WebSocketBestWrapper()
 		{
-			_logger = SnipeServices.LogService.GetLogger(nameof(WebSocketBestWrapper));
+			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(WebSocketBestWrapper));
 			Best.HTTP.Shared.HTTPManager.Setup();
 		}
 

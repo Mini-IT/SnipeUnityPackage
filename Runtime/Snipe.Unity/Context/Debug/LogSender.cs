@@ -53,7 +53,7 @@ namespace MiniIT.Snipe.Internal
 
 			string line = null;
 
-			IHttpClient httpClient = SnipeServices.HttpClientFactory.CreateHttpClient();
+			IHttpClient httpClient = SnipeServices.Instance.HttpClientFactory.CreateHttpClient();
 			httpClient.SetAuthToken(_apiKey);
 
 			while (!file.EndOfStream)

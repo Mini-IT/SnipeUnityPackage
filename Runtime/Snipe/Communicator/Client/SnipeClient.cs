@@ -71,9 +71,9 @@ namespace MiniIT.Snipe
 		internal SnipeClient(SnipeConfig config)
 		{
 			_config = config;
-			_analytics = SnipeServices.Analytics.GetTracker(config.ContextId);
+			_analytics = SnipeServices.Instance.Analytics.GetTracker(config.ContextId);
 			_responseMonitor = new ResponseMonitor(_analytics);
-			_logger = SnipeServices.LogService.GetLogger(nameof(SnipeClient));
+			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(SnipeClient));
 			_transportService = new TransportService(config, _analytics);
 
 			_transportService.ConnectionOpened += OnTransportConnectionOpened;

@@ -18,7 +18,7 @@ namespace MiniIT.Snipe.Tables
 
 		public SnipeTableWebLoader()
 		{
-			_logger = SnipeServices.LogService.GetLogger("SnipeTable");
+			_logger = SnipeServices.Instance.LogService.GetLogger("SnipeTable");
 		}
 
 		public async UniTask<bool> LoadAsync(IHttpClient httpClient, Type wrapperType, IDictionary items, string tableName, long version, CancellationToken cancellation)
