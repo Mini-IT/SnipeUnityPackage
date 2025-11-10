@@ -1,7 +1,3 @@
-#if UNITY_WEBGL && !UNITY_EDITOR
-#define WEBGL_ENVIRONMENT
-#endif
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -12,7 +8,6 @@ using Microsoft.Extensions.Logging;
 using MiniIT.MessagePack;
 using MiniIT.Snipe.Logging;
 using MiniIT.Threading;
-using MiniIT.Snipe.Configuration;
 using MiniIT.Utils;
 
 namespace MiniIT.Snipe
@@ -53,7 +48,7 @@ namespace MiniIT.Snipe
 		private ConcurrentQueue<IDictionary<string, object>> _sendMessages;
 		private ConcurrentQueue<IList<IDictionary<string, object>>> _batchMessages;
 
-		private AlterSemaphore _sendSignal = new AlterSemaphore(0, int.MaxValue);
+		private readonly AlterSemaphore _sendSignal = new AlterSemaphore(0, int.MaxValue);
 		private CancellationTokenSource _sendLoopCancellation;
 
 		private bool _connected;
@@ -124,7 +119,9 @@ namespace MiniIT.Snipe
 		public void SetLoggedIn(bool value)
 		{
 			if (_loggedIn == value)
+			{
 				return;
+			}
 
 			_loggedIn = value;
 
@@ -182,7 +179,7 @@ namespace MiniIT.Snipe
 			_sendSignal.Release();
 		}
 
-		private async void DoSendRequest(IDictionary<string, object> message)
+		private async UniTask DoSendRequest(IDictionary<string, object> message)
 		{
 			byte[] data = await SerializeMessage(message);
 
@@ -197,7 +194,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async void DoSendBatch(IList<IDictionary<string, object>> messages)
+		private async UniTask DoSendBatch(IList<IDictionary<string, object>> messages)
 		{
 			byte[][] data = new byte[messages.Count][];
 			int length = 2; // 2 bytes for batch header
@@ -279,14 +276,16 @@ namespace MiniIT.Snipe
 		private void ProcessWebSocketMessage(byte[] rawData)
 		{
 			if (rawData.Length < 2)
+			{
 				return;
+			}
 
 			StopCheckConnection();
 
-			ProcessMessage(rawData);
+			AlterTask.RunAndForget(() => ProcessMessage(rawData).Forget());
 		}
 
-		private async void ProcessMessage(byte[] rawData)
+		private async UniTaskVoid ProcessMessage(byte[] rawData)
 		{
 			_logger.LogTrace("ProcessWebSocketMessage"); //   " + BitConverter.ToString(raw_data, 0, raw_data.Length));
 
@@ -340,7 +339,9 @@ namespace MiniIT.Snipe
 			lock (_lock)
 			{
 				if (_sendLoopCancellation != null)
+				{
 					return;
+				}
 
 #if NET5_0_OR_GREATER
 				if (_sendMessages == null)
@@ -354,7 +355,7 @@ namespace MiniIT.Snipe
 				CancellationTokenHelper.CancelAndDispose(ref _sendLoopCancellation);
 				_sendLoopCancellation = new CancellationTokenSource();
 
-				AlterTask.RunAndForget(() => SendLoop(_sendLoopCancellation.Token));
+				AlterTask.RunAndForget(() => SendLoop(_sendLoopCancellation.Token).Forget());
 			}
 		}
 
@@ -379,7 +380,7 @@ namespace MiniIT.Snipe
 			_batchMessages = null;
 		}
 
-		private async void SendLoop(CancellationToken cancellation)
+		private async UniTaskVoid SendLoop(CancellationToken cancellation)
 		{
 			while (!cancellation.IsCancellationRequested && Connected)
 			{
@@ -389,19 +390,21 @@ namespace MiniIT.Snipe
 					await _sendSignal.WaitAsync(cancellation).ConfigureAwait(false);
 
 					if (cancellation.IsCancellationRequested)
+					{
 						break;
+					}
 
 					// Process all queued items (may be more than one)
 					// Process batch messages first
 					while (_batchMessages != null && !_batchMessages.IsEmpty && _batchMessages.TryDequeue(out var messages) && messages != null && messages.Count > 0)
 					{
-						DoSendBatch(messages);
+						await DoSendBatch(messages);
 					}
 
 					// Process single messages
 					while (_sendMessages != null && !_sendMessages.IsEmpty && _sendMessages.TryDequeue(out var message) && message != null)
 					{
-						DoSendRequest(message);
+						await DoSendRequest(message);
 					}
 				}
 				catch (OperationCanceledException)
@@ -442,7 +445,7 @@ namespace MiniIT.Snipe
 			}
 
 			_heartbeatCancellation = new CancellationTokenSource();
-			AlterTask.RunAndForget(() => HeartbeatTask(_heartbeatCancellation.Token));
+			AlterTask.RunAndForget(() => HeartbeatTask(_heartbeatCancellation.Token).Forget());
 		}
 
 		private void StopHeartbeat()
@@ -450,7 +453,7 @@ namespace MiniIT.Snipe
 			CancellationTokenHelper.CancelAndDispose(ref _heartbeatCancellation);
 		}
 
-		private async void HeartbeatTask(CancellationToken cancellation)
+		private async UniTaskVoid HeartbeatTask(CancellationToken cancellation)
 		{
 			_heartbeatTriggerTicks = 0;
 			bool pinging = false;
@@ -486,14 +489,14 @@ namespace MiniIT.Snipe
 							}
 							else
 							{
-								_logger.LogTrace($"Heartbeat pong NOT RECEIVED");
+								_logger.LogTrace("Heartbeat pong NOT RECEIVED");
 							}
 						});
 					}
 
 					ResetHeartbeatTimer();
 
-					_logger.LogTrace($"Heartbeat ping");
+					_logger.LogTrace("Heartbeat ping");
 				}
 
 				if (cancellation.IsCancellationRequested)
@@ -540,7 +543,7 @@ namespace MiniIT.Snipe
 			}
 
 			_checkConnectionCancellation = new CancellationTokenSource();
-			AlterTask.RunAndForget(() => CheckConnectionTask(_checkConnectionCancellation.Token));
+			AlterTask.RunAndForget(() => CheckConnectionTask(_checkConnectionCancellation.Token).Forget());
 		}
 
 		private void StopCheckConnection()
@@ -553,7 +556,7 @@ namespace MiniIT.Snipe
 			BadConnection = false;
 		}
 
-		private async void CheckConnectionTask(CancellationToken cancellation)
+		private async UniTaskVoid CheckConnectionTask(CancellationToken cancellation)
 		{
 			BadConnection = false;
 
@@ -569,10 +572,12 @@ namespace MiniIT.Snipe
 
 			// if the connection is ok then this task should already be cancelled
 			if (cancellation.IsCancellationRequested)
+			{
 				return;
+			}
 
 			BadConnection = true;
-			_logger.LogTrace($"CheckConnectionTask - Bad connection detected");
+			_logger.LogTrace("CheckConnectionTask - Bad connection detected");
 
 			bool pinging = false;
 			while (Connected && BadConnection)
@@ -600,11 +605,11 @@ namespace MiniIT.Snipe
 							if (pong)
 							{
 								BadConnection = false;
-								_logger.LogTrace($"CheckConnectionTask - pong received");
+								_logger.LogTrace("CheckConnectionTask - pong received");
 							}
 							else
 							{
-								_logger.LogTrace($"CheckConnectionTask - pong NOT received");
+								_logger.LogTrace("CheckConnectionTask - pong NOT received");
 								OnDisconnectDetected();
 							}
 						});
@@ -618,7 +623,7 @@ namespace MiniIT.Snipe
 			if (Connected)
 			{
 				// Disconnect detected
-				_logger.LogTrace($"CheckConnectionTask - Disconnect detected");
+				_logger.LogTrace("CheckConnectionTask - Disconnect detected");
 
 				OnWebSocketClosed();
 			}
