@@ -71,6 +71,12 @@ namespace MiniIT.Snipe
 					return;
 				}
 			}
+			catch (OperationCanceledException)
+			{
+				_logger.LogTrace("WaitForConnection - Connection timed out");
+				OnWebSocketClosed("WebSocketWrapper - Connection timed out");
+				return;
+			}
 			catch (Exception e)
 			{
 				string exceptionMessage = LogUtil.GetReducedException(e);
@@ -79,7 +85,9 @@ namespace MiniIT.Snipe
 			}
 
 			if (cancellation.IsCancellationRequested)
+			{
 				return;
+			}
 
 			if (_webSocket.State != WebSocketState.Open)
 			{
