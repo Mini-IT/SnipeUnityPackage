@@ -114,10 +114,10 @@ namespace MiniIT.Snipe
 
 		protected void SubscribeDisconnectionEvents()
 		{
-			_communicator.ConnectionClosed -= OnConnectionClosed;
+			_communicator.ConnectionDisrupted -= OnConnectionDisrupted;
 			_communicator.ReconnectionScheduled -= OnReconnectionScheduled;
 
-			_communicator.ConnectionClosed += OnConnectionClosed;
+			_communicator.ConnectionDisrupted += OnConnectionDisrupted;
 			_communicator.ReconnectionScheduled += OnReconnectionScheduled;
 		}
 
@@ -215,7 +215,7 @@ namespace MiniIT.Snipe
 			OnWillReconnect();
 		}
 
-		protected void OnConnectionClosed()
+		protected void OnConnectionDisrupted()
 		{
 			if (_requestId != 0) // if the request is considered sent but not responsed yet
 			{
@@ -299,7 +299,7 @@ namespace MiniIT.Snipe
 
 				_communicator.ConnectionEstablished -= OnCommunicatorReady;
 				_communicator.ReconnectionScheduled -= OnReconnectionScheduled;
-				_communicator.ConnectionClosed -= OnConnectionClosed;
+				_communicator.ConnectionDisrupted -= OnConnectionDisrupted;
 				_communicator.MessageReceived -= OnMessageReceived;
 				_communicator = null;
 			}
