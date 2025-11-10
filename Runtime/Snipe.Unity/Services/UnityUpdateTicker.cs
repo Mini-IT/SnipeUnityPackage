@@ -1,4 +1,5 @@
 using System;
+using MiniIT.Utils;
 using UnityEngine.LowLevel;
 
 namespace MiniIT.Snipe.Unity
@@ -12,13 +13,12 @@ namespace MiniIT.Snipe.Unity
 				lock (_lock)
 				{
 					_onTick += value;
-
-					if (_listenersCount == 0)
-					{
-						AddLoopSystem(_loopSystem);
-					}
-
 					_listenersCount++;
+
+					if (_listenersCount == 1)
+					{
+						_mainThreadRunner.RunInMainThread(() => AddLoopSystem(_loopSystem));
+					}
 				}
 			}
 
@@ -27,11 +27,15 @@ namespace MiniIT.Snipe.Unity
 				lock (_lock)
 				{
 					_onTick -= value;
-					_listenersCount--;
 
-					if (_listenersCount == 0)
+					if (_listenersCount > 0)
 					{
-						RemoveLoopSystem(_loopSystem);
+						_listenersCount--;
+
+						if (_listenersCount == 0)
+						{
+							_mainThreadRunner.RunInMainThread(() => RemoveLoopSystem(_loopSystem));
+						}
 					}
 				}
 			}
@@ -42,6 +46,7 @@ namespace MiniIT.Snipe.Unity
 		private readonly object _lock = new object();
 
 		private readonly PlayerLoopSystem _loopSystem;
+		private readonly MainThreadRunner _mainThreadRunner;
 
 		public UnityUpdateTicker()
 		{
@@ -50,13 +55,15 @@ namespace MiniIT.Snipe.Unity
 				updateDelegate = OnLoopSystemUpdate,
 				type = typeof(UnityUpdateTicker)
 			};
+
+			_mainThreadRunner = new MainThreadRunner();
 		}
 
 		public void Dispose()
 		{
 			lock (_lock)
 			{
-				RemoveLoopSystem(_loopSystem);
+				_mainThreadRunner.RunInMainThread(() => RemoveLoopSystem(_loopSystem));
 
 				_onTick = null;
 				_listenersCount = 0;
