@@ -1,3 +1,7 @@
+#if UNITY_WEBGL && !UNITY_EDITOR
+#define WEBGL_ENVIRONMENT
+#endif
+
 namespace MiniIT.Snipe
 {
 	public class WebSocketFactory : IWebSocketFactory
