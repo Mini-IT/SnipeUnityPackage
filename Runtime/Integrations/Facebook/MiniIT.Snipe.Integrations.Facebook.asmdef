@@ -5,6 +5,7 @@
         "MiniIT.AlterTask",
         "MiniIT.Snipe.Communicator",
         "MiniIT.Framework.Social",
+		"UniTask",
         "fastJSON"
     ],
     "includePlatforms": [],
