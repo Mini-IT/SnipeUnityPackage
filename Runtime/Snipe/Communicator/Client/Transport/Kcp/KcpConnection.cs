@@ -201,7 +201,16 @@ namespace MiniIT.Snipe
 			if (_selfDisconnecting)
 				return;
 
-			Disconnect(true);
+			if (_state != KcpState.Disconnected)
+			{
+				Disconnect(true);
+				return;
+			}
+
+			// if was not connected yet (failed to etablish connection)
+			DisposeSocket();
+			OnDisconnected?.Invoke();
+			ReleaseKcp();
 		}
 
 		public void Disconnect()
@@ -217,7 +226,7 @@ namespace MiniIT.Snipe
 
 			bool canAttemptReconnect = attemptReconnect && _state != KcpState.Reconnecting && _hasReceivedValidMessage;
 
-			_logger.LogTrace($"canAttemptReconnect = {canAttemptReconnect} | {attemptReconnect} | {_state} | {_hasReceivedValidMessage}");
+			// _logger.LogTrace($"canAttemptReconnect = {canAttemptReconnect} | {attemptReconnect} | {_state} | {_hasReceivedValidMessage}");
 
 			_selfDisconnecting = true;
 
@@ -423,7 +432,12 @@ namespace MiniIT.Snipe
 			try
 			{
 				// detect common events & ping
-				HandleTimeout(time);
+				bool disconnect = HandleTimeout(time);
+				if (disconnect)
+				{
+					return;
+				}
+
 				HandleDeadLink();
 				HandlePing(time);
 				HandleChoked();
@@ -440,7 +454,7 @@ namespace MiniIT.Snipe
 
 					if (header == KcpHeader.Ping)
 					{
-						_logger.LogTrace("KCP: received ping message");
+						// _logger.LogTrace("KCP: received ping message");
 
 						PingTime = time - _lastPingTime;
 
@@ -454,7 +468,7 @@ namespace MiniIT.Snipe
 
 					if (_state == KcpState.Connected || _state == KcpState.Reconnecting)
 					{
-						if (header == KcpHeader.Handshake)
+						//if (header == KcpHeader.Handshake)
 						{
 							// we were waiting for a handshake.
 							// it proves that the other end speaks our protocol.
@@ -462,26 +476,26 @@ namespace MiniIT.Snipe
 							_hasReceivedValidMessage = true;
 							_state = KcpState.Authenticated;
 							OnAuthenticated?.Invoke();
-							continue;
+							//continue;
 						}
-						else // nothing else is expected
-						{
-							// should never receive another handshake after auth
-							_logger.LogWarning($"KCP: received invalid header {header} while {_state}. Disconnecting the connection.");
-							Disconnect(false);
-							break;
-						}
+						// else // nothing else is expected
+						// {
+						// 	// should never receive another handshake after auth
+						// 	_logger.LogWarning($"KCP: received invalid header {header} while {_state}. Disconnecting the connection.");
+						// 	Disconnect(false);
+						// 	break;
+						// }
 					}
 
 					if (_state == KcpState.Authenticated)
 					{
 						switch (header)
 						{
-							case KcpHeader.Handshake:
-								// should never receive another handshake after auth
-								_logger.LogWarning($"KCP: received invalid header {header} while Authenticated. Disconnecting the connection.");
-								Disconnect(false);
-								break;
+							// case KcpHeader.Handshake:
+							// 	// should never receive another handshake after auth
+							// 	_logger.LogWarning($"KCP: received invalid header {header} while Authenticated. Disconnecting the connection.");
+							// 	Disconnect(false);
+							// 	break;
 
 							case KcpHeader.Data:
 								HandleReliableData(message);
@@ -914,7 +928,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void HandleTimeout(uint time)
+		private bool HandleTimeout(uint time)
 		{
 			int timeout = (_state == KcpState.Authenticated) ? _timeout : _authenticationTimeout;
 
@@ -925,12 +939,15 @@ namespace MiniIT.Snipe
 				if (_state == KcpState.Authenticated && _unrespondedPingsCount < 3 && time < _lastPingTime + MAX_PINGLESS_INTERVAL)
 				{
 					_logger.LogTrace($"KCP: HandleTimeout - Waiting for ping {_unrespondedPingsCount}");
-					return;
+					return false;
 				}
 
 				_logger.LogWarning($"KCP: Connection timed out after not receiving any message for {timeout}ms. Disconnecting.");
 				Disconnect(true);
+				return true;
 			}
+
+			return false;
 		}
 
 		private void HandleDeadLink()
