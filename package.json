@@ -8,11 +8,11 @@
     "com.miniit.framework.utilities": "1.1.0",
     "com.miniit.sharedprefs": "1.0.0",
     "com.cysharp.unitask": "2.3.0",
-    "com.miniit.altertask": "1.0.0"
+    "com.miniit.altertask": "1.1.0"
   },
   "author": {
     "name": "Mini IT",
-    "url": "http://snipe.dev"
+    "url": "https://snipe.dev"
   },
   "keywords": [
     "Snipe",
