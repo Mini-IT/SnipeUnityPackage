@@ -23,7 +23,12 @@ namespace MiniIT.Snipe
 			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(UdpSocketWrapper));
 		}
 
-		public async void Connect(string host, ushort port)
+		public void Connect(string host, ushort port)
+		{
+			_ = ConnectAsync(host, port);
+		}
+
+		private async Task ConnectAsync(string host, ushort port)
 		{
 			_logger.LogTrace($"connect to {host}:{port}");
 
