@@ -12,13 +12,6 @@ namespace MiniIT.Snipe.Unity
 
 		protected override void InitDefaultBindings()
 		{
-#if UNITY_WEBGL
-			if (FindBinding<WebGLBinding>(false) == null)
-			{
-				_bindings.Add(new WebGLBinding(_communicator, this, _config));
-			}
-#endif
-
 			if (FindBinding<DeviceIdBinding>(false) == null)
 			{
 				_bindings.Add(new DeviceIdBinding(_communicator, this, _config));
@@ -64,13 +57,6 @@ namespace MiniIT.Snipe.Unity
 						continue;
 					}
 
-#if UNITY_WEBGL
-					if (binding is WebGLBinding)
-                    {
-						tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers, false));
-                    }
-#else
-
 					if (binding is DeviceIdBinding or AdvertisingIdBinding)
 					{
 						tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers, true));
@@ -79,7 +65,6 @@ namespace MiniIT.Snipe.Unity
 					{
 						tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers, false));
 					}
-#endif
 				}
 
 				await UniTask.WhenAll(tasks.ToArray());
