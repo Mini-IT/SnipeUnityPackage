@@ -17,6 +17,21 @@ namespace MiniIT.Snipe.Unity
 
 		public override void Fetch(bool _, Action<string> callback = null)
 		{
+#if UNITY_WEBGL
+            if (string.IsNullOrEmpty(Value))
+            {
+                string value = PlayerPrefs.GetString(ID_PREFS_KEY);
+				
+                if (string.IsNullOrEmpty(value))
+                {
+                    value = Guid.NewGuid().ToString();
+                    PlayerPrefs.GetString(ID_PREFS_KEY);
+                }
+
+                Value = value;
+				_logger.LogTrace($"[DeviceIdFetcher] Value = {Value}");
+            }
+#else
 			if (string.IsNullOrEmpty(Value))
 			{
 				if (SystemInfo.unsupportedIdentifier != SystemInfo.deviceUniqueIdentifier)
@@ -37,6 +52,7 @@ namespace MiniIT.Snipe.Unity
 					// TODO: generate device id using custom algorithm
 				}
 			}
+#endif
 
 			callback?.Invoke(Value);
 		}
