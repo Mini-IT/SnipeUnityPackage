@@ -8,6 +8,9 @@ namespace MiniIT.Snipe.Unity
 {
 	public class DeviceIdFetcher : AuthIdFetcher
 	{
+#if UNITY_WEBGL
+		private const string ID_PREFS_KEY = "com.miniit.app.webgl.id";
+#endif
 		private readonly Microsoft.Extensions.Logging.ILogger _logger;
 
 		public DeviceIdFetcher()
