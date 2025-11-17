@@ -14,7 +14,6 @@ namespace MiniIT.Snipe
 
 		private Transport _currentTransport;
 		private TransportInfo _currentTransportInfo;
-		private TimeSpan _prevDisconnectTime = TimeSpan.Zero;
 		private long _connectionStartTimestamp;
 
 		public bool Connected => _currentTransport != null && _currentTransport.Connected;
@@ -83,11 +82,9 @@ namespace MiniIT.Snipe
 			_currentTransport = factory.Invoke();
 
 			_connectionStartTimestamp = Stopwatch.GetTimestamp();
-			_prevDisconnectTime = TimeSpan.Zero;
 			_currentTransport.Connect();
 
 			return true;
-
 		}
 
 		public void StopCurrentTransport()
@@ -157,15 +154,10 @@ namespace MiniIT.Snipe
 				UdpConnectionFailed?.Invoke();
 			}
 
-			// If disconnected twice during 10 seconds, then force transport change
-			TimeSpan now = TimeSpan.FromSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-			TimeSpan dif = now - _prevDisconnectTime;
-			_prevDisconnectTime = now;
-
 			StopCurrentTransport();
 			ConnectionDisrupted?.Invoke(transport);
 
-			if (transport.ConnectionVerified && dif.TotalSeconds > 10)
+			if (transport.ConnectionVerified)
 			{
 				RaiseConnectionClosedEvent();
 			}
