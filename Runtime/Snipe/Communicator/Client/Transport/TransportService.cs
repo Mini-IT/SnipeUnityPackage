@@ -6,11 +6,20 @@ namespace MiniIT.Snipe
 {
 	internal sealed class TransportService : IDisposable
 	{
+		private sealed class TransportEntry
+		{
+			public Transport Instance;
+			public Func<Transport> Factory;
+			public Func<(string endpoint, ushort port)> ResolveEndpoint;
+			public Func<bool> TryAdvanceUrl;
+		}
+
 		private readonly SnipeConfig _config;
 		private readonly SnipeAnalyticsTracker _analytics;
 		private readonly TransportFactory _transportFactory;
-		private readonly List<Func<Transport>> _transportFactoriesQueue = new List<Func<Transport>>(3);
+		private readonly List<TransportEntry> _transportEntries = new List<TransportEntry>(3);
 		private int _currentTransportIndex;
+		private bool _retryCurrentTransport;
 
 		private Transport _currentTransport;
 		private TransportInfo _currentTransportInfo;
@@ -39,8 +48,9 @@ namespace MiniIT.Snipe
 		public void InitializeTransports()
 		{
 			_currentTransportIndex = -1;
+			_retryCurrentTransport = false;
 
-			if (_transportFactoriesQueue.Count > 0)
+			if (_transportEntries.Count > 0)
 			{
 				return;
 			}
@@ -48,43 +58,79 @@ namespace MiniIT.Snipe
 #if !UNITY_WEBGL
 			if (_config.CheckUdpAvailable())
 			{
-				_transportFactoriesQueue.Add(() => _transportFactory.CreateKcpTransport(OnTransportOpened, OnTransportClosed, OnMessageReceived));
+				_transportEntries.Add(new TransportEntry
+				{
+					Factory = () => _transportFactory.CreateKcpTransport(OnTransportOpened, OnTransportClosed, OnMessageReceived),
+					ResolveEndpoint = () =>
+					{
+						var address = _config.GetUdpAddress();
+						return address == null ? (null, 0) : (address.Host, address.Port);
+					},
+					TryAdvanceUrl = () => _config.NextUdpUrl()
+				});
 			}
 #endif
 
 			if (_config.CheckWebSocketAvailable())
 			{
-				_transportFactoriesQueue.Add(() => _transportFactory.CreateWebSocketTransport(OnTransportOpened, OnTransportClosed, OnMessageReceived));
+				_transportEntries.Add(new TransportEntry
+				{
+					Factory = () => _transportFactory.CreateWebSocketTransport(OnTransportOpened, OnTransportClosed, OnMessageReceived),
+					ResolveEndpoint = () => (_config.GetWebSocketUrl(), 0),
+					TryAdvanceUrl = () => _config.NextWebSocketUrl()
+				});
 			}
 
 			if (_config.CheckHttpAvailable())
 			{
-				_transportFactoriesQueue.Add(() => _transportFactory.CreateHttpTransport(OnTransportOpened, OnTransportClosed, OnMessageReceived));
+				_transportEntries.Add(new TransportEntry
+				{
+					Factory = () => _transportFactory.CreateHttpTransport(OnTransportOpened, OnTransportClosed, OnMessageReceived),
+					ResolveEndpoint = () => (_config.GetHttpAddress(), 0),
+					TryAdvanceUrl = () => _config.NextHttpUrl()
+				});
 			}
 		}
 
 		public bool TryStartNextTransport()
 		{
+			if (_transportEntries.Count == 0)
+			{
+				return false;
+			}
+
 			if (_currentTransport != null && _currentTransport.Started)
 			{
 				return false;
 			}
 
-			StopCurrentTransport();
-
-			if (_currentTransportIndex >= _transportFactoriesQueue.Count - 1 || _transportFactoriesQueue.Count == 0)
+			while (true)
 			{
-				return false;
+				var entry = GetEntryToStart();
+				if (entry == null)
+				{
+					return false;
+				}
+
+				if (entry.Instance == null)
+				{
+					entry.Instance = entry.Factory.Invoke();
+				}
+
+				_currentTransport = entry.Instance;
+
+				var (endpoint, port) = entry.ResolveEndpoint();
+				if (string.IsNullOrEmpty(endpoint) || (_currentTransport is KcpTransport && port == 0))
+				{
+					DisposeEntry(entry);
+					continue;
+				}
+
+				_connectionStartTimestamp = Stopwatch.GetTimestamp();
+				_currentTransport.Connect(endpoint, port);
+
+				return true;
 			}
-
-			var factory = _transportFactoriesQueue[++_currentTransportIndex];
-
-			_currentTransport = factory.Invoke();
-
-			_connectionStartTimestamp = Stopwatch.GetTimestamp();
-			_currentTransport.Connect();
-
-			return true;
 		}
 
 		public void StopCurrentTransport()
@@ -96,8 +142,11 @@ namespace MiniIT.Snipe
 				_currentTransport = null;
 			}
 
-			_analytics.PingTime = TimeSpan.Zero;
-			_analytics.ServerReaction = TimeSpan.Zero;
+			DisposeEntries();
+			_currentTransportIndex = -1;
+			_retryCurrentTransport = false;
+
+			ResetAnalyticsMetrics();
 		}
 
 		public void RaiseConnectionClosedEvent()
@@ -129,6 +178,99 @@ namespace MiniIT.Snipe
 		public void Dispose()
 		{
 			StopCurrentTransport();
+			_transportEntries.Clear();
+		}
+
+
+		private TransportEntry GetEntryToStart()
+		{
+			if (_retryCurrentTransport)
+			{
+				_retryCurrentTransport = false;
+				var current = GetCurrentEntry();
+				if (current != null)
+				{
+					return current;
+				}
+			}
+
+			if (!MoveToNextEntry())
+			{
+				return null;
+			}
+
+			return GetCurrentEntry();
+		}
+
+		private bool MoveToNextEntry()
+		{
+			int nextIndex = _currentTransportIndex;
+			while (true)
+			{
+				nextIndex++;
+				if (nextIndex >= _transportEntries.Count)
+				{
+					return false;
+				}
+
+				if (_transportEntries[nextIndex] != null)
+				{
+					_currentTransportIndex = nextIndex;
+					return true;
+				}
+			}
+		}
+
+		private TransportEntry GetCurrentEntry()
+		{
+			if (_currentTransportIndex < 0 || _currentTransportIndex >= _transportEntries.Count)
+			{
+				return null;
+			}
+
+			return _transportEntries[_currentTransportIndex];
+		}
+
+
+		private void DisposeEntry(TransportEntry entry)
+		{
+			if (entry?.Instance == null)
+			{
+				return;
+			}
+
+			entry.Instance.Dispose();
+
+			if (_currentTransport == entry.Instance)
+			{
+				_currentTransport = null;
+			}
+
+			entry.Instance = null;
+		}
+
+		private void DisposeEntries()
+		{
+			foreach (var entry in _transportEntries)
+			{
+				DisposeEntry(entry);
+			}
+		}
+
+		private void ResetAnalyticsMetrics()
+		{
+			_analytics.PingTime = TimeSpan.Zero;
+			_analytics.ServerReaction = TimeSpan.Zero;
+		}
+
+		private void FinishConnectionAttempts()
+		{
+			DisposeEntries();
+			_currentTransport = null;
+			_currentTransportIndex = -1;
+			_retryCurrentTransport = false;
+			ResetAnalyticsMetrics();
+			RaiseConnectionClosedEvent();
 		}
 
 		private void OnTransportOpened(Transport transport)
@@ -149,25 +291,34 @@ namespace MiniIT.Snipe
 				return;
 			}
 
+			var entry = GetCurrentEntry();
+			if (entry == null)
+			{
+				return;
+			}
+
 			if (transport is KcpTransport)
 			{
 				UdpConnectionFailed?.Invoke();
 			}
 
-			StopCurrentTransport();
+			_currentTransportInfo = transport.Info;
+			_currentTransport = null;
+			ResetAnalyticsMetrics();
+
+			bool hasMoreUrls = entry.TryAdvanceUrl();
+			if (!hasMoreUrls)
+			{
+				DisposeEntry(entry);
+			}
+
 			ConnectionDisrupted?.Invoke(transport);
 
-			if (transport.ConnectionVerified)
+			_retryCurrentTransport = hasMoreUrls;
+
+			if (!TryStartNextTransport())
 			{
-				RaiseConnectionClosedEvent();
-			}
-			else // Not connected yet or connection is lossy. Try another transport
-			{
-				if (!TryStartNextTransport())
-				{
-					StopCurrentTransport();
-					RaiseConnectionClosedEvent();
-				}
+				FinishConnectionAttempts();
 			}
 		}
 
