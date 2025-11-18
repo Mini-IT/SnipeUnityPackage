@@ -197,7 +197,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void TestParseUdpUrls_WithValidUrlsInList()
 		{
 			List<string> outputList = new List<string>();
-			object input = new List<string> { "https://test1.com:100", "https://test2.com:777" };
+			object input = new List<string> { "https://test1.com:100", "https://test2.com/:777" };
 			SnipeConfigBuilder.ParseUdpUrls(outputList, input);
 			Assert.AreEqual(2, outputList.Count);
 		}
