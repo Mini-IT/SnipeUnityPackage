@@ -210,8 +210,7 @@ namespace MiniIT.Snipe.Configuration
 		{
 			ParseUrls(outputList, input, (url) =>
 			{
-				url = url.ToLower();
-				string[] parts = url.Split(':');
+				string[] parts = url.ToLower().Split(':');
 				return parts.Length == 3 && !string.IsNullOrEmpty(parts[1]) && ushort.TryParse(parts[2], out _);
 			});
 		}
