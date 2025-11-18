@@ -49,6 +49,7 @@ namespace MiniIT.Snipe
 		private long _sessionAliveTillTicks;
 
 		private Uri _baseUrl;
+		private string _currentUrl;
 		private bool _started;
 		private bool _connected;
 		private bool _connectionEstablished = false;
@@ -89,6 +90,7 @@ namespace MiniIT.Snipe
 					return;
 				}
 
+				_currentUrl = url;
 				_baseUrl = GetBaseUrl(url);
 
 				if (_client == null)
@@ -460,12 +462,12 @@ namespace MiniIT.Snipe
 				await _sendSemaphore.WaitAsync();
 				semaphoreOccupied = true;
 
-				if (_baseUrl == null)
+				if (string.IsNullOrEmpty(_currentUrl))
 				{
 					return;
 				}
 
-				var uri = new Uri(_baseUrl, "test_connect.html?t=" + DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+				var uri = new Uri(new Uri(_currentUrl), "test_connect.html?t=" + DateTimeOffset.UtcNow.ToUnixTimeSeconds());
 
 				_logger.LogTrace($"<<< request ({uri})");
 
