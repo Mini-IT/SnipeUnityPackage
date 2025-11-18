@@ -183,5 +183,32 @@ namespace MiniIT.Snipe.Tests.Editor
 			SnipeConfigBuilder.ParseHttpUrls(outputList, input);
 			Assert.AreEqual(0, outputList.Count);
 		}
+
+		[Test]
+		public void TestParseUdpUrls_WithEmptyUrls()
+		{
+			List<string> outputList = new List<string>();
+			object input = new List<string>();
+			SnipeConfigBuilder.ParseUdpUrls(outputList, input);
+			Assert.AreEqual(0, outputList.Count);
+		}
+
+		[Test]
+		public void TestParseUdpUrls_WithValidUrlsInList()
+		{
+			List<string> outputList = new List<string>();
+			object input = new List<string> { "https://test1.com:100", "https://test2.com:777" };
+			SnipeConfigBuilder.ParseUdpUrls(outputList, input);
+			Assert.AreEqual(2, outputList.Count);
+		}
+
+		[Test]
+		public void TestParseUdpUrls_WithInvalidUrlsInList()
+		{
+			List<string> outputList = new List<string>();
+			object input = new List<string> { "test1.com", "https://test2.com:99" };
+			SnipeConfigBuilder.ParseUdpUrls(outputList, input);
+			Assert.AreEqual(1, outputList.Count);
+		}
 	}
 }
