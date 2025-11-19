@@ -464,8 +464,9 @@ namespace MiniIT.Snipe
 			return null;
 		}
 
-		public void NextWebSocketUrl()
+		public bool NextWebSocketUrl()
 		{
+			int prev = _serverWebSocketUrlIndex;
 			_serverWebSocketUrlIndex = GetValidIndex(ServerWebSocketUrls, _serverWebSocketUrlIndex, true);
 
 			_mainThreadRunner.RunInMainThread(() =>
@@ -473,6 +474,8 @@ namespace MiniIT.Snipe
 				string key = SnipePrefs.GetWebSocketUrlIndex(ContextId);
 				SnipeServices.SharedPrefs.SetInt(key, _serverWebSocketUrlIndex);
 			});
+
+			return _serverWebSocketUrlIndex > prev;
 		}
 
 		public bool NextUdpUrl()

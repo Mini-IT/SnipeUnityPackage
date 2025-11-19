@@ -50,7 +50,7 @@ namespace MiniIT.Snipe
 			_logger = SnipeServices.LogService.GetLogger(GetType().Name);
 		}
 
-		public abstract void Connect();
+		public abstract void Connect(string endpoint = null, ushort port = 0);
 		public abstract void Disconnect();
 		public abstract void SendMessage(SnipeObject message);
 		public abstract void SendBatch(IList<SnipeObject> messages);
