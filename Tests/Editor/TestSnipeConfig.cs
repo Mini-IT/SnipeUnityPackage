@@ -187,7 +187,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		[Test]
 		public void TestParseUdpUrls_WithEmptyUrls()
 		{
-			List<string> outputList = new List<string>();
+			var outputList = new List<UdpAddress>();
 			object input = new List<string>();
 			SnipeConfigBuilder.ParseUdpUrls(outputList, input);
 			Assert.AreEqual(0, outputList.Count);
@@ -196,19 +196,38 @@ namespace MiniIT.Snipe.Tests.Editor
 		[Test]
 		public void TestParseUdpUrls_WithValidUrlsInList()
 		{
-			List<string> outputList = new List<string>();
+			var outputList = new List<UdpAddress>();
 			object input = new List<string> { "https://test1.com:100", "https://test2.com/:777" };
 			SnipeConfigBuilder.ParseUdpUrls(outputList, input);
 			Assert.AreEqual(2, outputList.Count);
+			Assert.AreEqual(outputList[0].Host, "test1.com");
+			Assert.AreEqual(outputList[0].Port, 100);
+			Assert.AreEqual(outputList[1].Host, "test2.com/");
+			Assert.AreEqual(outputList[1].Port, 777);
+		}
+
+		[Test]
+		public void TestParseUdpUrls_WithValidNoHttpUrlsInList()
+		{
+			var outputList = new List<UdpAddress>();
+			object input = new List<string> { "test1.com:100", "test2.com/:777" };
+			SnipeConfigBuilder.ParseUdpUrls(outputList, input);
+			Assert.AreEqual(2, outputList.Count);
+			Assert.AreEqual(outputList[0].Host, "test1.com");
+			Assert.AreEqual(outputList[0].Port, 100);
+			Assert.AreEqual(outputList[1].Host, "test2.com/");
+			Assert.AreEqual(outputList[1].Port, 777);
 		}
 
 		[Test]
 		public void TestParseUdpUrls_WithInvalidUrlsInList()
 		{
-			List<string> outputList = new List<string>();
+			var outputList = new List<UdpAddress>();
 			object input = new List<string> { "test1.com", "https://test2.com:99" };
 			SnipeConfigBuilder.ParseUdpUrls(outputList, input);
 			Assert.AreEqual(1, outputList.Count);
+			Assert.AreEqual(outputList[0].Host, "test2.com");
+			Assert.AreEqual(outputList[0].Port, 99);
 		}
 	}
 }

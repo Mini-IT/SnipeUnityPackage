@@ -161,18 +161,7 @@ namespace MiniIT.Snipe.Configuration
 			if (data.TryGetValue("snipeUdpUrls", out object udpUrls))
 			{
 				_data.ServerUdpUrls.Clear();
-
-				var urls = new List<string>();
-				ParseUdpUrls(urls, udpUrls);
-				foreach (var url in urls)
-				{
-					string[] parts = url.Split(':');
-					if (parts.Length == 3 && ushort.TryParse(parts[2], out ushort port))
-					{
-						string host = parts[0] + ":" + parts[1];
-						_data.ServerUdpUrls.Add(new UdpAddress() { Host = host, Port = port });
-					}
-				}
+				ParseUdpUrls(_data.ServerUdpUrls, udpUrls);
 			}
 			else if (data.TryGetValue("snipeUdpHost", out string udpHost) && !string.IsNullOrWhiteSpace(udpHost) &&
 			    data.TryGetValue("snipeUdpPort", out string udpPort) && ushort.TryParse(udpPort.Trim(), out ushort port))
@@ -206,13 +195,28 @@ namespace MiniIT.Snipe.Configuration
 		}
 
 		// [Testable]
-		internal static void ParseUdpUrls(List<string> outputList, object input)
+		internal static void ParseUdpUrls(List<UdpAddress> outputList, object input)
 		{
-			ParseUrls(outputList, input, (url) =>
+			var urls = new List<string>();
+			ParseUrls(urls, input, (url) =>
 			{
-				string[] parts = url.ToLower().Split(':');
-				return parts.Length == 3 && !string.IsNullOrEmpty(parts[1]) && ushort.TryParse(parts[2], out _);
+				string[] parts = url.Split("://");
+				url = parts[^1];
+				parts = url.ToLower().Split(':');
+				return parts.Length == 2 && !string.IsNullOrEmpty(parts[0]) && ushort.TryParse(parts[1], out ushort port);
 			});
+
+			foreach (var item in urls)
+			{
+				string[] parts = item.Split("://");
+				string url = parts[^1];
+				parts = url.ToLower().Split(':');
+
+				if (parts.Length == 2 && ushort.TryParse(parts[1], out ushort port))
+				{
+					outputList.Add(new UdpAddress() { Host = parts[0], Port = port });
+				}
+			}
 		}
 
 		// [Testable]
