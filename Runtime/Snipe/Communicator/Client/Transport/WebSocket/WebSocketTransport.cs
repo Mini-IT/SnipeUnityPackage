@@ -41,7 +41,6 @@ namespace MiniIT.Snipe
 		public override bool Started => _webSocket != null;
 		public override bool Connected => _webSocket != null && _webSocket.Connected;
 		public override bool ConnectionEstablished => _connected;
-		public override bool ConnectionVerified => _loggedIn;
 
 		private WebSocketWrapper _webSocket = null;
 		private readonly object _lock = new object();
