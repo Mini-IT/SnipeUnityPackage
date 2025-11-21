@@ -56,14 +56,15 @@ namespace MiniIT.Snipe.Unity
 					{
 						continue;
 					}
-					
+
 					if (binding is DeviceIdBinding or AdvertisingIdBinding)
 					{
 #if UNITY_WEBGL
-						tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers, false));
+						const bool contextIdPrefix = false;
 #else
-						tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers, true));
+						const bool contextIdPrefix = true;
 #endif
+						tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers, contextIdPrefix));
 					}
 					else if (binding.Fetcher is IAuthIdFetcherWithToken)
 					{

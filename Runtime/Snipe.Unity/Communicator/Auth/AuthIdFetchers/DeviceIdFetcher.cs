@@ -6,11 +6,36 @@ using UnityEngine;
 
 namespace MiniIT.Snipe.Unity
 {
+#if UNITY_WEBGL
+
+    public class DeviceIdFetcher : AuthIdFetcher
+    {
+        private const string ID_PREFS_KEY = "com.miniit.app.webgl.id";
+
+        public override void Fetch(bool _, Action<string> callback = null)
+        {
+	        var sharedPrefs = SnipeServices.SharedPrefs;
+
+            if (string.IsNullOrEmpty(Value))
+            {
+                string value = sharedPrefs.GetString(ID_PREFS_KEY);
+                if (string.IsNullOrEmpty(value))
+                {
+                    value = Guid.NewGuid().ToString();
+                    sharedPrefs.GetString(ID_PREFS_KEY);
+                }
+
+                Value = value;
+            }
+
+            callback?.Invoke(Value);
+        }
+    }
+
+#else
+
 	public class DeviceIdFetcher : AuthIdFetcher
 	{
-#if UNITY_WEBGL
-		private const string ID_PREFS_KEY = "com.miniit.app.webgl.id";
-#endif
 		private readonly Microsoft.Extensions.Logging.ILogger _logger;
 
 		public DeviceIdFetcher()
@@ -20,21 +45,6 @@ namespace MiniIT.Snipe.Unity
 
 		public override void Fetch(bool _, Action<string> callback = null)
 		{
-#if UNITY_WEBGL
-            if (string.IsNullOrEmpty(Value))
-            {
-                string value = PlayerPrefs.GetString(ID_PREFS_KEY);
-				
-                if (string.IsNullOrEmpty(value))
-                {
-                    value = Guid.NewGuid().ToString();
-                    PlayerPrefs.GetString(ID_PREFS_KEY);
-                }
-
-                Value = value;
-				_logger.LogTrace($"[DeviceIdFetcher] Value = {Value}");
-            }
-#else
 			if (string.IsNullOrEmpty(Value))
 			{
 				if (SystemInfo.unsupportedIdentifier != SystemInfo.deviceUniqueIdentifier)
@@ -55,7 +65,6 @@ namespace MiniIT.Snipe.Unity
 					// TODO: generate device id using custom algorithm
 				}
 			}
-#endif
 
 			callback?.Invoke(Value);
 		}
@@ -79,4 +88,6 @@ namespace MiniIT.Snipe.Unity
 			return sb.ToString();
 		}
 	}
+
+#endif
 }
