@@ -6,6 +6,7 @@
         "MiniIT.Snipe.Communicator",
         "MiniIT.Snipe.Services",
         "MiniIT.Snipe.Logging",
+		"MiniIT.Storage.SharedPrefs",
         "MiniIT.AdvertisingIdFetcher",
         "MiniIT.Framework.StreamingAssetsReader",
         "MiniIT.Framework.Social",

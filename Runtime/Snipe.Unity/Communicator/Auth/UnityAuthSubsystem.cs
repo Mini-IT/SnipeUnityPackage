@@ -59,7 +59,12 @@ namespace MiniIT.Snipe.Unity
 
 					if (binding is DeviceIdBinding or AdvertisingIdBinding)
 					{
-						tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers, true));
+#if UNITY_WEBGL
+						const bool contextIdPrefix = false;
+#else
+						const bool contextIdPrefix = true;
+#endif
+						tasks.Add(FetchLoginId(binding.ProviderId, binding.Fetcher, providers, contextIdPrefix));
 					}
 					else if (binding.Fetcher is IAuthIdFetcherWithToken)
 					{
