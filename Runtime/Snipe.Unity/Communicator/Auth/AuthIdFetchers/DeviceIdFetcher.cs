@@ -6,6 +6,34 @@ using UnityEngine;
 
 namespace MiniIT.Snipe.Unity
 {
+#if UNITY_WEBGL
+
+    public class DeviceIdFetcher : AuthIdFetcher
+    {
+        private const string ID_PREFS_KEY = "com.miniit.app.webgl.id";
+
+        public override void Fetch(bool _, Action<string> callback = null)
+        {
+	        var sharedPrefs = SnipeServices.SharedPrefs;
+
+            if (string.IsNullOrEmpty(Value))
+            {
+                string value = sharedPrefs.GetString(ID_PREFS_KEY);
+                if (string.IsNullOrEmpty(value))
+                {
+                    value = Guid.NewGuid().ToString();
+                    sharedPrefs.GetString(ID_PREFS_KEY);
+                }
+
+                Value = value;
+            }
+
+            callback?.Invoke(Value);
+        }
+    }
+
+#else
+
 	public class DeviceIdFetcher : AuthIdFetcher
 	{
 		private readonly Microsoft.Extensions.Logging.ILogger _logger;
@@ -60,4 +88,6 @@ namespace MiniIT.Snipe.Unity
 			return sb.ToString();
 		}
 	}
+
+#endif
 }

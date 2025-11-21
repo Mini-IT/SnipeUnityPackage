@@ -8,6 +8,7 @@
         "MiniIT.Snipe.Logging",
 		"MiniIT.Snipe.Integrations.Facebook",
 		"MiniIT.Snipe.Integrations.Amazon",
+		"MiniIT.Storage.SharedPrefs",
         "MiniIT.AdvertisingIdFetcher",
         "MiniIT.Framework.StreamingAssetsReader",
 		"MiniIT.Framework.Utilities",
