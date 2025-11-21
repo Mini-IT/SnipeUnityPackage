@@ -6,6 +6,9 @@ namespace MiniIT.Snipe.Unity
 		public DeviceIdBinding()
 			: base("dvid")
 		{
+#if UNITY_WEBGL
+			UseContextIdPrefix = false;
+#endif
 		}
 	}
 }
