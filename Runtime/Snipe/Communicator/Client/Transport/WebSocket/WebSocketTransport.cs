@@ -21,6 +21,7 @@ namespace MiniIT.Snipe
 		private readonly byte[] BATCH_HEADER = new byte[] { 0xAA, 0xBC };
 
 		private bool _heartbeatEnabled = true;
+
 		public bool HeartbeatEnabled
 		{
 			get { return _heartbeatEnabled; }
@@ -40,7 +41,6 @@ namespace MiniIT.Snipe
 		public override bool Started => _webSocket != null;
 		public override bool Connected => _webSocket != null && _webSocket.Connected;
 		public override bool ConnectionEstablished => _connected;
-		public override bool ConnectionVerified => _loggedIn;
 
 		private WebSocketWrapper _webSocket = null;
 		private readonly object _lock = new object();
@@ -59,9 +59,14 @@ namespace MiniIT.Snipe
 		{
 		}
 
-		public override void Connect()
+		public override void Connect(string url, ushort port = 0)
 		{
-			string url = _config.GetWebSocketUrl();
+			if (string.IsNullOrEmpty(url))
+			{
+				_logger.LogWarning("WebSocket Connect - URL is empty");
+				ConnectionClosedHandler?.Invoke(this);
+				return;
+			}
 
 			_logger.LogTrace("WebSocket Connect to " + url);
 
@@ -146,11 +151,6 @@ namespace MiniIT.Snipe
 
 			_loggedIn = false;
 
-			if (!_connected) // failed to establish connection
-			{
-				_config.NextWebSocketUrl();
-			}
-
 			ConnectionClosedHandler?.Invoke(this);
 		}
 
@@ -160,6 +160,7 @@ namespace MiniIT.Snipe
 			{
 				StartSendLoop();
 			}
+
 			_sendMessages!.Enqueue(message);
 			_sendSignal.Release();
 		}
@@ -176,6 +177,7 @@ namespace MiniIT.Snipe
 					StartSendLoop();
 				}
 			}
+
 			_sendSignal.Release();
 		}
 
@@ -396,7 +398,8 @@ namespace MiniIT.Snipe
 
 					// Process all queued items (may be more than one)
 					// Process batch messages first
-					while (_batchMessages != null && !_batchMessages.IsEmpty && _batchMessages.TryDequeue(out var messages) && messages != null && messages.Count > 0)
+					while (_batchMessages != null && !_batchMessages.IsEmpty && _batchMessages.TryDequeue(out var messages) &&
+					       messages != null && messages.Count > 0)
 					{
 						await DoSendBatch(messages);
 					}

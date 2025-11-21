@@ -23,7 +23,6 @@ namespace MiniIT.Snipe
 		public override bool Started => _started;
 		public override bool Connected => _connected;
 		public override bool ConnectionEstablished => _connectionEstablished;
-		public override bool ConnectionVerified => _connectionEstablished;
 
 		public bool IntensiveHeartbeat
 		{
@@ -49,6 +48,7 @@ namespace MiniIT.Snipe
 		private long _sessionAliveTillTicks;
 
 		private Uri _baseUrl;
+		private string _currentUrl;
 		private bool _started;
 		private bool _connected;
 		private bool _connectionEstablished = false;
@@ -70,7 +70,7 @@ namespace MiniIT.Snipe
 			});
 		}
 
-		public override void Connect()
+		public override void Connect(string url, ushort port = 0)
 		{
 			lock (_lock)
 			{
@@ -78,9 +78,19 @@ namespace MiniIT.Snipe
 				{
 					return;
 				}
+
 				_started = true;
 
-				_baseUrl = GetBaseUrl();
+				if (string.IsNullOrEmpty(url))
+				{
+					_started = false;
+					_logger.LogWarning("Http Connect - URL is empty");
+					ConnectionClosedHandler?.Invoke(this);
+					return;
+				}
+
+				_currentUrl = url;
+				_baseUrl = GetBaseUrl(url);
 
 				if (_client == null)
 				{
@@ -156,14 +166,18 @@ namespace MiniIT.Snipe
 			DoSendBatch(messages);
 		}
 
-		private Uri GetBaseUrl()
+		private Uri GetBaseUrl(string url)
 		{
-			string url = _config.GetHttpAddress();
+			if (string.IsNullOrEmpty(url))
+			{
+				return null;
+			}
 
 			if (!url.EndsWith("/"))
 			{
 				url += "/";
 			}
+
 			url += API_PATH;
 
 			return new Uri(url);
@@ -303,17 +317,11 @@ namespace MiniIT.Snipe
 				{
 					Disconnect();
 				}
-
 			}
 			catch (Exception e)
 			{
 				string exceptionMessage = (e.InnerException != null) ? LogUtil.GetReducedException(e) : e.ToString();
 				_logger.LogError(e, "Request failed {0}", exceptionMessage);
-
-				if (e is HttpRequestException)
-				{
-					_config.NextHttpUrl();
-				}
 			}
 			finally
 			{
@@ -401,6 +409,7 @@ namespace MiniIT.Snipe
 				_heartbeatCancellation.Cancel();
 				_heartbeatCancellation = null;
 			}
+
 			_heartbeatRunning = false;
 		}
 
@@ -434,6 +443,7 @@ namespace MiniIT.Snipe
 
 				SendMessage(s_pingMessage);
 			}
+
 			_heartbeatRunning = false;
 		}
 
@@ -451,8 +461,12 @@ namespace MiniIT.Snipe
 				await _sendSemaphore.WaitAsync();
 				semaphoreOccupied = true;
 
-				string url = _config.GetHttpAddress();
-				var uri = new Uri(new Uri(url), "test_connect.html?t=" + DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+				if (string.IsNullOrEmpty(_currentUrl))
+				{
+					return;
+				}
+
+				var uri = new Uri(new Uri(_currentUrl), "test_connect.html?t=" + DateTimeOffset.UtcNow.ToUnixTimeSeconds());
 
 				_logger.LogTrace($"<<< request ({uri})");
 
@@ -490,8 +504,6 @@ namespace MiniIT.Snipe
 			if (!_connected)
 			{
 				InternalDisconnect();
-
-				_config.NextHttpUrl();
 			}
 		}
 

@@ -30,11 +30,6 @@ namespace MiniIT.Snipe
 		public virtual bool Connected { get; } = false;
 		public virtual bool ConnectionEstablished { get; } = false;
 
-		/// <summary>
-		/// At least one message received
-		/// </summary>
-		public virtual bool ConnectionVerified { get; } = false;
-
 		public TransportInfo Info { get; protected set; }
 
 		protected readonly SnipeConfig _config;
@@ -50,7 +45,7 @@ namespace MiniIT.Snipe
 			_logger = SnipeServices.Instance.LogService.GetLogger(GetType().Name);
 		}
 
-		public abstract void Connect();
+		public abstract void Connect(string endpoint, ushort port = 0);
 		public abstract void Disconnect();
 		public abstract void SendMessage(IDictionary<string, object> message);
 		public abstract void SendBatch(IList<IDictionary<string, object>> messages);

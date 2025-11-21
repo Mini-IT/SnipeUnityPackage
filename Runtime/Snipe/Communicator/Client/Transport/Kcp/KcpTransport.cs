@@ -14,13 +14,11 @@ namespace MiniIT.Snipe
 		public override bool Started => _kcpConnection != null;
 		public override bool Connected => _kcpConnection != null && _kcpConnection.Connected;
 		public override bool ConnectionEstablished => _connectionEstablished;
-		public override bool ConnectionVerified => _connectionVerified;
 
 		private KcpConnection _kcpConnection;
 		private CancellationTokenSource _networkLoopCancellation;
 
 		private bool _connectionEstablished = false;
-		private bool _connectionVerified = false;
 		private readonly object _lock = new object();
 
 		private readonly SemaphoreSlim _updateSignal = new SemaphoreSlim(0, 1);
@@ -40,8 +38,15 @@ namespace MiniIT.Snipe
 			_updateTicker = SnipeServices.Instance.Ticker;
 		}
 
-		public override void Connect()
+		public override void Connect(string endpoint, ushort port = 0)
 		{
+			if (string.IsNullOrEmpty(endpoint) || port == 0)
+			{
+				_logger.LogWarning("Kcp Connect - invalid host or port");
+				ConnectionClosedHandler?.Invoke(this);
+				return;
+			}
+
 			lock (_lock)
 			{
 				if (_kcpConnection != null) // already connected or trying to connect
@@ -61,13 +66,12 @@ namespace MiniIT.Snipe
 			{
 				lock (_lock)
 				{
-					var address = _config.GetUdpAddress();
-					string url = $"{address.Host}:{address.Port}";
+					string url = $"{endpoint}:{port}";
 					_analytics.ConnectionUrl = url;
 
 					try
 					{
-						_kcpConnection.Connect(address.Host, address.Port, 3000, 5000);
+						_kcpConnection?.Connect(endpoint, port, 3000, 5000);
 					}
 					catch (Exception e)
 					{
@@ -88,7 +92,6 @@ namespace MiniIT.Snipe
 			}
 
 			_connectionEstablished = false;
-			_connectionVerified = false;
 		}
 
 		public override void SendMessage(IDictionary<string, object> message)
@@ -123,24 +126,12 @@ namespace MiniIT.Snipe
 			StopNetworkLoop();
 			_kcpConnection = null;
 
-			if (!_connectionEstablished) // failed to establish connection
-			{
-				if (_config.NextUdpUrl())
-				{
-					_logger.LogTrace("Next udp url");
-					//Connect();
-					//return;
-				}
-			}
-
 			ConnectionClosedHandler?.Invoke(this);
 		}
 
 		private void OnClientDataReceived(ArraySegment<byte> buffer, KcpChannel channel, bool compressed)
 		{
 			_logger.LogTrace("OnUdpClientDataReceived");
-
-			_connectionVerified = true;
 
 			var opcode = (KcpOpCode)buffer.Array[buffer.Offset];
 
