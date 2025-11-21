@@ -33,8 +33,15 @@ namespace MiniIT.Snipe
 			};
 		}
 
-		public override void Connect()
+		public override void Connect(string endpoint = null, ushort port = 0)
 		{
+			if (string.IsNullOrEmpty(endpoint) || port == 0)
+			{
+				_logger.LogWarning("Kcp Connect - invalid host or port");
+				ConnectionClosedHandler?.Invoke(this);
+				return;
+			}
+
 			lock (_lock)
 			{
 				if (_kcpConnection != null) // already connected or trying to connect
@@ -54,13 +61,12 @@ namespace MiniIT.Snipe
 			{
 				lock (_lock)
 				{
-					var address = _config.GetUdpAddress();
-					string url = $"{address.Host}:{address.Port}";
+					string url = $"{endpoint}:{port}";
 					_analytics.ConnectionUrl = url;
 
 					try
 					{
-						_kcpConnection.Connect(address.Host, address.Port, 3000, 5000);
+						_kcpConnection?.Connect(endpoint, port, 3000, 5000);
 					}
 					catch (Exception e)
 					{
@@ -115,16 +121,6 @@ namespace MiniIT.Snipe
 
 			StopNetworkLoop();
 			_kcpConnection = null;
-
-			if (!_connectionEstablished) // failed to establish connection
-			{
-				if (_config.NextUdpUrl())
-				{
-					_logger.LogTrace("Next udp url");
-					//Connect();
-					//return;
-				}
-			}
 
 			ConnectionClosedHandler?.Invoke(this);
 		}

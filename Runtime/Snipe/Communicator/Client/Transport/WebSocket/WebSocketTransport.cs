@@ -25,6 +25,7 @@ namespace MiniIT.Snipe
 		private readonly byte[] BATCH_HEADER = new byte[] { 0xAA, 0xBC };
 
 		private bool _heartbeatEnabled = true;
+
 		public bool HeartbeatEnabled
 		{
 			get { return _heartbeatEnabled; }
@@ -60,9 +61,14 @@ namespace MiniIT.Snipe
 		{
 		}
 
-		public override void Connect()
+		public override void Connect(string url = null, ushort port = 0)
 		{
-			string url = _config.GetWebSocketUrl();
+			if (string.IsNullOrEmpty(url))
+			{
+				_logger.LogWarning("WebSocket Connect - URL is empty");
+				ConnectionClosedHandler?.Invoke(this);
+				return;
+			}
 
 			_logger.LogTrace("WebSocket Connect to " + url);
 
@@ -145,11 +151,6 @@ namespace MiniIT.Snipe
 
 			_loggedIn = false;
 
-			if (!_connected) // failed to establish connection
-			{
-				_config.NextWebSocketUrl();
-			}
-
 			ConnectionClosedHandler?.Invoke(this);
 		}
 
@@ -159,6 +160,7 @@ namespace MiniIT.Snipe
 			{
 				StartSendTask();
 			}
+
 			_sendMessages!.Enqueue(message);
 		}
 
@@ -363,7 +365,8 @@ namespace MiniIT.Snipe
 			{
 				while (cancellation?.IsCancellationRequested != true && Connected)
 				{
-					if (_batchMessages != null && !_batchMessages.IsEmpty && _batchMessages.TryDequeue(out var messages) && messages != null && messages.Count > 0)
+					if (_batchMessages != null && !_batchMessages.IsEmpty && _batchMessages.TryDequeue(out var messages) &&
+					    messages != null && messages.Count > 0)
 					{
 						DoSendBatch(messages);
 					}
