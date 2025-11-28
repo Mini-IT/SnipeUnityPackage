@@ -11,15 +11,13 @@ namespace MiniIT.Snipe
 			if (osFamily == UnityEngine.OperatingSystemFamily.Other)
 			{
 				string lowerVersion = osVersion.ToLowerInvariant();
-				if (lowerVersion.Contains("android"))
+				if (lowerVersion.Contains("android") ||  lowerVersion.Contains("xiaomi"))
 				{
 					osFamilyString = "Android";
-					osVersion = osVersion.Replace("Android", "").Trim();
 				}
 				else if (lowerVersion.Contains("ios"))
 				{
 					osFamilyString = "iOS";
-					osVersion = osVersion.Replace("iOS", "").Trim();
 				}
 			}
 
