@@ -4,11 +4,30 @@ namespace MiniIT.Snipe
 	{
 		public SystemInformation GetSystemInfo()
 		{
+			var osFamily = UnityEngine.SystemInfo.operatingSystemFamily;
+			string osVersion = UnityEngine.SystemInfo.operatingSystem;
+			string osFamilyString = null;
+
+			if (osFamily == UnityEngine.OperatingSystemFamily.Other)
+			{
+				string lowerVersion = osVersion.ToLowerInvariant();
+				if (lowerVersion.Contains("android"))
+				{
+					osFamilyString = "Android";
+					osVersion = osVersion.Replace("Android", "").Trim();
+				}
+				else if (lowerVersion.Contains("ios"))
+				{
+					osFamilyString = "iOS";
+					osVersion = osVersion.Replace("iOS", "").Trim();
+				}
+			}
+
 			return new SystemInformation()
 			{
 				DeviceManufacturer = UnityEngine.SystemInfo.deviceModel,
-				OperatingSystemFamily = UnityEngine.SystemInfo.operatingSystemFamily.ToString(),
-				OperatingSystemVersion = UnityEngine.SystemInfo.operatingSystem,
+				OperatingSystemFamily = osFamilyString ?? osFamily.ToString(),
+				OperatingSystemVersion = osVersion,
 			};
 		}
 	}
