@@ -150,7 +150,7 @@ namespace MiniIT.Snipe.Api
 			// Check if we have a local change that hasn't been synced yet
 			bool hasLocalChange = PlayerPrefsStringListHelper.Contains(KEY_DIRTY_KEYS, key);
 			var localVersion = GetLocalVersion();
-			var serverVersion = _getVersionDelegate != null ? _getVersionDelegate() : 0;
+			var serverVersion = _getVersionDelegate?.Invoke() ?? 0;
 
 			// Server value is authoritative - always accept it
 			// Update local storage with server value
@@ -260,7 +260,7 @@ namespace MiniIT.Snipe.Api
 			return pendingChanges;
 		}
 
-		internal void SendPendingChanges()
+		private void SendPendingChanges()
 		{
 			if (_syncInProgress || _snipeApiService == null)
 			{
@@ -404,27 +404,31 @@ namespace MiniIT.Snipe.Api
 			// Unsubscribe from server attributes
 			foreach (var kvp in _serverEventHandlers)
 			{
-				if (_userAttributes != null)
+				if (_userAttributes == null)
 				{
-					// Use reflection to unsubscribe since we don't know the generic type at runtime
-					var attrType = _attributeTypes.TryGetValue(kvp.Key, out var type) ? type : null;
-					if (attrType != null)
+					continue;
+				}
+
+				// TODO: Don't use reflection
+
+				// Use reflection to unsubscribe since we don't know the generic type at runtime
+				var attrType = _attributeTypes.TryGetValue(kvp.Key, out var type) ? type : null;
+				if (attrType != null)
+				{
+					var method = typeof(SnipeApiUserAttributes).GetMethod(nameof(SnipeApiUserAttributes.TryGetAttribute));
+					if (method != null)
 					{
-						var method = typeof(SnipeApiUserAttributes).GetMethod(nameof(SnipeApiUserAttributes.TryGetAttribute));
-						if (method != null)
+						var genericMethod = method.MakeGenericMethod(attrType);
+						var parameters = new object[] { kvp.Key, null };
+						if ((bool)genericMethod.Invoke(_userAttributes, parameters))
 						{
-							var genericMethod = method.MakeGenericMethod(attrType);
-							var parameters = new object[] { kvp.Key, null };
-							if ((bool)genericMethod.Invoke(_userAttributes, parameters))
+							var serverAttr = parameters[1];
+							if (serverAttr != null)
 							{
-								var serverAttr = parameters[1];
-								if (serverAttr != null)
+								var eventInfo = serverAttr.GetType().GetEvent("ValueChanged");
+								if (eventInfo != null)
 								{
-									var eventInfo = serverAttr.GetType().GetEvent("ValueChanged");
-									if (eventInfo != null)
-									{
-										eventInfo.RemoveEventHandler(serverAttr, kvp.Value);
-									}
+									eventInfo.RemoveEventHandler(serverAttr, kvp.Value);
 								}
 							}
 						}
