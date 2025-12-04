@@ -1,6 +1,6 @@
 {
     "name": "MiniIT.Snipe.EditorTests",
-    "rootNamespace": "",
+    "rootNamespace": "MiniIT.Snipe.Tests.Editor",
     "references": [
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",

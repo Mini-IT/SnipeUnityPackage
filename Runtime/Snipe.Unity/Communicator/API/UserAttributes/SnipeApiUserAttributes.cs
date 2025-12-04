@@ -16,13 +16,31 @@ namespace MiniIT.Snipe.Api
 			snipeApiService.SubscribeOnMessageReceived(OnMessageReceived);
 		}
 
-		protected AttrType RegisterAttribute<AttrType>(AttrType attr) where AttrType : SnipeApiUserAttribute
+		// `internal` for being accessable for tests
+		protected internal AttrType RegisterAttribute<AttrType>(AttrType attr) where AttrType : SnipeApiUserAttribute
 		{
 			lock (_attributesLock)
 			{
 				_attributes[attr.Key] = attr;
 			}
+
 			return attr;
+		}
+
+		public bool TryGetAttribute<T>(string key, out SnipeApiReadOnlyUserAttribute<T> attr)
+		{
+			lock (_attributesLock)
+			{
+				if (_attributes.TryGetValue(key, out SnipeApiUserAttribute baseAttr) &&
+				    baseAttr is SnipeApiReadOnlyUserAttribute<T> typedAttr)
+				{
+					attr = typedAttr;
+					return true;
+				}
+			}
+
+			attr = null;
+			return false;
 		}
 
 		~SnipeApiUserAttributes()
@@ -42,7 +60,9 @@ namespace MiniIT.Snipe.Api
 						{
 							disposable.Dispose();
 						}
-						catch (Exception) { }
+						catch (Exception)
+						{
+						}
 					}
 				}
 			}
@@ -80,5 +100,4 @@ namespace MiniIT.Snipe.Api
 			}
 		}
 	}
-
 }
