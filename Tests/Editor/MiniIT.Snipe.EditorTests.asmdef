@@ -10,6 +10,7 @@
         "MiniIT.Snipe.MessagePack",
         "MiniIT.Snipe.Services",
         "MiniIT.Snipe.Unity",
+		"MiniIT.Storage.SharedPrefs",
         "UniTask"
     ],
     "includePlatforms": [

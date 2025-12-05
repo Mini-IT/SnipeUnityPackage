@@ -5,6 +5,7 @@ using UnityEngine;
 using MiniIT.Snipe;
 using MiniIT.Snipe.Api;
 using MiniIT.Snipe.Unity;
+using MiniIT.Storage;
 
 namespace MiniIT.Snipe.Tests.Editor
 {
@@ -14,18 +15,25 @@ namespace MiniIT.Snipe.Tests.Editor
 		private MockSnipeApiService _mockApiService;
 		private MockSnipeApiUserAttributes _mockUserAttributes;
 		private MockSnipeApiReadOnlyUserAttribute<int> _mockVersionAttribute;
+		private MockSharedPrefs _mockSharedPrefs;
+		private PlayerPrefsStringListHelper _stringListHelper;
 
 		[SetUp]
 		public void SetUp()
 		{
-			// Clear PlayerPrefs before each test
-			PlayerPrefs.DeleteAll();
-
-			// Initialize SnipeServices if not already initialized (needed for SnipeCommunicator)
-			if (!SnipeServices.IsInitialized)
+			// Dispose existing SnipeServices if initialized
+			if (SnipeServices.IsInitialized)
 			{
-				SnipeServices.Initialize(new UnitySnipeServicesFactory());
+				SnipeServices.Dispose();
 			}
+
+			// Create mock shared prefs
+			_mockSharedPrefs = new MockSharedPrefs();
+			_stringListHelper = new PlayerPrefsStringListHelper(_mockSharedPrefs);
+
+			// Initialize SnipeServices with mock factory
+			var mockFactory = new MockUnitySnipeServicesFactory(_mockSharedPrefs);
+			SnipeServices.Initialize(mockFactory);
 
 			_mockApiService = new MockSnipeApiService();
 			_mockUserAttributes = new MockSnipeApiUserAttributes(_mockApiService);
@@ -35,14 +43,14 @@ namespace MiniIT.Snipe.Tests.Editor
 			_mockUserAttributes.RegisterAttribute(_mockVersionAttribute);
 
 			_profileManager = new ProfileManager();
-			_profileManager.Initialize(_mockApiService, _mockUserAttributes);
+			_profileManager.Initialize(_mockApiService, _mockUserAttributes, _mockSharedPrefs);
 		}
 
 		[TearDown]
 		public void TearDown()
 		{
 			_profileManager?.Dispose();
-			PlayerPrefs.DeleteAll();
+			SnipeServices.Dispose();
 		}
 
 		[Test]
@@ -91,8 +99,8 @@ namespace MiniIT.Snipe.Tests.Editor
 			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
 			// Not initialized - IsInitialized will be false
 			_mockUserAttributes.RegisterAttribute(serverAttr);
-			PlayerPrefs.SetInt("profile_attr_coins", 50);
-			PlayerPrefs.Save(); // Ensure PlayerPrefs is saved
+			_mockSharedPrefs.SetInt("profile_attr_coins", 50);
+			_mockSharedPrefs.Save();
 
 			// Act
 			var attr = _profileManager.GetAttribute<int>("coins");
@@ -106,13 +114,13 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			// Arrange
 			var attr = _profileManager.GetAttribute<int>("coins");
-			var initialVersion = PlayerPrefs.GetInt("profile_local_version", 0);
+			var initialVersion = _mockSharedPrefs.GetInt("profile_local_version", 0);
 
 			// Act
 			attr.Value = 100;
 
 			// Assert
-			var newVersion = PlayerPrefs.GetInt("profile_local_version", 0);
+			var newVersion = _mockSharedPrefs.GetInt("profile_local_version", 0);
 			Assert.AreEqual(initialVersion + 1, newVersion);
 		}
 
@@ -126,7 +134,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			attr.Value = 100;
 
 			// Assert
-			var dirtyKeys = PlayerPrefsStringListHelper.GetList("profile_dirty_keys");
+			var dirtyKeys = _stringListHelper.GetList("profile_dirty_keys");
 			Assert.Contains("coins", dirtyKeys);
 		}
 
@@ -140,7 +148,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			attr.Value = 100;
 
 			// Assert
-			Assert.AreEqual(100, PlayerPrefs.GetInt("profile_attr_coins", 0));
+			Assert.AreEqual(100, _mockSharedPrefs.GetInt("profile_attr_coins", 0));
 		}
 
 		[Test]
@@ -156,7 +164,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			serverAttr.SetValue(200);
 
 			// Assert
-			Assert.AreEqual(200, PlayerPrefs.GetInt("profile_attr_coins", 0));
+			Assert.AreEqual(200, _mockSharedPrefs.GetInt("profile_attr_coins", 0));
 			Assert.AreEqual(200, attr.Value);
 		}
 
@@ -176,7 +184,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			serverAttr.SetValue(200);
 
 			// Assert
-			var dirtyKeys = PlayerPrefsStringListHelper.GetList("profile_dirty_keys");
+			var dirtyKeys = _stringListHelper.GetList("profile_dirty_keys");
 			Assert.IsFalse(dirtyKeys.Contains("coins"));
 		}
 
@@ -192,13 +200,13 @@ namespace MiniIT.Snipe.Tests.Editor
 			// Act
 			// Access private method via reflection or make it internal for testing
 			// For now, we'll test indirectly through SendPendingChanges behavior
-			var dirtyKeys = PlayerPrefsStringListHelper.GetList("profile_dirty_keys");
+			var dirtyKeys = _stringListHelper.GetList("profile_dirty_keys");
 
 			// Assert
 			Assert.Contains("coins", dirtyKeys);
 			Assert.Contains("level", dirtyKeys);
-			Assert.AreEqual(100, PlayerPrefs.GetInt("profile_attr_coins", 0));
-			Assert.AreEqual(5, PlayerPrefs.GetInt("profile_attr_level", 0));
+			Assert.AreEqual(100, _mockSharedPrefs.GetInt("profile_attr_coins", 0));
+			Assert.AreEqual(5, _mockSharedPrefs.GetInt("profile_attr_level", 0));
 		}
 
 		[Test]
@@ -212,11 +220,11 @@ namespace MiniIT.Snipe.Tests.Editor
 			// Act - setting value triggers SendPendingChanges automatically with success enabled
 			attr.Value = 100;
 
-			// Force flush PlayerPrefs to ensure dirty keys are persisted/cleared
-			PlayerPrefs.Save();
+			// Force flush SharedPrefs to ensure dirty keys are persisted/cleared
+			_mockSharedPrefs.Save();
 
 			// Assert - callback should have been invoked synchronously and cleared dirty keys
-			var dirtyKeys = PlayerPrefsStringListHelper.GetList("profile_dirty_keys");
+			var dirtyKeys = _stringListHelper.GetList("profile_dirty_keys");
 			Assert.IsEmpty(dirtyKeys, "Dirty keys should be cleared after successful sync");
 		}
 
@@ -232,7 +240,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			attr.Value = 150;
 
 			// Assert - dirty keys should still be present after failure
-			var dirtyKeys = PlayerPrefsStringListHelper.GetList("profile_dirty_keys");
+			var dirtyKeys = _stringListHelper.GetList("profile_dirty_keys");
 			// Note: This test may need adjustment based on actual async behavior
 		}
 
@@ -240,13 +248,13 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void SyncWithServer_LocalVersionGreater_SendsPendingChanges()
 		{
 			// Arrange
-			PlayerPrefs.SetInt("profile_local_version", 5);
-			PlayerPrefs.SetInt("profile_last_synced_version", 3);
+			_mockSharedPrefs.SetInt("profile_local_version", 5);
+			_mockSharedPrefs.SetInt("profile_last_synced_version", 3);
 			_mockVersionAttribute.SetValue(4);
 
 			// Act
 			_profileManager = new ProfileManager();
-			_profileManager.Initialize(_mockApiService, _mockUserAttributes);
+			_profileManager.Initialize(_mockApiService, _mockUserAttributes, _mockSharedPrefs);
 
 			// Assert
 			// Should attempt to send pending changes
@@ -257,16 +265,16 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void SyncWithServer_ServerVersionGreater_AcceptsServerValues()
 		{
 			// Arrange
-			PlayerPrefs.SetInt("profile_local_version", 3);
-			PlayerPrefs.SetInt("profile_last_synced_version", 3);
+			_mockSharedPrefs.SetInt("profile_local_version", 3);
+			_mockSharedPrefs.SetInt("profile_last_synced_version", 3);
 			_mockVersionAttribute.SetValue(5);
 
 			// Act
 			_profileManager = new ProfileManager();
-			_profileManager.Initialize(_mockApiService, _mockUserAttributes);
+			_profileManager.Initialize(_mockApiService, _mockUserAttributes, _mockSharedPrefs);
 
 			// Assert
-			var localVersion = PlayerPrefs.GetInt("profile_local_version", 0);
+			var localVersion = _mockSharedPrefs.GetInt("profile_local_version", 0);
 			Assert.AreEqual(5, localVersion);
 		}
 
@@ -305,7 +313,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			// Assert
 			Assert.AreEqual(1, changeCount); // ValueChanged should fire
 			// But OnLocalAttributeChanged should NOT be called
-			var dirtyKeys = PlayerPrefsStringListHelper.GetList("profile_dirty_keys");
+			var dirtyKeys = _stringListHelper.GetList("profile_dirty_keys");
 			Assert.IsFalse(dirtyKeys.Contains("coins"));
 		}
 
@@ -337,11 +345,11 @@ namespace MiniIT.Snipe.Tests.Editor
 			levelAttr.Value = 5;
 
 			// Assert
-			var dirtyKeys = PlayerPrefsStringListHelper.GetList("profile_dirty_keys");
+			var dirtyKeys = _stringListHelper.GetList("profile_dirty_keys");
 			Assert.Contains("coins", dirtyKeys);
 			Assert.Contains("level", dirtyKeys);
-			Assert.AreEqual(100, PlayerPrefs.GetInt("profile_attr_coins", 0));
-			Assert.AreEqual(5, PlayerPrefs.GetInt("profile_attr_level", 0));
+			Assert.AreEqual(100, _mockSharedPrefs.GetInt("profile_attr_coins", 0));
+			Assert.AreEqual(5, _mockSharedPrefs.GetInt("profile_attr_level", 0));
 		}
 
 		[Test]
@@ -359,11 +367,171 @@ namespace MiniIT.Snipe.Tests.Editor
 			stringAttr.Value = "test";
 
 			// Assert
-			Assert.AreEqual(100, PlayerPrefs.GetInt("profile_attr_coins", 0));
-			Assert.AreEqual(3.14f, PlayerPrefs.GetFloat("profile_attr_score", 0f), 0.001f);
-			Assert.AreEqual(1, PlayerPrefs.GetInt("profile_attr_enabled", 0));
-			Assert.AreEqual("test", PlayerPrefs.GetString("profile_attr_name", ""));
+			Assert.AreEqual(100, _mockSharedPrefs.GetInt("profile_attr_coins", 0));
+			Assert.AreEqual(3.14f, _mockSharedPrefs.GetFloat("profile_attr_score", 0f), 0.001f);
+			Assert.AreEqual(1, _mockSharedPrefs.GetInt("profile_attr_enabled", 0));
+			Assert.AreEqual("test", _mockSharedPrefs.GetString("profile_attr_name", ""));
 		}
+
+		[Test]
+		public void Migrate_OldKeyExists_MigratesValue()
+		{
+			// Arrange
+			var attr = _profileManager.GetAttribute<int>("coins");
+			var oldKey = "profile_attr_old_coins";
+			var oldValue = 250;
+			_mockSharedPrefs.SetInt(oldKey, oldValue);
+			_mockSharedPrefs.Save();
+
+			// Act
+			attr.Migrate(oldKey);
+
+			// Assert
+			Assert.AreEqual(oldValue, attr.Value);
+		}
+
+		[Test]
+		public void Migrate_OldKeyExists_MigratesValueAndDeletesOldKey()
+		{
+			// Arrange
+			var attr = _profileManager.GetAttribute<int>("coins");
+			var oldKey = "profile_attr_old_coins";
+			var oldValue = 250;
+			_mockSharedPrefs.SetInt(oldKey, oldValue);
+			_mockSharedPrefs.Save();
+
+			// Act
+			attr.Migrate(oldKey);
+
+			// Assert
+			int storedValue = _mockSharedPrefs.GetInt("profile_attr_coins", 0);
+			Assert.AreEqual(oldValue, storedValue);
+			Assert.IsFalse(_mockSharedPrefs.HasKey(oldKey));
+		}
+
+		[Test]
+		public void Migrate_OldKeyDoesNotExist_DoesNothing()
+		{
+			// Arrange
+			var attr = _profileManager.GetAttribute<int>("coins");
+			var initialValue = 100;
+			attr.Value = initialValue;
+			var nonExistentOldKey = "profile_attr_nonexistent_key";
+
+			// Act
+			attr.Migrate(nonExistentOldKey);
+
+			// Assert
+			Assert.AreEqual(initialValue, attr.Value);
+			Assert.AreEqual(initialValue, _mockSharedPrefs.GetInt("profile_attr_coins", 0));
+			Assert.IsFalse(_mockSharedPrefs.HasKey(nonExistentOldKey));
+		}
+	}
+
+	internal class MockSharedPrefs : ISharedPrefs
+	{
+		private readonly Dictionary<string, object> _storage = new Dictionary<string, object>();
+
+		public bool HasKey(string key)
+		{
+			return _storage.ContainsKey(key);
+		}
+
+		public void DeleteKey(string key)
+		{
+			_storage.Remove(key);
+		}
+
+		public void DeleteAll()
+		{
+			_storage.Clear();
+		}
+
+		public void Save()
+		{
+			// No-op for in-memory storage
+		}
+
+		public bool GetBool(string key, bool defaultValue = false)
+		{
+			if (_storage.TryGetValue(key, out var value))
+			{
+				if (value is bool boolValue)
+				{
+					return boolValue;
+				}
+				if (value is int intValue)
+				{
+					return intValue != 0;
+				}
+			}
+			return defaultValue;
+		}
+
+		public float GetFloat(string key, float defaultValue = 0)
+		{
+			if (_storage.TryGetValue(key, out var value))
+			{
+				if (value is float floatValue)
+				{
+					return floatValue;
+				}
+			}
+			return defaultValue;
+		}
+
+		public int GetInt(string key, int defaultValue = 0)
+		{
+			if (_storage.TryGetValue(key, out var value))
+			{
+				if (value is int intValue)
+				{
+					return intValue;
+				}
+			}
+			return defaultValue;
+		}
+
+		public string GetString(string key, string defaultValue = null)
+		{
+			if (_storage.TryGetValue(key, out var value))
+			{
+				return value?.ToString() ?? defaultValue;
+			}
+			return defaultValue;
+		}
+
+		public void SetBool(string key, bool value)
+		{
+			_storage[key] = value;
+		}
+
+		public void SetFloat(string key, float value)
+		{
+			_storage[key] = value;
+		}
+
+		public void SetInt(string key, int value)
+		{
+			_storage[key] = value;
+		}
+
+		public void SetString(string key, string value)
+		{
+			_storage[key] = value ?? string.Empty;
+		}
+	}
+
+	internal class MockUnitySnipeServicesFactory : UnitySnipeServicesFactory
+	{
+		private readonly ISharedPrefs _sharedPrefs;
+
+		public MockUnitySnipeServicesFactory(ISharedPrefs sharedPrefs)
+		{
+			_sharedPrefs = sharedPrefs;
+		}
+
+		public override ISharedPrefs CreateSharedPrefs() => _sharedPrefs;
 	}
 
 	internal class MockAuthSubsystem : AuthSubsystem

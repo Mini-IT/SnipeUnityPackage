@@ -1,14 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using MiniIT.Snipe.Api;
-using UnityEngine;
-
-#if MINIIT_SHARED_PREFS
+using MiniIT.Snipe;
 using MiniIT.Storage;
-#else
-using SharedPrefs = UnityEngine.PlayerPrefs;
-#endif
+using UnityEngine;
 
 namespace MiniIT.Snipe.Api
 {
@@ -25,10 +20,12 @@ namespace MiniIT.Snipe.Api
 		private readonly Dictionary<string, IProfileAttribute> _attributes = new ();
 		private readonly Dictionary<string, Type> _attributeTypes = new ();
 		private readonly List<Action> _serverEventUnsubscribers = new ();
+		private ISharedPrefs _sharedPrefs;
+		private PlayerPrefsStringListHelper _stringListHelper;
 		private bool _syncInProgress;
 		private bool _disposed;
 
-		public void Initialize(AbstractSnipeApiService snipeApiService, SnipeApiUserAttributes userAttributes)
+		public void Initialize(AbstractSnipeApiService snipeApiService, SnipeApiUserAttributes userAttributes, ISharedPrefs sharedPrefs)
 		{
 			if (_snipeApiService != null)
 			{
@@ -37,6 +34,9 @@ namespace MiniIT.Snipe.Api
 
 			_snipeApiService = snipeApiService;
 			_userAttributes = userAttributes;
+			_sharedPrefs = sharedPrefs;
+
+			_stringListHelper = new PlayerPrefsStringListHelper(_sharedPrefs);
 
 			// Get version delegate - try to get _version attribute from UserAttributes
 			_getVersionDelegate = () =>
@@ -58,7 +58,7 @@ namespace MiniIT.Snipe.Api
 				return (ProfileAttribute<T>)attr;
 			}
 
-			var newAttr = new ProfileAttribute<T>(key, this);
+			var newAttr = new ProfileAttribute<T>(key, this, _sharedPrefs);
 			_attributes[key] = newAttr;
 			_attributeTypes[key] = typeof(T);
 
@@ -131,7 +131,7 @@ namespace MiniIT.Snipe.Api
 			SetLocalVersion(localVersion);
 
 			// Add to dirty set (always, even if sync is in progress)
-			PlayerPrefsStringListHelper.Add(KEY_DIRTY_KEYS, key);
+			_stringListHelper.Add(KEY_DIRTY_KEYS, key);
 
 			// Try to send pending changes (only if not already in progress)
 			if (!_syncInProgress)
@@ -148,7 +148,7 @@ namespace MiniIT.Snipe.Api
 			}
 
 			// Check if we have a local change that hasn't been synced yet
-			bool hasLocalChange = PlayerPrefsStringListHelper.Contains(KEY_DIRTY_KEYS, key);
+			bool hasLocalChange = _stringListHelper.Contains(KEY_DIRTY_KEYS, key);
 			var localVersion = GetLocalVersion();
 			var serverVersion = _getVersionDelegate?.Invoke() ?? 0;
 
@@ -163,7 +163,7 @@ namespace MiniIT.Snipe.Api
 			{
 				if (serverVersion > 0 && serverVersion >= localVersion)
 				{
-					PlayerPrefsStringListHelper.Remove(KEY_DIRTY_KEYS, key);
+					_stringListHelper.Remove(KEY_DIRTY_KEYS, key);
 				}
 			}
 
@@ -207,7 +207,7 @@ namespace MiniIT.Snipe.Api
 			{
 				// Server has newer changes - accept all server values
 				// This should already be handled by ValueChanged events, but clear dirty keys just in case
-				PlayerPrefsStringListHelper.Clear(KEY_DIRTY_KEYS);
+				_stringListHelper.Clear(KEY_DIRTY_KEYS);
 				SetLocalVersion(serverVersion);
 				SetLastSyncedVersion(serverVersion);
 			}
@@ -224,7 +224,7 @@ namespace MiniIT.Snipe.Api
 		private Dictionary<string, object> RebuildPendingChanges()
 		{
 			var pendingChanges = new Dictionary<string, object>();
-			var dirtyKeys = PlayerPrefsStringListHelper.GetList(KEY_DIRTY_KEYS);
+			var dirtyKeys = _stringListHelper.GetList(KEY_DIRTY_KEYS);
 
 			foreach (var key in dirtyKeys)
 			{
@@ -296,7 +296,7 @@ namespace MiniIT.Snipe.Api
 					if (errorCode == "ok")
 					{
 						// Success - clear dirty keys and update versions
-						PlayerPrefsStringListHelper.Clear(KEY_DIRTY_KEYS);
+						_stringListHelper.Clear(KEY_DIRTY_KEYS);
 						if (_getVersionDelegate != null)
 						{
 							var serverVersion = _getVersionDelegate();
@@ -330,22 +330,22 @@ namespace MiniIT.Snipe.Api
 
 		private int GetLocalVersion()
 		{
-			return SharedPrefs.GetInt(KEY_LOCAL_VERSION, 0);
+			return _sharedPrefs.GetInt(KEY_LOCAL_VERSION, 0);
 		}
 
 		private void SetLocalVersion(int version)
 		{
-			SharedPrefs.SetInt(KEY_LOCAL_VERSION, version);
+			_sharedPrefs.SetInt(KEY_LOCAL_VERSION, version);
 		}
 
 		private int GetLastSyncedVersion()
 		{
-			return SharedPrefs.GetInt(KEY_LAST_SYNCED_VERSION, 0);
+			return _sharedPrefs.GetInt(KEY_LAST_SYNCED_VERSION, 0);
 		}
 
 		private void SetLastSyncedVersion(int version)
 		{
-			SharedPrefs.SetInt(KEY_LAST_SYNCED_VERSION, version);
+			_sharedPrefs.SetInt(KEY_LAST_SYNCED_VERSION, version);
 		}
 
 		private T GetLocalValue<T>(string key)
@@ -358,19 +358,19 @@ namespace MiniIT.Snipe.Api
 		{
 			if (typeof(T) == typeof(int))
 			{
-				return (T)(object)SharedPrefs.GetInt(prefsKey, 0);
+				return (T)(object)_sharedPrefs.GetInt(prefsKey, 0);
 			}
 			else if (typeof(T) == typeof(float))
 			{
-				return (T)(object)SharedPrefs.GetFloat(prefsKey, 0f);
+				return (T)(object)_sharedPrefs.GetFloat(prefsKey, 0f);
 			}
 			else if (typeof(T) == typeof(bool))
 			{
-				return (T)(object)(SharedPrefs.GetInt(prefsKey, 0) == 1);
+				return (T)(object)(_sharedPrefs.GetInt(prefsKey, 0) == 1);
 			}
 			else if (typeof(T) == typeof(string))
 			{
-				return (T)(object)SharedPrefs.GetString(prefsKey, "");
+				return (T)(object)_sharedPrefs.GetString(prefsKey, "");
 			}
 
 			return default(T);
@@ -381,19 +381,19 @@ namespace MiniIT.Snipe.Api
 			var prefsKey = KEY_ATTR_PREFIX + key;
 			if (value is int intValue)
 			{
-				SharedPrefs.SetInt(prefsKey, intValue);
+				_sharedPrefs.SetInt(prefsKey, intValue);
 			}
 			else if (value is float floatValue)
 			{
-				SharedPrefs.SetFloat(prefsKey, floatValue);
+				_sharedPrefs.SetFloat(prefsKey, floatValue);
 			}
 			else if (value is bool boolValue)
 			{
-				SharedPrefs.SetInt(prefsKey, boolValue ? 1 : 0);
+				_sharedPrefs.SetInt(prefsKey, boolValue ? 1 : 0);
 			}
 			else if (value is string stringValue)
 			{
-				SharedPrefs.SetString(prefsKey, stringValue);
+				_sharedPrefs.SetString(prefsKey, stringValue);
 			}
 		}
 
@@ -431,6 +431,8 @@ namespace MiniIT.Snipe.Api
 			_snipeApiService = null;
 			_userAttributes = null;
 			_getVersionDelegate = null;
+			_sharedPrefs = null;
+			_stringListHelper = null;
 		}
 	}
 }

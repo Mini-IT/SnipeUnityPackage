@@ -1,11 +1,6 @@
 using System;
 using System.Collections.Generic;
-
-#if MINIIT_SHARED_PREFS
 using MiniIT.Storage;
-#else
-using SharedPrefs = UnityEngine.PlayerPrefs;
-#endif
 
 namespace MiniIT.Snipe.Api
 {
@@ -36,12 +31,14 @@ namespace MiniIT.Snipe.Api
 		private T _value;
 		private readonly string _key;
 		private readonly ProfileManager _manager;
+		private readonly ISharedPrefs _sharedPrefs;
 		private readonly List<IObserver<T>> _observers = new List<IObserver<T>>();
 
-		internal ProfileAttribute(string key, ProfileManager manager)
+		internal ProfileAttribute(string key, ProfileManager manager, ISharedPrefs sharedPrefs)
 		{
 			_key = key;
 			_manager = manager;
+			_sharedPrefs = sharedPrefs;
 		}
 
 		public void SetValueFromServer(T value)
@@ -70,17 +67,19 @@ namespace MiniIT.Snipe.Api
 			ValueChanged = null;
 		}
 
-		public void Migrate(string oldKey)
+		public ProfileAttribute<T> Migrate(string oldKey)
 		{
-			if (!SharedPrefs.HasKey(oldKey))
+			if (!_sharedPrefs.HasKey(oldKey))
 			{
-				return;
+				return this;
 			}
 
 			var value = _manager.GetPrefsValue<T>(oldKey);
+			_value = value;
 			_manager.SetLocalValue(_key, value);
 
-			SharedPrefs.DeleteKey(oldKey);
+			_sharedPrefs.DeleteKey(oldKey);
+			return this;
 		}
 
 		private void NotifyObservers(T value)
