@@ -1,6 +1,12 @@
 using System;
 using System.Collections.Generic;
 
+#if MINIIT_SHARED_PREFS
+using MiniIT.Storage;
+#else
+using SharedPrefs = UnityEngine.PlayerPrefs;
+#endif
+
 namespace MiniIT.Snipe.Api
 {
 	public interface IProfileAttribute : IDisposable
@@ -62,6 +68,19 @@ namespace MiniIT.Snipe.Api
 		{
 			_observers.Clear();
 			ValueChanged = null;
+		}
+
+		public void Migrate(string oldKey)
+		{
+			if (!SharedPrefs.HasKey(oldKey))
+			{
+				return;
+			}
+
+			var value = _manager.GetPrefsValue<T>(oldKey);
+			_manager.SetLocalValue(_key, value);
+
+			SharedPrefs.DeleteKey(oldKey);
 		}
 
 		private void NotifyObservers(T value)

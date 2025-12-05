@@ -351,6 +351,11 @@ namespace MiniIT.Snipe.Api
 		private T GetLocalValue<T>(string key)
 		{
 			var prefsKey = KEY_ATTR_PREFIX + key;
+			return GetPrefsValue<T>(prefsKey);
+		}
+
+		internal T GetPrefsValue<T>(string prefsKey)
+		{
 			if (typeof(T) == typeof(int))
 			{
 				return (T)(object)SharedPrefs.GetInt(prefsKey, 0);
@@ -367,10 +372,11 @@ namespace MiniIT.Snipe.Api
 			{
 				return (T)(object)SharedPrefs.GetString(prefsKey, "");
 			}
+
 			return default(T);
 		}
 
-		private void SetLocalValue(string key, object value)
+		internal void SetLocalValue(string key, object value)
 		{
 			var prefsKey = KEY_ATTR_PREFIX + key;
 			if (value is int intValue)
