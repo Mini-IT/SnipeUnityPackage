@@ -51,6 +51,9 @@ namespace MiniIT.Snipe.Api
 			SyncWithServer();
 		}
 
+		public ProfileAttribute<T> GetAttribute<T>(SnipeApiUserAttribute attribute)
+			=> GetAttribute<T>(attribute.Key);
+
 		public ProfileAttribute<T> GetAttribute<T>(string key)
 		{
 			if (_attributes.TryGetValue(key, out var attr))
