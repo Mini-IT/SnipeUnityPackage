@@ -74,6 +74,12 @@ namespace MiniIT.Snipe.Api
 				return this;
 			}
 
+			string prefsKey = ProfileManager.KEY_ATTR_PREFIX + _key;
+			if (oldKey == prefsKey)
+			{
+				return this;
+			}
+
 			var value = _manager.GetPrefsValue<T>(oldKey);
 			_value = value;
 			_manager.SetLocalValue(_key, value);
