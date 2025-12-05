@@ -99,7 +99,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
 			// Not initialized - IsInitialized will be false
 			_mockUserAttributes.RegisterAttribute(serverAttr);
-			_mockSharedPrefs.SetInt("profile_attr_coins", 50);
+			_mockSharedPrefs.SetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 50);
 			_mockSharedPrefs.Save();
 
 			// Act
@@ -148,7 +148,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			attr.Value = 100;
 
 			// Assert
-			Assert.AreEqual(100, _mockSharedPrefs.GetInt("profile_attr_coins", 0));
+			Assert.AreEqual(100, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 0));
 		}
 
 		[Test]
@@ -164,7 +164,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			serverAttr.SetValue(200);
 
 			// Assert
-			Assert.AreEqual(200, _mockSharedPrefs.GetInt("profile_attr_coins", 0));
+			Assert.AreEqual(200, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 0));
 			Assert.AreEqual(200, attr.Value);
 		}
 
@@ -205,8 +205,8 @@ namespace MiniIT.Snipe.Tests.Editor
 			// Assert
 			Assert.Contains("coins", dirtyKeys);
 			Assert.Contains("level", dirtyKeys);
-			Assert.AreEqual(100, _mockSharedPrefs.GetInt("profile_attr_coins", 0));
-			Assert.AreEqual(5, _mockSharedPrefs.GetInt("profile_attr_level", 0));
+			Assert.AreEqual(100, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 0));
+			Assert.AreEqual(5, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "level", 0));
 		}
 
 		[Test]
@@ -348,8 +348,8 @@ namespace MiniIT.Snipe.Tests.Editor
 			var dirtyKeys = _stringListHelper.GetList("profile_dirty_keys");
 			Assert.Contains("coins", dirtyKeys);
 			Assert.Contains("level", dirtyKeys);
-			Assert.AreEqual(100, _mockSharedPrefs.GetInt("profile_attr_coins", 0));
-			Assert.AreEqual(5, _mockSharedPrefs.GetInt("profile_attr_level", 0));
+			Assert.AreEqual(100, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 0));
+			Assert.AreEqual(5, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "level", 0));
 		}
 
 		[Test]
@@ -367,10 +367,10 @@ namespace MiniIT.Snipe.Tests.Editor
 			stringAttr.Value = "test";
 
 			// Assert
-			Assert.AreEqual(100, _mockSharedPrefs.GetInt("profile_attr_coins", 0));
-			Assert.AreEqual(3.14f, _mockSharedPrefs.GetFloat("profile_attr_score", 0f), 0.001f);
-			Assert.AreEqual(1, _mockSharedPrefs.GetInt("profile_attr_enabled", 0));
-			Assert.AreEqual("test", _mockSharedPrefs.GetString("profile_attr_name", ""));
+			Assert.AreEqual(100, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 0));
+			Assert.AreEqual(3.14f, _mockSharedPrefs.GetFloat(ProfileManager.KEY_ATTR_PREFIX + "score", 0f), 0.001f);
+			Assert.AreEqual(1, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "enabled", 0));
+			Assert.AreEqual("test", _mockSharedPrefs.GetString(ProfileManager.KEY_ATTR_PREFIX + "name", ""));
 		}
 
 		[Test]
@@ -378,7 +378,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			// Arrange
 			var attr = _profileManager.GetAttribute<int>("coins");
-			var oldKey = "profile_attr_old_coins";
+			var oldKey = ProfileManager.KEY_ATTR_PREFIX + "old_coins";
 			var oldValue = 250;
 			_mockSharedPrefs.SetInt(oldKey, oldValue);
 			_mockSharedPrefs.Save();
@@ -395,7 +395,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			// Arrange
 			var attr = _profileManager.GetAttribute<int>("coins");
-			var oldKey = "profile_attr_old_coins";
+			var oldKey = "old_prefix_" + ProfileManager.KEY_ATTR_PREFIX + "coins";
 			var oldValue = 250;
 			_mockSharedPrefs.SetInt(oldKey, oldValue);
 			_mockSharedPrefs.Save();
@@ -404,7 +404,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			attr.Migrate(oldKey);
 
 			// Assert
-			int storedValue = _mockSharedPrefs.GetInt("profile_attr_coins", 0);
+			int storedValue = _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 0);
 			Assert.AreEqual(oldValue, storedValue);
 			Assert.IsFalse(_mockSharedPrefs.HasKey(oldKey));
 		}
@@ -416,14 +416,14 @@ namespace MiniIT.Snipe.Tests.Editor
 			var attr = _profileManager.GetAttribute<int>("coins");
 			var initialValue = 100;
 			attr.Value = initialValue;
-			var nonExistentOldKey = "profile_attr_nonexistent_key";
+			var nonExistentOldKey = ProfileManager.KEY_ATTR_PREFIX + "nonexistent_key";
 
 			// Act
 			attr.Migrate(nonExistentOldKey);
 
 			// Assert
 			Assert.AreEqual(initialValue, attr.Value);
-			Assert.AreEqual(initialValue, _mockSharedPrefs.GetInt("profile_attr_coins", 0));
+			Assert.AreEqual(initialValue, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 0));
 			Assert.IsFalse(_mockSharedPrefs.HasKey(nonExistentOldKey));
 		}
 	}
