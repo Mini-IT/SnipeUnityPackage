@@ -17,7 +17,8 @@ namespace MiniIT.Snipe.Api
 		private AbstractSnipeApiService _snipeApiService;
 		private Func<int> _getVersionDelegate;
 		private readonly Dictionary<string, IProfileAttribute> _attributes = new ();
-		private readonly Dictionary<string, SnipeApiUserAttribute> _serverAttributes = new ();
+		private readonly Dictionary<string, Action<object>> _attributeValueSetters = new ();
+		private readonly Dictionary<string, Func<object>> _localValueGetters = new ();
 		private readonly Dictionary<string, object> _serverEventHandlers = new ();
 		private readonly List<Action> _serverEventUnsubscribers = new ();
 		private ISharedPrefs _sharedPrefs;
@@ -60,7 +61,8 @@ namespace MiniIT.Snipe.Api
 
 			var newAttr = new ProfileAttribute<T>(key, this, _sharedPrefs);
 			_attributes[key] = newAttr;
-			_serverAttributes[key] = serverAttribute;
+			_attributeValueSetters[key] = (val) => newAttr.SetValueFromServer((T)val);
+			_localValueGetters[key] = () => GetLocalValue<T>(key);
 
 			// Subscribe to server attribute ValueChanged event
 			SubscribeToServerAttribute<T>(serverAttribute);
@@ -162,19 +164,9 @@ namespace MiniIT.Snipe.Api
 			}
 
 			// Update attribute value
-			if (_attributes.TryGetValue(key, out var attr) && _serverAttributes.TryGetValue(key, out var serverAttr))
+			if (_attributeValueSetters.TryGetValue(key, out var setter))
 			{
-				// Get the generic type from the server attribute
-				var serverAttrType = serverAttr.GetType();
-				if (serverAttrType.IsGenericType && serverAttrType.GetGenericTypeDefinition() == typeof(SnipeApiReadOnlyUserAttribute<>))
-				{
-					var valueType = serverAttrType.GetGenericArguments()[0];
-					var method = typeof(ProfileAttribute<>).MakeGenericType(valueType).GetMethod(nameof(ProfileAttribute<object>.SetValueFromServer));
-					if (method != null)
-					{
-						method.Invoke(attr, new[] { value });
-					}
-				}
+				setter(value);
 			}
 
 			// Update version if server is newer
@@ -228,41 +220,13 @@ namespace MiniIT.Snipe.Api
 
 			foreach (var key in dirtyKeys)
 			{
-				if (!_serverAttributes.TryGetValue(key, out var serverAttr))
+				if (_localValueGetters.TryGetValue(key, out var getter))
 				{
-					continue;
-				}
-
-				// Get the generic type from the server attribute
-				var serverAttrType = serverAttr.GetType();
-				if (!serverAttrType.IsGenericType || serverAttrType.GetGenericTypeDefinition() != typeof(SnipeApiReadOnlyUserAttribute<>))
-				{
-					continue;
-				}
-
-				var valueType = serverAttrType.GetGenericArguments()[0];
-				object value = null;
-
-				if (valueType == typeof(int))
-				{
-					value = GetLocalValue<int>(key);
-				}
-				else if (valueType == typeof(float))
-				{
-					value = GetLocalValue<float>(key);
-				}
-				else if (valueType == typeof(bool))
-				{
-					value = GetLocalValue<bool>(key);
-				}
-				else if (valueType == typeof(string))
-				{
-					value = GetLocalValue<string>(key);
-				}
-
-				if (value != null)
-				{
-					pendingChanges[key] = value;
+					var value = getter();
+					if (value != null)
+					{
+						pendingChanges[key] = value;
+					}
 				}
 			}
 
@@ -436,7 +400,8 @@ namespace MiniIT.Snipe.Api
 				attr.Dispose();
 			}
 			_attributes.Clear();
-			_serverAttributes.Clear();
+			_attributeValueSetters.Clear();
+			_localValueGetters.Clear();
 
 			_snipeApiService = null;
 			_getVersionDelegate = null;
