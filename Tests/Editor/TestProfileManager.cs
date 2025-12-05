@@ -174,7 +174,9 @@ namespace MiniIT.Snipe.Tests.Editor
 			// Arrange
 			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
 			_mockUserAttributes.RegisterAttribute(serverAttr);
-			var attr = _profileManager.GetAttribute<int>("coins");
+			serverAttr.SetInitialized(true); // simulate that the value was already received from server
+
+			var attr = _profileManager.GetAttribute<int>(serverAttr.Key);
 			attr.Value = 100; // Add to dirty keys, localVersion becomes 1
 
 			// Set server version to be >= local version so the key is removed
@@ -658,6 +660,11 @@ namespace MiniIT.Snipe.Tests.Editor
 			// Set value and ensure initialized so ValueChanged events are raised
 			SetValue(value, null);
 			// After SetValue, _initialized will be true, so ValueChanged will fire on subsequent calls
+		}
+
+		public void SetInitialized(bool initialized)
+		{
+			_initialized = initialized;
 		}
 	}
 }
