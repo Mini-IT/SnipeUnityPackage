@@ -22,9 +22,9 @@ namespace MiniIT.Snipe.Api
 		private AbstractSnipeApiService _snipeApiService;
 		private SnipeApiUserAttributes _userAttributes;
 		private Func<int> _getVersionDelegate;
-		private readonly Dictionary<string, IProfileAttribute> _attributes = new Dictionary<string, IProfileAttribute>();
-		private readonly Dictionary<string, Type> _attributeTypes = new Dictionary<string, Type>();
-		private readonly Dictionary<string, Delegate> _serverEventHandlers = new Dictionary<string, Delegate>();
+		private readonly Dictionary<string, IProfileAttribute> _attributes = new ();
+		private readonly Dictionary<string, Type> _attributeTypes = new ();
+		private readonly List<Action> _serverEventUnsubscribers = new ();
 		private bool _syncInProgress;
 		private bool _disposed;
 
@@ -111,8 +111,8 @@ namespace MiniIT.Snipe.Api
 			SnipeApiReadOnlyUserAttribute<T>.ValueChangedHandler handler = (oldValue, newValue) => OnServerAttributeChanged(key, newValue);
 			serverAttr.ValueChanged += handler;
 
-			// Store handler for cleanup
-			_serverEventHandlers[key] = handler;
+			// Store unsubscriber for cleanup
+			_serverEventUnsubscribers.Add(() => serverAttr.ValueChanged -= handler);
 		}
 
 		internal void OnLocalAttributeChanged(string key, object value)
@@ -402,40 +402,18 @@ namespace MiniIT.Snipe.Api
 			_syncInProgress = false;
 
 			// Unsubscribe from server attributes
-			foreach (var kvp in _serverEventHandlers)
+			foreach (var unsubscriber in _serverEventUnsubscribers)
 			{
-				if (_userAttributes == null)
+				try
 				{
-					continue;
+					unsubscriber?.Invoke();
 				}
-
-				// TODO: Don't use reflection
-
-				// Use reflection to unsubscribe since we don't know the generic type at runtime
-				var attrType = _attributeTypes.TryGetValue(kvp.Key, out var type) ? type : null;
-				if (attrType != null)
+				catch (Exception e)
 				{
-					var method = typeof(SnipeApiUserAttributes).GetMethod(nameof(SnipeApiUserAttributes.TryGetAttribute));
-					if (method != null)
-					{
-						var genericMethod = method.MakeGenericMethod(attrType);
-						var parameters = new object[] { kvp.Key, null };
-						if ((bool)genericMethod.Invoke(_userAttributes, parameters))
-						{
-							var serverAttr = parameters[1];
-							if (serverAttr != null)
-							{
-								var eventInfo = serverAttr.GetType().GetEvent("ValueChanged");
-								if (eventInfo != null)
-								{
-									eventInfo.RemoveEventHandler(serverAttr, kvp.Value);
-								}
-							}
-						}
-					}
+					// ignore
 				}
 			}
-			_serverEventHandlers.Clear();
+			_serverEventUnsubscribers.Clear();
 
 			foreach (var attr in _attributes.Values)
 			{
