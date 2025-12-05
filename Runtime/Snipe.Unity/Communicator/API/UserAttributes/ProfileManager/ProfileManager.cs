@@ -9,9 +9,9 @@ namespace MiniIT.Snipe.Api
 {
 	public class ProfileManager : IDisposable
 	{
-		private const string KEY_LOCAL_VERSION = "profile_local_version";
-		private const string KEY_LAST_SYNCED_VERSION = "profile_last_synced_version";
-		private const string KEY_DIRTY_KEYS = "profile_dirty_keys";
+		internal const string KEY_LOCAL_VERSION = "profile_local_version";
+		internal const string KEY_LAST_SYNCED_VERSION = "profile_last_synced_version";
+		internal const string KEY_DIRTY_KEYS = "profile_dirty_keys";
 		internal const string KEY_ATTR_PREFIX = "profile_attr_";
 
 		private AbstractSnipeApiService _snipeApiService;

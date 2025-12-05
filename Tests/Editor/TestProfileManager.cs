@@ -114,13 +114,13 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			// Arrange
 			var attr = _profileManager.GetAttribute<int>("coins");
-			var initialVersion = _mockSharedPrefs.GetInt("profile_local_version", 0);
+			var initialVersion = _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION, 0);
 
 			// Act
 			attr.Value = 100;
 
 			// Assert
-			var newVersion = _mockSharedPrefs.GetInt("profile_local_version", 0);
+			var newVersion = _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION, 0);
 			Assert.AreEqual(initialVersion + 1, newVersion);
 		}
 
@@ -134,7 +134,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			attr.Value = 100;
 
 			// Assert
-			var dirtyKeys = _stringListHelper.GetList("profile_dirty_keys");
+			var dirtyKeys = _stringListHelper.GetList(ProfileManager.KEY_DIRTY_KEYS);
 			Assert.Contains("coins", dirtyKeys);
 		}
 
@@ -184,7 +184,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			serverAttr.SetValue(200);
 
 			// Assert
-			var dirtyKeys = _stringListHelper.GetList("profile_dirty_keys");
+			var dirtyKeys = _stringListHelper.GetList(ProfileManager.KEY_DIRTY_KEYS);
 			Assert.IsFalse(dirtyKeys.Contains("coins"));
 		}
 
@@ -200,7 +200,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			// Act
 			// Access private method via reflection or make it internal for testing
 			// For now, we'll test indirectly through SendPendingChanges behavior
-			var dirtyKeys = _stringListHelper.GetList("profile_dirty_keys");
+			var dirtyKeys = _stringListHelper.GetList(ProfileManager.KEY_DIRTY_KEYS);
 
 			// Assert
 			Assert.Contains("coins", dirtyKeys);
@@ -224,7 +224,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			_mockSharedPrefs.Save();
 
 			// Assert - callback should have been invoked synchronously and cleared dirty keys
-			var dirtyKeys = _stringListHelper.GetList("profile_dirty_keys");
+			var dirtyKeys = _stringListHelper.GetList(ProfileManager.KEY_DIRTY_KEYS);
 			Assert.IsEmpty(dirtyKeys, "Dirty keys should be cleared after successful sync");
 		}
 
@@ -240,7 +240,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			attr.Value = 150;
 
 			// Assert - dirty keys should still be present after failure
-			var dirtyKeys = _stringListHelper.GetList("profile_dirty_keys");
+			var dirtyKeys = _stringListHelper.GetList(ProfileManager.KEY_DIRTY_KEYS);
 			// Note: This test may need adjustment based on actual async behavior
 		}
 
@@ -248,8 +248,8 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void SyncWithServer_LocalVersionGreater_SendsPendingChanges()
 		{
 			// Arrange
-			_mockSharedPrefs.SetInt("profile_local_version", 5);
-			_mockSharedPrefs.SetInt("profile_last_synced_version", 3);
+			_mockSharedPrefs.SetInt(ProfileManager.KEY_LOCAL_VERSION, 5);
+			_mockSharedPrefs.SetInt(ProfileManager.KEY_LAST_SYNCED_VERSION, 3);
 			_mockVersionAttribute.SetValue(4);
 
 			// Act
@@ -265,8 +265,8 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void SyncWithServer_ServerVersionGreater_AcceptsServerValues()
 		{
 			// Arrange
-			_mockSharedPrefs.SetInt("profile_local_version", 3);
-			_mockSharedPrefs.SetInt("profile_last_synced_version", 3);
+			_mockSharedPrefs.SetInt(ProfileManager.KEY_LOCAL_VERSION, 3);
+			_mockSharedPrefs.SetInt(ProfileManager.KEY_LAST_SYNCED_VERSION, 3);
 			_mockVersionAttribute.SetValue(5);
 
 			// Act
@@ -274,7 +274,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			_profileManager.Initialize(_mockApiService, _mockUserAttributes, _mockSharedPrefs);
 
 			// Assert
-			var localVersion = _mockSharedPrefs.GetInt("profile_local_version", 0);
+			var localVersion = _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION, 0);
 			Assert.AreEqual(5, localVersion);
 		}
 
@@ -313,7 +313,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			// Assert
 			Assert.AreEqual(1, changeCount); // ValueChanged should fire
 			// But OnLocalAttributeChanged should NOT be called
-			var dirtyKeys = _stringListHelper.GetList("profile_dirty_keys");
+			var dirtyKeys = _stringListHelper.GetList(ProfileManager.KEY_DIRTY_KEYS);
 			Assert.IsFalse(dirtyKeys.Contains("coins"));
 		}
 
@@ -345,7 +345,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			levelAttr.Value = 5;
 
 			// Assert
-			var dirtyKeys = _stringListHelper.GetList("profile_dirty_keys");
+			var dirtyKeys = _stringListHelper.GetList(ProfileManager.KEY_DIRTY_KEYS);
 			Assert.Contains("coins", dirtyKeys);
 			Assert.Contains("level", dirtyKeys);
 			Assert.AreEqual(100, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 0));
