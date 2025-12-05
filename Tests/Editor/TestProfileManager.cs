@@ -57,7 +57,9 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void GetAttribute_NewAttribute_ReturnsProfileAttribute()
 		{
 			// Arrange & Act
-			var attr = _profileManager.GetAttribute<int>("coins");
+			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+			_mockUserAttributes.RegisterAttribute(serverAttr);
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
 
 			// Assert
 			Assert.IsNotNull(attr);
@@ -68,10 +70,12 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void GetAttribute_ExistingAttribute_ReturnsSameInstance()
 		{
 			// Arrange
-			var attr1 = _profileManager.GetAttribute<int>("coins");
+			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+			_mockUserAttributes.RegisterAttribute(serverAttr);
+			var attr1 = _profileManager.GetAttribute<int>(serverAttr);
 
 			// Act
-			var attr2 = _profileManager.GetAttribute<int>("coins");
+			var attr2 = _profileManager.GetAttribute<int>(serverAttr);
 
 			// Assert
 			Assert.AreSame(attr1, attr2);
@@ -86,7 +90,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			_mockUserAttributes.RegisterAttribute(serverAttr);
 
 			// Act
-			var attr = _profileManager.GetAttribute<int>("coins");
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
 
 			// Assert
 			Assert.AreEqual(100, attr.Value);
@@ -103,7 +107,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			_mockSharedPrefs.Save();
 
 			// Act
-			var attr = _profileManager.GetAttribute<int>("coins");
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
 
 			// Assert
 			Assert.AreEqual(50, attr.Value);
@@ -113,7 +117,9 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void OnLocalAttributeChanged_IncrementsVersion()
 		{
 			// Arrange
-			var attr = _profileManager.GetAttribute<int>("coins");
+			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+			_mockUserAttributes.RegisterAttribute(serverAttr);
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
 			var initialVersion = _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION, 0);
 
 			// Act
@@ -128,7 +134,9 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void OnLocalAttributeChanged_AddsToDirtyKeys()
 		{
 			// Arrange
-			var attr = _profileManager.GetAttribute<int>("coins");
+			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+			_mockUserAttributes.RegisterAttribute(serverAttr);
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
 
 			// Act
 			attr.Value = 100;
@@ -142,7 +150,9 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void OnLocalAttributeChanged_SavesToLocalStorage()
 		{
 			// Arrange
-			var attr = _profileManager.GetAttribute<int>("coins");
+			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+			_mockUserAttributes.RegisterAttribute(serverAttr);
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
 
 			// Act
 			attr.Value = 100;
@@ -158,7 +168,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
 			serverAttr.SetValue(50);
 			_mockUserAttributes.RegisterAttribute(serverAttr);
-			var attr = _profileManager.GetAttribute<int>("coins");
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
 
 			// Act
 			serverAttr.SetValue(200);
@@ -176,7 +186,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			_mockUserAttributes.RegisterAttribute(serverAttr);
 			serverAttr.SetInitialized(true); // simulate that the value was already received from server
 
-			var attr = _profileManager.GetAttribute<int>(serverAttr.Key);
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
 			attr.Value = 100; // Add to dirty keys, localVersion becomes 1
 
 			// Set server version to be >= local version so the key is removed
@@ -194,8 +204,12 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void RebuildPendingChanges_WithDirtyKeys_ReturnsCorrectValues()
 		{
 			// Arrange
-			var coinsAttr = _profileManager.GetAttribute<int>("coins");
-			var levelAttr = _profileManager.GetAttribute<int>("level");
+			var coinsServerAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+			var levelServerAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "level");
+			_mockUserAttributes.RegisterAttribute(coinsServerAttr);
+			_mockUserAttributes.RegisterAttribute(levelServerAttr);
+			var coinsAttr = _profileManager.GetAttribute<int>(coinsServerAttr);
+			var levelAttr = _profileManager.GetAttribute<int>(levelServerAttr);
 			coinsAttr.Value = 100;
 			levelAttr.Value = 5;
 
@@ -215,9 +229,13 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void SendPendingChanges_Success_ClearsDirtyKeys()
 		{
 			// Arrange
+			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+			serverAttr.SetInitialized(true); // simulate that the value was already received from server
+			_mockUserAttributes.RegisterAttribute(serverAttr);
+
 			_mockApiService.SetNextRequestSuccess(true); // Set success BEFORE setting value
 			_mockVersionAttribute.SetValue(1);
-			var attr = _profileManager.GetAttribute<int>("coins");
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
 
 			// Act - setting value triggers SendPendingChanges automatically with success enabled
 			attr.Value = 100;
@@ -234,7 +252,9 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void SendPendingChanges_Failure_KeepsDirtyKeys()
 		{
 			// Arrange
-			var attr = _profileManager.GetAttribute<int>("coins");
+			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+			_mockUserAttributes.RegisterAttribute(serverAttr);
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
 			attr.Value = 100;
 			_mockApiService.SetNextRequestSuccess(false);
 
@@ -284,7 +304,9 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void ProfileAttribute_ValueChanged_EventFires()
 		{
 			// Arrange
-			var attr = _profileManager.GetAttribute<int>("coins");
+			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+			_mockUserAttributes.RegisterAttribute(serverAttr);
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
 			bool eventFired = false;
 			int eventValue = 0;
 			attr.ValueChanged += (value) =>
@@ -305,7 +327,9 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void ProfileAttribute_SetValueFromServer_DoesNotTriggerLocalChange()
 		{
 			// Arrange
-			var attr = _profileManager.GetAttribute<int>("coins");
+			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+			_mockUserAttributes.RegisterAttribute(serverAttr);
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
 			int changeCount = 0;
 			attr.ValueChanged += (value) => changeCount++;
 
@@ -325,7 +349,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			// Arrange
 			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
 			_mockUserAttributes.RegisterAttribute(serverAttr);
-			var attr = _profileManager.GetAttribute<int>("coins");
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
 
 			// Act
 			_profileManager.Dispose();
@@ -339,8 +363,12 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void MultipleAttributes_IndependentTracking()
 		{
 			// Arrange
-			var coinsAttr = _profileManager.GetAttribute<int>("coins");
-			var levelAttr = _profileManager.GetAttribute<int>("level");
+			var coinsServerAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+			var levelServerAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "level");
+			_mockUserAttributes.RegisterAttribute(coinsServerAttr);
+			_mockUserAttributes.RegisterAttribute(levelServerAttr);
+			var coinsAttr = _profileManager.GetAttribute<int>(coinsServerAttr);
+			var levelAttr = _profileManager.GetAttribute<int>(levelServerAttr);
 
 			// Act
 			coinsAttr.Value = 100;
@@ -358,10 +386,18 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void DifferentAttributeTypes_HandledCorrectly()
 		{
 			// Arrange & Act
-			var intAttr = _profileManager.GetAttribute<int>("coins");
-			var floatAttr = _profileManager.GetAttribute<float>("score");
-			var boolAttr = _profileManager.GetAttribute<bool>("enabled");
-			var stringAttr = _profileManager.GetAttribute<string>("name");
+			var intServerAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+			var floatServerAttr = new MockSnipeApiReadOnlyUserAttribute<float>(_mockApiService, "score");
+			var boolServerAttr = new MockSnipeApiReadOnlyUserAttribute<bool>(_mockApiService, "enabled");
+			var stringServerAttr = new MockSnipeApiReadOnlyUserAttribute<string>(_mockApiService, "name");
+			_mockUserAttributes.RegisterAttribute(intServerAttr);
+			_mockUserAttributes.RegisterAttribute(floatServerAttr);
+			_mockUserAttributes.RegisterAttribute(boolServerAttr);
+			_mockUserAttributes.RegisterAttribute(stringServerAttr);
+			var intAttr = _profileManager.GetAttribute<int>(intServerAttr);
+			var floatAttr = _profileManager.GetAttribute<float>(floatServerAttr);
+			var boolAttr = _profileManager.GetAttribute<bool>(boolServerAttr);
+			var stringAttr = _profileManager.GetAttribute<string>(stringServerAttr);
 
 			intAttr.Value = 100;
 			floatAttr.Value = 3.14f;
@@ -379,7 +415,9 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void Migrate_OldKeyExists_MigratesValue()
 		{
 			// Arrange
-			var attr = _profileManager.GetAttribute<int>("coins");
+			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+			_mockUserAttributes.RegisterAttribute(serverAttr);
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
 			var oldKey = ProfileManager.KEY_ATTR_PREFIX + "old_coins";
 			var oldValue = 250;
 			_mockSharedPrefs.SetInt(oldKey, oldValue);
@@ -396,7 +434,9 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void Migrate_OldKeyExists_MigratesValueAndDeletesOldKey()
 		{
 			// Arrange
-			var attr = _profileManager.GetAttribute<int>("coins");
+			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+			_mockUserAttributes.RegisterAttribute(serverAttr);
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
 			var oldKey = "old_prefix_" + ProfileManager.KEY_ATTR_PREFIX + "coins";
 			var oldValue = 250;
 			_mockSharedPrefs.SetInt(oldKey, oldValue);
@@ -415,7 +455,9 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void Migrate_OldKeyDoesNotExist_DoesNothing()
 		{
 			// Arrange
-			var attr = _profileManager.GetAttribute<int>("coins");
+			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+			_mockUserAttributes.RegisterAttribute(serverAttr);
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
 			var initialValue = 100;
 			attr.Value = initialValue;
 			var nonExistentOldKey = ProfileManager.KEY_ATTR_PREFIX + "nonexistent_key";
