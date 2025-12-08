@@ -636,7 +636,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			_nextRequestSuccess = success;
 		}
 
-		public new AbstractCommunicatorRequest CreateRequest(string messageType, IDictionary<string, object> data = null)
+		public override AbstractCommunicatorRequest CreateRequest(string messageType, IDictionary<string, object> data = null)
 		{
 			LastRequestType = messageType;
 			RequestCount++;

@@ -29,7 +29,7 @@ namespace MiniIT.Snipe.Api
 			InitMergeableRequestTypes();
 		}
 
-		public AbstractCommunicatorRequest CreateRequest(string messageType, IDictionary<string, object> data = null)
+		public virtual AbstractCommunicatorRequest CreateRequest(string messageType, IDictionary<string, object> data = null)
 		{
 			return _requestFactory.Invoke(messageType, data);
 		}
