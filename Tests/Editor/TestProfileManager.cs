@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using NUnit.Framework;
@@ -492,6 +493,127 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(initialValue, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 0));
 			Assert.IsFalse(_mockSharedPrefs.HasKey(nonExistentOldKey));
 		}
+
+		[Test]
+		public void RaceCondition_ChangeDuringSync_ResultIsClearedButNotSent()
+		{
+			// This test demonstrates a BUG where changes made during a sync are cleared from dirty keys
+			// without being sent.
+
+			// Setup with Delayed Service
+			var delayedService = new DelayedMockSnipeApiService();
+			delayedService.AutoComplete = false;
+			
+			// Re-init manager with delayed service
+			_profileManager.Dispose();
+			_mockUserAttributes = new MockSnipeApiUserAttributes(delayedService);
+			_mockVersionAttribute = new MockSnipeApiReadOnlyUserAttribute<int>(delayedService, "_version");
+			_mockUserAttributes.RegisterAttribute(_mockVersionAttribute);
+			_profileManager = new ProfileManager();
+			_profileManager.Initialize(delayedService, _mockUserAttributes, _mockSharedPrefs);
+
+			var coinsAttr = CreateAttribute<int>("coins", delayedService);
+			var gemsAttr = CreateAttribute<int>("gems", delayedService);
+
+			// 1. Change Coins -> Starts Sync
+			coinsAttr.Value = 100;
+			
+			// Verify sync started but not finished
+			Assert.IsNotNull(delayedService.PendingCallback, "Sync should be in progress");
+			
+			// 2. Change Gems -> Should be added to dirty keys
+			gemsAttr.Value = 50;
+			
+			var dirtyKeys = _stringListHelper.GetList(ProfileManager.KEY_DIRTY_KEYS);
+			Assert.Contains("coins", dirtyKeys);
+			Assert.Contains("gems", dirtyKeys);
+
+			// 3. Complete the first sync (which only contained "coins")
+			delayedService.PendingCallback.Invoke("ok", new Dictionary<string, object>());
+
+			// 4. Assert State
+			dirtyKeys = _stringListHelper.GetList(ProfileManager.KEY_DIRTY_KEYS);
+			
+			// BUG EXPECTATION: The dirty keys are cleared, so "gems" is lost!
+			Assert.IsEmpty(dirtyKeys, "Bug Reproduction: Dirty keys cleared implies 'gems' change is lost");
+			
+			// Verify only one request was made (for coins)
+			Assert.AreEqual(1, delayedService.RequestCount);
+		}
+
+		[Test]
+		public void Migrate_DoesNotMarkAsDirty_Demonstration()
+		{
+			// This test demonstrates a BUG where Migrate updates local storage but doesn't mark it dirty
+			
+			// Arrange
+			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "migrated_coins");
+			_mockUserAttributes.RegisterAttribute(serverAttr);
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
+			
+			// Setup old key
+			string oldKey = "old_migrated_coins";
+			_mockSharedPrefs.SetInt(oldKey, 500);
+			_mockSharedPrefs.Save();
+
+			// Act
+			attr.Migrate(oldKey);
+
+			// Assert
+			Assert.AreEqual(500, attr.Value);
+			Assert.AreEqual(500, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "migrated_coins", 0));
+			
+			// BUG EXPECTATION: Dirty keys is empty, so this value is never synced to server
+			var dirtyKeys = _stringListHelper.GetList(ProfileManager.KEY_DIRTY_KEYS);
+			Assert.IsEmpty(dirtyKeys, "Bug Reproduction: Migrate should mark key as dirty but doesn't");
+		}
+
+		[Test]
+		public void SyncFailure_SubsequentChange_RetriesAll()
+		{
+			// Setup with Delayed Service
+			var delayedService = new DelayedMockSnipeApiService();
+			delayedService.AutoComplete = false;
+			
+			// Re-init
+			_profileManager.Dispose();
+			_mockUserAttributes = new MockSnipeApiUserAttributes(delayedService);
+			_mockVersionAttribute = new MockSnipeApiReadOnlyUserAttribute<int>(delayedService, "_version");
+			_mockUserAttributes.RegisterAttribute(_mockVersionAttribute);
+			_profileManager = new ProfileManager();
+			_profileManager.Initialize(delayedService, _mockUserAttributes, _mockSharedPrefs);
+
+			var coinsAttr = CreateAttribute<int>("coins", delayedService);
+
+			// 1. Change Coins -> Starts Sync
+			coinsAttr.Value = 100;
+			
+			// 2. Fail the sync
+			delayedService.PendingCallback.Invoke("error", null);
+
+			// Dirty keys should remain
+			var dirtyKeys = _stringListHelper.GetList(ProfileManager.KEY_DIRTY_KEYS);
+			Assert.Contains("coins", dirtyKeys);
+
+			// 3. Change Coins again (or another value) -> Should trigger new sync
+			delayedService.PendingCallback = null; // Reset
+			delayedService.AutoComplete = true; // Let next one pass normally or check data
+			
+			// To check data, we can inspect the request in the mock if we expanded it, 
+			// but for now checking that a request is made is enough.
+			coinsAttr.Value = 200;
+
+			// Assert
+			// Request count should be 2 (1 failed, 1 new)
+			Assert.AreEqual(2, delayedService.RequestCount);
+		}
+
+		private ProfileAttribute<T> CreateAttribute<T>(string key, AbstractSnipeApiService service = null)
+		{
+			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<T>(service ?? _mockApiService, key);
+			_mockUserAttributes.RegisterAttribute(serverAttr);
+			return _profileManager.GetAttribute<T>(serverAttr);
+		}
 	}
 
 	internal class MockSharedPrefs : ISharedPrefs
@@ -627,9 +749,9 @@ namespace MiniIT.Snipe.Tests.Editor
 
 		private static MockAuthSubsystem s_tempMockAuth;
 
-		private bool _nextRequestSuccess = false; // Default to false so dirty keys persist for testing
-		private readonly SnipeCommunicator _mockCommunicator;
-		private readonly MockAuthSubsystem _mockAuth;
+		protected bool _nextRequestSuccess = false; // Default to false so dirty keys persist for testing
+		protected readonly SnipeCommunicator _mockCommunicator;
+		protected readonly MockAuthSubsystem _mockAuth;
 
 		public MockSnipeApiService() : this(CreateMockCommunicator())
 		{
@@ -729,6 +851,47 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void SetInitialized(bool initialized)
 		{
 			_initialized = initialized;
+		}
+	}
+
+	// Helper to inject a delayed request mechanism for testing race conditions
+	internal class DelayedMockSnipeApiService : MockSnipeApiService
+	{
+		public Action<string, IDictionary<string, object>> PendingCallback;
+		public bool AutoComplete = true;
+
+		public override AbstractCommunicatorRequest CreateRequest(string messageType, IDictionary<string, object> data = null)
+		{
+			if (!AutoComplete)
+			{
+				// Increment request count
+				var req = base.CreateRequest(messageType, data);
+				
+				// Return our manual request, reusing the protected fields from base
+				return new ManualCommunicatorRequest(this, _mockCommunicator, _mockAuth, messageType, data, _nextRequestSuccess);
+			}
+			return base.CreateRequest(messageType, data);
+		}
+	}
+
+	internal class ManualCommunicatorRequest : MockSnipeCommunicatorRequest
+	{
+		private DelayedMockSnipeApiService _service;
+		
+		public ManualCommunicatorRequest(DelayedMockSnipeApiService service, SnipeCommunicator communicator, AuthSubsystem auth, string messageType, IDictionary<string, object> data, bool success) 
+			: base(communicator, auth, messageType, data, success) 
+		{
+			_service = service;
+		}
+
+		protected override void OnCommunicatorReady()
+		{
+			// Intercept execution here.
+			// Save the callback capability to the service so the test can call it.
+			_service.PendingCallback = (errorCode, responseData) => {
+				 // We need to call InvokeCallback on THIS instance.
+				 this.InvokeCallback(errorCode, responseData);
+			};
 		}
 	}
 }
