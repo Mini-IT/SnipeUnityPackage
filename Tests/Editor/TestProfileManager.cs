@@ -253,34 +253,56 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			// Arrange
 			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+			serverAttr.SetInitialized(true); // simulate that the value was already received from server
 			_mockUserAttributes.RegisterAttribute(serverAttr);
 			var attr = _profileManager.GetAttribute<int>(serverAttr);
-			attr.Value = 100;
-			_mockApiService.SetNextRequestSuccess(false);
+			_mockApiService.SetNextRequestSuccess(false); // Set failure BEFORE setting value
+			_mockVersionAttribute.SetValue(1);
 
 			// Act
-			attr.Value = 150;
+			attr.Value = 100;
+
+			// Force flush SharedPrefs to ensure dirty keys are persisted
+			_mockSharedPrefs.Save();
 
 			// Assert - dirty keys should still be present after failure
 			var dirtyKeys = _stringListHelper.GetList(ProfileManager.KEY_DIRTY_KEYS);
-			// Note: This test may need adjustment based on actual async behavior
+			Assert.Contains("coins", dirtyKeys, "Dirty keys should be kept after failed sync");
 		}
 
 		[Test]
 		public void SyncWithServer_LocalVersionGreater_SendsPendingChanges()
 		{
-			// Arrange
+			// Arrange - simulate a previous session where attribute was used and dirty keys were created
+			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+			_mockUserAttributes.RegisterAttribute(serverAttr);
+			_mockVersionAttribute.SetValue(1);
+			
+			// Set up state as if from a previous session: local version > last synced version, with dirty keys
 			_mockSharedPrefs.SetInt(ProfileManager.KEY_LOCAL_VERSION, 5);
 			_mockSharedPrefs.SetInt(ProfileManager.KEY_LAST_SYNCED_VERSION, 3);
+			_mockSharedPrefs.SetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 100);
+			_stringListHelper.Add(ProfileManager.KEY_DIRTY_KEYS, "coins");
+			_mockSharedPrefs.Save();
 			_mockVersionAttribute.SetValue(4);
+			_mockApiService.SetNextRequestSuccess(true);
+			var initialRequestCount = _mockApiService.RequestCount;
 
-			// Act
+			// Act - create new ProfileManager, initialize, and retrieve attribute
+			// Retrieving the attribute registers the local value getter, enabling RebuildPendingChanges to work
+			_profileManager.Dispose();
 			_profileManager = new ProfileManager();
 			_profileManager.Initialize(_mockApiService, _mockUserAttributes, _mockSharedPrefs);
+			// Get attribute to register local value getter so RebuildPendingChanges can find the value
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
+			// Changing the value triggers SendPendingChanges, which will sync the existing dirty keys
+			attr.Value = 150;
 
-			// Assert
-			// Should attempt to send pending changes
-			// Verify through mock service
+			// Assert - should attempt to send pending changes when local version > last synced version
+			Assert.Greater(_mockApiService.RequestCount, initialRequestCount, 
+				"Request should be made when local version is greater than last synced version");
+			Assert.AreEqual("attr.setMulti", _mockApiService.LastRequestType, 
+				"Request type should be attr.setMulti for syncing pending changes");
 		}
 
 		[Test]
