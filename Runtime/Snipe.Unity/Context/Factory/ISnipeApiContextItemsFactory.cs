@@ -6,6 +6,6 @@ namespace MiniIT.Snipe
 	public interface ISnipeApiContextItemsFactory
 	{
 		TimeSpan GetServerTimeZoneOffset();
-		AbstractSnipeApiService CreateSnipeApiService(SnipeCommunicator communicator, AuthSubsystem auth);
+		AbstractSnipeApiService CreateSnipeApiService(ISnipeCommunicator communicator, AuthSubsystem auth);
 	}
 }

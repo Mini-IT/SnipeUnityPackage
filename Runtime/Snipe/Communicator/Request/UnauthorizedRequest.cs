@@ -1,11 +1,11 @@
-﻿
+
 using System.Collections.Generic;
 
 namespace MiniIT.Snipe
 {
 	public class UnauthorizedRequest : AbstractCommunicatorRequest
 	{
-		public UnauthorizedRequest(SnipeCommunicator communicator, string messageType = null, IDictionary<string, object> data = null)
+		public UnauthorizedRequest(ISnipeCommunicator communicator, string messageType = null, IDictionary<string, object> data = null)
 			: base(communicator, messageType, data)
 		{
 		}

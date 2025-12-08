@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using MiniIT.Threading;
@@ -17,7 +17,7 @@ namespace MiniIT.Snipe
 
 		public delegate void ResponseHandler(string errorCode, IDictionary<string, object> data);
 
-		protected SnipeCommunicator _communicator;
+		protected ISnipeCommunicator _communicator;
 		protected ResponseHandler _callback;
 
 		protected int _requestId { get; private set; }
@@ -28,7 +28,7 @@ namespace MiniIT.Snipe
 
 		private ILogger _logger;
 
-		public AbstractCommunicatorRequest(SnipeCommunicator communicator, string messageType = null, IDictionary<string, object> data = null)
+		public AbstractCommunicatorRequest(ISnipeCommunicator communicator, string messageType = null, IDictionary<string, object> data = null)
 		{
 			_communicator = communicator;
 			MessageType = messageType;
@@ -189,7 +189,10 @@ namespace MiniIT.Snipe
 
 			if (CheckCommunicatorReady())
 			{
-				_requestId = _communicator.SendRequest(MessageType, Data);
+				if (_communicator is IRawRequestSender sender)
+				{
+					_requestId = sender.SendRequest(MessageType, Data);
+				}
 			}
 
 			if (_requestId == 0)

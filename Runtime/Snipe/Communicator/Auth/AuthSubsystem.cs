@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -87,7 +87,7 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public string UserName { get; protected set; }
 
-		protected readonly SnipeCommunicator _communicator;
+		protected readonly ISnipeCommunicator _communicator;
 		protected readonly HashSet<AuthBinding> _bindings = new ();
 
 		protected int _loginAttempt;
@@ -104,7 +104,7 @@ namespace MiniIT.Snipe
 		protected readonly IMainThreadRunner _mainThreadRunner;
 		protected readonly ILogger _logger;
 
-		protected AuthSubsystem(int contextId, SnipeCommunicator communicator, SnipeAnalyticsTracker analytics)
+		protected AuthSubsystem(int contextId, ISnipeCommunicator communicator, SnipeAnalyticsTracker analytics)
 		{
 			_communicator = communicator;
 			_communicator.ConnectionEstablished += OnConnectionEstablished;

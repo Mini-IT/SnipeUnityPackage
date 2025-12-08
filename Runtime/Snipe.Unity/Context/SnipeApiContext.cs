@@ -13,7 +13,7 @@ namespace MiniIT.Snipe
 
 		private readonly AbstractSnipeApiService _api;
 
-		public SnipeApiContext(int id, SnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter,
+		public SnipeApiContext(int id, ISnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter,
 			ISnipeApiContextItemsFactory itemsFactory, ISnipeTablesProvider tablesProvider)
 			: base(id, communicator, auth, logReporter)
 		{

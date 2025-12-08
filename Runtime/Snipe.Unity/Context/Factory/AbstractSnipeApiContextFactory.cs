@@ -25,7 +25,7 @@ namespace MiniIT.Snipe.Api
 			var config = _configBuilder.Build(id);
 
 			var analytics = SnipeServices.Instance.Analytics.GetTracker(id);
-			var communicator = new SnipeCommunicator(analytics);
+			ISnipeCommunicator communicator = new SnipeCommunicator(analytics);
 			var auth = new UnityAuthSubsystem(id, communicator, analytics);
 			var logReporter = new LogReporter();
 
@@ -48,6 +48,6 @@ namespace MiniIT.Snipe.Api
 		}
 
 		public abstract TimeSpan GetServerTimeZoneOffset();
-		public abstract AbstractSnipeApiService CreateSnipeApiService(SnipeCommunicator communicator, AuthSubsystem auth);
+		public abstract AbstractSnipeApiService CreateSnipeApiService(ISnipeCommunicator communicator, AuthSubsystem auth);
 	}
 }

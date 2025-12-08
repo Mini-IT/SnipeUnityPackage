@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
@@ -21,7 +21,7 @@ namespace MiniIT.Snipe.Api
 		private readonly LogicGraphParser _graphParser;
 		private readonly ILogger _logger;
 
-		public GraphLogicManager(SnipeCommunicator communicator,
+		public GraphLogicManager(ISnipeCommunicator communicator,
 			AbstractSnipeApiService.RequestFactoryMethod requestFactory,
 			ISnipeTable<SnipeTableGraphsItem> table)
 			: base(communicator, requestFactory, table)

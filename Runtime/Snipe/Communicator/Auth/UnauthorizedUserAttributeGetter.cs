@@ -1,4 +1,4 @@
-﻿
+
 using System.Collections.Generic;
 
 namespace MiniIT.Snipe
@@ -8,9 +8,9 @@ namespace MiniIT.Snipe
 	{
 		public delegate void GetUserAttributeCallback(string error_code, string user_name, string key, object value);
 
-		private readonly SnipeCommunicator _communicator;
+		private readonly ISnipeCommunicator _communicator;
 
-		public UnauthorizedUserAttributeGetter(SnipeCommunicator communicator)
+		public UnauthorizedUserAttributeGetter(ISnipeCommunicator communicator)
 		{
 			_communicator = communicator;
 		}

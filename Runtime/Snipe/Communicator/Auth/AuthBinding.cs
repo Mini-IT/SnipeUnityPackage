@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using MiniIT.Storage;
@@ -38,7 +38,7 @@ namespace MiniIT.Snipe
 
 		private int _contextId;
 		private Func<string> _getClientKeyMethod;
-		protected SnipeCommunicator _communicator;
+		protected ISnipeCommunicator _communicator;
 		protected AuthSubsystem _authSubsystem;
 		private readonly ISharedPrefs _sharedPrefs;
 		protected readonly ILogger _logger;
@@ -53,7 +53,7 @@ namespace MiniIT.Snipe
 		}
 
 		public void Initialize(int contextId,
-			SnipeCommunicator communicator,
+			ISnipeCommunicator communicator,
 			AuthSubsystem authSubsystem,
 			Func<string> getClientKeyMethod)
 		{

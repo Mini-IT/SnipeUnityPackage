@@ -1,4 +1,4 @@
-﻿
+
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 
@@ -12,7 +12,7 @@ namespace MiniIT.Snipe
 
 		private readonly AuthSubsystem _authSubsystem;
 
-		public SnipeCommunicatorRequest(SnipeCommunicator communicator,
+		public SnipeCommunicatorRequest(ISnipeCommunicator communicator,
 			AuthSubsystem authSubsystem,
 			string messageType = null,
 			IDictionary<string, object> data = null)

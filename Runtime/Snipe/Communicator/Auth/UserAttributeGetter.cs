@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace MiniIT.Snipe
@@ -8,9 +8,9 @@ namespace MiniIT.Snipe
 		public delegate void GetUserAttributeCallback(string errorCode, string key, object value);
 		public delegate void GetUserAttributesCallback(string errorCode, IDictionary<string, object> values);
 
-		private readonly SnipeCommunicator _communicator;
+		private readonly ISnipeCommunicator _communicator;
 
-		public UserAttributeGetter(SnipeCommunicator communicator)
+		public UserAttributeGetter(ISnipeCommunicator communicator)
 		{
 			_communicator = communicator;
 		}
