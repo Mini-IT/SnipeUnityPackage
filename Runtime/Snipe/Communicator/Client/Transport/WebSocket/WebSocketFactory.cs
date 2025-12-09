@@ -1,3 +1,5 @@
+using MiniIT.Snipe.Configuration;
+
 #if UNITY_WEBGL && !UNITY_EDITOR
 #define WEBGL_ENVIRONMENT
 #endif
