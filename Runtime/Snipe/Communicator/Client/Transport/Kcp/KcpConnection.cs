@@ -106,6 +106,7 @@ namespace MiniIT.Snipe
 
 		private string _host;
 		private ushort _port;
+		private uint _convid;
 		private bool _selfDisconnecting;
 		private bool _hasReceivedValidMessage;
 
@@ -147,11 +148,11 @@ namespace MiniIT.Snipe
 				{
 					byte[] rndbuf = new byte[sizeof(uint)];
 					new Random().NextBytes(rndbuf);
-					uint convid = BitConverter.ToUInt32(rndbuf, 0);
+					_convid = BitConverter.ToUInt32(rndbuf, 0);
 
 					// Create a new Kcp instance
 					// even if _kcp != null its buffers may content some data from the previous connection
-					_kcp = new Kcp(convid, SocketSendReliable);
+					_kcp = new Kcp(_convid, SocketSendReliable);
 
 					_kcp.SetNoDelay(1u, // NoDelay is recommended to reduce latency
 						10, // internal update interval. 100ms is KCP default, but a lower interval is recommended to minimize latency and to scale to more networked entities
@@ -1057,7 +1058,7 @@ namespace MiniIT.Snipe
 				return false;
 			}
 
-			_logger.LogTrace("AttemptReconnect");
+			_logger.LogTrace("AttemptReconnect. convid: {0}", _convid);
 
 			_ = WaitAndReconnect();
 			return true;
