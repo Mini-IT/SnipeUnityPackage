@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 namespace MiniIT.Snipe
 {
@@ -1058,15 +1059,59 @@ namespace MiniIT.Snipe
 
 			_logger.LogTrace("AttemptReconnect");
 
+			_ = WaitAndReconnect();
+			return true;
+		}
+
+		private async Task WaitAndReconnect()
+		{
+			await Task.Delay(50);
+
+			_logger.LogTrace("AttemptReconnect: Delay finished");
+
+			if (_state != KcpState.Reconnecting)
+			{
+				_logger.LogTrace("AttemptReconnect: Wrong state");
+				return;
+			}
+
 			try
 			{
 				Connect(_host, _port, _timeout, _authenticationTimeout);
-				return true;
+				return;
 			}
 			catch (Exception ex)
 			{
 				_logger.LogError($"KCP: Reconnect failed: {ex}");
-				return false;
+			}
+
+			if (_state == KcpState.Disconnected)
+			{
+				return;
+			}
+
+			_state = KcpState.Disconnected;
+
+			try
+			{
+				OnDisconnected?.Invoke();
+			}
+			catch (Exception e)
+			{
+				_logger.LogError("OnDisconnected invocation error: {0}", e);
+			}
+
+			try
+			{
+				ReleaseKcp();
+			}
+			catch (Exception e)
+			{
+				_logger.LogError("ReleaseKcp failed: {0}", e);
+			}
+			finally
+			{
+				_selfDisconnecting = false;
 			}
 		}
 	}
