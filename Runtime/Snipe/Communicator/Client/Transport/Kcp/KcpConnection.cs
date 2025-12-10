@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 namespace MiniIT.Snipe
 {
@@ -105,6 +106,7 @@ namespace MiniIT.Snipe
 
 		private string _host;
 		private ushort _port;
+		private uint _convid;
 		private bool _selfDisconnecting;
 		private bool _hasReceivedValidMessage;
 
@@ -146,11 +148,11 @@ namespace MiniIT.Snipe
 				{
 					byte[] rndbuf = new byte[sizeof(uint)];
 					new Random().NextBytes(rndbuf);
-					uint convid = BitConverter.ToUInt32(rndbuf, 0);
+					_convid = BitConverter.ToUInt32(rndbuf, 0);
 
 					// Create a new Kcp instance
 					// even if _kcp != null its buffers may content some data from the previous connection
-					_kcp = new Kcp(convid, SocketSendReliable);
+					_kcp = new Kcp(_convid, SocketSendReliable);
 
 					_kcp.SetNoDelay(1u, // NoDelay is recommended to reduce latency
 						10, // internal update interval. 100ms is KCP default, but a lower interval is recommended to minimize latency and to scale to more networked entities
@@ -1056,17 +1058,61 @@ namespace MiniIT.Snipe
 				return false;
 			}
 
-			_logger.LogTrace("AttemptReconnect");
+			_logger.LogTrace("AttemptReconnect. convid: {0}", _convid);
+
+			_ = WaitAndReconnect();
+			return true;
+		}
+
+		private async Task WaitAndReconnect()
+		{
+			await Task.Delay(50);
+
+			_logger.LogTrace("AttemptReconnect: Delay finished");
+
+			if (_state != KcpState.Reconnecting)
+			{
+				_logger.LogTrace("AttemptReconnect: Wrong state");
+				return;
+			}
 
 			try
 			{
 				Connect(_host, _port, _timeout, _authenticationTimeout);
-				return true;
+				return;
 			}
 			catch (Exception ex)
 			{
 				_logger.LogError($"KCP: Reconnect failed: {ex}");
-				return false;
+			}
+
+			if (_state == KcpState.Disconnected)
+			{
+				return;
+			}
+
+			_state = KcpState.Disconnected;
+
+			try
+			{
+				OnDisconnected?.Invoke();
+			}
+			catch (Exception e)
+			{
+				_logger.LogError("OnDisconnected invocation error: {0}", e);
+			}
+
+			try
+			{
+				ReleaseKcp();
+			}
+			catch (Exception e)
+			{
+				_logger.LogError("ReleaseKcp failed: {0}", e);
+			}
+			finally
+			{
+				_selfDisconnecting = false;
 			}
 		}
 	}
