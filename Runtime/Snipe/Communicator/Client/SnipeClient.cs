@@ -422,7 +422,9 @@ namespace MiniIT.Snipe
 
 		private void DisposeEntries()
 		{
-			foreach (var entry in _transportEntries)
+			// Create a copy to avoid modifying collection during enumeration
+			var entriesToDispose = _transportEntries.ToArray();
+			foreach (var entry in entriesToDispose)
 			{
 				DisposeEntry(entry);
 			}
