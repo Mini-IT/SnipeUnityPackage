@@ -272,13 +272,13 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[Test]
-		public void SyncWithServer_LocalVersionGreater_SendsPendingChanges()
+		public void SyncWithServer_LocalVersionGreater_SendsPendingChangesSingle()
 		{
 			// Arrange - simulate a previous session where attribute was used and dirty keys were created
 			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
 			_mockUserAttributes.RegisterAttribute(serverAttr);
 			_mockVersionAttribute.SetValue(1);
-			
+
 			// Set up state as if from a previous session: local version > last synced version, with dirty keys
 			_mockSharedPrefs.SetInt(ProfileManager.KEY_LOCAL_VERSION, 5);
 			_mockSharedPrefs.SetInt(ProfileManager.KEY_LAST_SYNCED_VERSION, 3);
@@ -300,11 +300,52 @@ namespace MiniIT.Snipe.Tests.Editor
 			attr.Value = 150;
 
 			// Assert - should attempt to send pending changes when local version > last synced version
-			Assert.Greater(_mockApiService.RequestCount, initialRequestCount, 
+			Assert.Greater(_mockApiService.RequestCount, initialRequestCount,
 				"Request should be made when local version is greater than last synced version");
-			Assert.AreEqual("attr.setMulti", _mockApiService.LastRequestType, 
-				"Request type should be attr.setMulti for syncing pending changes");
+			Assert.AreEqual("attr.set", _mockApiService.LastRequestType,
+				"Request type should be attr.set for syncing pending changes");
 		}
+
+		// [Test]
+		// public void SyncWithServer_LocalVersionGreater_SendsPendingChangesMulti()
+		// {
+		// 	// Arrange - simulate a previous session where attribute was used and dirty keys were created
+		// 	var serverAttrCoins = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+		// 	var serverAttrPoints = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "points");
+		// 	_mockUserAttributes.RegisterAttribute(serverAttrCoins);
+		// 	_mockUserAttributes.RegisterAttribute(serverAttrPoints);
+		// 	_mockVersionAttribute.SetValue(1);
+		//
+		// 	// Set up state as if from a previous session: local version > last synced version, with dirty keys
+		// 	_mockSharedPrefs.SetInt(ProfileManager.KEY_LOCAL_VERSION, 5);
+		// 	_mockSharedPrefs.SetInt(ProfileManager.KEY_LAST_SYNCED_VERSION, 3);
+		// 	_mockSharedPrefs.SetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 100);
+		// 	_mockSharedPrefs.SetInt(ProfileManager.KEY_ATTR_PREFIX + "points", 200);
+		// 	_stringListHelper.Add(ProfileManager.KEY_DIRTY_KEYS, "coins");
+		// 	_stringListHelper.Add(ProfileManager.KEY_DIRTY_KEYS, "points");
+		// 	_mockSharedPrefs.Save();
+		// 	_mockVersionAttribute.SetValue(4);
+		// 	_mockApiService.SetNextRequestSuccess(true);
+		// 	var initialRequestCount = _mockApiService.RequestCount;
+		//
+		// 	// Act - create new ProfileManager, initialize, and retrieve attribute
+		// 	// Retrieving the attribute registers the local value getter, enabling RebuildPendingChanges to work
+		// 	_profileManager.Dispose();
+		// 	_profileManager = new ProfileManager();
+		// 	_profileManager.Initialize(_mockApiService, _mockUserAttributes, _mockSharedPrefs);
+		// 	// Get attribute to register local value getter so RebuildPendingChanges can find the value
+		// 	var attrCoins = _profileManager.GetAttribute<int>(serverAttrCoins);
+		// 	var attrPoints = _profileManager.GetAttribute<int>(serverAttrPoints);
+		// 	// Changing the value triggers SendPendingChanges, which will sync the existing dirty keys
+		// 	attrCoins.Value = 150;
+		// 	attrPoints.Value = 220;
+		//
+		// 	// Assert - should attempt to send pending changes when local version > last synced version
+		// 	Assert.Greater(_mockApiService.RequestCount, initialRequestCount,
+		// 		"Request should be made when local version is greater than last synced version");
+		// 	Assert.AreEqual("attr.setMulti", _mockApiService.LastRequestType,
+		// 		"Request type should be attr.setMulti for syncing pending changes");
+		// }
 
 		[Test]
 		public void SyncWithServer_ServerVersionGreater_AcceptsServerValues()
@@ -503,7 +544,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			// Setup with Delayed Service
 			var delayedService = new DelayedMockSnipeApiService();
 			delayedService.AutoComplete = false;
-			
+
 			// Re-init manager with delayed service
 			_profileManager.Dispose();
 			_mockUserAttributes = new MockSnipeApiUserAttributes(delayedService);
@@ -517,13 +558,13 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			// 1. Change Coins -> Starts Sync
 			coinsAttr.Value = 100;
-			
+
 			// Verify sync started but not finished
 			Assert.IsNotNull(delayedService.PendingCallback, "Sync should be in progress");
-			
+
 			// 2. Change Gems -> Should be added to dirty keys
 			gemsAttr.Value = 50;
-			
+
 			var dirtyKeys = _stringListHelper.GetList(ProfileManager.KEY_DIRTY_KEYS);
 			Assert.Contains("coins", dirtyKeys);
 			Assert.Contains("gems", dirtyKeys);
@@ -533,10 +574,10 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			// 4. Assert State
 			dirtyKeys = _stringListHelper.GetList(ProfileManager.KEY_DIRTY_KEYS);
-			
+
 			// BUG EXPECTATION: The dirty keys are cleared, so "gems" is lost!
 			Assert.IsEmpty(dirtyKeys, "Bug Reproduction: Dirty keys cleared implies 'gems' change is lost");
-			
+
 			// Verify only one request was made (for coins)
 			Assert.AreEqual(1, delayedService.RequestCount);
 		}
@@ -545,12 +586,12 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void Migrate_DoesNotMarkAsDirty_Demonstration()
 		{
 			// This test demonstrates a BUG where Migrate updates local storage but doesn't mark it dirty
-			
+
 			// Arrange
 			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "migrated_coins");
 			_mockUserAttributes.RegisterAttribute(serverAttr);
 			var attr = _profileManager.GetAttribute<int>(serverAttr);
-			
+
 			// Setup old key
 			string oldKey = "old_migrated_coins";
 			_mockSharedPrefs.SetInt(oldKey, 500);
@@ -562,7 +603,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			// Assert
 			Assert.AreEqual(500, attr.Value);
 			Assert.AreEqual(500, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "migrated_coins", 0));
-			
+
 			// BUG EXPECTATION: Dirty keys is empty, so this value is never synced to server
 			var dirtyKeys = _stringListHelper.GetList(ProfileManager.KEY_DIRTY_KEYS);
 			Assert.IsEmpty(dirtyKeys, "Bug Reproduction: Migrate should mark key as dirty but doesn't");
@@ -574,7 +615,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			// Setup with Delayed Service
 			var delayedService = new DelayedMockSnipeApiService();
 			delayedService.AutoComplete = false;
-			
+
 			// Re-init
 			_profileManager.Dispose();
 			_mockUserAttributes = new MockSnipeApiUserAttributes(delayedService);
@@ -587,7 +628,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			// 1. Change Coins -> Starts Sync
 			coinsAttr.Value = 100;
-			
+
 			// 2. Fail the sync
 			delayedService.PendingCallback.Invoke("error", null);
 
@@ -598,8 +639,8 @@ namespace MiniIT.Snipe.Tests.Editor
 			// 3. Change Coins again (or another value) -> Should trigger new sync
 			delayedService.PendingCallback = null; // Reset
 			delayedService.AutoComplete = true; // Let next one pass normally or check data
-			
-			// To check data, we can inspect the request in the mock if we expanded it, 
+
+			// To check data, we can inspect the request in the mock if we expanded it,
 			// but for now checking that a request is made is enough.
 			coinsAttr.Value = 200;
 
@@ -866,7 +907,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			{
 				// Increment request count
 				var req = base.CreateRequest(messageType, data);
-				
+
 				// Return our manual request, reusing the protected fields from base
 				return new ManualCommunicatorRequest(this, _mockCommunicator, _mockAuth, messageType, data, _nextRequestSuccess);
 			}
@@ -877,9 +918,9 @@ namespace MiniIT.Snipe.Tests.Editor
 	internal class ManualCommunicatorRequest : MockSnipeCommunicatorRequest
 	{
 		private DelayedMockSnipeApiService _service;
-		
-		public ManualCommunicatorRequest(DelayedMockSnipeApiService service, SnipeCommunicator communicator, AuthSubsystem auth, string messageType, IDictionary<string, object> data, bool success) 
-			: base(communicator, auth, messageType, data, success) 
+
+		public ManualCommunicatorRequest(DelayedMockSnipeApiService service, SnipeCommunicator communicator, AuthSubsystem auth, string messageType, IDictionary<string, object> data, bool success)
+			: base(communicator, auth, messageType, data, success)
 		{
 			_service = service;
 		}

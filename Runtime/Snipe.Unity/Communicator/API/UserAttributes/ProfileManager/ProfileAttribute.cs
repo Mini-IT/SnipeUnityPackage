@@ -4,11 +4,27 @@ using MiniIT.Storage;
 
 namespace MiniIT.Snipe.Api
 {
-	public interface IProfileAttribute : IDisposable
+	public interface IProfileAttribute<T> : IObservable<T>, IDisposable
 	{
+		T Value { get; set; }
+		event Action<T> ValueChanged;
 	}
 
-	public class ProfileAttribute<T> : IProfileAttribute, IObservable<T>
+	public abstract class AbstractProfileAttribute : IDisposable
+	{
+		protected readonly string _key;
+		protected readonly ISharedPrefs _sharedPrefs;
+
+		internal AbstractProfileAttribute(string key, ISharedPrefs sharedPrefs)
+		{
+			_key = key;
+			_sharedPrefs = sharedPrefs;
+		}
+
+		public abstract void Dispose();
+	}
+
+	public class ProfileAttribute<T> : AbstractProfileAttribute, IProfileAttribute<T>
 	{
 		public T Value
 		{
@@ -29,16 +45,13 @@ namespace MiniIT.Snipe.Api
 		public event Action<T> ValueChanged;
 
 		private T _value;
-		private readonly string _key;
 		private readonly ProfileManager _manager;
-		private readonly ISharedPrefs _sharedPrefs;
 		private readonly List<IObserver<T>> _observers = new List<IObserver<T>>();
 
 		internal ProfileAttribute(string key, ProfileManager manager, ISharedPrefs sharedPrefs)
+			: base(key, sharedPrefs)
 		{
-			_key = key;
 			_manager = manager;
-			_sharedPrefs = sharedPrefs;
 		}
 
 		public void SetValueFromServer(T value)
@@ -61,7 +74,7 @@ namespace MiniIT.Snipe.Api
 			return this;
 		}
 
-		public void Dispose()
+		public override void Dispose()
 		{
 			_observers.Clear();
 			ValueChanged = null;

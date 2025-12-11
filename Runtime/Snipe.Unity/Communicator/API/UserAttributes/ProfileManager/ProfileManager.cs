@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using MiniIT.Snipe;
 using MiniIT.Storage;
@@ -16,13 +17,13 @@ namespace MiniIT.Snipe.Api
 
 		private AbstractSnipeApiService _snipeApiService;
 		private Func<int> _getVersionDelegate;
-		private readonly Dictionary<string, IProfileAttribute> _attributes = new ();
+		private readonly Dictionary<string, AbstractProfileAttribute> _attributes = new ();
 		private readonly Dictionary<string, Action<object>> _attributeValueSetters = new ();
 		private readonly Dictionary<string, Func<object>> _localValueGetters = new ();
-		private readonly Dictionary<string, object> _serverEventHandlers = new ();
 		private readonly List<Action> _serverEventUnsubscribers = new ();
 		private ISharedPrefs _sharedPrefs;
 		private PlayerPrefsStringListHelper _stringListHelper;
+		private PlayerPrefsTypeHelper _prefsHelper;
 		private bool _syncInProgress;
 		private bool _disposed;
 
@@ -37,6 +38,7 @@ namespace MiniIT.Snipe.Api
 			_sharedPrefs = sharedPrefs;
 
 			_stringListHelper = new PlayerPrefsStringListHelper(_sharedPrefs);
+			_prefsHelper = new PlayerPrefsTypeHelper(_sharedPrefs);
 
 			// Get version delegate - try to get _version attribute from UserAttributes
 			_getVersionDelegate = () =>
@@ -53,7 +55,7 @@ namespace MiniIT.Snipe.Api
 
 		public ProfileAttribute<T> GetAttribute<T>(SnipeApiReadOnlyUserAttribute<T> serverAttribute)
 		{
-			var key = serverAttribute.Key;
+			string key = serverAttribute.Key;
 			if (_attributes.TryGetValue(key, out var attr))
 			{
 				return (ProfileAttribute<T>)attr;
@@ -65,13 +67,26 @@ namespace MiniIT.Snipe.Api
 			_localValueGetters[key] = () => GetLocalValue<T>(key);
 
 			// Subscribe to server attribute ValueChanged event
-			SubscribeToServerAttribute<T>(serverAttribute);
+			SubscribeToServerAttribute(serverAttribute);
 
 			// Initialize value from server or local storage
-			InitializeAttributeValue<T>(serverAttribute, newAttr);
+			InitializeAttributeValue(serverAttribute, newAttr);
 
 			return newAttr;
 		}
+
+		// public LocalProfileAttribute<T> GetLocalAttribute<T>(string key)
+		// {
+		// 	if (_attributes.TryGetValue(key, out var attr))
+		// 	{
+		// 		return (LocalProfileAttribute<T>)attr;
+		// 	}
+		//
+		// 	var newAttr = new LocalProfileAttribute<T>(key, this, _sharedPrefs);
+		// 	_attributes[key] = newAttr;
+		//
+		// 	return newAttr;
+		// }
 
 		private void InitializeAttributeValue<T>(SnipeApiReadOnlyUserAttribute<T> serverAttr, ProfileAttribute<T> attr)
 		{
@@ -103,9 +118,6 @@ namespace MiniIT.Snipe.Api
 			// Subscribe to ValueChanged event
 			SnipeApiReadOnlyUserAttribute<T>.ValueChangedHandler handler = (oldValue, newValue) => OnServerAttributeChanged(key, newValue);
 			serverAttr.ValueChanged += handler;
-
-			// Store handler to keep it alive
-			_serverEventHandlers[key] = handler;
 
 			// Store unsubscriber for cleanup
 			_serverEventUnsubscribers.Add(() => serverAttr.ValueChanged -= handler);
@@ -248,21 +260,36 @@ namespace MiniIT.Snipe.Api
 
 			_syncInProgress = true;
 
-			var setMultiData = new List<IDictionary<string, object>>();
-			foreach (var kvp in pendingChanges)
-			{
-				var data = ToSetMultiMap(kvp.Key, kvp.Value, "set");
-				setMultiData.Add(data);
-			}
+			AbstractCommunicatorRequest request;
 
-			var request = _snipeApiService.CreateRequest("attr.setMulti", new Dictionary<string, object>()
+			if (pendingChanges.Count == 1)
 			{
-				["data"] = setMultiData
-			});
+				var item = pendingChanges.First();
+
+				request = _snipeApiService.CreateRequest("attr.set", new Dictionary<string, object>()
+				{
+					["key"] = item.Key,
+					["val"] = item.Value
+				});
+			}
+			else
+			{
+				var setMultiData = new List<IDictionary<string, object>>();
+				foreach (var kvp in pendingChanges)
+				{
+					var data = ToSetMultiMap(kvp.Key, kvp.Value, "set");
+					setMultiData.Add(data);
+				}
+
+				request = _snipeApiService.CreateRequest("attr.setMulti", new Dictionary<string, object>()
+				{
+					["data"] = setMultiData
+				});
+			}
 
 			if (request != null)
 			{
-				request.Request((errorCode, responseData) =>
+				request.Request((errorCode, _) =>
 				{
 					_syncInProgress = false;
 
@@ -321,7 +348,7 @@ namespace MiniIT.Snipe.Api
 			_sharedPrefs.SetInt(KEY_LAST_SYNCED_VERSION, version);
 		}
 
-		private T GetLocalValue<T>(string key)
+		internal T GetLocalValue<T>(string key)
 		{
 			var prefsKey = KEY_ATTR_PREFIX + key;
 			return GetPrefsValue<T>(prefsKey);
@@ -329,45 +356,13 @@ namespace MiniIT.Snipe.Api
 
 		internal T GetPrefsValue<T>(string prefsKey)
 		{
-			if (typeof(T) == typeof(int))
-			{
-				return (T)(object)_sharedPrefs.GetInt(prefsKey, 0);
-			}
-			else if (typeof(T) == typeof(float))
-			{
-				return (T)(object)_sharedPrefs.GetFloat(prefsKey, 0f);
-			}
-			else if (typeof(T) == typeof(bool))
-			{
-				return (T)(object)(_sharedPrefs.GetInt(prefsKey, 0) == 1);
-			}
-			else if (typeof(T) == typeof(string))
-			{
-				return (T)(object)_sharedPrefs.GetString(prefsKey, "");
-			}
-
-			return default(T);
+			return _prefsHelper.GetPrefsValue<T>(prefsKey);
 		}
 
 		internal void SetLocalValue(string key, object value)
 		{
 			var prefsKey = KEY_ATTR_PREFIX + key;
-			if (value is int intValue)
-			{
-				_sharedPrefs.SetInt(prefsKey, intValue);
-			}
-			else if (value is float floatValue)
-			{
-				_sharedPrefs.SetFloat(prefsKey, floatValue);
-			}
-			else if (value is bool boolValue)
-			{
-				_sharedPrefs.SetInt(prefsKey, boolValue ? 1 : 0);
-			}
-			else if (value is string stringValue)
-			{
-				_sharedPrefs.SetString(prefsKey, stringValue);
-			}
+			_prefsHelper.SetLocalValue(prefsKey, value);
 		}
 
 		public void Dispose()
@@ -393,7 +388,6 @@ namespace MiniIT.Snipe.Api
 				}
 			}
 			_serverEventUnsubscribers.Clear();
-			_serverEventHandlers.Clear();
 
 			foreach (var attr in _attributes.Values)
 			{
