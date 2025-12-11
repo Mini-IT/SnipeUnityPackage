@@ -4,6 +4,7 @@ using MiniIT.Storage;
 
 namespace MiniIT.Snipe.Api
 {
+	// Provides a ProfileAttribute-like interface thus not being a real user attribute
 	public class LocalProfileAttribute<T> : AbstractProfileAttribute, IProfileAttribute<T>
 	{
 		public T Value
