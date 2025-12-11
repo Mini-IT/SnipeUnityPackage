@@ -307,7 +307,7 @@ namespace MiniIT.Snipe.Api
 					else
 					{
 						// Failure - keep dirty keys for retry
-						Debug.LogWarning($"ProfileManager: setMulti failed with error {errorCode}");
+						Debug.LogWarning($"ProfileManager: attr.set/setMulti failed with error {errorCode}");
 					}
 				});
 			}
