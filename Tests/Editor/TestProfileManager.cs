@@ -476,6 +476,129 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[Test]
+		public void ListAttributeTypes_HandledCorrectly()
+		{
+			// Arrange & Act
+			var intListServerAttr = new MockSnipeApiReadOnlyUserAttribute<List<int>>(_mockApiService, "intList");
+			var floatListServerAttr = new MockSnipeApiReadOnlyUserAttribute<List<float>>(_mockApiService, "floatList");
+			var boolListServerAttr = new MockSnipeApiReadOnlyUserAttribute<List<bool>>(_mockApiService, "boolList");
+			var stringListServerAttr = new MockSnipeApiReadOnlyUserAttribute<List<string>>(_mockApiService, "stringList");
+			_mockUserAttributes.RegisterAttribute(intListServerAttr);
+			_mockUserAttributes.RegisterAttribute(floatListServerAttr);
+			_mockUserAttributes.RegisterAttribute(boolListServerAttr);
+			_mockUserAttributes.RegisterAttribute(stringListServerAttr);
+			var intListAttr = _profileManager.GetAttribute<List<int>>(intListServerAttr);
+			var floatListAttr = _profileManager.GetAttribute<List<float>>(floatListServerAttr);
+			var boolListAttr = _profileManager.GetAttribute<List<bool>>(boolListServerAttr);
+			var stringListAttr = _profileManager.GetAttribute<List<string>>(stringListServerAttr);
+
+			var intList = new List<int> { 1, 2, 3 };
+			var floatList = new List<float> { 1.1f, 2.2f, 3.3f };
+			var boolList = new List<bool> { true, false, true };
+			var stringList = new List<string> { "a", "b", "c" };
+
+			intListAttr.Value = intList;
+			floatListAttr.Value = floatList;
+			boolListAttr.Value = boolList;
+			stringListAttr.Value = stringList;
+
+			// Assert - Check that the values are stored correctly
+			var storedIntListStr = _mockSharedPrefs.GetString(ProfileManager.KEY_ATTR_PREFIX + "intList", "");
+			var storedFloatListStr = _mockSharedPrefs.GetString(ProfileManager.KEY_ATTR_PREFIX + "floatList", "");
+			var storedBoolListStr = _mockSharedPrefs.GetString(ProfileManager.KEY_ATTR_PREFIX + "boolList", "");
+			var storedStringListStr = _mockSharedPrefs.GetString(ProfileManager.KEY_ATTR_PREFIX + "stringList", "");
+
+			Assert.AreEqual("\"1\";\"2\";\"3\"", storedIntListStr);
+			Assert.AreEqual("\"1.1\";\"2.2\";\"3.3\"", storedFloatListStr);
+			Assert.AreEqual("\"True\";\"False\";\"True\"", storedBoolListStr);
+			Assert.AreEqual("\"a\";\"b\";\"c\"", storedStringListStr);
+
+			// Verify that the attributes return the correct values
+			CollectionAssert.AreEqual(intList, intListAttr.Value);
+			CollectionAssert.AreEqual(floatList, floatListAttr.Value);
+			CollectionAssert.AreEqual(boolList, boolListAttr.Value);
+			CollectionAssert.AreEqual(stringList, stringListAttr.Value);
+		}
+
+		[Test]
+		public void ListAttribute_EmptyList_HandledCorrectly()
+		{
+			// Arrange & Act
+			var intListServerAttr = new MockSnipeApiReadOnlyUserAttribute<List<int>>(_mockApiService, "emptyIntList");
+			_mockUserAttributes.RegisterAttribute(intListServerAttr);
+			var intListAttr = _profileManager.GetAttribute<List<int>>(intListServerAttr);
+
+			var emptyList = new List<int>();
+			intListAttr.Value = emptyList;
+
+			// Assert
+			var storedStr = _mockSharedPrefs.GetString(ProfileManager.KEY_ATTR_PREFIX + "emptyIntList", "");
+			Assert.AreEqual("", storedStr);
+			CollectionAssert.AreEqual(emptyList, intListAttr.Value);
+		}
+
+		[Test]
+		public void ListAttribute_NullList_HandledCorrectly()
+		{
+			// Arrange & Act
+			var intListServerAttr = new MockSnipeApiReadOnlyUserAttribute<List<int>>(_mockApiService, "nullIntList");
+			_mockUserAttributes.RegisterAttribute(intListServerAttr);
+			var intListAttr = _profileManager.GetAttribute<List<int>>(intListServerAttr);
+
+			intListAttr.Value = null;
+
+			// Assert
+			var storedStr = _mockSharedPrefs.GetString(ProfileManager.KEY_ATTR_PREFIX + "nullIntList", "");
+			Assert.AreEqual("", storedStr);
+			Assert.IsNull(intListAttr.Value);
+		}
+
+		[Test]
+		public void ListAttribute_ServerValue_UpdatesLocalValue()
+		{
+			// Arrange
+			var intListServerAttr = new MockSnipeApiReadOnlyUserAttribute<List<int>>(_mockApiService, "serverIntList");
+			_mockUserAttributes.RegisterAttribute(intListServerAttr);
+			var intListAttr = _profileManager.GetAttribute<List<int>>(intListServerAttr);
+
+			var serverList = new List<int> { 10, 20, 30 };
+
+			// Act - Simulate server sending value
+			intListServerAttr.SetValue(serverList);
+
+			// Assert
+			CollectionAssert.AreEqual(serverList, intListAttr.Value);
+
+			// Verify it's stored locally
+			var storedStr = _mockSharedPrefs.GetString(ProfileManager.KEY_ATTR_PREFIX + "serverIntList", "");
+			Assert.AreEqual("\"10\";\"20\";\"30\"", storedStr);
+		}
+
+		[Test]
+		public void ListAttribute_StringsWithSpecialCharacters_WorkCorrectly()
+		{
+			// Arrange
+			var stringListLocalAttr = new LocalProfileAttribute<List<string>>("specialStringList", _mockSharedPrefs);
+
+			var specialStrings = new List<string> { "hello;world", "test\\backslash", "normal", "with spaces", "" };
+
+			// Act
+			stringListLocalAttr.Value = specialStrings;
+
+			// Assert - Verify the attribute returns correct values
+			CollectionAssert.AreEqual(specialStrings, stringListLocalAttr.Value);
+
+			// Verify storage format uses quoted strings
+			var storedStr = _mockSharedPrefs.GetString("specialStringList", "");
+			// Should be: "\"hello;world\";\"test\\\\backslash\";\"normal\";\"with spaces\";\"\""
+			Assert.AreEqual("\"hello;world\";\"test\\\\backslash\";\"normal\";\"with spaces\";\"\"", storedStr);
+
+			// Verify round-trip: create new attribute and check it reads back correctly
+			var newStringListAttr = new LocalProfileAttribute<List<string>>("specialStringList", _mockSharedPrefs);
+			CollectionAssert.AreEqual(specialStrings, newStringListAttr.Value);
+		}
+
+		[Test]
 		public void Migrate_OldKeyExists_MigratesValue()
 		{
 			// Arrange
@@ -647,6 +770,35 @@ namespace MiniIT.Snipe.Tests.Editor
 			// Assert
 			// Request count should be 2 (1 failed, 1 new)
 			Assert.AreEqual(2, delayedService.RequestCount);
+		}
+
+		[Test]
+		public void LocalProfileAttribute_ListTypes_WorkCorrectly()
+		{
+			// Arrange
+			var intListLocalAttr = new LocalProfileAttribute<List<int>>("localIntList", _mockSharedPrefs);
+			var stringListLocalAttr = new LocalProfileAttribute<List<string>>("localStringList", _mockSharedPrefs);
+
+			var intList = new List<int> { 5, 10, 15 };
+			var stringList = new List<string> { "hello", "world" };
+
+			// Act
+			intListLocalAttr.Value = intList;
+			stringListLocalAttr.Value = stringList;
+
+			// Assert - Check storage
+			var storedIntListStr = _mockSharedPrefs.GetString("localIntList", "");
+			var storedStringListStr = _mockSharedPrefs.GetString("localStringList", "");
+
+			Assert.AreEqual("\"5\";\"10\";\"15\"", storedIntListStr);
+			Assert.AreEqual("\"hello\";\"world\"", storedStringListStr);
+
+			// Verify retrieval
+			var retrievedIntList = new LocalProfileAttribute<List<int>>("localIntList", _mockSharedPrefs).Value;
+			var retrievedStringList = new LocalProfileAttribute<List<string>>("localStringList", _mockSharedPrefs).Value;
+
+			CollectionAssert.AreEqual(intList, retrievedIntList);
+			CollectionAssert.AreEqual(stringList, retrievedStringList);
 		}
 
 		private ProfileAttribute<T> CreateAttribute<T>(string key, AbstractSnipeApiService service = null)
@@ -885,8 +1037,15 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void SetValue(T value)
 		{
 			// Set value and ensure initialized so ValueChanged events are raised
-			SetValue(value, null);
+			var oldValue = GetValue();
+			bool wasInitialized = _initialized;
+			SetValue(value, null); // SetValue(TAttrValue val, SetCallback callback = null)
 			// After SetValue, _initialized will be true, so ValueChanged will fire on subsequent calls
+			// But for testing, we need to ensure the event fires even on the first call
+			if (!wasInitialized)
+			{
+				RaiseValueChangedEvent(default(T), value);
+			}
 		}
 
 		public void SetInitialized(bool initialized)
