@@ -22,5 +22,10 @@ namespace MiniIT.Snipe.Api
 		{
 			return new LocalProfileAttribute<T>(key, _sharedPrefs);
 		}
+
+		public LocalProfileAttribute<T> CreateLocalAttribute<T>(string key, T defaultValue)
+		{
+			return new LocalProfileAttribute<T>(key, _sharedPrefs, defaultValue);
+		}
 	}
 }

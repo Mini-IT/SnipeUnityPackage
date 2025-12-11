@@ -9,7 +9,7 @@ namespace MiniIT.Snipe.Api
 	{
 		public T Value
 		{
-			get => _prefsHelper.GetPrefsValue<T>(_key);
+			get => _prefsHelper.GetPrefsValue<T>(_key, _defaultValue);
 			set
 			{
 				T oldValue = _prefsHelper.GetPrefsValue<T>(_key);
@@ -25,12 +25,14 @@ namespace MiniIT.Snipe.Api
 
 		public event Action<T> ValueChanged;
 
+		private readonly T _defaultValue;
 		private readonly PlayerPrefsTypeHelper _prefsHelper;
 		private readonly List<IObserver<T>> _observers = new List<IObserver<T>>();
 
-		public LocalProfileAttribute(string key, ISharedPrefs sharedPrefs)
+		public LocalProfileAttribute(string key, ISharedPrefs sharedPrefs, T defaultValue = default)
 			: base(key, sharedPrefs)
 		{
+			_defaultValue = defaultValue;
 			_prefsHelper = new PlayerPrefsTypeHelper(sharedPrefs);
 		}
 
