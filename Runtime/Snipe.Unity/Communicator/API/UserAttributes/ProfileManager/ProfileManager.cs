@@ -70,18 +70,28 @@ namespace MiniIT.Snipe.Api
 			return newAttr;
 		}
 
-		// public LocalProfileAttribute<T> GetLocalAttribute<T>(string key)
-		// {
-		// 	if (_attributes.TryGetValue(key, out var attr))
-		// 	{
-		// 		return (LocalProfileAttribute<T>)attr;
-		// 	}
-		//
-		// 	var newAttr = new LocalProfileAttribute<T>(key, this, _sharedPrefs);
-		// 	_attributes[key] = newAttr;
-		//
-		// 	return newAttr;
-		// }
+		public LocalProfileAttribute<T> GetLocalAttribute<T>(string key)
+		{
+			return GetLocalAttribute(key, () => new LocalProfileAttribute<T>(key, _sharedPrefs));
+		}
+
+		public LocalProfileAttribute<T> GetLocalAttribute<T>(string key, T defaultValue)
+		{
+			return GetLocalAttribute(key, () => new LocalProfileAttribute<T>(key, _sharedPrefs, defaultValue));
+		}
+
+		private LocalProfileAttribute<T> GetLocalAttribute<T>(string key, Func<LocalProfileAttribute<T>> factory)
+		{
+			if (_attributes.TryGetValue(key, out var attr))
+			{
+				return (LocalProfileAttribute<T>)attr;
+			}
+
+			var newAttr = factory.Invoke();
+			_attributes[key] = newAttr;
+
+			return newAttr;
+		}
 
 		private void InitializeAttributeValue<T>(SnipeApiReadOnlyUserAttribute<T> serverAttr, ProfileAttribute<T> attr)
 		{
