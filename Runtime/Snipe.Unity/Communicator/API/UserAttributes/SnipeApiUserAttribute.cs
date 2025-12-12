@@ -106,6 +106,8 @@ namespace MiniIT.Snipe.Api
 		protected TAttrValue _value;
 		protected bool _initialized;
 
+		public bool IsInitialized => _initialized;
+
 		public SnipeApiReadOnlyUserAttribute(AbstractSnipeApiService snipeApi, string key) : base(snipeApi, key)
 		{
 			_initialized = false;

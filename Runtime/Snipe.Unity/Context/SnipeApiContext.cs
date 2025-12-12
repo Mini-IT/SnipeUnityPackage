@@ -10,6 +10,7 @@ namespace MiniIT.Snipe
 		public BadgesManager BadgesManager { get; }
 		public CalendarManager CalendarManager { get; }
 		public CalendarV2Manager CalendarV2Manager { get; }
+		public ProfileManager ProfileManager { get; }
 
 		private readonly AbstractSnipeApiService _api;
 
@@ -56,6 +57,8 @@ namespace MiniIT.Snipe
 					CalendarV2Manager = new CalendarV2Manager(calendarV2Table, serverTimeZone);
 				}
 			}
+
+			ProfileManager = new ProfileManager(_api, SnipeServices.Instance.SharedPrefs);
 		}
 
 		public AbstractSnipeApiService GetSnipeApiService() => _api;
@@ -71,6 +74,7 @@ namespace MiniIT.Snipe
 			CalendarManager?.Dispose();
 			BadgesManager?.Dispose();
 			CalendarV2Manager?.Dispose();
+			ProfileManager?.Dispose();
 
 			if (_api is IDisposable disposableApi)
 			{

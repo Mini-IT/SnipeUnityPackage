@@ -1,6 +1,6 @@
 {
     "name": "MiniIT.Snipe.EditorTests",
-    "rootNamespace": "",
+    "rootNamespace": "MiniIT.Snipe.Tests.Editor",
     "references": [
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
@@ -10,6 +10,7 @@
         "MiniIT.Snipe.MessagePack",
         "MiniIT.Snipe.Services",
         "MiniIT.Snipe.Unity",
+		"MiniIT.Storage.SharedPrefs",
         "UniTask"
     ],
     "includePlatforms": [
