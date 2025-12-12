@@ -4,27 +4,7 @@ using MiniIT.Storage;
 
 namespace MiniIT.Snipe.Api
 {
-	public interface IProfileAttribute<T> : IObservable<T>, IDisposable
-	{
-		T Value { get; set; }
-		event Action<T> ValueChanged;
-	}
-
-	public abstract class AbstractProfileAttribute : IDisposable
-	{
-		protected readonly string _key;
-		protected readonly ISharedPrefs _sharedPrefs;
-
-		internal AbstractProfileAttribute(string key, ISharedPrefs sharedPrefs)
-		{
-			_key = key;
-			_sharedPrefs = sharedPrefs;
-		}
-
-		public abstract void Dispose();
-	}
-
-	public class ProfileAttribute<T> : AbstractProfileAttribute, IProfileAttribute<T>
+	public sealed class ProfileAttribute<T> : AbstractProfileAttribute, IProfileAttribute<T>
 	{
 		public T Value
 		{
