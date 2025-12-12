@@ -43,8 +43,8 @@ namespace MiniIT.Snipe.Tests.Editor
 			_mockVersionAttribute.SetValue(0);
 			_mockUserAttributes.RegisterAttribute(_mockVersionAttribute);
 
-			_profileManager = new ProfileManager();
-			_profileManager.Initialize(_mockApiService, _mockUserAttributes, _mockSharedPrefs);
+			_profileManager = new ProfileManager(_mockApiService, _mockSharedPrefs);
+			_profileManager.Initialize(_mockVersionAttribute);
 		}
 
 		[TearDown]
@@ -292,8 +292,8 @@ namespace MiniIT.Snipe.Tests.Editor
 			// Act - create new ProfileManager, initialize, and retrieve attribute
 			// Retrieving the attribute registers the local value getter, enabling RebuildPendingChanges to work
 			_profileManager.Dispose();
-			_profileManager = new ProfileManager();
-			_profileManager.Initialize(_mockApiService, _mockUserAttributes, _mockSharedPrefs);
+			_profileManager = new ProfileManager(_mockApiService, _mockSharedPrefs);
+			_profileManager.Initialize(_mockVersionAttribute);
 			// Get attribute to register local value getter so RebuildPendingChanges can find the value
 			var attr = _profileManager.GetAttribute<int>(serverAttr);
 			// Changing the value triggers SendPendingChanges, which will sync the existing dirty keys
@@ -356,8 +356,8 @@ namespace MiniIT.Snipe.Tests.Editor
 			_mockVersionAttribute.SetValue(5);
 
 			// Act
-			_profileManager = new ProfileManager();
-			_profileManager.Initialize(_mockApiService, _mockUserAttributes, _mockSharedPrefs);
+			_profileManager = new ProfileManager(_mockApiService, _mockSharedPrefs);
+			_profileManager.Initialize(_mockVersionAttribute);
 
 			// Assert
 			var localVersion = _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION, 0);
@@ -673,8 +673,8 @@ namespace MiniIT.Snipe.Tests.Editor
 			_mockUserAttributes = new MockSnipeApiUserAttributes(delayedService);
 			_mockVersionAttribute = new MockSnipeApiReadOnlyUserAttribute<int>(delayedService, "_version");
 			_mockUserAttributes.RegisterAttribute(_mockVersionAttribute);
-			_profileManager = new ProfileManager();
-			_profileManager.Initialize(delayedService, _mockUserAttributes, _mockSharedPrefs);
+			_profileManager = new ProfileManager(delayedService, _mockSharedPrefs);
+			_profileManager.Initialize(_mockVersionAttribute);
 
 			var coinsAttr = CreateAttribute<int>("coins", delayedService);
 			var gemsAttr = CreateAttribute<int>("gems", delayedService);
@@ -744,8 +744,8 @@ namespace MiniIT.Snipe.Tests.Editor
 			_mockUserAttributes = new MockSnipeApiUserAttributes(delayedService);
 			_mockVersionAttribute = new MockSnipeApiReadOnlyUserAttribute<int>(delayedService, "_version");
 			_mockUserAttributes.RegisterAttribute(_mockVersionAttribute);
-			_profileManager = new ProfileManager();
-			_profileManager.Initialize(delayedService, _mockUserAttributes, _mockSharedPrefs);
+			_profileManager = new ProfileManager(delayedService, _mockSharedPrefs);
+			_profileManager.Initialize(_mockVersionAttribute);
 
 			var coinsAttr = CreateAttribute<int>("coins", delayedService);
 

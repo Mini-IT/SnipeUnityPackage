@@ -3,7 +3,12 @@ using System.Collections.Generic;
 
 namespace MiniIT.Snipe.Api
 {
-	public abstract class AbstractSnipeApiService
+	public interface IRequestFactory
+	{
+		AbstractCommunicatorRequest CreateRequest(string messageType, IDictionary<string, object> data = null);
+	}
+
+	public abstract class AbstractSnipeApiService : IRequestFactory
 	{
 		public delegate AbstractCommunicatorRequest RequestFactoryMethod(string messageType, IDictionary<string, object> data = null);
 

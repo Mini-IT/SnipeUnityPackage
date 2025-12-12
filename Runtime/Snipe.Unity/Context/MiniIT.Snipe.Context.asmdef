@@ -8,6 +8,7 @@
         "MiniIT.Snipe.Logging",
         "MiniIT.Snipe.Services",
         "MiniIT.Snipe.Unity",
+        "MiniIT.Storage.SharedPrefs",
         "MiniIT.AlterTask",
         "MiniIT.HttpClient.Abstraction",
         "UniTask",

@@ -15,40 +15,35 @@ namespace MiniIT.Snipe.Api
 		internal const string KEY_DIRTY_KEYS = "profile_dirty_keys";
 		internal const string KEY_ATTR_PREFIX = "profile_attr_";
 
-		private AbstractSnipeApiService _snipeApiService;
+		private readonly IRequestFactory _requestFactory;
 		private Func<int> _getVersionDelegate;
 		private readonly Dictionary<string, AbstractProfileAttribute> _attributes = new ();
 		private readonly Dictionary<string, Action<object>> _attributeValueSetters = new ();
 		private readonly Dictionary<string, Func<object>> _localValueGetters = new ();
 		private readonly List<Action> _serverEventUnsubscribers = new ();
-		private ISharedPrefs _sharedPrefs;
-		private PlayerPrefsStringListHelper _stringListHelper;
-		private PlayerPrefsTypeHelper _prefsHelper;
+		private readonly ISharedPrefs _sharedPrefs;
+		private readonly PlayerPrefsStringListHelper _stringListHelper;
+		private readonly PlayerPrefsTypeHelper _prefsHelper;
 		private bool _syncInProgress;
 		private bool _disposed;
 
-		public void Initialize(AbstractSnipeApiService snipeApiService, SnipeApiUserAttributes userAttributes, ISharedPrefs sharedPrefs)
+		public ProfileManager(IRequestFactory requestFactory, ISharedPrefs sharedPrefs)
 		{
-			if (_snipeApiService != null)
-			{
-				Dispose();
-			}
-
-			_snipeApiService = snipeApiService;
+			_requestFactory = requestFactory;
 			_sharedPrefs = sharedPrefs;
 
 			_stringListHelper = new PlayerPrefsStringListHelper(_sharedPrefs);
 			_prefsHelper = new PlayerPrefsTypeHelper(_sharedPrefs);
+		}
 
-			// Get version delegate - try to get _version attribute from UserAttributes
-			_getVersionDelegate = () =>
+		public void Initialize(SnipeApiReadOnlyUserAttribute<int> versionAttr)
+		{
+			if (_getVersionDelegate != null)
 			{
-				if (userAttributes.TryGetAttribute<int>("_version", out var versionAttr))
-				{
-					return versionAttr.GetValue();
-				}
-				return 0;
-			};
+				Dispose();
+			}
+
+			_getVersionDelegate = versionAttr.GetValue;
 
 			SyncWithServer();
 		}
@@ -195,7 +190,7 @@ namespace MiniIT.Snipe.Api
 				return;
 			}
 
-			var serverVersion = _getVersionDelegate();
+			var serverVersion = _getVersionDelegate.Invoke();
 			var localVersion = GetLocalVersion();
 			var lastSyncedVersion = GetLastSyncedVersion();
 
@@ -247,7 +242,7 @@ namespace MiniIT.Snipe.Api
 
 		private void SendPendingChanges()
 		{
-			if (_syncInProgress || _snipeApiService == null)
+			if (_syncInProgress || _requestFactory == null)
 			{
 				return;
 			}
@@ -266,7 +261,7 @@ namespace MiniIT.Snipe.Api
 			{
 				var item = pendingChanges.First();
 
-				request = _snipeApiService.CreateRequest("attr.set", new Dictionary<string, object>()
+				request = _requestFactory.CreateRequest("attr.set", new Dictionary<string, object>()
 				{
 					["key"] = item.Key,
 					["val"] = item.Value
@@ -281,7 +276,7 @@ namespace MiniIT.Snipe.Api
 					setMultiData.Add(data);
 				}
 
-				request = _snipeApiService.CreateRequest("attr.setMulti", new Dictionary<string, object>()
+				request = _requestFactory.CreateRequest("attr.setMulti", new Dictionary<string, object>()
 				{
 					["data"] = setMultiData
 				});
@@ -299,7 +294,7 @@ namespace MiniIT.Snipe.Api
 						_stringListHelper.Clear(KEY_DIRTY_KEYS);
 						if (_getVersionDelegate != null)
 						{
-							var serverVersion = _getVersionDelegate();
+							var serverVersion = _getVersionDelegate.Invoke();
 							SetLocalVersion(serverVersion);
 							SetLastSyncedVersion(serverVersion);
 						}
@@ -397,10 +392,7 @@ namespace MiniIT.Snipe.Api
 			_attributeValueSetters.Clear();
 			_localValueGetters.Clear();
 
-			_snipeApiService = null;
 			_getVersionDelegate = null;
-			_sharedPrefs = null;
-			_stringListHelper = null;
 		}
 	}
 }
