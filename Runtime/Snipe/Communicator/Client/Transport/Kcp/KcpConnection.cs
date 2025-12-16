@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace MiniIT.Snipe
@@ -109,6 +110,7 @@ namespace MiniIT.Snipe
 		private uint _convid;
 		private bool _selfDisconnecting;
 		private bool _hasReceivedValidMessage;
+		private CancellationTokenSource _reconnectCancellation;
 
 		public KcpConnection()
 		{
@@ -229,6 +231,14 @@ namespace MiniIT.Snipe
 			bool canAttemptReconnect = attemptReconnect && _state != KcpState.Reconnecting && _hasReceivedValidMessage;
 
 			// _logger.LogTrace($"canAttemptReconnect = {canAttemptReconnect} | {attemptReconnect} | {_state} | {_hasReceivedValidMessage}");
+
+			// Cancel any pending reconnect attempts when not attempting reconnect
+			if (!canAttemptReconnect)
+			{
+				_reconnectCancellation?.Cancel();
+				_reconnectCancellation?.Dispose();
+				_reconnectCancellation = null;
+			}
 
 			_selfDisconnecting = true;
 
@@ -464,6 +474,7 @@ namespace MiniIT.Snipe
 						{
 							_state = KcpState.Authenticated;
 						}
+
 						_hasReceivedValidMessage = true;
 						continue;
 					}
@@ -543,6 +554,10 @@ namespace MiniIT.Snipe
 			{
 				lock (_lock)
 				{
+					// Don't update KCP if socket is disposed to prevent callbacks with null socket
+					if (_socket == null)
+						return;
+
 					uint time = (uint)_refTime.ElapsedMilliseconds;
 					_kcp.Update(time);
 				}
@@ -582,6 +597,12 @@ namespace MiniIT.Snipe
 		{
 			lock (_lock)
 			{
+				// Check if KCP is still available
+				if (_kcp == null)
+				{
+					return;
+				}
+
 				int msgLength = 1 + content.Count; // 1 byte for header
 				if (_kcpSendBuffer.Length < msgLength)
 				{
@@ -613,12 +634,21 @@ namespace MiniIT.Snipe
 		{
 			lock (_lock)
 			{
+				// Safety check: this should not happen if TickOutgoing prevents KCP updates
+				// when socket is null, but if it does, log error and prevent NRE
+				if (_socket == null)
+				{
+					_logger.LogWarning($"SocketSend called with null socket. State: {_state}, Channel: {channel}");
+					return;
+				}
+
 				// copy channel header, data into raw send buffer, then send
 				_socketSendBuffer[0] = (byte)channel;
 				if (length > 0)
 				{
 					Buffer.BlockCopy(data, offset, _socketSendBuffer, 1, length);
 				}
+
 				_socket.Send(_socketSendBuffer, length + 1);
 				//_logger.LogTrace($"RAW SEND bytes = {BitConverter.ToString(_socketReceiveBuffer, 0, length + 1)}");
 			}
@@ -712,10 +742,12 @@ namespace MiniIT.Snipe
 
 						input = _kcp.Input(buffer, 1, msgLength - 1);
 					}
+
 					if (input != 0)
 					{
 						_logger.LogWarning($"KCP Input failed with error={input} for buffer with length={msgLength - 1}");
 					}
+
 					break;
 
 				case (byte)KcpChannel.Unreliable:
@@ -767,6 +799,7 @@ namespace MiniIT.Snipe
 						_logger.LogWarning($"KCP: received unreliable message in state {_state}. Disconnecting the connection.");
 						Disconnect(false);
 					}
+
 					break;
 
 				default:
@@ -791,6 +824,7 @@ namespace MiniIT.Snipe
 					header = KcpHeader.Disconnect;
 					return false;
 				}
+
 				msgSize = _kcp.PeekSize();
 			}
 
@@ -810,8 +844,10 @@ namespace MiniIT.Snipe
 							header = KcpHeader.Disconnect;
 							return false;
 						}
+
 						received = _kcp.Receive(_kcpReceiveBuffer, msgSize);
 					}
+
 					if (received >= 0)
 					{
 						// extract header & content without header
@@ -1028,6 +1064,11 @@ namespace MiniIT.Snipe
 
 		private void ReleaseKcp()
 		{
+			// Cancel and dispose reconnect cancellation token
+			_reconnectCancellation?.Cancel();
+			_reconnectCancellation?.Dispose();
+			_reconnectCancellation = null;
+
 			if (_chunkedMessages != null)
 			{
 				foreach (var kv in _chunkedMessages)
@@ -1037,6 +1078,7 @@ namespace MiniIT.Snipe
 						ArrayPool<byte>.Shared.Return(kv.Value.buffer);
 					}
 				}
+
 				_chunkedMessages.Clear();
 				_chunkedMessages = null;
 			}
@@ -1047,6 +1089,7 @@ namespace MiniIT.Snipe
 				_kcpSendBuffer = null;
 				_kcp = null;
 			}
+
 			_hasReceivedValidMessage = false;
 		}
 
@@ -1060,19 +1103,31 @@ namespace MiniIT.Snipe
 
 			_logger.LogTrace("AttemptReconnect. convid: {0}", _convid);
 
-			_ = WaitAndReconnect();
+			// Create new cancellation token for this reconnect attempt
+			_reconnectCancellation?.Dispose();
+			_reconnectCancellation = new CancellationTokenSource();
+
+			_ = WaitAndReconnect(_reconnectCancellation.Token);
 			return true;
 		}
 
-		private async Task WaitAndReconnect()
+		private async Task WaitAndReconnect(CancellationToken cancellationToken)
 		{
-			await Task.Delay(50);
+			try
+			{
+				await Task.Delay(50, cancellationToken);
+			}
+			catch (TaskCanceledException)
+			{
+				// Reconnect was cancelled, this is expected
+				return;
+			}
 
 			_logger.LogTrace("AttemptReconnect: Delay finished");
 
-			if (_state != KcpState.Reconnecting)
+			if (_state != KcpState.Reconnecting || cancellationToken.IsCancellationRequested)
 			{
-				_logger.LogTrace("AttemptReconnect: Wrong state");
+				_logger.LogTrace("AttemptReconnect: Wrong state or cancelled");
 				return;
 			}
 
