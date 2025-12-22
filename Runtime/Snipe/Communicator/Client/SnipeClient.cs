@@ -283,6 +283,7 @@ namespace MiniIT.Snipe
 
 			_currentTransportInfo = transport.Info;
 			_transport = null;
+			_loggedIn = false;
 			ResetAnalyticsMetrics();
 
 			bool hasMoreUrls = entry.TryAdvanceUrl();
