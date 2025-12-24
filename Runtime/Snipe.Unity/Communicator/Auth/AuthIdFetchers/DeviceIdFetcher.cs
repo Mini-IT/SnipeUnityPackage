@@ -14,7 +14,7 @@ namespace MiniIT.Snipe.Unity
 
         public override void Fetch(bool _, Action<string> callback = null)
         {
-	        var sharedPrefs = SnipeServices.SharedPrefs;
+	        var sharedPrefs = SnipeServices.Instance.SharedPrefs;
 
             if (string.IsNullOrEmpty(Value))
             {

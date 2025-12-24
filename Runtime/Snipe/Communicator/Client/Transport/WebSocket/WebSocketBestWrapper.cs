@@ -1,8 +1,4 @@
-#if UNITY_WEBGL && !UNITY_EDITOR
-#define WEBGL_ENVIRONMENT
-#endif
-
-#if BEST_WEBSOCKET && !WEBGL_ENVIRONMENT
+#if BEST_WEBSOCKET && !(UNITY_WEBGL && !UNITY_EDITOR)
 
 using System;
 using System.Threading;

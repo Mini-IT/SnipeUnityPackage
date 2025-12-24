@@ -1,8 +1,4 @@
 #if UNITY_WEBGL && !UNITY_EDITOR
-#define WEBGL_ENVIRONMENT
-#endif
-
-#if WEBGL_ENVIRONMENT
 
 using System;
 using Microsoft.Extensions.Logging;
