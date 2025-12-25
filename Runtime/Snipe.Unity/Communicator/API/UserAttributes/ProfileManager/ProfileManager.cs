@@ -139,8 +139,7 @@ namespace MiniIT.Snipe.Api
 			SetLocalValue(key, value);
 
 			// Increment local version
-			var localVersion = GetLocalVersion();
-			localVersion++;
+			int localVersion = GetLocalVersion() + 1;
 			SetLocalVersion(localVersion);
 
 			// Add to dirty set (always, even if sync is in progress)
