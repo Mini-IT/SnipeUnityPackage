@@ -291,12 +291,6 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			var entry = GetCurrentEntry();
-			if (entry == null)
-			{
-				return;
-			}
-
 			if (transport is KcpTransport)
 			{
 				UdpConnectionFailed?.Invoke();
@@ -306,10 +300,16 @@ namespace MiniIT.Snipe
 			_currentTransport = null;
 			ResetAnalyticsMetrics();
 
-			bool hasMoreUrls = entry.TryAdvanceUrl();
-			if (!hasMoreUrls)
+			bool hasMoreUrls = false;
+
+			var entry = GetCurrentEntry();
+			if (entry != null)
 			{
-				DisposeEntry(entry);
+				hasMoreUrls = entry.TryAdvanceUrl();
+				if (!hasMoreUrls)
+				{
+					DisposeEntry(entry);
+				}
 			}
 
 			ConnectionDisrupted?.Invoke(transport);
