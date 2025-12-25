@@ -17,10 +17,10 @@ namespace MiniIT.Snipe.Api
 
 		private readonly IRequestFactory _requestFactory;
 		private Func<int> _getVersionDelegate;
-		private readonly Dictionary<string, AbstractProfileAttribute> _attributes = new ();
-		private readonly Dictionary<string, Action<object>> _attributeValueSetters = new ();
-		private readonly Dictionary<string, Func<object>> _localValueGetters = new ();
-		private readonly List<Action> _serverEventUnsubscribers = new ();
+		private readonly Dictionary<string, AbstractProfileAttribute> _attributes = new();
+		private readonly Dictionary<string, Action<object>> _attributeValueSetters = new();
+		private readonly Dictionary<string, Func<object>> _localValueGetters = new();
+		private readonly List<Action> _serverEventUnsubscribers = new();
 		private readonly ISharedPrefs _sharedPrefs;
 		private readonly PlayerPrefsStringListHelper _stringListHelper;
 		private readonly PlayerPrefsTypeHelper _prefsHelper;
@@ -165,9 +165,31 @@ namespace MiniIT.Snipe.Api
 			var localVersion = GetLocalVersion();
 			var serverVersion = _getVersionDelegate?.Invoke() ?? 0;
 
-			// Server value is authoritative - always accept it
-			// Update local storage with server value
-			SetLocalValue(key, value);
+			// If we have local unsynced changes and server version is older than local version,
+			// preserve local changes and don't overwrite with server value.
+			// This prevents losing offline progress when reconnecting.
+			// Note: If serverVersion == 0 (uninitialized), we accept server value but keep local changes in dirty keys.
+			// If serverVersion >= localVersion, server is authoritative and we accept its value.
+			bool shouldPreserveLocalChanges = hasLocalChange && serverVersion > 0 && serverVersion < localVersion;
+
+			if (!shouldPreserveLocalChanges)
+			{
+				// Server value is authoritative - accept it
+				// Update local storage with server value
+				SetLocalValue(key, value);
+
+				// Update attribute value
+				if (_attributeValueSetters.TryGetValue(key, out var setter))
+				{
+					setter(value);
+				}
+			}
+			else
+			{
+				// We have local changes that are newer - keep them and ensure they stay in dirty keys
+				// The local value is already correct, so we don't need to update it
+				// Dirty keys will remain so the local value can be synced to server
+			}
 
 			// Remove from dirty set if server version is >= local version
 			// This means the server has the latest version of this attribute
@@ -178,12 +200,6 @@ namespace MiniIT.Snipe.Api
 				{
 					_stringListHelper.Remove(KEY_DIRTY_KEYS, key);
 				}
-			}
-
-			// Update attribute value
-			if (_attributeValueSetters.TryGetValue(key, out var setter))
-			{
-				setter(value);
 			}
 
 			// Update version if server is newer
@@ -392,12 +408,14 @@ namespace MiniIT.Snipe.Api
 					// ignore
 				}
 			}
+
 			_serverEventUnsubscribers.Clear();
 
 			foreach (var attr in _attributes.Values)
 			{
 				attr.Dispose();
 			}
+
 			_attributes.Clear();
 			_attributeValueSetters.Clear();
 			_localValueGetters.Clear();
@@ -406,4 +424,3 @@ namespace MiniIT.Snipe.Api
 		}
 	}
 }
-
