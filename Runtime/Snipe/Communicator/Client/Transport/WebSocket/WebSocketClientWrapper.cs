@@ -66,22 +66,20 @@ namespace MiniIT.Snipe
 
 				if (!connectionTask.IsCompleted)
 				{
-					_logger.LogTrace("WaitForConnection - Connection timed out");
 					OnWebSocketClosed("WebSocketWrapper - Connection timed out");
 					return;
 				}
 			}
 			catch (OperationCanceledException)
 			{
-				_logger.LogTrace("WaitForConnection - Connection timed out");
 				OnWebSocketClosed("WebSocketWrapper - Connection timed out");
 				return;
 			}
 			catch (Exception e)
 			{
 				string exceptionMessage = LogUtil.GetReducedException(e);
-				_logger.LogTrace($"Connection failed: {exceptionMessage}");
-				OnWebSocketClosed(e.ToString());
+				OnWebSocketClosed("Connection failed: " + exceptionMessage);
+				return;
 			}
 
 			if (cancellation.IsCancellationRequested)
