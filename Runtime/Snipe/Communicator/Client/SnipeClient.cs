@@ -283,6 +283,7 @@ namespace MiniIT.Snipe
 
 			_currentTransportInfo = transport.Info;
 			_transport = null;
+			_loggedIn = false;
 			ResetAnalyticsMetrics();
 
 			bool hasMoreUrls = entry.TryAdvanceUrl();
@@ -422,7 +423,9 @@ namespace MiniIT.Snipe
 
 		private void DisposeEntries()
 		{
-			foreach (var entry in _transportEntries)
+			// Create a copy to avoid modifying collection during enumeration
+			var entriesToDispose = _transportEntries.ToArray();
+			foreach (var entry in entriesToDispose)
 			{
 				DisposeEntry(entry);
 			}
