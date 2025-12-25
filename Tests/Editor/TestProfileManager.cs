@@ -396,9 +396,12 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.Greater(localVersion, oldLocalVersion, "Local version should be incremented");
 
 			// Simulate reconnection - server sends old value (hasn't received local changes yet)
-			// Server version is still 1 (same as when we disconnected), but we have local changes
+			// Server version is still same as when we disconnected, but we have local changes
 			_mockVersionAttribute.SetValue(oldLocalVersion); // Server version hasn't changed
-			serverAttr.SetValue(2000); // Server sends old value via ValueChanged event
+			// serverAttr won't raise ValueChanged event if the value remains,
+			// so set it 2001 instead of 2000 to force raising ValueChanged event,
+			// but still keepeing the server version as the old value
+			serverAttr.SetValue(2001); // Server sends old value via ValueChanged event
 
 			// Assert - Local offline changes should be preserved
 			Assert.AreEqual(2050, attr.Value,

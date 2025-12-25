@@ -167,9 +167,9 @@ namespace MiniIT.Snipe.Api
 			// If we have local unsynced changes and server version is older than local version,
 			// preserve local changes and don't overwrite with server value.
 			// This prevents losing offline progress when reconnecting.
-			// Note: If serverVersion == 0 (uninitialized), we accept server value but keep local changes in dirty keys.
-			// If serverVersion >= localVersion, server is authoritative and we accept its value.
-			bool shouldPreserveLocalChanges = hasLocalChange && serverVersion > 0 && serverVersion < localVersion;
+			// Note: If serverVersion == 0 (uninitialized) and we have local changes, we preserve local changes
+			// because they represent newer offline progress. If serverVersion >= localVersion, server is authoritative.
+			bool shouldPreserveLocalChanges = hasLocalChange && serverVersion < localVersion;
 
 			if (!shouldPreserveLocalChanges)
 			{
@@ -192,10 +192,10 @@ namespace MiniIT.Snipe.Api
 
 			// Remove from dirty set if server version is >= local version
 			// This means the server has the latest version of this attribute
-			// If serverVersion is 0 (uninitialized), we still accept the server value but keep local changes
+			// If serverVersion < localVersion, we preserve local changes so dirty keys remain
 			if (hasLocalChange)
 			{
-				if (serverVersion > 0 && serverVersion >= localVersion)
+				if (serverVersion >= localVersion)
 				{
 					_stringListHelper.Remove(KEY_DIRTY_KEYS, key);
 				}
