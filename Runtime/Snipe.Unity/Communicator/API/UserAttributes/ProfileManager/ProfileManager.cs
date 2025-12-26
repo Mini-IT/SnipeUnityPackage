@@ -225,7 +225,7 @@ namespace MiniIT.Snipe.Api
 			if (localVersion > lastSyncedVersion)
 			{
 				// Client has unsynced changes
-				SendPendingChanges();
+				SendPendingChanges(pendingChanges);
 			}
 			else if (serverVersion > localVersion)
 			{
@@ -273,7 +273,13 @@ namespace MiniIT.Snipe.Api
 			}
 
 			var pendingChanges = RebuildPendingChanges();
-			if (pendingChanges.Count == 0)
+			SendPendingChanges(pendingChanges);
+		}
+
+		private void SendPendingChanges(Dictionary<string, object> pendingChanges)
+		{
+			if (_syncInProgress || _requestFactory == null ||
+			    pendingChanges == null || pendingChanges.Count == 0)
 			{
 				return;
 			}
