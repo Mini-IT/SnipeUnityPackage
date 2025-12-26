@@ -12,10 +12,18 @@ namespace MiniIT.Snipe
 {
 	public sealed class WebSocketClientWrapper : WebSocketWrapper
 	{
-		public override bool AutoPing => true;
+		// MsgPack serialized {"t":"server.ping"}
+		private readonly byte[] PING_SERIALIZED_DATA = new byte[] { 0x81, 0xA1, 0x74, 0xAB, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2E, 0x70, 0x69, 0x6E, 0x67 };
+		private readonly byte[] PONG_FRAGMENT = new byte[] { 0xA1, 0x74, 0xAB, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2E, 0x70, 0x69, 0x6E, 0x67 }; // "t":"server.ping"
+		//private readonly byte[] PONG_FRAGMENT_OK = new byte[] { 0xA9, 0x65, 0x72, 0x72, 0x6F, 0x72, 0x43, 0x6F, 0x64, 0x65, 0xA2, 0x6F, 0x6B }; // "errorCode":"ok"
+
+		public override bool AutoPing => false;
 
 		private ClientWebSocket _webSocket = null;
 		private CancellationTokenSource _cancellation;
+
+		private Action<bool> _pongCallback;
+		private readonly object _pongLock = new object();
 
 		private readonly IMainThreadRunner _mainThreadRunner;
 
@@ -55,6 +63,10 @@ namespace MiniIT.Snipe
 		private async Task StartConnection(Uri uri, CancellationToken cancellation)
 		{
 			_webSocket = new ClientWebSocket();
+
+			// Set keep-alive interval to detect dead connections
+			// ClientWebSocket will automatically send ping frames at this interval
+			_webSocket.Options.KeepAliveInterval = TimeSpan.FromSeconds(30);
 
 			try
 			{
@@ -131,7 +143,12 @@ namespace MiniIT.Snipe
 					while (_sendQueue.TryDequeue(out var sendData))
 					{
 						await webSocket.SendAsync(sendData, WebSocketMessageType.Binary, true, cancellation);
-						ArrayPool<byte>.Shared.Return(sendData.Array);
+
+						byte[] buffer = sendData.Array;
+						if (!ReferenceEquals(buffer, PING_SERIALIZED_DATA))
+						{
+							ArrayPool<byte>.Shared.Return(buffer);
+						}
 					}
 				}
 				catch (WebSocketException e)
@@ -194,14 +211,38 @@ namespace MiniIT.Snipe
 						receivedMessageLength = 0;
 					}
 				}
+				catch (OperationCanceledException)
+				{
+					break;
+				}
 				catch (WebSocketException e)
 				{
 					string exceptionMessage = LogUtil.GetReducedException(e);
 					Disconnect($"Receive exception: {exceptionMessage}");
 				}
-				catch (OperationCanceledException)
+				catch (System.Net.Sockets.SocketException e)
 				{
+					// Network errors (e.g., network unreachable, connection reset)
+					string exceptionMessage = LogUtil.GetReducedException(e);
+					_logger.LogTrace($"ReceiveLoop - SocketException: {exceptionMessage}");
+					OnWebSocketClosed($"Network error: {exceptionMessage}");
 					break;
+				}
+				catch (Exception e)
+				{
+					// Catch any other exceptions that might indicate connection issues
+					string exceptionMessage = LogUtil.GetReducedException(e);
+					_logger.LogTrace($"ReceiveLoop - Unexpected exception: {exceptionMessage}");
+
+					// Check if WebSocket state is still Open - if not, connection is dead
+					if (webSocket.State != WebSocketState.Open)
+					{
+						OnWebSocketClosed($"Connection lost: {exceptionMessage}");
+						break;
+					}
+
+					// If state is still Open but we got an exception, it might be transient
+					// Log it but don't disconnect immediately - let the next iteration handle it
 				}
 				finally
 				{
@@ -235,19 +276,37 @@ namespace MiniIT.Snipe
 
 		private void OnWebSocketMessage(ArraySegment<byte> data)
 		{
+			// Check if this is a custom PONG message
+			if (data.AsSpan().IndexOf(PONG_FRAGMENT) >= 0)
+			{
+				lock (_pongLock)
+				{
+					if (_pongCallback != null)
+					{
+						_pongCallback.Invoke(true);
+						_pongCallback = null;
+					}
+				}
+				return;
+			}
+
+			if (ProcessMessage == null)
+			{
+				return;
+			}
+
 			byte[] bytes = new byte[data.Count];
 			Array.ConstrainedCopy(data.Array, data.Offset, bytes, 0, data.Count);
 
-			if (ProcessMessage != null)
-			{
-				_mainThreadRunner.RunInMainThread(() => ProcessMessage?.Invoke(bytes));
-			}
+			_mainThreadRunner.RunInMainThread(() => ProcessMessage?.Invoke(bytes));
 		}
 
 		public override void SendRequest(byte[] bytes)
 		{
 			if (!Connected)
+			{
 				return;
+			}
 
 			byte[] buffer = ArrayPool<byte>.Shared.Rent(bytes.Length);
 			Array.ConstrainedCopy(bytes, 0, buffer, 0, bytes.Length);
@@ -258,7 +317,9 @@ namespace MiniIT.Snipe
 		public override void SendRequest(ArraySegment<byte> data)
 		{
 			if (!Connected)
+			{
 				return;
+			}
 
 			byte[] buffer = ArrayPool<byte>.Shared.Rent(data.Count);
 			Array.ConstrainedCopy(data.Array, data.Offset, buffer, 0, data.Count);
@@ -268,7 +329,25 @@ namespace MiniIT.Snipe
 
 		public override void Ping(Action<bool> callback = null)
 		{
-			callback?.Invoke(false);
+			lock (_pongLock)
+			{
+				if (!Connected)
+				{
+					if (_pongCallback != callback)
+					{
+						_pongCallback?.Invoke(false);
+					}
+					_pongCallback = null;
+
+					callback?.Invoke(false);
+					return;
+				}
+
+				_pongCallback = callback;
+			}
+
+			_sendQueue.Enqueue(PING_SERIALIZED_DATA);
+			_sendSignalSemaphore.Release();
 		}
 
 		protected override bool IsConnected()

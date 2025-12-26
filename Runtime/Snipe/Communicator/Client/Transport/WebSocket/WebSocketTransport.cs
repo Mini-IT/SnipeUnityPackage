@@ -469,6 +469,12 @@ namespace MiniIT.Snipe
 				// then wait one more HEARTBEAT_TASK_DELAY and then send another ping
 				if (pinging)
 				{
+					if (forcePing)
+					{
+						OnDisconnectDetected();
+						break;
+					}
+
 					pinging = false;
 					forcePing = true;
 				}
