@@ -11,7 +11,7 @@ namespace MiniIT.Snipe
 
 		public WebSocketWrapper CreateWebSocket()
 		{
-#if WEBGL_ENVIRONMENT
+#if UNITY_WEBGL && !UNITY_EDITOR
 			return new WebSocketJSWrapper();
 #else
 			return _config.WebSocketImplementation switch

@@ -1,7 +1,3 @@
-#if UNITY_WEBGL && !UNITY_EDITOR
-#define WEBGL_ENVIRONMENT
-#endif
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
