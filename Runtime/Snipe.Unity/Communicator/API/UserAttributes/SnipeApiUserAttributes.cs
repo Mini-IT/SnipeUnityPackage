@@ -68,9 +68,9 @@ namespace MiniIT.Snipe.Api
 			}
 		}
 
-		private void OnMessageReceived(string message_type, string error_code, IDictionary<string, object> data, int request_id)
+		private void OnMessageReceived(string messageType, string errorCode, IDictionary<string, object> data, int requestID)
 		{
-			switch (message_type)
+			switch (messageType)
 			{
 				case "attr.getAll":
 					UpdateValues(data["data"]);
@@ -88,13 +88,23 @@ namespace MiniIT.Snipe.Api
 			{
 				lock (_attributesLock)
 				{
+					var attributes = new List<SnipeApiUserAttribute>(list.Count);
+
+					// Phase 1: Set all values without raising events
 					foreach (IDictionary<string, object> o in list)
 					{
 						string key = o.SafeGetString("key");
 						if (_attributes.TryGetValue(key, out SnipeApiUserAttribute attr))
 						{
-							attr.SetValue(o["val"]);
+							attributes.Add(attr);
+							attr.SetValueWithoutEvent(o["val"]);
 						}
+					}
+
+					// Phase 2: Raising ValueChanged event for all affected attributes
+					foreach (var attr in attributes)
+					{
+						attr.RaisePendingValueChangedEvent();
 					}
 				}
 			}

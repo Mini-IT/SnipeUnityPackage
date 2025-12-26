@@ -25,6 +25,8 @@ namespace MiniIT.Snipe.Api
 		}
 
 		public abstract void SetValue(object val, SetCallback callback = null);
+		internal abstract void SetValueWithoutEvent(object val, SetCallback callback = null);
+		internal abstract void RaisePendingValueChangedEvent();
 
 		public static bool AreEqual<T>(T objA, T objB)
 		{
@@ -100,13 +102,22 @@ namespace MiniIT.Snipe.Api
 
 	public class SnipeApiReadOnlyUserAttribute<TAttrValue> : SnipeApiUserAttribute
 	{
+		protected class PendingChange
+		{
+			internal TAttrValue _oldValue;
+			internal TAttrValue _newValue;
+		}
+
 		public delegate void ValueChangedHandler(TAttrValue oldValue, TAttrValue value);
 		public event ValueChangedHandler ValueChanged;
+
+		public bool IsInitialized => _initialized;
 
 		protected TAttrValue _value;
 		protected bool _initialized;
 
-		public bool IsInitialized => _initialized;
+		protected PendingChange _pendingChange;
+		protected SetCallback _pendingSetCallback;
 
 		public SnipeApiReadOnlyUserAttribute(AbstractSnipeApiService snipeApi, string key) : base(snipeApi, key)
 		{
@@ -121,27 +132,52 @@ namespace MiniIT.Snipe.Api
 		public override void SetValue(object val, SetCallback callback = null)
 		{
 			TAttrValue value = TypeConverter.Convert<TAttrValue>(val);
-			DoSetValue(value, callback);
+			SetValue(value, callback);
 		}
 
 		public void SetValue(TAttrValue val, SetCallback callback = null)
 		{
-			DoSetValue(val, callback);
+			SetValueWithoutEvent(val, callback);
+			RaisePendingValueChangedEvent();
 		}
 
-		protected virtual void DoSetValue(TAttrValue val, SetCallback callback = null)
+		internal override void SetValueWithoutEvent(object val, SetCallback callback = null)
+		{
+			TAttrValue value = TypeConverter.Convert<TAttrValue>(val);
+			SetValueWithoutEvent(value, callback);
+		}
+
+		protected virtual void SetValueWithoutEvent(TAttrValue val, SetCallback callback = null)
 		{
 			var oldValue = _value;
 			_value = val;
 
-			callback?.Invoke("ok", _key, _value);
+			_pendingSetCallback = callback;
 
 			if (_initialized && !AreEqual(oldValue, _value))
 			{
-				RaiseValueChangedEvent(oldValue, _value);
+				_pendingChange = new PendingChange()
+				{
+					_oldValue = oldValue,
+					_newValue = val,
+				};
 			}
 
 			_initialized = true;
+		}
+
+		internal override void RaisePendingValueChangedEvent()
+		{
+			_pendingSetCallback?.Invoke("ok", _key, _value);
+			_pendingSetCallback = null;
+
+			if (_pendingChange == null)
+			{
+				return;
+			}
+
+			RaiseValueChangedEvent(_pendingChange._oldValue, _pendingChange._newValue);
+			_pendingChange = null;
 		}
 
 		protected void RaiseValueChangedEvent(TAttrValue oldValue, TAttrValue newValue)
@@ -164,20 +200,27 @@ namespace MiniIT.Snipe.Api
 		public SnipeApiUserAttribute(AbstractSnipeApiService snipeApi, string key)
 			: base(snipeApi, key) { }
 
-		protected override void DoSetValue(TAttrValue val, SetCallback callback = null)
+		protected override void SetValueWithoutEvent(TAttrValue val, SetCallback callback = null)
 		{
 			if (AreEqual(val, _value))
 			{
-				callback?.Invoke("ok", _key, _value);
+				_pendingSetCallback = callback;
 			}
 			else
 			{
 				TAttrValue oldValue = _value;
 				_value = val;
 
+				_pendingSetCallback = null;
+
 				if (_initialized)
 				{
-					RaiseValueChangedEvent(oldValue, _value);
+					_pendingChange = new PendingChange()
+					{
+						_oldValue = oldValue,
+						_newValue = val,
+					};
+
 					AddSetRequest(_value, callback);
 				}
 			}
