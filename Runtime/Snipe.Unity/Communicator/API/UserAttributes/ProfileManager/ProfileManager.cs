@@ -329,7 +329,7 @@ namespace MiniIT.Snipe.Api
 							// Server automatically increases version on every value change.
 							// We should do the same here to stay in sync
 							int serverVersion = _versionAttr.GetValue() + 1;
-							_versionAttr.SetValueWithoutEvent(serverVersion);
+							_versionAttr.SetValue(serverVersion);
 
 							SetLocalVersion(serverVersion);
 							SetLastSyncedVersion(serverVersion);
