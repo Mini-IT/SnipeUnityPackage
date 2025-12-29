@@ -174,6 +174,13 @@ namespace MiniIT.Snipe.Api
 			bool hasLocalChange = _stringListHelper.Contains(KEY_DIRTY_KEYS, key);
 			var localVersion = GetLocalVersion();
 			var serverVersion = _versionAttr?.GetValue() ?? 0;
+			var lastSyncedVersion = GetLastSyncedVersion();
+
+			// Ignore stale server pushes (older than last synced snapshot)
+			if (serverVersion < lastSyncedVersion)
+			{
+				return;
+			}
 
 			// If we have local unsynced changes and server version is older than local version,
 			// preserve local changes and don't overwrite with server value.
@@ -335,16 +342,17 @@ namespace MiniIT.Snipe.Api
 						// Success - clear dirty keys and update versions
 						_stringListHelper.Clear(KEY_DIRTY_KEYS);
 
-						if (_versionAttr != null)
-						{
-							// Server automatically increases version on every value change.
-							// We should do the same here to stay in sync
-							int serverVersion = _versionAttr.GetValue() + 1;
-							_versionAttr.SetValue(serverVersion);
+						// Server bumps its version by +1 per request. After success we align local and
+						// last-synced versions to serverSnapshot+1 so that subsequent server pushes
+						// are not considered "older". This can lower localVersion, but the change is
+						// already accepted by the server, so server is authoritative.
+						int serverSnapshot = _versionAttr?.GetValue() ?? GetLastSyncedVersion();
+						int newServerVersion = serverSnapshot + 1;
 
-							SetLocalVersion(serverVersion);
-							SetLastSyncedVersion(serverVersion);
-						}
+						// Persist the new server version snapshot locally
+						_versionAttr?.SetValue(newServerVersion);
+						SetLocalVersion(newServerVersion);
+						SetLastSyncedVersion(newServerVersion);
 					}
 					else
 					{

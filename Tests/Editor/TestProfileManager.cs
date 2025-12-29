@@ -445,35 +445,161 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[Test]
-		public void OfflineChanges_ReconnectWithNewerServerValue_AcceptsServerValue()
+		public void SendPendingChanges_AlignsLocalToServerSnapshotPlusOne()
 		{
-			// Test that if server version is newer, we accept server value (normal case)
+			// Arrange: local changes newer than server snapshot
+			_profileManager.Dispose();
 
-			// Arrange
+			_mockSharedPrefs.SetInt(ProfileManager.KEY_LOCAL_VERSION, 10);
+			_mockSharedPrefs.SetInt(ProfileManager.KEY_LAST_SYNCED_VERSION, 5);
+			_mockSharedPrefs.SetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 100);
+			_stringListHelper.Clear(ProfileManager.KEY_DIRTY_KEYS);
+			_stringListHelper.Add(ProfileManager.KEY_DIRTY_KEYS, "coins");
+			_mockSharedPrefs.Save();
+
+			_mockVersionAttribute = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "_version");
+			_mockVersionAttribute.SetValue(5); // server snapshot version
+			_mockUserAttributes = new MockSnipeApiUserAttributes(_mockApiService);
+			_mockApiService.SetNextRequestSuccess(true); // simulate successful sync
+
+			_profileManager = new ProfileManager(_mockApiService, _mockSharedPrefs);
+			_profileManager.Initialize(_mockVersionAttribute);
+
 			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
-			serverAttr.SetValue(2000);
+			serverAttr.SetValue(50); // server snapshot value (older)
 			_mockUserAttributes.RegisterAttribute(serverAttr);
-			_mockVersionAttribute.SetValue(1);
-			_mockApiService.SetNextRequestSuccess(false);
 
 			var attr = _profileManager.GetAttribute<int>(serverAttr);
-			attr.Value = 2050; // Local change while offline
+			Assert.AreEqual(100, attr.Value, "Local newer value should be preserved on reconnect");
 
-			// Act - Server has newer version (someone else changed it on another device)
-			_mockVersionAttribute.SetValue(5); // Server version is now newer
-			serverAttr.SetValue(2100); // Server has different value with newer version
+			// Act: trigger send of pending changes by changing value locally
+			attr.Value = 120; // increments localVersion to 11 and sends request (success)
 
-			// Assert - Server value should be accepted when server version is newer
-			Assert.AreEqual(2100, attr.Value,
-				"Server value should be accepted when server version is newer");
-			Assert.AreEqual(2100, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 0),
-				"Local storage should be updated with server value");
+			// Assert: local and lastSynced should align to serverSnapshot+1
+			Assert.AreEqual(120, attr.Value);
+			Assert.AreEqual(120, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins"));
 
-			// Dirty keys should be removed since server version is newer
+			int localVersion = _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION);
+			int lastSyncedVersion = _mockSharedPrefs.GetInt(ProfileManager.KEY_LAST_SYNCED_VERSION);
+
+			// Server snapshot was 5, expect both to become 6
+			Assert.AreEqual(6, localVersion, "Local version should align to serverSnapshot+1 after sync");
+			Assert.AreEqual(6, lastSyncedVersion, "Last synced version should align to serverSnapshot+1 after sync");
+
 			var dirtyKeys = _stringListHelper.GetList(ProfileManager.KEY_DIRTY_KEYS);
-			Assert.IsFalse(dirtyKeys.Contains("coins"),
-				"Dirty keys should be removed when server version is newer");
+			Assert.IsFalse(dirtyKeys.Contains("coins"), "Dirty keys should be cleared after successful sync");
 		}
+
+	[Test]
+	public void OfflineChanges_MultipleChangesThenSync_AlignsVersionsCorrectly()
+	{
+		// Scenario: Before disconnect: localVersion = 10, serverVersion = 10 (synced)
+		// Disconnect, make 3 offline changes → localVersion = 13, serverVersion = 10
+		// Reconnect, make 1 more change → localVersion = 14, serverVersion = 10
+		// Sync succeeds → both localVersion and serverVersion should become 11
+
+		// Arrange - initial synced state
+		_profileManager.Dispose();
+		_mockSharedPrefs.SetInt(ProfileManager.KEY_LOCAL_VERSION, 10);
+		_mockSharedPrefs.SetInt(ProfileManager.KEY_LAST_SYNCED_VERSION, 10);
+		_mockSharedPrefs.SetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 100);
+		_stringListHelper.Clear(ProfileManager.KEY_DIRTY_KEYS);
+		_mockSharedPrefs.Save();
+
+		_mockVersionAttribute = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "_version");
+		_mockVersionAttribute.SetValue(10); // Server version = 10 (synced)
+		_mockUserAttributes = new MockSnipeApiUserAttributes(_mockApiService);
+		_mockUserAttributes.RegisterAttribute(_mockVersionAttribute);
+		_mockApiService.SetNextRequestSuccess(false); // Simulate offline - requests fail
+
+		_profileManager = new ProfileManager(_mockApiService, _mockSharedPrefs);
+		_profileManager.Initialize(_mockVersionAttribute);
+
+		var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+		serverAttr.SetValue(100);
+		_mockUserAttributes.RegisterAttribute(serverAttr);
+		var attr = _profileManager.GetAttribute<int>(serverAttr);
+
+		// Act 1 - Make 3 offline changes
+		attr.Value = 110; // Change 1: localVersion becomes 11
+		attr.Value = 120; // Change 2: localVersion becomes 12
+		attr.Value = 130; // Change 3: localVersion becomes 13
+
+		// Verify offline state
+		int localVersionAfterOffline = _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION);
+		Assert.AreEqual(13, localVersionAfterOffline, "Local version should be 13 after 3 offline changes");
+		Assert.AreEqual(130, attr.Value, "Value should be 130 after 3 offline changes");
+
+		// Act 2 - Reconnect (server version still 10)
+		_mockVersionAttribute.SetValue(10); // Server version hasn't changed
+		_mockApiService.SetNextRequestSuccess(true); // Enable successful sync
+
+		// Act 3 - Make one more change after reconnect
+		attr.Value = 140; // Change 4: localVersion becomes 14
+
+		// In our mock, SendPendingChanges is called synchronously on change; sync will complete immediately.
+		// So at this point versions may already be adjusted by sync callback.
+
+		// Force sync by triggering SendPendingChanges (changing value again or waiting for sync)
+		// Since sync is enabled and there are dirty keys, the sync should happen
+		// We can trigger it by making another change or by manually calling sync
+		// For this test, we'll wait a moment for the sync to complete (in real scenario it's async)
+		// But in our mock, it's synchronous, so we just need to ensure the request completes
+		
+		// The sync should have been triggered automatically when we set the value
+		// Let's verify the state after sync completes
+		_mockSharedPrefs.Save();
+
+		// Assert - After successful sync, local/lastSynced align to serverSnapshot+1 (11)
+		int localVersionAfterSync = _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION);
+		int lastSyncedVersion = _mockSharedPrefs.GetInt(ProfileManager.KEY_LAST_SYNCED_VERSION);
+
+		Assert.AreEqual(11, localVersionAfterSync,
+			"Local version should align to serverSnapshot+1 after successful sync");
+		Assert.AreEqual(11, lastSyncedVersion,
+			"Last synced version should be 11 after successful sync");
+
+		// Value should be preserved
+		Assert.AreEqual(140, attr.Value, "Value should be preserved after sync");
+		Assert.AreEqual(140, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins"),
+			"Local storage should preserve the value after sync");
+
+		// Dirty keys should be cleared
+		var dirtyKeys = _stringListHelper.GetList(ProfileManager.KEY_DIRTY_KEYS);
+		Assert.IsFalse(dirtyKeys.Contains("coins"),
+			"Dirty keys should be cleared after successful sync");
+	}
+
+	[Test]
+	public void OfflineChanges_ReconnectWithNewerServerValue_AcceptsServerValue()
+	{
+		// Test that if server version is newer, we accept server value (normal case)
+
+		// Arrange
+		var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+		serverAttr.SetValue(2000);
+		_mockUserAttributes.RegisterAttribute(serverAttr);
+		_mockVersionAttribute.SetValue(1);
+		_mockApiService.SetNextRequestSuccess(false);
+
+		var attr = _profileManager.GetAttribute<int>(serverAttr);
+		attr.Value = 2050; // Local change while offline
+
+		// Act - Server has newer version (someone else changed it on another device)
+		_mockVersionAttribute.SetValue(5); // Server version is now newer
+		serverAttr.SetValue(2100); // Server has different value with newer version
+
+		// Assert - Server value should be accepted when server version is newer
+		Assert.AreEqual(2100, attr.Value,
+			"Server value should be accepted when server version is newer");
+		Assert.AreEqual(2100, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 0),
+			"Local storage should be updated with server value");
+
+		// Dirty keys should be removed since server version is newer
+		var dirtyKeys = _stringListHelper.GetList(ProfileManager.KEY_DIRTY_KEYS);
+		Assert.IsFalse(dirtyKeys.Contains("coins"),
+			"Dirty keys should be removed when server version is newer");
+	}
 
 		[Test]
 		public void ProfileAttribute_ValueChanged_EventFires()
