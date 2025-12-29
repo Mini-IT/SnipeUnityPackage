@@ -201,6 +201,23 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.IsFalse(dirtyKeys.Contains("coins"));
 		}
 
+		// [Test]
+		// public void OnServerAttributeChanged_DoesNotUpdateLocalStorageWithGreaterVersion()
+		// {
+		// 	// Arrange
+		// 	var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+		// 	serverAttr.SetValue(50);
+		// 	_mockUserAttributes.RegisterAttribute(serverAttr);
+		// 	var attr = _profileManager.GetAttribute<int>(serverAttr);
+		//
+		// 	// Act
+		// 	serverAttr.SetValue(200);
+		//
+		// 	// Assert
+		// 	Assert.AreEqual(200, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 0));
+		// 	Assert.AreEqual(200, attr.Value);
+		// }
+
 		[Test]
 		public void RebuildPendingChanges_WithDirtyKeys_ReturnsCorrectValues()
 		{
@@ -306,47 +323,6 @@ namespace MiniIT.Snipe.Tests.Editor
 				"Request type should be attr.set for syncing pending changes");
 		}
 
-		// [Test]
-		// public void SyncWithServer_LocalVersionGreater_SendsPendingChangesMulti()
-		// {
-		// 	// Arrange - simulate a previous session where attribute was used and dirty keys were created
-		// 	var serverAttrCoins = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
-		// 	var serverAttrPoints = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "points");
-		// 	_mockUserAttributes.RegisterAttribute(serverAttrCoins);
-		// 	_mockUserAttributes.RegisterAttribute(serverAttrPoints);
-		// 	_mockVersionAttribute.SetValue(1);
-		//
-		// 	// Set up state as if from a previous session: local version > last synced version, with dirty keys
-		// 	_mockSharedPrefs.SetInt(ProfileManager.KEY_LOCAL_VERSION, 5);
-		// 	_mockSharedPrefs.SetInt(ProfileManager.KEY_LAST_SYNCED_VERSION, 3);
-		// 	_mockSharedPrefs.SetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 100);
-		// 	_mockSharedPrefs.SetInt(ProfileManager.KEY_ATTR_PREFIX + "points", 200);
-		// 	_stringListHelper.Add(ProfileManager.KEY_DIRTY_KEYS, "coins");
-		// 	_stringListHelper.Add(ProfileManager.KEY_DIRTY_KEYS, "points");
-		// 	_mockSharedPrefs.Save();
-		// 	_mockVersionAttribute.SetValue(4);
-		// 	_mockApiService.SetNextRequestSuccess(true);
-		// 	var initialRequestCount = _mockApiService.RequestCount;
-		//
-		// 	// Act - create new ProfileManager, initialize, and retrieve attribute
-		// 	// Retrieving the attribute registers the local value getter, enabling RebuildPendingChanges to work
-		// 	_profileManager.Dispose();
-		// 	_profileManager = new ProfileManager();
-		// 	_profileManager.Initialize(_mockApiService, _mockUserAttributes, _mockSharedPrefs);
-		// 	// Get attribute to register local value getter so RebuildPendingChanges can find the value
-		// 	var attrCoins = _profileManager.GetAttribute<int>(serverAttrCoins);
-		// 	var attrPoints = _profileManager.GetAttribute<int>(serverAttrPoints);
-		// 	// Changing the value triggers SendPendingChanges, which will sync the existing dirty keys
-		// 	attrCoins.Value = 150;
-		// 	attrPoints.Value = 220;
-		//
-		// 	// Assert - should attempt to send pending changes when local version > last synced version
-		// 	Assert.Greater(_mockApiService.RequestCount, initialRequestCount,
-		// 		"Request should be made when local version is greater than last synced version");
-		// 	Assert.AreEqual("attr.setMulti", _mockApiService.LastRequestType,
-		// 		"Request type should be attr.setMulti for syncing pending changes");
-		// }
-
 		[Test]
 		public void SyncWithServer_ServerVersionGreater_AcceptsServerValues()
 		{
@@ -413,6 +389,59 @@ namespace MiniIT.Snipe.Tests.Editor
 			dirtyKeys = _stringListHelper.GetList(ProfileManager.KEY_DIRTY_KEYS);
 			Assert.Contains("coins", dirtyKeys,
 				"Dirty keys should remain so local changes can be synced to server");
+		}
+
+		[Test]
+		public void OfflineChanges_ReconnectWithOldServerValue_PreservesLocalChanges2()
+		{
+			// This test reproduces the bug described in the review:
+			// Local value = 100
+			// Local version = 10
+			// ServerValue = 50
+			// ServerVersion = 5
+			// когда приконнектилось применилась версия с сервера и она же отправилась через attr.set
+			// должно было примениться локальное значение, т.к. локальная версия больше, и это значение должно было отправиться на сервер
+
+			// Arrange
+			_profileManager.Dispose();
+
+			// Simulate previous offline session with local changes
+			_mockSharedPrefs.SetInt(ProfileManager.KEY_LOCAL_VERSION, 10);
+			_mockSharedPrefs.SetInt(ProfileManager.KEY_LAST_SYNCED_VERSION, 5);
+			_mockSharedPrefs.SetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 100);
+			_stringListHelper.Clear(ProfileManager.KEY_DIRTY_KEYS);
+			_stringListHelper.Add(ProfileManager.KEY_DIRTY_KEYS, "coins");
+			_mockSharedPrefs.Save();
+
+			// Server state is older
+			_mockVersionAttribute = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "_version");
+			_mockVersionAttribute.SetValue(5); // server version is 5
+			_mockUserAttributes = new MockSnipeApiUserAttributes(_mockApiService);
+
+			// Recreate manager to simulate reconnect
+			_profileManager = new ProfileManager(_mockApiService, _mockSharedPrefs);
+			_profileManager.Initialize(_mockVersionAttribute);
+
+			// Server attribute has old value (50) with older version
+			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+			serverAttr.SetValue(50); // server value (older)
+			_mockUserAttributes.RegisterAttribute(serverAttr);
+
+			// Act - get attribute on reconnect
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
+
+			// Assert - local value should win because localVersion (10) > serverVersion (5)
+			Assert.AreEqual(100, attr.Value, "Local newer value should be preserved on reconnect");
+			Assert.AreEqual(100, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins"),
+				"Local storage should keep newer offline value");
+
+			// Dirty keys should remain so the value can be synced to server
+			var dirtyKeys = _stringListHelper.GetList(ProfileManager.KEY_DIRTY_KEYS);
+			Assert.Contains("coins", dirtyKeys, "Dirty key should remain for syncing newer local change");
+
+			// Local version should remain 10 (not downgraded by server snapshot)
+			Assert.AreEqual(10, _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION),
+				"Local version should not be downgraded by older server version");
 		}
 
 		[Test]

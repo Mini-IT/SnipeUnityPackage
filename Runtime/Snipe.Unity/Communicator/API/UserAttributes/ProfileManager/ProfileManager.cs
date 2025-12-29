@@ -96,17 +96,28 @@ namespace MiniIT.Snipe.Api
 		private void InitializeAttributeValue<T>(SnipeApiReadOnlyUserAttribute<T> serverAttr, ProfileAttribute<T> attr)
 		{
 			var key = serverAttr.Key;
-			if (serverAttr.IsInitialized)
+			var localVersion = GetLocalVersion();
+			var serverVersion = _versionAttr?.GetValue() ?? 0;
+			bool hasLocalChange = _stringListHelper.Contains(KEY_DIRTY_KEYS, key);
+			bool shouldPreserveLocalChanges = hasLocalChange && serverVersion < localVersion;
+
+			if (serverAttr.IsInitialized && !shouldPreserveLocalChanges)
 			{
-				// Server attribute is initialized - use its value
-				attr.SetValueFromServer(serverAttr.GetValue());
-				// Also update local storage to match server
-				SetLocalValue(key, serverAttr.GetValue());
+				// Server attribute is initialized and either there are no local changes
+				// or server is newer/equal - use its value
+				var serverValue = serverAttr.GetValue();
+				attr.SetValueFromServer(serverValue);
+				SetLocalValue(key, serverValue);
+
+				// If server is authoritative, clear dirty flag
+				if (hasLocalChange && serverVersion >= localVersion)
+				{
+					_stringListHelper.Remove(KEY_DIRTY_KEYS, key);
+				}
 			}
 			else
 			{
-				// Server attribute exists but not initialized yet - use local storage
-				// The server value will arrive later via ValueChanged event
+				// Use local storage value (either server not initialized yet, or local changes are newer)
 				var localValue = GetLocalValue<T>(key);
 				attr.SetValueFromServer(localValue);
 			}
