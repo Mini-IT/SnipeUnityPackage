@@ -16,7 +16,7 @@ namespace MiniIT.Snipe.Api
 		internal const string KEY_ATTR_PREFIX = "profile_attr_";
 
 		private readonly IRequestFactory _requestFactory;
-		private Func<int> _getVersionDelegate;
+		private SnipeApiReadOnlyUserAttribute<int> _versionAttr;
 		private readonly Dictionary<string, AbstractProfileAttribute> _attributes = new();
 		private readonly Dictionary<string, Action<object>> _attributeValueSetters = new();
 		private readonly Dictionary<string, Func<object>> _localValueGetters = new();
@@ -38,12 +38,12 @@ namespace MiniIT.Snipe.Api
 
 		public void Initialize(SnipeApiReadOnlyUserAttribute<int> versionAttr)
 		{
-			if (_getVersionDelegate != null)
+			if (_versionAttr != null)
 			{
 				Dispose();
 			}
 
-			_getVersionDelegate = versionAttr.GetValue;
+			_versionAttr = versionAttr;
 
 			SyncWithServer();
 		}
@@ -162,7 +162,7 @@ namespace MiniIT.Snipe.Api
 			// Check if we have a local change that hasn't been synced yet
 			bool hasLocalChange = _stringListHelper.Contains(KEY_DIRTY_KEYS, key);
 			var localVersion = GetLocalVersion();
-			var serverVersion = _getVersionDelegate?.Invoke() ?? 0;
+			var serverVersion = _versionAttr?.GetValue() ?? 0;
 
 			// If we have local unsynced changes and server version is older than local version,
 			// preserve local changes and don't overwrite with server value.
@@ -210,12 +210,12 @@ namespace MiniIT.Snipe.Api
 
 		private void SyncWithServer()
 		{
-			if (_syncInProgress || _getVersionDelegate == null)
+			if (_syncInProgress || _versionAttr == null)
 			{
 				return;
 			}
 
-			var serverVersion = _getVersionDelegate.Invoke();
+			var serverVersion = _versionAttr.GetValue();
 			var localVersion = GetLocalVersion();
 			var lastSyncedVersion = GetLastSyncedVersion();
 
@@ -323,9 +323,14 @@ namespace MiniIT.Snipe.Api
 					{
 						// Success - clear dirty keys and update versions
 						_stringListHelper.Clear(KEY_DIRTY_KEYS);
-						if (_getVersionDelegate != null)
+
+						if (_versionAttr != null)
 						{
-							var serverVersion = _getVersionDelegate.Invoke();
+							// Server automatically increases version on every value change.
+							// We should do the same here to stay in sync
+							int serverVersion = _versionAttr.GetValue() + 1;
+							_versionAttr.SetValueWithoutEvent(serverVersion);
+
 							SetLocalVersion(serverVersion);
 							SetLastSyncedVersion(serverVersion);
 						}
@@ -425,7 +430,7 @@ namespace MiniIT.Snipe.Api
 			_attributeValueSetters.Clear();
 			_localValueGetters.Clear();
 
-			_getVersionDelegate = null;
+			_versionAttr = null;
 		}
 	}
 }
