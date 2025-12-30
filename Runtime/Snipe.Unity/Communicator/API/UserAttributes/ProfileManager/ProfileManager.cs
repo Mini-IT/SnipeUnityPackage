@@ -26,6 +26,7 @@ namespace MiniIT.Snipe.Api
 		private readonly PlayerPrefsTypeHelper _prefsHelper;
 		private bool _syncInProgress;
 		private bool _disposed;
+		private int _serverVersion;
 
 		public ProfileManager(IRequestFactory requestFactory, ISharedPrefs sharedPrefs)
 		{
@@ -44,6 +45,16 @@ namespace MiniIT.Snipe.Api
 			}
 
 			_versionAttr = versionAttr;
+
+			if (_versionAttr != null)
+			{
+				_serverVersion = _versionAttr.GetValue();
+				_versionAttr.ValueChanged += OnServerVersionChanged;
+			}
+			else
+			{
+				_serverVersion = GetLastSyncedVersion();
+			}
 
 			SyncWithServer();
 		}
@@ -97,9 +108,8 @@ namespace MiniIT.Snipe.Api
 		{
 			var key = serverAttr.Key;
 			var localVersion = GetLocalVersion();
-			var serverVersion = _versionAttr?.GetValue() ?? 0;
 			bool hasLocalChange = _stringListHelper.Contains(KEY_DIRTY_KEYS, key);
-			bool shouldPreserveLocalChanges = hasLocalChange && serverVersion < localVersion;
+			bool shouldPreserveLocalChanges = hasLocalChange && _serverVersion < localVersion;
 
 			if (serverAttr.IsInitialized && !shouldPreserveLocalChanges)
 			{
@@ -110,7 +120,7 @@ namespace MiniIT.Snipe.Api
 				SetLocalValue(key, serverValue);
 
 				// If server is authoritative, clear dirty flag
-				if (hasLocalChange && serverVersion >= localVersion)
+				if (hasLocalChange && _serverVersion >= localVersion)
 				{
 					_stringListHelper.Remove(KEY_DIRTY_KEYS, key);
 				}
@@ -173,11 +183,10 @@ namespace MiniIT.Snipe.Api
 			// Check if we have a local change that hasn't been synced yet
 			bool hasLocalChange = _stringListHelper.Contains(KEY_DIRTY_KEYS, key);
 			var localVersion = GetLocalVersion();
-			var serverVersion = _versionAttr?.GetValue() ?? 0;
 			var lastSyncedVersion = GetLastSyncedVersion();
 
 			// Ignore stale server pushes (older than last synced snapshot)
-			if (serverVersion < lastSyncedVersion)
+			if (_serverVersion < lastSyncedVersion)
 			{
 				return;
 			}
@@ -187,7 +196,7 @@ namespace MiniIT.Snipe.Api
 			// This prevents losing offline progress when reconnecting.
 			// Note: If serverVersion == 0 (uninitialized) and we have local changes, we preserve local changes
 			// because they represent newer offline progress. If serverVersion >= localVersion, server is authoritative.
-			bool shouldPreserveLocalChanges = hasLocalChange && serverVersion < localVersion;
+			bool shouldPreserveLocalChanges = hasLocalChange && _serverVersion < localVersion;
 
 			if (!shouldPreserveLocalChanges)
 			{
@@ -213,16 +222,16 @@ namespace MiniIT.Snipe.Api
 			// If serverVersion < localVersion, we preserve local changes so dirty keys remain
 			if (hasLocalChange)
 			{
-				if (serverVersion >= localVersion)
+				if (_serverVersion >= localVersion)
 				{
 					_stringListHelper.Remove(KEY_DIRTY_KEYS, key);
 				}
 			}
 
 			// Update version if server is newer
-			if (serverVersion > localVersion)
+			if (_serverVersion > localVersion)
 			{
-				SetLocalVersion(serverVersion);
+				SetLocalVersion(_serverVersion);
 			}
 		}
 
@@ -233,7 +242,6 @@ namespace MiniIT.Snipe.Api
 				return;
 			}
 
-			var serverVersion = _versionAttr.GetValue();
 			var localVersion = GetLocalVersion();
 			var lastSyncedVersion = GetLastSyncedVersion();
 
@@ -245,20 +253,20 @@ namespace MiniIT.Snipe.Api
 				// Client has unsynced changes
 				SendPendingChanges(pendingChanges);
 			}
-			else if (serverVersion > localVersion)
+			else if (_serverVersion > localVersion)
 			{
 				// Server has newer changes - accept all server values
 				// This should already be handled by ValueChanged events, but clear dirty keys just in case
 				_stringListHelper.Clear(KEY_DIRTY_KEYS);
-				SetLocalVersion(serverVersion);
-				SetLastSyncedVersion(serverVersion);
+				SetLocalVersion(_serverVersion);
+				SetLastSyncedVersion(_serverVersion);
 			}
 			else
 			{
 				// Versions are equal - no action needed
 				if (pendingChanges.Count == 0)
 				{
-					SetLastSyncedVersion(serverVersion);
+					SetLastSyncedVersion(_serverVersion);
 				}
 			}
 		}
@@ -346,13 +354,10 @@ namespace MiniIT.Snipe.Api
 						// last-synced versions to serverSnapshot+1 so that subsequent server pushes
 						// are not considered "older". This can lower localVersion, but the change is
 						// already accepted by the server, so server is authoritative.
-						int serverSnapshot = _versionAttr?.GetValue() ?? GetLastSyncedVersion();
-						int newServerVersion = serverSnapshot + 1;
+						_serverVersion++;
 
-						// Persist the new server version snapshot locally
-						_versionAttr?.SetValue(newServerVersion);
-						SetLocalVersion(newServerVersion);
-						SetLastSyncedVersion(newServerVersion);
+						SetLocalVersion(_serverVersion);
+						SetLastSyncedVersion(_serverVersion);
 					}
 					else
 					{
@@ -376,6 +381,15 @@ namespace MiniIT.Snipe.Api
 				["val"] = val,
 				["action"] = action ?? "set",
 			};
+		}
+
+		private void OnServerVersionChanged(int oldValue, int value)
+		{
+			if (_serverVersion != value)
+			{
+				_serverVersion = value;
+				SyncWithServer();
+			}
 		}
 
 		private int GetLocalVersion()
@@ -449,6 +463,10 @@ namespace MiniIT.Snipe.Api
 			_attributeValueSetters.Clear();
 			_localValueGetters.Clear();
 
+			if (_versionAttr != null)
+			{
+				_versionAttr.ValueChanged -= OnServerVersionChanged;
+			}
 			_versionAttr = null;
 		}
 	}
