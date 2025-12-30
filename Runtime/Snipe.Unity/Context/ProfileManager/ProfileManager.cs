@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
+using MiniIT;
 using MiniIT.Snipe;
 using MiniIT.Storage;
 using UnityEngine;
@@ -16,11 +16,12 @@ namespace MiniIT.Snipe.Api
 		internal const string KEY_ATTR_PREFIX = "profile_attr_";
 
 		private readonly IRequestFactory _requestFactory;
+		private readonly SnipeCommunicator _communicator;
+		private readonly AuthSubsystem _auth;
 		private SnipeApiReadOnlyUserAttribute<int> _versionAttr;
 		private readonly Dictionary<string, AbstractProfileAttribute> _attributes = new();
 		private readonly Dictionary<string, Action<object>> _attributeValueSetters = new();
 		private readonly Dictionary<string, Func<object>> _localValueGetters = new();
-		private readonly List<Action> _serverEventUnsubscribers = new();
 		private readonly ISharedPrefs _sharedPrefs;
 		private readonly PlayerPrefsStringListHelper _stringListHelper;
 		private readonly PlayerPrefsTypeHelper _prefsHelper;
@@ -28,9 +29,19 @@ namespace MiniIT.Snipe.Api
 		private bool _disposed;
 		private int _serverVersion;
 
-		public ProfileManager(IRequestFactory requestFactory, ISharedPrefs sharedPrefs)
+		public ProfileManager(SnipeApiContext snipeContext, ISharedPrefs sharedPrefs)
+			: this(snipeContext?.GetSnipeApiService(), snipeContext?.Communicator, snipeContext?.Auth, sharedPrefs)
+		{
+		}
+
+		/// <summary>
+		/// Internal constructor for tests and low-level integration scenarios.
+		/// </summary>
+		internal ProfileManager(IRequestFactory requestFactory, SnipeCommunicator communicator, AuthSubsystem auth, ISharedPrefs sharedPrefs)
 		{
 			_requestFactory = requestFactory;
+			_communicator = communicator;
+			_auth = auth;
 			_sharedPrefs = sharedPrefs;
 
 			_stringListHelper = new PlayerPrefsStringListHelper(_sharedPrefs);
@@ -49,14 +60,76 @@ namespace MiniIT.Snipe.Api
 			if (_versionAttr != null)
 			{
 				_serverVersion = _versionAttr.GetValue();
-				_versionAttr.ValueChanged += OnServerVersionChanged;
 			}
 			else
 			{
 				_serverVersion = GetLastSyncedVersion();
 			}
 
+			_communicator.MessageReceived += OnMessageReceived;
+
 			SyncWithServer();
+		}
+
+		private void OnMessageReceived(string messageType, string errorCode, IDictionary<string, object> data, int requestId)
+		{
+			HandleServerMessage(messageType, errorCode, data, requestId);
+		}
+
+		/// <summary>
+		/// Internal entry point for tests. Production path goes through <see cref="OnMessageReceived"/>.
+		/// </summary>
+		internal void HandleServerMessage(string messageType, string errorCode, IDictionary<string, object> data, int requestId)
+		{
+			if (_disposed)
+			{
+				return;
+			}
+
+			if (!string.Equals(errorCode, SnipeErrorCodes.OK, StringComparison.Ordinal))
+			{
+				return;
+			}
+
+			if (data == null || string.IsNullOrEmpty(messageType))
+			{
+				return;
+			}
+
+			switch (messageType)
+			{
+				// Lists of changed attributes
+				case "attr.getAll":
+					ApplyAttributeList(data, "data");
+					break;
+				case "attr.changed":
+					ApplyAttributeList(data, "list");
+					break;
+				case "attr.getMulti":
+				case "attr.getPrivate":
+				case "attr.getPublic":
+				case "attr.setMulti":
+					if (IsSelfMessage(data))
+					{
+						ApplyAttributeList(data, "data");
+					}
+					break;
+
+				// Single attribute value responses
+				case "attr.get":
+				case "attr.set":
+				case "attr.inc":
+				case "attr.dec":
+					if (IsSelfMessage(data))
+					{
+						string key = data.SafeGetString("key");
+						if (!string.IsNullOrEmpty(key) && data.TryGetValue("val", out object val))
+						{
+							ApplyServerAttributeChange(key, val);
+						}
+					}
+					break;
+			}
 		}
 
 		public ProfileAttribute<T> GetAttribute<T>(SnipeApiReadOnlyUserAttribute<T> serverAttribute)
@@ -69,11 +142,8 @@ namespace MiniIT.Snipe.Api
 
 			var newAttr = new ProfileAttribute<T>(key, this, _sharedPrefs);
 			_attributes[key] = newAttr;
-			_attributeValueSetters[key] = (val) => newAttr.SetValueFromServer((T)val);
+			_attributeValueSetters[key] = (val) => newAttr.SetValueFromServer(TypeConverter.Convert<T>(val));
 			_localValueGetters[key] = () => GetLocalValue<T>(key);
-
-			// Subscribe to server attribute ValueChanged event
-			SubscribeToServerAttribute(serverAttribute);
 
 			// Initialize value from server or local storage
 			InitializeAttributeValue(serverAttribute, newAttr);
@@ -133,22 +203,6 @@ namespace MiniIT.Snipe.Api
 			}
 		}
 
-		private void SubscribeToServerAttribute<T>(SnipeApiReadOnlyUserAttribute<T> serverAttr)
-		{
-			if (serverAttr == null)
-			{
-				return;
-			}
-
-			var key = serverAttr.Key;
-			// Subscribe to ValueChanged event
-			SnipeApiReadOnlyUserAttribute<T>.ValueChangedHandler handler = (oldValue, newValue) => OnServerAttributeChanged(key, newValue);
-			serverAttr.ValueChanged += handler;
-
-			// Store unsubscriber for cleanup
-			_serverEventUnsubscribers.Add(() => serverAttr.ValueChanged -= handler);
-		}
-
 		internal void OnLocalAttributeChanged(string key, object value)
 		{
 			if (_disposed)
@@ -173,9 +227,27 @@ namespace MiniIT.Snipe.Api
 			}
 		}
 
-		private void OnServerAttributeChanged(string key, object value)
+		private void ApplyServerAttributeChange(string key, object value)
 		{
 			if (_disposed)
+			{
+				return;
+			}
+
+			// Special case: version attribute drives sync logic
+			if (_versionAttr != null && string.Equals(key, _versionAttr.Key, StringComparison.Ordinal))
+			{
+				int newServerVersion = TypeConverter.Convert<int>(value);
+				if (_serverVersion != newServerVersion)
+				{
+					_serverVersion = newServerVersion;
+					SyncWithServer();
+				}
+				return;
+			}
+
+			// Unknown attribute - ignore
+			if (!_attributeValueSetters.ContainsKey(key))
 			{
 				return;
 			}
@@ -186,7 +258,7 @@ namespace MiniIT.Snipe.Api
 			var lastSyncedVersion = GetLastSyncedVersion();
 
 			// Ignore stale server pushes (older than last synced snapshot)
-			if (_serverVersion < lastSyncedVersion)
+			if (_serverVersion <= lastSyncedVersion)
 			{
 				return;
 			}
@@ -205,7 +277,7 @@ namespace MiniIT.Snipe.Api
 				SetLocalValue(key, value);
 
 				// Update attribute value
-				if (_attributeValueSetters.TryGetValue(key, out var setter))
+				if (_attributeValueSetters.TryGetValue(key, out Action<object> setter))
 				{
 					setter(value);
 				}
@@ -235,6 +307,60 @@ namespace MiniIT.Snipe.Api
 			}
 		}
 
+		private void ApplyAttributeList(IDictionary<string, object> data, string listKey)
+		{
+			if (!data.TryGetValue(listKey, out object rawList))
+			{
+				return;
+			}
+
+			if (rawList is System.Collections.IList list)
+			{
+				for (int i = 0; i < list.Count; i++)
+				{
+					if (list[i] is IDictionary<string, object> item)
+					{
+						string key = item.SafeGetString("key");
+						if (!string.IsNullOrEmpty(key) && item.TryGetValue("val", out object val))
+						{
+							ApplyServerAttributeChange(key, val);
+						}
+					}
+				}
+			}
+		}
+
+		private bool IsSelfMessage(IDictionary<string, object> data)
+		{
+			// A message is considered "self" when it has no explicit targeting info,
+			// or it explicitly targets the currently logged-in user.
+
+			// Explicit user id targeting (common for attr.get/getMulti/getPublic)
+			if (data.TryGetValue("userID", out object userIdObj))
+			{
+				int targetUserId = TypeConverter.Convert<int>(userIdObj);
+				int currentUserId = _auth?.UserID ?? 0;
+
+				// If we don't know current user, we can't safely treat targeted messages as "self".
+				if (currentUserId == 0)
+				{
+					return false;
+				}
+
+				return targetUserId == currentUserId;
+			}
+
+			// If server echoes login/provider, treat it as explicitly targeted (not clearly "self").
+			string login = data.SafeGetString("login");
+			string provider = data.SafeGetString("provider");
+			if (!string.IsNullOrEmpty(login) || !string.IsNullOrEmpty(provider))
+			{
+				return false;
+			}
+
+			return true;
+		}
+
 		private void SyncWithServer()
 		{
 			if (_syncInProgress || _versionAttr == null)
@@ -256,7 +382,7 @@ namespace MiniIT.Snipe.Api
 			else if (_serverVersion > localVersion)
 			{
 				// Server has newer changes - accept all server values
-				// This should already be handled by ValueChanged events, but clear dirty keys just in case
+				// Values should be handled by incoming messages; clear dirty keys just in case.
 				_stringListHelper.Clear(KEY_DIRTY_KEYS);
 				SetLocalVersion(_serverVersion);
 				SetLastSyncedVersion(_serverVersion);
@@ -278,9 +404,9 @@ namespace MiniIT.Snipe.Api
 
 			foreach (var key in dirtyKeys)
 			{
-				if (_localValueGetters.TryGetValue(key, out var getter))
+				if (_localValueGetters.TryGetValue(key, out Func<object> getter))
 				{
-					var value = getter();
+					var value = getter?.Invoke();
 					if (value != null)
 					{
 						pendingChanges[key] = value;
@@ -316,7 +442,9 @@ namespace MiniIT.Snipe.Api
 
 			if (pendingChanges.Count == 1)
 			{
-				var item = pendingChanges.First();
+				var enumerator = pendingChanges.GetEnumerator();
+				enumerator.MoveNext();
+				var item = enumerator.Current;
 
 				request = _requestFactory.CreateRequest("attr.set", new Dictionary<string, object>()
 				{
@@ -383,15 +511,6 @@ namespace MiniIT.Snipe.Api
 			};
 		}
 
-		private void OnServerVersionChanged(int oldValue, int value)
-		{
-			if (_serverVersion != value)
-			{
-				_serverVersion = value;
-				SyncWithServer();
-			}
-		}
-
 		private int GetLocalVersion()
 		{
 			return _sharedPrefs.GetInt(KEY_LOCAL_VERSION, 0);
@@ -439,20 +558,10 @@ namespace MiniIT.Snipe.Api
 			_disposed = true;
 			_syncInProgress = false;
 
-			// Unsubscribe from server attributes
-			foreach (var unsubscriber in _serverEventUnsubscribers)
+			if (_communicator != null)
 			{
-				try
-				{
-					unsubscriber?.Invoke();
-				}
-				catch (Exception e)
-				{
-					// ignore
-				}
+				_communicator.MessageReceived -= OnMessageReceived;
 			}
-
-			_serverEventUnsubscribers.Clear();
 
 			foreach (var attr in _attributes.Values)
 			{
@@ -462,11 +571,6 @@ namespace MiniIT.Snipe.Api
 			_attributes.Clear();
 			_attributeValueSetters.Clear();
 			_localValueGetters.Clear();
-
-			if (_versionAttr != null)
-			{
-				_versionAttr.ValueChanged -= OnServerVersionChanged;
-			}
 			_versionAttr = null;
 		}
 	}

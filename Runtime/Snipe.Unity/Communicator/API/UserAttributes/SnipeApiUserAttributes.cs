@@ -70,6 +70,11 @@ namespace MiniIT.Snipe.Api
 
 		private void OnMessageReceived(string messageType, string errorCode, IDictionary<string, object> data, int requestID)
 		{
+			if (!string.Equals(errorCode, SnipeErrorCodes.OK, StringComparison.Ordinal))
+			{
+				return;
+			}
+
 			switch (messageType)
 			{
 				case "attr.getAll":
@@ -78,6 +83,48 @@ namespace MiniIT.Snipe.Api
 
 				case "attr.changed":
 					UpdateValues(data["list"]);
+					break;
+
+				case "attr.set":
+				{
+					string key = data.SafeGetString("key");
+					if (!string.IsNullOrEmpty(key) && data.TryGetValue("val", out object val))
+					{
+						UpdateValues(new List<IDictionary<string, object>>()
+						{
+							new Dictionary<string, object>()
+							{
+								["key"] = key,
+								["val"] = val
+							}
+						});
+					}
+					break;
+				}
+
+				case "attr.setMulti":
+					// Server typically returns updated values in "data"
+					if (data.TryGetValue("data", out object rawList))
+					{
+						UpdateValues(rawList);
+						break;
+					}
+
+					// Be defensive: if server returns a single key/val pair.
+					{
+						string key = data.SafeGetString("key");
+						if (!string.IsNullOrEmpty(key) && data.TryGetValue("val", out object val))
+						{
+							UpdateValues(new List<IDictionary<string, object>>()
+							{
+								new Dictionary<string, object>()
+								{
+									["key"] = key,
+									["val"] = val
+								}
+							});
+						}
+					}
 					break;
 			}
 		}
