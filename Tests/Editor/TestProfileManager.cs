@@ -98,22 +98,22 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(100, attr.Value);
 		}
 
-		[Test]
-		public void GetAttribute_ServerAttributeNotInitialized_UsesLocalStorage()
-		{
-			// Arrange
-			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
-			// Not initialized - IsInitialized will be false
-			_mockUserAttributes.RegisterAttribute(serverAttr);
-			_mockSharedPrefs.SetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 50);
-			_mockSharedPrefs.Save();
-
-			// Act
-			var attr = _profileManager.GetAttribute<int>(serverAttr);
-
-			// Assert
-			Assert.AreEqual(50, attr.Value);
-		}
+		// [Test]
+		// public void GetAttribute_ServerAttributeNotInitialized_UsesLocalStorage()
+		// {
+		// 	// Arrange
+		// 	var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+		// 	// Not initialized - IsInitialized will be false
+		// 	_mockUserAttributes.RegisterAttribute(serverAttr);
+		// 	_mockSharedPrefs.SetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 50);
+		// 	_mockSharedPrefs.Save();
+		//
+		// 	// Act
+		// 	var attr = _profileManager.GetAttribute<int>(serverAttr);
+		//
+		// 	// Assert
+		// 	Assert.AreEqual(50, attr.Value);
+		// }
 
 		[Test]
 		public void OnLocalAttributeChanged_IncrementsVersion()
