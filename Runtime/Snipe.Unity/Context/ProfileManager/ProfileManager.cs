@@ -205,11 +205,8 @@ namespace MiniIT.Snipe.Api
 			// Add to dirty set (always, even if sync is in progress)
 			_stringListHelper.Add(KEY_DIRTY_KEYS, key);
 
-			// Try to send pending changes (only if not already in progress)
-			if (!_syncInProgress)
-			{
-				SendPendingChanges();
-			}
+			// Try to send local changes to server
+			SyncWithServer();
 		}
 
 		private void ApplyServerAttributeChange(string key, object value)
