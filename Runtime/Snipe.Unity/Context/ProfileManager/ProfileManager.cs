@@ -188,7 +188,7 @@ namespace MiniIT.Snipe.Api
 			}
 		}
 
-		internal void OnLocalAttributeChanged(string key, object value)
+		internal void OnAttributeLocalValueChanged(string key, object value)
 		{
 			if (_disposed)
 			{
