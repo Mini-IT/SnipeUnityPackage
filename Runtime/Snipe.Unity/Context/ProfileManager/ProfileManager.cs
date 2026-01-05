@@ -305,6 +305,12 @@ namespace MiniIT.Snipe.Api
 					if (list[i] is IDictionary<string, object> item)
 					{
 						string key = item.SafeGetString("key");
+						
+						if (_serverVersionAttrKey != null && string.Equals(key, _serverVersionAttrKey, StringComparison.Ordinal))
+						{
+							continue;
+						}
+
 						if (!string.IsNullOrEmpty(key) && item.TryGetValue("val", out object val))
 						{
 							ApplyServerAttributeChange(key, val);
