@@ -21,6 +21,9 @@ namespace MiniIT.Snipe.Api
 		private readonly Dictionary<string, AbstractProfileAttribute> _attributes = new();
 		private readonly Dictionary<string, Action<object>> _attributeValueSetters = new();
 		private readonly Dictionary<string, Func<object>> _localValueGetters = new();
+		// Stores latest server snapshot values for all keys received from the server.
+		// We DO NOT persist these to SharedPrefs unless the attribute is registered via GetAttribute.
+		private readonly Dictionary<string, object> _serverSnapshotValues = new();
 		private readonly ISharedPrefs _sharedPrefs;
 		private readonly PlayerPrefsStringListHelper _stringListHelper;
 		private readonly PlayerPrefsTypeHelper _prefsHelper;
@@ -176,8 +179,44 @@ namespace MiniIT.Snipe.Api
 			string key = serverAttr.Key;
 			int localVersion = GetLocalVersion();
 
+			// Prefer server snapshot if we already received it (even if serverAttr wasn't registered
+			// at the moment of attr.getAll/attr.changed and thus never became initialized).
+			if (_serverVersion >= localVersion)
+			{
+				T serverValue;
+				bool serverValueExists = false;
+
+				if (_serverSnapshotValues.TryGetValue(key, out object rawServerValue))
+				{
+					serverValue = TypeConverter.Convert<T>(rawServerValue);
+					serverValueExists = true;
+				}
+				else if (serverAttr.IsInitialized)
+				{
+					serverValue = serverAttr.GetValue();
+					serverValueExists = true;
+				}
+				else
+				{
+					serverValue = default;
+				}
+
+				if (serverValueExists)
+				{
+					attr.SetValueFromServer(serverValue);
+					SetLocalValue(key, serverValue);
+
+					_stringListHelper.Remove(key);
+
+					// We just accepted the server snapshot as authoritative, so local is now in sync.
+					SetLocalVersion(_serverVersion);
+					SetLastSyncedVersion(_serverVersion);
+					return;
+				}
+			}
+
 			// If we don't have the value from server yet (offline or not initialized),
-			// we must rely on local storage to avoid overwriting with default(T).
+			// rely on local storage to avoid overwriting with default(T).
 			if (!serverAttr.IsInitialized)
 			{
 				var localValue = GetLocalValue<T>(key);
@@ -187,7 +226,7 @@ namespace MiniIT.Snipe.Api
 
 			if (_serverVersion >= localVersion)
 			{
-				// Server has newer version
+				// Server has newer (or equal) version
 				var serverValue = serverAttr.GetValue();
 				attr.SetValueFromServer(serverValue);
 				SetLocalValue(key, serverValue);
@@ -234,13 +273,12 @@ namespace MiniIT.Snipe.Api
 				return;
 			}
 
-			// Unknown attribute - ignore
+			// Update ONLY registered attributes (GetAttribute must be called).
+			// Server snapshot values for unregistered keys are stored in _serverSnapshotValues.
 			if (!_attributeValueSetters.TryGetValue(key, out Action<object> attrValueSetter))
 			{
 				return;
 			}
-
-			// Check if we have a local change that hasn't been synced yet
 
 			var localVersion = GetLocalVersion();
 			var lastSyncedVersion = GetLastSyncedVersion();
@@ -251,12 +289,8 @@ namespace MiniIT.Snipe.Api
 				return;
 			}
 
-			// If we have local unsynced changes and server version is older than local version,
-			// preserve local changes and don't overwrite with server value.
-			// This prevents losing offline progress when reconnecting.
-			// Note: If serverVersion == 0 (uninitialized) and we have local changes, we preserve local changes
-			// because they represent newer offline progress. If serverVersion >= localVersion, server is authoritative.
-
+			// Server is authoritative only when its snapshot version is greater than the local version.
+			// Otherwise, preserve local offline progress.
 			if (_serverVersion > localVersion)
 			{
 				// Server value is authoritative - accept it
@@ -334,6 +368,8 @@ namespace MiniIT.Snipe.Api
 
 					if (!string.IsNullOrEmpty(key) && item.TryGetValue("val", out object val))
 					{
+						// Store snapshot for late-created attributes (do NOT persist to prefs here).
+						_serverSnapshotValues[key] = val;
 						ApplyServerAttributeChange(key, val);
 					}
 				}
@@ -581,6 +617,7 @@ namespace MiniIT.Snipe.Api
 			_attributes.Clear();
 			_attributeValueSetters.Clear();
 			_localValueGetters.Clear();
+			_serverSnapshotValues.Clear();
 			_serverVersionAttrKey = null;
 		}
 	}

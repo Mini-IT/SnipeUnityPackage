@@ -475,6 +475,55 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[Test]
+		public void Scenario3_OnlineStart_SnapshotArrivesBeforeAttributeCreation_LateCreatedAttributeReadsServerValue()
+		{
+			// Real-life regression:
+			// attr.getAll can arrive before any ProfileAttribute is created.
+			// In this case ProfileManager must still persist values to prefs,
+			// so GetAttribute later returns correct server value (not default(T)).
+
+			_profileManager.Dispose();
+
+			SetLocalVersion(0);
+			_mockSharedPrefs.SetInt(ProfileManager.KEY_LAST_SYNCED_VERSION, 0);
+			_mockSharedPrefs.DeleteKey(ProfileManager.KEY_ATTR_PREFIX + "coins");
+
+			_mockVersionAttribute = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "_version");
+			_mockUserAttributes = new MockSnipeApiUserAttributes(_mockApiService);
+
+			_profileManager = new ProfileManager(_mockApiService, _mockApiService.Communicator, _mockApiService.Auth, _mockSharedPrefs);
+			_profileManager.Initialize(_mockVersionAttribute);
+
+			// Snapshot arrives first
+			_profileManager.HandleServerMessage("attr.getAll", "ok", new Dictionary<string, object>()
+			{
+				["data"] = new List<IDictionary<string, object>>()
+				{
+					new Dictionary<string, object>()
+					{
+						["key"] = "_version",
+						["val"] = 1
+					},
+					new Dictionary<string, object>()
+					{
+						["key"] = "coins",
+						["val"] = 10
+					}
+				}
+			}, 0);
+
+			// Now attribute is created (server attr object may still be uninitialized in this test)
+			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+			_mockUserAttributes.RegisterAttribute(serverAttr);
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
+
+			Assert.AreEqual(10, attr.Value);
+			Assert.AreEqual(10, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins"));
+			Assert.AreEqual(1, _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION));
+			Assert.AreEqual(1, _mockSharedPrefs.GetInt(ProfileManager.KEY_LAST_SYNCED_VERSION));
+		}
+
+		[Test]
 		public void Scenario4_OfflineStart_LocalAhead_ThenReconnect_NewerServerSnapshot_DoesNotOverwrite_SyncsToServer()
 		{
 			// Initial:
