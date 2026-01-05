@@ -141,6 +141,10 @@ namespace MiniIT.Snipe.Api
 			// Initialize value from server or local storage
 			InitializeAttributeValue(serverAttribute, newAttr);
 
+			// If there are pending changes from a previous session (dirty keys), we can only rebuild
+			// them after the attribute is created and its local getter is registered.
+			SyncWithServer();
+
 			return newAttr;
 		}
 
@@ -189,6 +193,10 @@ namespace MiniIT.Snipe.Api
 				SetLocalValue(key, serverValue);
 
 				_stringListHelper.Remove(key);
+
+				// We just accepted the server snapshot as authoritative, so local is now in sync.
+				SetLocalVersion(_serverVersion);
+				SetLastSyncedVersion(_serverVersion);
 			}
 			else // use local value
 			{
@@ -262,6 +270,10 @@ namespace MiniIT.Snipe.Api
 				// This means the server has the latest version of this attribute
 				// If serverVersion < localVersion, we preserve local changes so dirty keys remain
 				_stringListHelper.Remove(key);
+
+				// We just accepted server state as authoritative, so local versions are now in sync.
+				SetLocalVersion(_serverVersion);
+				SetLastSyncedVersion(_serverVersion);
 			}
 			else
 			{
@@ -270,11 +282,7 @@ namespace MiniIT.Snipe.Api
 				// Dirty keys will remain so the local value can be synced to server
 			}
 
-			// Update version if server is newer
-			if (_serverVersion > localVersion)
-			{
-				SetLocalVersion(_serverVersion);
-			}
+			// Versions are updated above when accepting server state.
 		}
 
 		private void ApplyAttributeList(IDictionary<string, object> data, string listKey)
@@ -384,6 +392,12 @@ namespace MiniIT.Snipe.Api
 			if (localVersion > lastSyncedVersion)
 			{
 				// Client has unsynced changes
+				if (pendingChanges.Count == 0)
+				{
+					// Local is ahead only due to accepting server snapshot; nothing to send.
+					SetLastSyncedVersion(_serverVersion);
+					return;
+				}
 				SendPendingChanges(pendingChanges);
 			}
 			else if (_serverVersion > localVersion)
