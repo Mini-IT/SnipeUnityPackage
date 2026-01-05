@@ -172,6 +172,15 @@ namespace MiniIT.Snipe.Api
 			string key = serverAttr.Key;
 			int localVersion = GetLocalVersion();
 
+			// If we don't have the value from server yet (offline or not initialized),
+			// we must rely on local storage to avoid overwriting with default(T).
+			if (!serverAttr.IsInitialized)
+			{
+				var localValue = GetLocalValue<T>(key);
+				attr.SetValueFromServer(localValue);
+				return;
+			}
+
 			if (_serverVersion >= localVersion)
 			{
 				// Server has newer version
@@ -240,7 +249,7 @@ namespace MiniIT.Snipe.Api
 			// Note: If serverVersion == 0 (uninitialized) and we have local changes, we preserve local changes
 			// because they represent newer offline progress. If serverVersion >= localVersion, server is authoritative.
 
-			if (_serverVersion >= localVersion)
+			if (_serverVersion > localVersion)
 			{
 				// Server value is authoritative - accept it
 				// Update local storage with server value
@@ -361,7 +370,7 @@ namespace MiniIT.Snipe.Api
 
 		private void SyncWithServer()
 		{
-			if (_syncInProgress || _serverVersion < 1)
+			if (_syncInProgress || _serverVersion == 0)
 			{
 				return;
 			}
@@ -379,7 +388,7 @@ namespace MiniIT.Snipe.Api
 			}
 			else if (_serverVersion > localVersion)
 			{
-				// Server has newer changes - accept all server values
+				// Server has newer changes - accept all server values.
 				// Values should be handled by incoming messages; clear dirty keys just in case.
 				_stringListHelper.Clear();
 				SetLocalVersion(_serverVersion);
