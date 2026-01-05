@@ -269,7 +269,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			// go offline -> set coins=20 -> localVersion=2, keep dirty
 			// reconnect -> receive attr.getAll { _version=1; coins=10 }
 			//
-			// Arrange:
+			// Assert:
 			// coins == 20, ValueChanged not called due to snapshot, local value sent, versions aligned to server+1.
 
 			// Arrange
@@ -341,7 +341,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			// set coins=20 -> localVersion=2
 			// receive attr.getAll snapshot { _version=1; coins=10 }
 			//
-			// Arrange:
+			// Assert:
 			// coins == 20, snapshot doesn't raise ValueChanged, local value sent, versions aligned.
 
 			// Arrange - start offline: server version attribute is NOT initialized
@@ -411,7 +411,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			// server: { _version = 1; coins = 10 }
 			// local:  { not initialized }
 			//
-			// Arrange:
+			// Assert:
 			// coins == 10, local value/version are set to server ones.
 
 			_profileManager.Dispose();
@@ -420,19 +420,55 @@ namespace MiniIT.Snipe.Tests.Editor
 			_mockSharedPrefs.SetInt(ProfileManager.KEY_LAST_SYNCED_VERSION, 0);
 			_mockSharedPrefs.DeleteKey(ProfileManager.KEY_ATTR_PREFIX + "coins");
 
+			// Online but BEFORE the first snapshot: server version attribute isn't initialized yet.
 			_mockVersionAttribute = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "_version");
-			_mockVersionAttribute.SetValue(1);
 			_mockUserAttributes = new MockSnipeApiUserAttributes(_mockApiService);
 
 			_profileManager = new ProfileManager(_mockApiService, _mockApiService.Communicator, _mockApiService.Auth, _mockSharedPrefs);
 			_profileManager.Initialize(_mockVersionAttribute);
 
-			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
-			serverAttr.SetValue(10);
+			// Create attribute BEFORE server snapshot arrives, and subscribe to changes.
+			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins"); // not initialized
 			_mockUserAttributes.RegisterAttribute(serverAttr);
 
 			var attr = _profileManager.GetAttribute<int>(serverAttr);
+
+			int valueChangedCount = 0;
+			int lastValueChanged = 0;
+			attr.ValueChanged += v =>
+			{
+				valueChangedCount++;
+				lastValueChanged = v;
+			};
+
+			var observer = new TestObserver<int>();
+			attr.Subscribe(observer);
+
+			// Act: first server snapshot comes in
+			_profileManager.HandleServerMessage("attr.getAll", "ok", new Dictionary<string, object>()
+			{
+				["data"] = new List<IDictionary<string, object>>()
+				{
+					new Dictionary<string, object>()
+					{
+						["key"] = "_version",
+						["val"] = 1
+					},
+					new Dictionary<string, object>()
+					{
+						["key"] = "coins",
+						["val"] = 10
+					}
+				}
+			}, 0);
+
+			// Assert
 			Assert.AreEqual(10, attr.Value);
+			Assert.AreEqual(1, valueChangedCount);
+			Assert.AreEqual(10, lastValueChanged);
+			Assert.AreEqual(1, observer.NextCount);
+			Assert.AreEqual(10, observer.LastValue);
+
 			Assert.AreEqual(10, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins"));
 			Assert.AreEqual(1, _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION));
 			Assert.AreEqual(1, _mockSharedPrefs.GetInt(ProfileManager.KEY_LAST_SYNCED_VERSION));
@@ -448,7 +484,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			// Act:
 			// reconnect -> receive attr.getAll { _version = 2; coins = 20 }
 			//
-			// Arrange:
+			// Assert:
 			// coins == 10, snapshot doesn't raise ValueChanged, local value sent, versions aligned to server+1.
 
 			_profileManager.Dispose();
@@ -504,6 +540,48 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(10, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins"));
 			Assert.AreEqual(3, _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION));
 			Assert.AreEqual(3, _mockSharedPrefs.GetInt(ProfileManager.KEY_LAST_SYNCED_VERSION));
+		}
+
+		[Test]
+		public void Scenario5_OnlineStart_LocalAhead_SendsLocalValueToServer()
+		{
+			// Initial:
+			// online
+			// server: { _version = 1; coins = 10 }
+			// local:  { _version = 3; coins = 20 } (dirty)
+			//
+			// Assert:
+			// ProfileAttribute.Value == 20 and coins=20 is sent to server.
+
+			_profileManager.Dispose();
+
+			SetLocalVersion(3);
+			_mockSharedPrefs.SetInt(ProfileManager.KEY_LAST_SYNCED_VERSION, 1);
+			_mockSharedPrefs.SetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 20);
+			_stringListHelper.Clear();
+			_stringListHelper.Add("coins");
+
+			_mockVersionAttribute = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "_version");
+			_mockVersionAttribute.SetValue(1);
+			_mockUserAttributes = new MockSnipeApiUserAttributes(_mockApiService);
+
+			_mockApiService.SetNextRequestSuccess(true);
+			_profileManager = new ProfileManager(_mockApiService, _mockApiService.Communicator, _mockApiService.Auth, _mockSharedPrefs);
+			_profileManager.Initialize(_mockVersionAttribute);
+
+			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+			serverAttr.SetValue(10);
+			_mockUserAttributes.RegisterAttribute(serverAttr);
+
+			int requestCountBefore = _mockApiService.RequestCount;
+
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
+
+			Assert.AreEqual(20, attr.Value);
+			Assert.Greater(_mockApiService.RequestCount, requestCountBefore);
+			Assert.AreEqual("attr.set", _mockApiService.LastRequestType);
+			Assert.AreEqual("coins", _mockApiService.LastRequestData["key"]);
+			Assert.AreEqual(20, _mockApiService.LastRequestData["val"]);
 		}
 
 		[Test]
@@ -1080,6 +1158,26 @@ namespace MiniIT.Snipe.Tests.Editor
 				 // We need to call InvokeCallback on THIS instance.
 				 this.InvokeCallback(errorCode, responseData);
 			};
+		}
+	}
+
+	internal sealed class TestObserver<T> : IObserver<T>
+	{
+		public int NextCount { get; private set; }
+		public T LastValue { get; private set; }
+
+		public void OnCompleted()
+		{
+		}
+
+		public void OnError(Exception error)
+		{
+		}
+
+		public void OnNext(T value)
+		{
+			NextCount++;
+			LastValue = value;
 		}
 	}
 }
