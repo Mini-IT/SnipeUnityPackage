@@ -98,23 +98,6 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(100, attr.Value);
 		}
 
-		// [Test]
-		// public void GetAttribute_ServerAttributeNotInitialized_UsesLocalStorage()
-		// {
-		// 	// Arrange
-		// 	var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
-		// 	// Not initialized - IsInitialized will be false
-		// 	_mockUserAttributes.RegisterAttribute(serverAttr);
-		// 	_mockSharedPrefs.SetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 50);
-		// 	_mockSharedPrefs.Save();
-		//
-		// 	// Act
-		// 	var attr = _profileManager.GetAttribute<int>(serverAttr);
-		//
-		// 	// Assert
-		// 	Assert.AreEqual(50, attr.Value);
-		// }
-
 		[Test]
 		public void OnLocalAttributeChanged_IncrementsVersion()
 		{
@@ -131,22 +114,6 @@ namespace MiniIT.Snipe.Tests.Editor
 			var newVersion = GetLocalVersion();
 			Assert.AreEqual(initialVersion + 1, newVersion);
 		}
-
-		// [Test]
-		// public void OnLocalAttributeChanged_AddsToDirtyKeys()
-		// {
-		// 	// Arrange
-		// 	var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
-		// 	_mockUserAttributes.RegisterAttribute(serverAttr);
-		// 	var attr = _profileManager.GetAttribute<int>(serverAttr);
-		//
-		// 	// Act
-		// 	attr.Value = 100;
-		//
-		// 	// Assert
-		// 	var dirtyKeys = _stringListHelper.GetList();
-		// 	Assert.Contains("coins", dirtyKeys);
-		// }
 
 		[Test]
 		public void OnLocalAttributeChanged_SavesToLocalStorage()
@@ -177,6 +144,13 @@ namespace MiniIT.Snipe.Tests.Editor
 			{
 				["list"] = new List<IDictionary<string, object>>()
 				{
+					// attr.changed should also carry updated _version; without it ProfileManager
+					// can't safely decide if the server value is newer than local.
+					new Dictionary<string, object>()
+					{
+						["key"] = "_version",
+						["val"] = 2
+					},
 					new Dictionary<string, object>()
 					{
 						["key"] = "coins",
@@ -232,93 +206,6 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.IsFalse(dirtyKeys.Contains("coins"));
 		}
 
-		// [Test]
-		// public void OnServerAttributeChanged_DoesNotUpdateLocalStorageWithGreaterVersion()
-		// {
-		// 	// Arrange
-		// 	var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
-		// 	serverAttr.SetValue(50);
-		// 	_mockUserAttributes.RegisterAttribute(serverAttr);
-		// 	var attr = _profileManager.GetAttribute<int>(serverAttr);
-		//
-		// 	// Act
-		// 	serverAttr.SetValue(200);
-		//
-		// 	// Assert
-		// 	Assert.AreEqual(200, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 0));
-		// 	Assert.AreEqual(200, attr.Value);
-		// }
-
-		// [Test]
-		// public void RebuildPendingChanges_WithDirtyKeys_ReturnsCorrectValues()
-		// {
-		// 	// Arrange
-		// 	var coinsServerAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
-		// 	var levelServerAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "level");
-		// 	_mockUserAttributes.RegisterAttribute(coinsServerAttr);
-		// 	_mockUserAttributes.RegisterAttribute(levelServerAttr);
-		// 	var coinsAttr = _profileManager.GetAttribute<int>(coinsServerAttr);
-		// 	var levelAttr = _profileManager.GetAttribute<int>(levelServerAttr);
-		// 	coinsAttr.Value = 100;
-		// 	levelAttr.Value = 5;
-		//
-		// 	// Act
-		// 	// Access private method via reflection or make it internal for testing
-		// 	// For now, we'll test indirectly through SendPendingChanges behavior
-		// 	var dirtyKeys = _stringListHelper.GetList();
-		//
-		// 	// Assert
-		// 	Assert.Contains("coins", dirtyKeys);
-		// 	Assert.Contains("level", dirtyKeys);
-		// 	Assert.AreEqual(100, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 0));
-		// 	Assert.AreEqual(5, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "level", 0));
-		// }
-
-		// [Test]
-		// public void SendPendingChanges_Success_ClearsDirtyKeys()
-		// {
-		// 	// Arrange
-		// 	var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
-		// 	serverAttr.SetInitialized(true); // simulate that the value was already received from server
-		// 	_mockUserAttributes.RegisterAttribute(serverAttr);
-		//
-		// 	_mockApiService.SetNextRequestSuccess(true); // Set success BEFORE setting value
-		// 	_mockVersionAttribute.SetValue(1);
-		// 	var attr = _profileManager.GetAttribute<int>(serverAttr);
-		//
-		// 	// Act - setting value triggers SendPendingChanges automatically with success enabled
-		// 	attr.Value = 100;
-		//
-		// 	// Force flush SharedPrefs to ensure dirty keys are persisted/cleared
-		// 	_mockSharedPrefs.Save();
-		//
-		// 	// Assert - callback should have been invoked synchronously and cleared dirty keys
-		// 	var dirtyKeys = _stringListHelper.GetList();
-		// 	Assert.IsEmpty(dirtyKeys, "Dirty keys should be cleared after successful sync");
-		// }
-
-		// [Test]
-		// public void SendPendingChanges_Failure_KeepsDirtyKeys()
-		// {
-		// 	// Arrange
-		// 	var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
-		// 	serverAttr.SetInitialized(true); // simulate that the value was already received from server
-		// 	_mockUserAttributes.RegisterAttribute(serverAttr);
-		// 	var attr = _profileManager.GetAttribute<int>(serverAttr);
-		// 	_mockApiService.SetNextRequestSuccess(false); // Set failure BEFORE setting value
-		// 	_mockVersionAttribute.SetValue(1);
-		//
-		// 	// Act
-		// 	attr.Value = 100;
-		//
-		// 	// Force flush SharedPrefs to ensure dirty keys are persisted
-		// 	_mockSharedPrefs.Save();
-		//
-		// 	// Assert - dirty keys should still be present after failure
-		// 	var dirtyKeys = _stringListHelper.GetList();
-		// 	Assert.Contains("coins", dirtyKeys, "Dirty keys should be kept after failed sync");
-		// }
-
 		[Test]
 		public void SyncWithServer_LocalVersionGreater_SendsPendingChangesSingle()
 		{
@@ -372,244 +259,252 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[Test]
-		public void OfflineChanges_ReconnectWithOldServerValue_PreservesLocalChanges()
+		public void Scenario1_OnlineThenOfflineThenReconnect_OlderServerSnapshot_DoesNotOverwrite_SyncsToServer()
 		{
-			// This test reproduces the bug described in the review:
-			// "коннектимся к снайпу получаем данные например у нас на сервере 2000 монет они начисляются.
-			// выключаем инет зарабатываем 50 или тратим. включаем интернет востанавливается 2000.
-			// тоесть все как раньше."
+			// Initial:
+			// server: { _version = 1; coins = 10 }
+			// local:  { _version = 1; coins = 10 }
+			//
+			// Act:
+			// go offline -> set coins=20 -> localVersion=2, keep dirty
+			// reconnect -> receive attr.getAll { _version=1; coins=10 }
+			//
+			// Arrange:
+			// coins == 20, ValueChanged not called due to snapshot, local value sent, versions aligned to server+1.
 
-			// Arrange - simulate initial connection and getting server value
-			int oldLocalVersion = 1;
+			// Arrange
+			SetLocalVersion(1);
+			_mockSharedPrefs.SetInt(ProfileManager.KEY_LAST_SYNCED_VERSION, 1);
+
 			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
-			serverAttr.SetValue(2000); // Initial server value
+			serverAttr.SetValue(10);
 			_mockUserAttributes.RegisterAttribute(serverAttr);
-			_mockVersionAttribute.SetValue(oldLocalVersion);
-			_mockApiService.SetNextRequestSuccess(false); // Simulate offline - requests will fail
+			_mockVersionAttribute.SetValue(1);
+			_mockApiService.SetNextRequestSuccess(true);
 
 			var attr = _profileManager.GetAttribute<int>(serverAttr);
-			Assert.AreEqual(2000, attr.Value, "Initial value should be from server");
+			Assert.AreEqual(10, attr.Value);
 
-			// Act - User goes offline and earns/spends coins
-			attr.Value = 2050; // Local change while offline (earned 50 coins)
-			_mockSharedPrefs.Save();
+			int valueChangedCount = 0;
+			attr.ValueChanged += _ => valueChangedCount++;
 
-			// Verify local change is stored and marked as dirty
-			Assert.AreEqual(2050, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins"),
-				"Local storage should have offline changes");
-			//var dirtyKeys = _stringListHelper.GetList();
-			//Assert.Contains("coins", dirtyKeys, "Coins should be in dirty keys after offline change");
-			int localVersion = GetLocalVersion();
-			Assert.Greater(localVersion, oldLocalVersion, "Local version should be incremented");
+			// Act 1: go offline and change value
+			_mockApiService.SetNextRequestSuccess(false);
+			attr.Value = 20;
+			Assert.AreEqual(20, attr.Value);
+			Assert.AreEqual(1, valueChangedCount, "Local change must raise ValueChanged exactly once");
 
-			// Simulate reconnection - server sends old value (hasn't received local changes yet)
-			// Server version is still same as when we disconnected, but we have local changes
-			_profileManager.HandleServerMessage("attr.changed", "ok", new Dictionary<string, object>()
+			int requestCountBeforeReconnect = _mockApiService.RequestCount;
+
+			// Act 2: reconnect and receive old snapshot (attr.getAll), then sync succeeds
+			_mockApiService.SetNextRequestSuccess(true);
+			_profileManager.HandleServerMessage("attr.getAll", "ok", new Dictionary<string, object>()
 			{
-				["list"] = new List<IDictionary<string, object>>()
+				["data"] = new List<IDictionary<string, object>>()
 				{
 					new Dictionary<string, object>()
 					{
 						["key"] = "_version",
-						["val"] = oldLocalVersion
+						["val"] = 1
 					},
 					new Dictionary<string, object>()
 					{
 						["key"] = "coins",
-						["val"] = 2000
+						["val"] = 10
 					}
 				}
 			}, 0);
 
 			// Assert - Local offline changes should be preserved
-			Assert.AreEqual(2050, attr.Value,
-				"Local offline changes should be preserved when server sends old value");
-			Assert.AreEqual(2050, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins"),
-				"Local storage should preserve offline changes");
+			Assert.AreEqual(20, attr.Value);
+			Assert.AreEqual(1, valueChangedCount, "Snapshot should not raise ValueChanged when resolved value didn't change");
 
-			// Dirty keys should remain so the value can be synced
-			// dirtyKeys = _stringListHelper.GetList();
-			// Assert.Contains("coins", dirtyKeys, "Dirty keys should remain so local changes can be synced to server");
+			Assert.Greater(_mockApiService.RequestCount, requestCountBeforeReconnect,
+				"Reconnect snapshot must trigger sending pending local changes");
+			Assert.AreEqual("attr.set", _mockApiService.LastRequestType);
+			Assert.AreEqual("coins", _mockApiService.LastRequestData["key"]);
+			Assert.AreEqual(20, _mockApiService.LastRequestData["val"]);
+
+			Assert.AreEqual(20, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins"));
+			Assert.AreEqual(2, _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION));
+			Assert.AreEqual(2, _mockSharedPrefs.GetInt(ProfileManager.KEY_LAST_SYNCED_VERSION));
 		}
 
 		[Test]
-		public void OfflineChanges_ReconnectWithOldServerValue_PreservesLocalChanges2()
+		public void Scenario2_OfflineStart_LocalKnown_ThenReconnect_OlderServerSnapshot_DoesNotOverwrite_SyncsToServer()
 		{
-			// This test reproduces the bug described in the review:
-			// Local value = 100
-			// Local version = 10
-			// ServerValue = 50
-			// ServerVersion = 5
-			// когда приконнектилось применилась версия с сервера и она же отправилась через attr.set
-			// должно было примениться локальное значение, т.к. локальная версия больше, и это значение должно было отправиться на сервер
+			// Initial:
+			// offline
+			// local:  { _version = 1; coins = 10 }
+			//
+			// Act:
+			// set coins=20 -> localVersion=2
+			// receive attr.getAll snapshot { _version=1; coins=10 }
+			//
+			// Arrange:
+			// coins == 20, snapshot doesn't raise ValueChanged, local value sent, versions aligned.
 
-			// Arrange
+			// Arrange - start offline: server version attribute is NOT initialized
 			_profileManager.Dispose();
-
-			// Simulate previous offline session with local changes
-			SetLocalVersion(10);
-			_mockSharedPrefs.SetInt(ProfileManager.KEY_LAST_SYNCED_VERSION, 5);
-			_mockSharedPrefs.SetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 100);
-			_stringListHelper.Clear();
-			_stringListHelper.Add("coins");
-			_mockSharedPrefs.Save();
-
-			// Server state is older
-			_mockVersionAttribute = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "_version");
-			_mockVersionAttribute.SetValue(5); // server version is 5
-			_mockUserAttributes = new MockSnipeApiUserAttributes(_mockApiService);
-
-			// Recreate manager to simulate reconnect
-			_profileManager = new ProfileManager(_mockApiService, _mockApiService.Communicator, _mockApiService.Auth, _mockSharedPrefs);
-			_profileManager.Initialize(_mockVersionAttribute);
-
-			// Server attribute has old value (50) with older version
-			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
-			serverAttr.SetValue(50); // server value (older)
-			_mockUserAttributes.RegisterAttribute(serverAttr);
-
-			// Act - get attribute on reconnect
-			var attr = _profileManager.GetAttribute<int>(serverAttr);
-
-			// Assert - local value should win because localVersion (10) > serverVersion (5)
-			Assert.AreEqual(100, attr.Value, "Local newer value should be preserved on reconnect");
-			Assert.AreEqual(100, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins"),
-				"Local storage should keep newer offline value");
-
-			// Dirty keys should remain so the value can be synced to server
-			var dirtyKeys = _stringListHelper.GetList();
-			Assert.Contains("coins", dirtyKeys, "Dirty key should remain for syncing newer local change");
-
-			// Local version should remain 10 (not downgraded by server snapshot)
-			Assert.AreEqual(10, _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION),
-				"Local version should not be downgraded by older server version");
-		}
-
-		[Test]
-		public void SendPendingChanges_AlignsLocalToServerSnapshotPlusOne()
-		{
-			// Arrange: local changes newer than server snapshot
-			_profileManager.Dispose();
-
-			SetLocalVersion(10);
-			_mockSharedPrefs.SetInt(ProfileManager.KEY_LAST_SYNCED_VERSION, 5);
-			_mockSharedPrefs.SetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 100);
-			_stringListHelper.Clear();
-			_stringListHelper.Add("coins");
-			_mockSharedPrefs.Save();
+			SetLocalVersion(1);
+			_mockSharedPrefs.SetInt(ProfileManager.KEY_LAST_SYNCED_VERSION, 1);
+			_mockSharedPrefs.SetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 10);
 
 			_mockVersionAttribute = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "_version");
-			_mockVersionAttribute.SetValue(5); // server snapshot version
 			_mockUserAttributes = new MockSnipeApiUserAttributes(_mockApiService);
-			_mockApiService.SetNextRequestSuccess(true); // simulate successful sync
 
 			_profileManager = new ProfileManager(_mockApiService, _mockApiService.Communicator, _mockApiService.Auth, _mockSharedPrefs);
 			_profileManager.Initialize(_mockVersionAttribute);
 
+			// Offline: server attribute value isn't initialized
 			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
-			serverAttr.SetValue(50); // server snapshot value (older)
 			_mockUserAttributes.RegisterAttribute(serverAttr);
 
 			var attr = _profileManager.GetAttribute<int>(serverAttr);
-			Assert.AreEqual(100, attr.Value, "Local newer value should be preserved on reconnect");
+			Assert.AreEqual(10, attr.Value);
 
-			// Act: trigger send of pending changes by changing value locally
-			attr.Value = 120; // increments localVersion to 11 and sends request (success)
+			int valueChangedCount = 0;
+			attr.ValueChanged += _ => valueChangedCount++;
 
-			// Assert: local and lastSynced should align to serverSnapshot+1
-			Assert.AreEqual(120, attr.Value);
-			Assert.AreEqual(120, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins"));
+			_mockApiService.SetNextRequestSuccess(false);
+			attr.Value = 20;
+			Assert.AreEqual(1, valueChangedCount);
 
-			int localVersion = GetLocalVersion();
-			int lastSyncedVersion = _mockSharedPrefs.GetInt(ProfileManager.KEY_LAST_SYNCED_VERSION);
+			int requestCountBeforeReconnect = _mockApiService.RequestCount;
 
-			// Server snapshot was 5, expect both to become 6
-			Assert.AreEqual(6, localVersion, "Local version should align to serverSnapshot+1 after sync");
-			Assert.AreEqual(6, lastSyncedVersion, "Last synced version should align to serverSnapshot+1 after sync");
+			_mockApiService.SetNextRequestSuccess(true);
+			_profileManager.HandleServerMessage("attr.getAll", "ok", new Dictionary<string, object>()
+			{
+				["data"] = new List<IDictionary<string, object>>()
+				{
+					new Dictionary<string, object>()
+					{
+						["key"] = "_version",
+						["val"] = 1
+					},
+					new Dictionary<string, object>()
+					{
+						["key"] = "coins",
+						["val"] = 10
+					}
+				}
+			}, 0);
 
-			// var dirtyKeys = _stringListHelper.GetList();
-			// Assert.IsFalse(dirtyKeys.Contains("coins"), "Dirty keys should be cleared after successful sync");
+			Assert.AreEqual(20, attr.Value);
+			Assert.AreEqual(1, valueChangedCount, "Snapshot should not raise ValueChanged when resolved value didn't change");
+
+			Assert.Greater(_mockApiService.RequestCount, requestCountBeforeReconnect);
+			Assert.AreEqual("attr.set", _mockApiService.LastRequestType);
+			Assert.AreEqual("coins", _mockApiService.LastRequestData["key"]);
+			Assert.AreEqual(20, _mockApiService.LastRequestData["val"]);
+
+			Assert.AreEqual(20, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins"));
+			Assert.AreEqual(2, _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION));
+			Assert.AreEqual(2, _mockSharedPrefs.GetInt(ProfileManager.KEY_LAST_SYNCED_VERSION));
 		}
 
-		// [Test]
-		// public void OfflineChanges_MultipleChangesThenSync_AlignsVersionsCorrectly()
-		// {
-		// 	// Scenario: Before disconnect: localVersion = 10, serverVersion = 10 (synced)
-		// 	// Disconnect, make 3 offline changes → localVersion = 13, serverVersion = 10
-		// 	// Reconnect, make 1 more change → localVersion = 14, serverVersion = 10
-		// 	// Sync succeeds → both localVersion and serverVersion should become 11
-		//
-		// 	// Arrange - initial synced state
-		// 	_profileManager.Dispose();
-		// 	SetLocalVersion(10);
-		// 	_mockSharedPrefs.SetInt(ProfileManager.KEY_LAST_SYNCED_VERSION, 10);
-		// 	_mockSharedPrefs.SetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 100);
-		// 	_stringListHelper.Clear();
-		// 	_mockSharedPrefs.Save();
-		//
-		// 	_mockVersionAttribute = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "_version");
-		// 	_mockVersionAttribute.SetValue(10); // Server version = 10 (synced)
-		// 	_mockUserAttributes = new MockSnipeApiUserAttributes(_mockApiService);
-		// 	_mockUserAttributes.RegisterAttribute(_mockVersionAttribute);
-		// 	_mockApiService.SetNextRequestSuccess(false); // Simulate offline - requests fail
-		//
-		// 	_profileManager = new ProfileManager(_mockApiService, _mockSharedPrefs);
-		// 	_profileManager.Initialize(_mockVersionAttribute);
-		//
-		// 	var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
-		// 	serverAttr.SetValue(100);
-		// 	_mockUserAttributes.RegisterAttribute(serverAttr);
-		// 	var attr = _profileManager.GetAttribute<int>(serverAttr);
-		//
-		// 	// Act 1 - Make 3 offline changes
-		// 	attr.Value = 110; // Change 1: localVersion becomes 11
-		// 	attr.Value = 120; // Change 2: localVersion becomes 12
-		// 	attr.Value = 130; // Change 3: localVersion becomes 13
-		//
-		// 	// Verify offline state
-		// 	int localVersionAfterOffline = GetLocalVersion();
-		// 	Assert.AreEqual(13, localVersionAfterOffline, "Local version should be 13 after 3 offline changes");
-		// 	Assert.AreEqual(130, attr.Value, "Value should be 130 after 3 offline changes");
-		//
-		// 	// Act 2 - Reconnect (server version still 10)
-		// 	_mockVersionAttribute.SetValue(10); // Server version hasn't changed
-		// 	_mockApiService.SetNextRequestSuccess(true); // Enable successful sync
-		//
-		// 	// Act 3 - Make one more change after reconnect
-		// 	attr.Value = 140; // Change 4: localVersion becomes 14
-		//
-		// 	// In our mock, SendPendingChanges is called synchronously on change; sync will complete immediately.
-		// 	// So at this point versions may already be adjusted by sync callback.
-		//
-		// 	// Force sync by triggering SendPendingChanges (changing value again or waiting for sync)
-		// 	// Since sync is enabled and there are dirty keys, the sync should happen
-		// 	// We can trigger it by making another change or by manually calling sync
-		// 	// For this test, we'll wait a moment for the sync to complete (in real scenario it's async)
-		// 	// But in our mock, it's synchronous, so we just need to ensure the request completes
-		//
-		// 	// The sync should have been triggered automatically when we set the value
-		// 	// Let's verify the state after sync completes
-		// 	_mockSharedPrefs.Save();
-		//
-		// 	// Assert - After successful sync, local/lastSynced align to serverSnapshot+1 (11)
-		// 	int localVersionAfterSync = GetLocalVersion();
-		// 	int lastSyncedVersion = _mockSharedPrefs.GetInt(ProfileManager.KEY_LAST_SYNCED_VERSION);
-		//
-		// 	Assert.AreEqual(11, localVersionAfterSync,
-		// 		"Local version should align to serverSnapshot+1 after successful sync");
-		// 	Assert.AreEqual(11, lastSyncedVersion,
-		// 		"Last synced version should be 11 after successful sync");
-		//
-		// 	// Value should be preserved
-		// 	Assert.AreEqual(140, attr.Value, "Value should be preserved after sync");
-		// 	Assert.AreEqual(140, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins"),
-		// 		"Local storage should preserve the value after sync");
-		//
-		// 	// Dirty keys should be cleared
-		// 	var dirtyKeys = _stringListHelper.GetList();
-		// 	Assert.IsFalse(dirtyKeys.Contains("coins"),
-		// 		"Dirty keys should be cleared after successful sync");
-		// }
+		[Test]
+		public void Scenario3_OnlineStart_LocalNotInitialized_TakesServerValue_AndPersistsLocally()
+		{
+			// Initial:
+			// online
+			// server: { _version = 1; coins = 10 }
+			// local:  { not initialized }
+			//
+			// Arrange:
+			// coins == 10, local value/version are set to server ones.
+
+			_profileManager.Dispose();
+
+			SetLocalVersion(0);
+			_mockSharedPrefs.SetInt(ProfileManager.KEY_LAST_SYNCED_VERSION, 0);
+			_mockSharedPrefs.DeleteKey(ProfileManager.KEY_ATTR_PREFIX + "coins");
+
+			_mockVersionAttribute = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "_version");
+			_mockVersionAttribute.SetValue(1);
+			_mockUserAttributes = new MockSnipeApiUserAttributes(_mockApiService);
+
+			_profileManager = new ProfileManager(_mockApiService, _mockApiService.Communicator, _mockApiService.Auth, _mockSharedPrefs);
+			_profileManager.Initialize(_mockVersionAttribute);
+
+			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+			serverAttr.SetValue(10);
+			_mockUserAttributes.RegisterAttribute(serverAttr);
+
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
+			Assert.AreEqual(10, attr.Value);
+			Assert.AreEqual(10, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins"));
+			Assert.AreEqual(1, _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION));
+			Assert.AreEqual(1, _mockSharedPrefs.GetInt(ProfileManager.KEY_LAST_SYNCED_VERSION));
+		}
+
+		[Test]
+		public void Scenario4_OfflineStart_LocalAhead_ThenReconnect_NewerServerSnapshot_DoesNotOverwrite_SyncsToServer()
+		{
+			// Initial:
+			// offline
+			// local:  { _version = 5; coins = 10 } (dirty)
+			//
+			// Act:
+			// reconnect -> receive attr.getAll { _version = 2; coins = 20 }
+			//
+			// Arrange:
+			// coins == 10, snapshot doesn't raise ValueChanged, local value sent, versions aligned to server+1.
+
+			_profileManager.Dispose();
+
+			SetLocalVersion(5);
+			_mockSharedPrefs.SetInt(ProfileManager.KEY_LAST_SYNCED_VERSION, 2);
+			_mockSharedPrefs.SetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 10);
+			_stringListHelper.Clear();
+			_stringListHelper.Add("coins");
+
+			_mockVersionAttribute = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "_version");
+			_mockUserAttributes = new MockSnipeApiUserAttributes(_mockApiService);
+
+			_profileManager = new ProfileManager(_mockApiService, _mockApiService.Communicator, _mockApiService.Auth, _mockSharedPrefs);
+			_profileManager.Initialize(_mockVersionAttribute);
+
+			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+			_mockUserAttributes.RegisterAttribute(serverAttr);
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
+			Assert.AreEqual(10, attr.Value);
+
+			int valueChangedCount = 0;
+			attr.ValueChanged += _ => valueChangedCount++;
+
+			int requestCountBeforeReconnect = _mockApiService.RequestCount;
+
+			_mockApiService.SetNextRequestSuccess(true);
+			_profileManager.HandleServerMessage("attr.getAll", "ok", new Dictionary<string, object>()
+			{
+				["data"] = new List<IDictionary<string, object>>()
+				{
+					new Dictionary<string, object>()
+					{
+						["key"] = "_version",
+						["val"] = 2
+					},
+					new Dictionary<string, object>()
+					{
+						["key"] = "coins",
+						["val"] = 20
+					}
+				}
+			}, 0);
+
+			Assert.AreEqual(10, attr.Value);
+			Assert.AreEqual(0, valueChangedCount, "Snapshot should not raise ValueChanged when resolved value didn't change");
+
+			Assert.Greater(_mockApiService.RequestCount, requestCountBeforeReconnect);
+			Assert.AreEqual("attr.set", _mockApiService.LastRequestType);
+			Assert.AreEqual("coins", _mockApiService.LastRequestData["key"]);
+			Assert.AreEqual(10, _mockApiService.LastRequestData["val"]);
+
+			Assert.AreEqual(10, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins"));
+			Assert.AreEqual(3, _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION));
+			Assert.AreEqual(3, _mockSharedPrefs.GetInt(ProfileManager.KEY_LAST_SYNCED_VERSION));
+		}
 
 		[Test]
 		public void OfflineChanges_ReconnectWithNewerServerValue_AcceptsServerValue()
@@ -724,29 +619,6 @@ namespace MiniIT.Snipe.Tests.Editor
 				}
 			}, 0));
 		}
-
-		// [Test]
-		// public void MultipleAttributes_IndependentTracking()
-		// {
-		// 	// Arrange
-		// 	var coinsServerAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
-		// 	var levelServerAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "level");
-		// 	_mockUserAttributes.RegisterAttribute(coinsServerAttr);
-		// 	_mockUserAttributes.RegisterAttribute(levelServerAttr);
-		// 	var coinsAttr = _profileManager.GetAttribute<int>(coinsServerAttr);
-		// 	var levelAttr = _profileManager.GetAttribute<int>(levelServerAttr);
-		//
-		// 	// Act
-		// 	coinsAttr.Value = 100;
-		// 	levelAttr.Value = 5;
-		//
-		// 	// Assert
-		// 	var dirtyKeys = _stringListHelper.GetList();
-		// 	Assert.Contains("coins", dirtyKeys);
-		// 	Assert.Contains("level", dirtyKeys);
-		// 	Assert.AreEqual(100, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 0));
-		// 	Assert.AreEqual(5, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "level", 0));
-		// }
 
 		[Test]
 		public void DifferentAttributeTypes_HandledCorrectly()
@@ -872,6 +744,11 @@ namespace MiniIT.Snipe.Tests.Editor
 				{
 					new Dictionary<string, object>()
 					{
+						["key"] = "_version",
+						["val"] = 2
+					},
+					new Dictionary<string, object>()
+					{
 						["key"] = "serverIntList",
 						["val"] = serverList
 					}
@@ -970,120 +847,6 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.IsFalse(_mockSharedPrefs.HasKey(nonExistentOldKey));
 		}
 
-		// [Test]
-		// public void RaceCondition_ChangeDuringSync_ResultIsClearedButNotSent()
-		// {
-		// 	// This test demonstrates a BUG where changes made during a sync are cleared from dirty keys
-		// 	// without being sent.
-		//
-		// 	// Setup with Delayed Service
-		// 	var delayedService = new DelayedMockSnipeApiService();
-		// 	delayedService.AutoComplete = false;
-		//
-		// 	// Re-init manager with delayed service
-		// 	_profileManager.Dispose();
-		// 	_mockUserAttributes = new MockSnipeApiUserAttributes(delayedService);
-		// 	_mockVersionAttribute = new MockSnipeApiReadOnlyUserAttribute<int>(delayedService, "_version");
-		// 	_mockUserAttributes.RegisterAttribute(_mockVersionAttribute);
-		// 	_profileManager = new ProfileManager(delayedService, delayedService.Communicator, delayedService.Auth, _mockSharedPrefs);
-		// 	_profileManager.Initialize(_mockVersionAttribute);
-		//
-		// 	var coinsAttr = CreateAttribute<int>("coins", delayedService);
-		// 	var gemsAttr = CreateAttribute<int>("gems", delayedService);
-		//
-		// 	// 1. Change Coins -> Starts Sync
-		// 	coinsAttr.Value = 100;
-		//
-		// 	// Verify sync started but not finished
-		// 	Assert.IsNotNull(delayedService.PendingCallback, "Sync should be in progress");
-		//
-		// 	// 2. Change Gems -> Should be added to dirty keys
-		// 	gemsAttr.Value = 50;
-		//
-		// 	// var dirtyKeys = _stringListHelper.GetList();
-		// 	// Assert.Contains("coins", dirtyKeys);
-		// 	// Assert.Contains("gems", dirtyKeys);
-		//
-		// 	// 3. Complete the first sync (which only contained "coins")
-		// 	delayedService.PendingCallback.Invoke("ok", new Dictionary<string, object>());
-		//
-		// 	// 4. Assert State
-		// 	// dirtyKeys = _stringListHelper.GetList();
-		// 	//
-		// 	// // BUG EXPECTATION: The dirty keys are cleared, so "gems" is lost!
-		// 	// Assert.IsEmpty(dirtyKeys, "Bug Reproduction: Dirty keys cleared implies 'gems' change is lost");
-		//
-		// 	// Verify only one request was made (for coins)
-		// 	Assert.AreEqual(1, delayedService.RequestCount);
-		// }
-
-		[Test]
-		public void Migrate_DoesNotMarkAsDirty_Demonstration()
-		{
-			// This test demonstrates a BUG where Migrate updates local storage but doesn't mark it dirty
-
-			// Arrange
-			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "migrated_coins");
-			_mockUserAttributes.RegisterAttribute(serverAttr);
-			var attr = _profileManager.GetAttribute<int>(serverAttr);
-
-			// Setup old key
-			string oldKey = "old_migrated_coins";
-			_mockSharedPrefs.SetInt(oldKey, 500);
-			_mockSharedPrefs.Save();
-
-			// Act
-			attr.Migrate(oldKey);
-
-			// Assert
-			Assert.AreEqual(500, attr.Value);
-			Assert.AreEqual(500, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "migrated_coins", 0));
-
-			// BUG EXPECTATION: Dirty keys is empty, so this value is never synced to server
-			var dirtyKeys = _stringListHelper.GetList();
-			Assert.IsEmpty(dirtyKeys, "Bug Reproduction: Migrate should mark key as dirty but doesn't");
-		}
-
-		// [Test]
-		// public void SyncFailure_SubsequentChange_RetriesAll()
-		// {
-		// 	// Setup with Delayed Service
-		// 	var delayedService = new DelayedMockSnipeApiService();
-		// 	delayedService.AutoComplete = false;
-		//
-		// 	// Re-init
-		// 	_profileManager.Dispose();
-		// 	_mockUserAttributes = new MockSnipeApiUserAttributes(delayedService);
-		// 	_mockVersionAttribute = new MockSnipeApiReadOnlyUserAttribute<int>(delayedService, "_version");
-		// 	_mockUserAttributes.RegisterAttribute(_mockVersionAttribute);
-		// 	_profileManager = new ProfileManager(delayedService, delayedService.Communicator, delayedService.Auth, _mockSharedPrefs);
-		// 	_profileManager.Initialize(_mockVersionAttribute);
-		//
-		// 	var coinsAttr = CreateAttribute<int>("coins", delayedService);
-		//
-		// 	// 1. Change Coins -> Starts Sync
-		// 	coinsAttr.Value = 100;
-		//
-		// 	// 2. Fail the sync
-		// 	delayedService.PendingCallback.Invoke("error", null);
-		//
-		// 	// Dirty keys should remain
-		// 	// var dirtyKeys = _stringListHelper.GetList();
-		// 	// Assert.Contains("coins", dirtyKeys);
-		//
-		// 	// 3. Change Coins again (or another value) -> Should trigger new sync
-		// 	delayedService.PendingCallback = null; // Reset
-		// 	delayedService.AutoComplete = true; // Let next one pass normally or check data
-		//
-		// 	// To check data, we can inspect the request in the mock if we expanded it,
-		// 	// but for now checking that a request is made is enough.
-		// 	coinsAttr.Value = 200;
-		//
-		// 	// Assert
-		// 	// Request count should be 2 (1 failed, 1 new)
-		// 	Assert.AreEqual(2, delayedService.RequestCount);
-		// }
-
 		[Test]
 		public void LocalProfileAttribute_ListTypes_WorkCorrectly()
 		{
@@ -1124,100 +887,6 @@ namespace MiniIT.Snipe.Tests.Editor
 		private void SetLocalVersion(int value) => _mockSharedPrefs.SetInt(ProfileManager.KEY_LOCAL_VERSION, value);
 	}
 
-	internal class MockSharedPrefs : ISharedPrefs
-	{
-		private readonly Dictionary<string, object> _storage = new Dictionary<string, object>();
-
-		public bool HasKey(string key)
-		{
-			return _storage.ContainsKey(key);
-		}
-
-		public void DeleteKey(string key)
-		{
-			_storage.Remove(key);
-		}
-
-		public void DeleteAll()
-		{
-			_storage.Clear();
-		}
-
-		public void Save()
-		{
-			// No-op for in-memory storage
-		}
-
-		public bool GetBool(string key, bool defaultValue = false)
-		{
-			if (_storage.TryGetValue(key, out var value))
-			{
-				if (value is bool boolValue)
-				{
-					return boolValue;
-				}
-				if (value is int intValue)
-				{
-					return intValue != 0;
-				}
-			}
-			return defaultValue;
-		}
-
-		public float GetFloat(string key, float defaultValue = 0)
-		{
-			if (_storage.TryGetValue(key, out var value))
-			{
-				if (value is float floatValue)
-				{
-					return floatValue;
-				}
-			}
-			return defaultValue;
-		}
-
-		public int GetInt(string key, int defaultValue = 0)
-		{
-			if (_storage.TryGetValue(key, out var value))
-			{
-				if (value is int intValue)
-				{
-					return intValue;
-				}
-			}
-			return defaultValue;
-		}
-
-		public string GetString(string key, string defaultValue = null)
-		{
-			if (_storage.TryGetValue(key, out var value))
-			{
-				return value?.ToString() ?? defaultValue;
-			}
-			return defaultValue;
-		}
-
-		public void SetBool(string key, bool value)
-		{
-			_storage[key] = value;
-		}
-
-		public void SetFloat(string key, float value)
-		{
-			_storage[key] = value;
-		}
-
-		public void SetInt(string key, int value)
-		{
-			_storage[key] = value;
-		}
-
-		public void SetString(string key, string value)
-		{
-			_storage[key] = value ?? string.Empty;
-		}
-	}
-
 	internal class MockUnitySnipeServicesFactory : UnitySnipeServicesFactory
 	{
 		private readonly ISharedPrefs _sharedPrefs;
@@ -1253,6 +922,7 @@ namespace MiniIT.Snipe.Tests.Editor
 	internal class MockSnipeApiService : AbstractSnipeApiService
 	{
 		public string LastRequestType { get; private set; }
+		public IDictionary<string, object> LastRequestData { get; private set; }
 		public int RequestCount { get; private set; }
 		public SnipeCommunicator Communicator => _mockCommunicator;
 		public AuthSubsystem Auth => _mockAuth;
@@ -1293,6 +963,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		public override AbstractCommunicatorRequest CreateRequest(string messageType, IDictionary<string, object> data = null)
 		{
 			LastRequestType = messageType;
+			LastRequestData = data;
 			RequestCount++;
 			// Return MockSnipeCommunicatorRequest which extends SnipeCommunicatorRequest
 			// to handle the case where CreateRequest is called through base class reference
