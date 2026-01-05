@@ -57,7 +57,7 @@ namespace MiniIT.Snipe.Api
 			_disposed = false;
 
 			_serverVersionAttrKey = versionAttr.Key;
-			_serverVersion = versionAttr?.GetValue() ?? GetLastSyncedVersion();
+			_serverVersion = versionAttr.IsInitialized ? versionAttr.GetValue() : GetLastSyncedVersion();
 
 			_communicator.MessageReceived += OnMessageReceived;
 
@@ -207,7 +207,7 @@ namespace MiniIT.Snipe.Api
 			_stringListHelper.Add(key);
 
 			// Try to send local changes to server
-			SendPendingChanges();
+			SyncWithServer();
 		}
 
 		private void ApplyServerAttributeChange(string key, object value)
@@ -361,7 +361,7 @@ namespace MiniIT.Snipe.Api
 
 		private void SyncWithServer()
 		{
-			if (_syncInProgress || _serverVersionAttrKey == null)
+			if (_syncInProgress || _serverVersion < 1)
 			{
 				return;
 			}
@@ -413,17 +413,6 @@ namespace MiniIT.Snipe.Api
 			}
 
 			return pendingChanges;
-		}
-
-		private void SendPendingChanges()
-		{
-			if (_syncInProgress || _requestFactory == null)
-			{
-				return;
-			}
-
-			var pendingChanges = RebuildPendingChanges();
-			SendPendingChanges(pendingChanges);
 		}
 
 		private void SendPendingChanges(Dictionary<string, object> pendingChanges)
