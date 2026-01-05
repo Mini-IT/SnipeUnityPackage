@@ -246,7 +246,7 @@ namespace MiniIT.Snipe.Api
 			}
 
 			// Check if we have a local change that hasn't been synced yet
-			bool hasLocalChange = _stringListHelper.Contains(KEY_DIRTY_KEYS, key);
+
 			var localVersion = GetLocalVersion();
 			var lastSyncedVersion = GetLastSyncedVersion();
 
@@ -261,9 +261,8 @@ namespace MiniIT.Snipe.Api
 			// This prevents losing offline progress when reconnecting.
 			// Note: If serverVersion == 0 (uninitialized) and we have local changes, we preserve local changes
 			// because they represent newer offline progress. If serverVersion >= localVersion, server is authoritative.
-			bool shouldPreserveLocalChanges = hasLocalChange && _serverVersion < localVersion;
 
-			if (!shouldPreserveLocalChanges)
+			if (_serverVersion >= localVersion)
 			{
 				// Server value is authoritative - accept it
 				// Update local storage with server value
@@ -272,25 +271,19 @@ namespace MiniIT.Snipe.Api
 				// Update attribute value
 				if (_attributeValueSetters.TryGetValue(key, out Action<object> setter))
 				{
-					setter(value);
+					setter.Invoke(value);
 				}
+
+				// Remove from dirty set if server version is >= local version
+				// This means the server has the latest version of this attribute
+				// If serverVersion < localVersion, we preserve local changes so dirty keys remain
+				_stringListHelper.Remove(KEY_DIRTY_KEYS, key);
 			}
 			else
 			{
-				// We have local changes that are newer - keep them and ensure they stay in dirty keys
+				// We might have local changes that are newer - keep them and ensure they stay in dirty keys
 				// The local value is already correct, so we don't need to update it
 				// Dirty keys will remain so the local value can be synced to server
-			}
-
-			// Remove from dirty set if server version is >= local version
-			// This means the server has the latest version of this attribute
-			// If serverVersion < localVersion, we preserve local changes so dirty keys remain
-			if (hasLocalChange)
-			{
-				if (_serverVersion >= localVersion)
-				{
-					_stringListHelper.Remove(KEY_DIRTY_KEYS, key);
-				}
 			}
 
 			// Update version if server is newer
