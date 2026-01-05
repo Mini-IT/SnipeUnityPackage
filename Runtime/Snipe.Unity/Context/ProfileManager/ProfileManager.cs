@@ -277,46 +277,56 @@ namespace MiniIT.Snipe.Api
 				return;
 			}
 
-			if (rawList is System.Collections.IList list)
+			if (rawList is not System.Collections.IList list)
 			{
-				// Udpate server version first
-				if (_serverVersionAttrKey != null)
-				{
-					for (int i = 0; i < list.Count; i++)
-					{
-						if (list[i] is IDictionary<string, object> item)
-						{
-							string key = item.SafeGetString("key");
-							if (string.Equals(key, _serverVersionAttrKey, StringComparison.Ordinal))
-							{
-								if (item.TryGetValue("val", out object val))
-								{
-									int newServerVersion = TypeConverter.Convert<int>(val);
-									_serverVersion = newServerVersion;
-								}
-								break;
-							}
-						}
-					}
-				}
+				return;
+			}
 
+			bool versionUpdated = false;
+
+			// Udpate server version first
+			if (_serverVersionAttrKey != null)
+			{
 				for (int i = 0; i < list.Count; i++)
 				{
 					if (list[i] is IDictionary<string, object> item)
 					{
 						string key = item.SafeGetString("key");
-						
-						if (_serverVersionAttrKey != null && string.Equals(key, _serverVersionAttrKey, StringComparison.Ordinal))
+						if (string.Equals(key, _serverVersionAttrKey, StringComparison.Ordinal))
 						{
-							continue;
-						}
-
-						if (!string.IsNullOrEmpty(key) && item.TryGetValue("val", out object val))
-						{
-							ApplyServerAttributeChange(key, val);
+							if (item.TryGetValue("val", out object val))
+							{
+								int newServerVersion = TypeConverter.Convert<int>(val);
+								_serverVersion = newServerVersion;
+								versionUpdated = true;
+							}
+							break;
 						}
 					}
 				}
+			}
+
+			for (int i = 0; i < list.Count; i++)
+			{
+				if (list[i] is IDictionary<string, object> item)
+				{
+					string key = item.SafeGetString("key");
+
+					if (_serverVersionAttrKey != null && string.Equals(key, _serverVersionAttrKey, StringComparison.Ordinal))
+					{
+						continue;
+					}
+
+					if (!string.IsNullOrEmpty(key) && item.TryGetValue("val", out object val))
+					{
+						ApplyServerAttributeChange(key, val);
+					}
+				}
+			}
+
+			if (versionUpdated)
+			{
+				SyncWithServer();
 			}
 		}
 
