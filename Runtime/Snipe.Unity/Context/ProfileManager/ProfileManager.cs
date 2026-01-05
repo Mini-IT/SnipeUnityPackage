@@ -44,7 +44,7 @@ namespace MiniIT.Snipe.Api
 			_auth = auth;
 			_sharedPrefs = sharedPrefs;
 
-			_stringListHelper = new PlayerPrefsStringListHelper(_sharedPrefs);
+			_stringListHelper = new PlayerPrefsStringListHelper(_sharedPrefs, KEY_DIRTY_KEYS);
 			_prefsHelper = new PlayerPrefsTypeHelper(_sharedPrefs);
 		}
 
@@ -179,7 +179,7 @@ namespace MiniIT.Snipe.Api
 				attr.SetValueFromServer(serverValue);
 				SetLocalValue(key, serverValue);
 
-				_stringListHelper.Remove(KEY_DIRTY_KEYS, key);
+				_stringListHelper.Remove(key);
 			}
 			else // use local value
 			{
@@ -204,7 +204,7 @@ namespace MiniIT.Snipe.Api
 			SetLocalVersion(localVersion);
 
 			// Add to dirty set (always, even if sync is in progress)
-			_stringListHelper.Add(KEY_DIRTY_KEYS, key);
+			_stringListHelper.Add(key);
 
 			// Try to send local changes to server
 			SendPendingChanges();
@@ -252,7 +252,7 @@ namespace MiniIT.Snipe.Api
 				// Remove from dirty set if server version is >= local version
 				// This means the server has the latest version of this attribute
 				// If serverVersion < localVersion, we preserve local changes so dirty keys remain
-				_stringListHelper.Remove(KEY_DIRTY_KEYS, key);
+				_stringListHelper.Remove(key);
 			}
 			else
 			{
@@ -381,7 +381,7 @@ namespace MiniIT.Snipe.Api
 			{
 				// Server has newer changes - accept all server values
 				// Values should be handled by incoming messages; clear dirty keys just in case.
-				_stringListHelper.Clear(KEY_DIRTY_KEYS);
+				_stringListHelper.Clear();
 				SetLocalVersion(_serverVersion);
 				SetLastSyncedVersion(_serverVersion);
 			}
@@ -398,7 +398,7 @@ namespace MiniIT.Snipe.Api
 		private Dictionary<string, object> RebuildPendingChanges()
 		{
 			var pendingChanges = new Dictionary<string, object>();
-			var dirtyKeys = _stringListHelper.GetList(KEY_DIRTY_KEYS);
+			var dirtyKeys = _stringListHelper.GetList();
 
 			foreach (var key in dirtyKeys)
 			{
@@ -474,7 +474,7 @@ namespace MiniIT.Snipe.Api
 					if (errorCode == "ok")
 					{
 						// Success - clear dirty keys and update versions
-						_stringListHelper.Clear(KEY_DIRTY_KEYS);
+						_stringListHelper.Clear();
 
 						// Server bumps its version by +1 per request. After success we align local and
 						// last-synced versions to serverSnapshot+1 so that subsequent server pushes
