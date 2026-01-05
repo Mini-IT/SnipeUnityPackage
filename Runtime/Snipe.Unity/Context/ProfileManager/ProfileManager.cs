@@ -54,6 +54,7 @@ namespace MiniIT.Snipe.Api
 			{
 				Dispose();
 			}
+			_disposed = false;
 
 			_serverVersionAttrKey = versionAttr.Key;
 			_serverVersion = versionAttr?.GetValue() ?? GetLastSyncedVersion();
@@ -206,7 +207,7 @@ namespace MiniIT.Snipe.Api
 			_stringListHelper.Add(KEY_DIRTY_KEYS, key);
 
 			// Try to send local changes to server
-			SyncWithServer();
+			SendPendingChanges();
 		}
 
 		private void ApplyServerAttributeChange(string key, object value)
