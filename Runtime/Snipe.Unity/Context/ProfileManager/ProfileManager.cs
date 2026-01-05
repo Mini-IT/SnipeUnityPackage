@@ -219,18 +219,6 @@ namespace MiniIT.Snipe.Api
 				return;
 			}
 
-			// Special case: version attribute drives sync logic
-			if (_serverVersionAttrKey != null && string.Equals(key, _serverVersionAttrKey, StringComparison.Ordinal))
-			{
-				int newServerVersion = TypeConverter.Convert<int>(value);
-				if (_serverVersion != newServerVersion)
-				{
-					_serverVersion = newServerVersion;
-					SyncWithServer();
-				}
-				return;
-			}
-
 			// Unknown attribute - ignore
 			if (!_attributeValueSetters.TryGetValue(key, out Action<object> attrValueSetter))
 			{
@@ -303,7 +291,8 @@ namespace MiniIT.Snipe.Api
 							{
 								if (item.TryGetValue("val", out object val))
 								{
-									ApplyServerAttributeChange(key, val);
+									int newServerVersion = TypeConverter.Convert<int>(val);
+									_serverVersion = newServerVersion;
 								}
 								break;
 							}
