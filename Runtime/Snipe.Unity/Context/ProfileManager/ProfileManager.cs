@@ -18,7 +18,6 @@ namespace MiniIT.Snipe.Api
 		private readonly IRequestFactory _requestFactory;
 		private readonly SnipeCommunicator _communicator;
 		private readonly AuthSubsystem _auth;
-		private SnipeApiReadOnlyUserAttribute<int> _versionAttr;
 		private readonly Dictionary<string, AbstractProfileAttribute> _attributes = new();
 		private readonly Dictionary<string, Action<object>> _attributeValueSetters = new();
 		private readonly Dictionary<string, Func<object>> _localValueGetters = new();
@@ -28,6 +27,7 @@ namespace MiniIT.Snipe.Api
 		private bool _syncInProgress;
 		private bool _disposed;
 		private int _serverVersion;
+		private string _serverVersionAttrKey;
 
 		public ProfileManager(SnipeApiContext snipeContext, ISharedPrefs sharedPrefs)
 			: this(snipeContext?.GetSnipeApiService(), snipeContext?.Communicator, snipeContext?.Auth, sharedPrefs)
@@ -50,21 +50,13 @@ namespace MiniIT.Snipe.Api
 
 		public void Initialize(SnipeApiReadOnlyUserAttribute<int> versionAttr)
 		{
-			if (_versionAttr != null)
+			if (_serverVersionAttrKey != null)
 			{
 				Dispose();
 			}
 
-			_versionAttr = versionAttr;
-
-			if (_versionAttr != null)
-			{
-				_serverVersion = _versionAttr.GetValue();
-			}
-			else
-			{
-				_serverVersion = GetLastSyncedVersion();
-			}
+			_serverVersionAttrKey = versionAttr.Key;
+			_serverVersion = versionAttr?.GetValue() ?? GetLastSyncedVersion();
 
 			_communicator.MessageReceived += OnMessageReceived;
 
@@ -228,7 +220,7 @@ namespace MiniIT.Snipe.Api
 			}
 
 			// Special case: version attribute drives sync logic
-			if (_versionAttr != null && string.Equals(key, _versionAttr.Key, StringComparison.Ordinal))
+			if (_serverVersionAttrKey != null && string.Equals(key, _serverVersionAttrKey, StringComparison.Ordinal))
 			{
 				int newServerVersion = TypeConverter.Convert<int>(value);
 				if (_serverVersion != newServerVersion)
@@ -240,7 +232,7 @@ namespace MiniIT.Snipe.Api
 			}
 
 			// Unknown attribute - ignore
-			if (!_attributeValueSetters.ContainsKey(key))
+			if (!_attributeValueSetters.TryGetValue(key, out Action<object> attrValueSetter))
 			{
 				return;
 			}
@@ -269,10 +261,7 @@ namespace MiniIT.Snipe.Api
 				SetLocalValue(key, value);
 
 				// Update attribute value
-				if (_attributeValueSetters.TryGetValue(key, out Action<object> setter))
-				{
-					setter.Invoke(value);
-				}
+				attrValueSetter.Invoke(value);
 
 				// Remove from dirty set if server version is >= local version
 				// This means the server has the latest version of this attribute
@@ -302,6 +291,26 @@ namespace MiniIT.Snipe.Api
 
 			if (rawList is System.Collections.IList list)
 			{
+				// Udpate server version first
+				if (_serverVersionAttrKey != null)
+				{
+					for (int i = 0; i < list.Count; i++)
+					{
+						if (list[i] is IDictionary<string, object> item)
+						{
+							string key = item.SafeGetString("key");
+							if (string.Equals(key, _serverVersionAttrKey, StringComparison.Ordinal))
+							{
+								if (item.TryGetValue("val", out object val))
+								{
+									ApplyServerAttributeChange(key, val);
+								}
+								break;
+							}
+						}
+					}
+				}
+
 				for (int i = 0; i < list.Count; i++)
 				{
 					if (list[i] is IDictionary<string, object> item)
@@ -349,7 +358,7 @@ namespace MiniIT.Snipe.Api
 
 		private void SyncWithServer()
 		{
-			if (_syncInProgress || _versionAttr == null)
+			if (_syncInProgress || _serverVersionAttrKey == null)
 			{
 				return;
 			}
@@ -557,7 +566,7 @@ namespace MiniIT.Snipe.Api
 			_attributes.Clear();
 			_attributeValueSetters.Clear();
 			_localValueGetters.Clear();
-			_versionAttr = null;
+			_serverVersionAttrKey = null;
 		}
 	}
 }
