@@ -13,25 +13,36 @@ namespace MiniIT.Snipe.Api
 		public SnipeTableLogicNode node { get; private set; }
 		public List<SnipeLogicNodeVar> vars { get; private set; }
 
-		public string name { get => node?.name; }
-		public string stringID { get => node?.stringID; }
-		public List<SnipeTableLogicRawNodeResult> results { get => node?.results; }
+		public string name
+		{
+			get => node?.name;
+		}
+
+		public string stringID
+		{
+			get => node?.stringID;
+		}
+
+		public List<SnipeTableLogicRawNodeResult> results
+		{
+			get => node?.results;
+		}
 
 		public int timeleft = -1; // seconds left. (-1) means that the node does not have a timer
 		public bool isTimeout { get; private set; }
 
-		public LogicNode(IDictionary<string, object> data, ISnipeTable<SnipeTableLogicItem> logic_table)
+		public LogicNode(IDictionary<string, object> data, ISnipeTable<SnipeTableLogicItem> logicTable)
 		{
 			id = data.SafeGetValue<int>("id");
 
-			foreach (var table_tree in logic_table.Values)
+			foreach (var tableTree in logicTable.Values)
 			{
-				foreach (var table_node in table_tree.nodes)
+				foreach (var tableNode in tableTree.nodes)
 				{
-					if (table_node.id == id)
+					if (tableNode.id == id)
 					{
-						tree = table_tree;
-						node = table_node;
+						tree = tableTree;
+						node = tableNode;
 						break;
 					}
 				}
@@ -49,34 +60,35 @@ namespace MiniIT.Snipe.Api
 				return;
 			}
 
-			foreach (var node_check in node.checks)
+			foreach (var nodeCheck in node.checks)
 			{
-				RefreshTimerVar(node_check.type, node_check.value);
+				RefreshTimerVar(nodeCheck.type, nodeCheck.value);
 			}
 
-			if (data["vars"] is IList data_vars)
+			if (data.TryGetValue("vars", out object value) && value is IList dataVars)
 			{
-				vars = new List<SnipeLogicNodeVar>(Math.Max(data_vars.Count, node.vars.Count));
+				vars = new List<SnipeLogicNodeVar>(Math.Max(dataVars.Count, node.vars.Count));
 
-				foreach (IDictionary<string, object> data_var in data_vars)
+				foreach (IDictionary<string, object> dataVar in dataVars)
 				{
-					if (data_var == null)
+					if (dataVar == null)
 					{
 						continue;
 					}
 
 					bool found = false;
 
-					string var_name = data_var.SafeGetString("name");
-					foreach (var node_var in node.vars)
+					string varName = dataVar.SafeGetString("name");
+
+					foreach (var nodeVar in node.vars)
 					{
-						if (var_name == node_var.name)
+						if (varName == nodeVar.name)
 						{
 							vars.Add(new SnipeLogicNodeVar()
 							{
-								var = node_var,
-								value = data_var.SafeGetValue<int>("value"),
-								maxValue = data_var.SafeGetValue<int>("maxValue"),
+								var = nodeVar,
+								value = dataVar.SafeGetValue<int>("value"),
+								maxValue = dataVar.SafeGetValue<int>("maxValue"),
 							});
 
 							found = true;
@@ -89,22 +101,22 @@ namespace MiniIT.Snipe.Api
 						continue;
 					}
 
-					string var_type = data_var.SafeGetString("type");
-					if (!string.IsNullOrEmpty(var_type))
+					string varType = dataVar.SafeGetString("type");
+					if (!string.IsNullOrEmpty(varType))
 					{
-						foreach (var node_var in node.checks)
+						foreach (var nodeVar in node.checks)
 						{
-							if (var_type == node_var.type)
+							if (varType == nodeVar.type)
 							{
-								int var_value = data_var.SafeGetValue<int>("value");
+								int varValue = dataVar.SafeGetValue<int>("value");
 								vars.Add(new SnipeLogicNodeVar()
 								{
-									var = node_var,
-									value = var_value,
-									maxValue = data_var.SafeGetValue<int>("maxValue"),
+									var = nodeVar,
+									value = varValue,
+									maxValue = dataVar.SafeGetValue<int>("maxValue"),
 								});
 
-								RefreshTimerVar(var_type, var_value);
+								RefreshTimerVar(varType, varValue);
 
 								// found = true;
 								break;
@@ -112,7 +124,6 @@ namespace MiniIT.Snipe.Api
 						}
 					}
 				}
-
 			}
 		}
 
@@ -130,6 +141,7 @@ namespace MiniIT.Snipe.Api
 					return true;
 				}
 			}
+
 			return false;
 		}
 
@@ -147,6 +159,7 @@ namespace MiniIT.Snipe.Api
 					return true;
 				}
 			}
+
 			return false;
 		}
 
@@ -164,6 +177,7 @@ namespace MiniIT.Snipe.Api
 					return node_check.name;
 				}
 			}
+
 			return null;
 		}
 
@@ -203,7 +217,14 @@ namespace MiniIT.Snipe.Api
 		public int value;
 		public int maxValue;
 
-		public string name { get => var?.name; }
-		public float condValue { get => var is SnipeTableLogicNodeVarCondCounter cc_var ? cc_var.condValue : default; }
+		public string name
+		{
+			get => var?.name;
+		}
+
+		public float condValue
+		{
+			get => var is SnipeTableLogicNodeVarCondCounter cc_var ? cc_var.condValue : default;
+		}
 	}
 }

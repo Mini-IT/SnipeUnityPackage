@@ -61,12 +61,7 @@ namespace MiniIT.Snipe.Api
 
 		public LogicNode GetNodeById(int id)
 		{
-			if (Nodes.TryGetValue(id, out var node))
-			{
-				return node;
-			}
-
-			return null;
+			return Nodes.GetValueOrDefault(id);
 		}
 
 		public LogicNode GetNodeByTreeId(int id)
@@ -123,6 +118,7 @@ namespace MiniIT.Snipe.Api
 			if (_logicTable != null)
 			{
 				var current_time = _refTime.Elapsed;
+
 				if (!force && current_time - _updateRequestedTime < UpdateMinTimeout)
 				{
 					return;
@@ -198,11 +194,13 @@ namespace MiniIT.Snipe.Api
 			}
 
 			var logicNodes = new List<LogicNode>();
-			if (responseData["logic"] is IList srcLogic)
+
+			if (responseData.TryGetValue("logic", out object value) && value is IList srcLogic)
 			{
 				foreach (object o in srcLogic)
 				{
-					if (o is IDictionary<string, object> so && so?["node"] is IDictionary<string, object> node)
+					if (o is IDictionary<string, object> so &&
+					    so.TryGetValue("node", out object n) && n is IDictionary<string, object> node)
 					{
 						logicNodes.Add(new LogicNode(node, _logicTable));
 					}
@@ -312,7 +310,11 @@ namespace MiniIT.Snipe.Api
 		private void OnLogicExitNode(string errorCode, IDictionary<string, object> data)
 		{
 			LogicNode node = GetNodeById(data.SafeGetValue("id", 0));
-			ExitNode?.Invoke(node, data["results"] as List<object>);
+
+			if (data.TryGetValue("results", out object value))
+			{
+				ExitNode?.Invoke(node, value as List<object>);
+			}
 
 			RequestLogicGet(true);
 		}
@@ -350,7 +352,6 @@ namespace MiniIT.Snipe.Api
 			if (nodeVar != null)
 			{
 				nodeVar.value = data.SafeGetValue<int>("value");
-
 				int oldValue = data.SafeGetValue<int>("oldValue");
 				NodeProgress?.Invoke(node, nodeVar, oldValue);
 			}

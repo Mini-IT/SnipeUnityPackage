@@ -39,7 +39,7 @@ namespace MiniIT.Snipe.Api
 			string errorCode = data.SafeGetString("errorCode");
 			IDictionary<string, object> nodeVars = null;
 
-			if (data["vars"] is IDictionary<string, object> dataVars)
+			if (data.TryGetValue("vars", out object value) && value is IDictionary<string, object> dataVars)
 			{
 				nodeVars = dataVars;
 			}
