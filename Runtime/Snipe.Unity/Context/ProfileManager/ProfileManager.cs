@@ -12,7 +12,6 @@ namespace MiniIT.Snipe.Api
 	{
 		internal const string KEY_LOCAL_VERSION = "profile_local_version";
 		internal const string KEY_LAST_SYNCED_VERSION = "profile_last_synced_version";
-		internal const string KEY_DIRTY_KEYS = "profile_dirty_keys";
 		internal const string KEY_ATTR_PREFIX = "profile_attr_";
 
 		private readonly IRequestFactory _requestFactory;
@@ -24,13 +23,16 @@ namespace MiniIT.Snipe.Api
 		// Stores latest server snapshot values for all keys received from the server.
 		// We DO NOT persist these to SharedPrefs unless the attribute is registered via GetAttribute.
 		private readonly Dictionary<string, object> _serverSnapshotValues = new();
+		// Stores last known server values for registered attributes at the moment we considered them synced.
+		// Used to detect whether the server actually changed a dirty key while we were offline.
+		private readonly Dictionary<string, object> _lastSyncedServerValues = new();
 		private readonly ISharedPrefs _sharedPrefs;
-		private readonly PlayerPrefsStringListHelper _stringListHelper;
 		private readonly PlayerPrefsTypeHelper _prefsHelper;
 		private bool _syncInProgress;
 		private bool _disposed;
 		private int _serverVersion;
 		private string _serverVersionAttrKey;
+		private bool _initialSnapshotReceived;
 
 		public ProfileManager(SnipeApiContext snipeContext, ISharedPrefs sharedPrefs)
 			: this(snipeContext?.GetSnipeApiService(), snipeContext?.Communicator, snipeContext?.Auth, sharedPrefs)
@@ -47,7 +49,6 @@ namespace MiniIT.Snipe.Api
 			_auth = auth;
 			_sharedPrefs = sharedPrefs;
 
-			_stringListHelper = new PlayerPrefsStringListHelper(_sharedPrefs, KEY_DIRTY_KEYS);
 			_prefsHelper = new PlayerPrefsTypeHelper(_sharedPrefs);
 		}
 
@@ -58,6 +59,7 @@ namespace MiniIT.Snipe.Api
 				Dispose();
 			}
 			_disposed = false;
+			_initialSnapshotReceived = false;
 
 			_serverVersionAttrKey = versionAttr.Key;
 			_serverVersion = versionAttr.IsInitialized ? versionAttr.GetValue() : GetLastSyncedVersion();
@@ -96,6 +98,9 @@ namespace MiniIT.Snipe.Api
 			{
 				// Lists of changed attributes
 				case "attr.getAll":
+					// Mark snapshot as received BEFORE applying, because ApplyAttributeList may
+					// trigger SyncWithServer (on version update) and SyncWithServer is gated by this flag.
+					_initialSnapshotReceived = true;
 					ApplyAttributeList(data, "data");
 					break;
 				case "attr.changed":
@@ -206,7 +211,7 @@ namespace MiniIT.Snipe.Api
 					attr.SetValueFromServer(serverValue);
 					SetLocalValue(key, serverValue);
 
-					_stringListHelper.Remove(key);
+					_lastSyncedServerValues[key] = serverValue;
 
 					// We just accepted the server snapshot as authoritative, so local is now in sync.
 					SetLocalVersion(_serverVersion);
@@ -231,7 +236,7 @@ namespace MiniIT.Snipe.Api
 				attr.SetValueFromServer(serverValue);
 				SetLocalValue(key, serverValue);
 
-				_stringListHelper.Remove(key);
+				_lastSyncedServerValues[key] = serverValue;
 
 				// We just accepted the server snapshot as authoritative, so local is now in sync.
 				SetLocalVersion(_serverVersion);
@@ -258,9 +263,6 @@ namespace MiniIT.Snipe.Api
 			// Increment local version
 			int localVersion = GetLocalVersion() + 1;
 			SetLocalVersion(localVersion);
-
-			// Add to dirty set (always, even if sync is in progress)
-			_stringListHelper.Add(key);
 
 			// Try to send local changes to server
 			SyncWithServer();
@@ -289,6 +291,25 @@ namespace MiniIT.Snipe.Api
 				return;
 			}
 
+			// If local value diverged from what we last considered synced, don't blindly overwrite it just because
+			// _version is global and can advance due to other keys, reconnects, etc.
+			// We only accept server overwrite if the server value for this key has changed since last sync.
+			if (_lastSyncedServerValues.TryGetValue(key, out object lastServerValue) &&
+			    _localValueGetters.TryGetValue(key, out Func<object> localGetter))
+			{
+				var localValue = localGetter?.Invoke();
+				bool localChangedSinceSync = !SnipeApiUserAttribute.AreEqual(localValue, lastServerValue);
+
+				if (localChangedSinceSync && SnipeApiUserAttribute.AreEqual(lastServerValue, value))
+				{
+					// Server still has the last synced value -> keep local dirty value.
+					return;
+				}
+
+				// If local changed since sync and server value differs from last synced value,
+				// server changed this key elsewhere -> accept server as authoritative.
+			}
+
 			// Server is authoritative only when its snapshot version is greater than the local version.
 			// Otherwise, preserve local offline progress.
 			if (_serverVersion >= localVersion)
@@ -300,10 +321,7 @@ namespace MiniIT.Snipe.Api
 				// Update attribute value
 				attrValueSetter.Invoke(value);
 
-				// Remove from dirty set if server version is >= local version
-				// This means the server has the latest version of this attribute
-				// If serverVersion < localVersion, we preserve local changes so dirty keys remain
-				_stringListHelper.Remove(key);
+				_lastSyncedServerValues[key] = value;
 
 				// We just accepted server state as authoritative, so local versions are now in sync.
 				SetLocalVersion(_serverVersion);
@@ -414,7 +432,9 @@ namespace MiniIT.Snipe.Api
 
 		private void SyncWithServer()
 		{
-			if (_syncInProgress || _serverVersion == 0)
+			// Never send or reconcile until we received the initial server snapshot.
+			// This protects against races where local changes happen before attr.getAll arrives.
+			if (_syncInProgress || _serverVersion == 0 || !_initialSnapshotReceived)
 			{
 				return;
 			}
@@ -428,10 +448,10 @@ namespace MiniIT.Snipe.Api
 			if (localVersion > lastSyncedVersion)
 			{
 				// Client has unsynced changes
+				// If nothing is registered yet, pendingChanges can be empty even when prefs contain dirty keys.
+				// Don't advance lastSynced in this case - just wait for attributes to be registered.
 				if (pendingChanges.Count == 0)
 				{
-					// Local is ahead only due to accepting server snapshot; nothing to send.
-					SetLastSyncedVersion(_serverVersion);
 					return;
 				}
 				SendPendingChanges(pendingChanges);
@@ -439,8 +459,7 @@ namespace MiniIT.Snipe.Api
 			else if (_serverVersion > localVersion)
 			{
 				// Server has newer changes - accept all server values.
-				// Values should be handled by incoming messages; clear dirty keys just in case.
-				_stringListHelper.Clear();
+				// Values should be handled by incoming messages.
 				SetLocalVersion(_serverVersion);
 				SetLastSyncedVersion(_serverVersion);
 			}
@@ -456,18 +475,31 @@ namespace MiniIT.Snipe.Api
 
 		private Dictionary<string, object> RebuildPendingChanges()
 		{
+			// Diff registered local values vs the last received server snapshot.
+			// ProfileManager operates only on registered attributes.
 			var pendingChanges = new Dictionary<string, object>();
-			var dirtyKeys = _stringListHelper.GetList();
 
-			foreach (var key in dirtyKeys)
+			foreach (var kvp in _localValueGetters)
 			{
-				if (_localValueGetters.TryGetValue(key, out Func<object> getter))
+				string key = kvp.Key;
+
+				// Never send version attribute.
+				if (!string.IsNullOrEmpty(_serverVersionAttrKey) &&
+				    string.Equals(key, _serverVersionAttrKey, StringComparison.Ordinal))
 				{
-					var value = getter?.Invoke();
-					if (value != null)
-					{
-						pendingChanges[key] = value;
-					}
+					continue;
+				}
+
+				// If we don't have this key in snapshot yet, we can't reliably decide.
+				if (!_serverSnapshotValues.TryGetValue(key, out object serverValue))
+				{
+					continue;
+				}
+
+				var localValue = kvp.Value?.Invoke();
+				if (!SnipeApiUserAttribute.AreEqual(localValue, serverValue))
+				{
+					pendingChanges[key] = localValue;
 				}
 			}
 
@@ -544,8 +576,12 @@ namespace MiniIT.Snipe.Api
 
 					if (errorCode == "ok")
 					{
-						// Success - clear dirty keys and update versions
-						_stringListHelper.Clear();
+						// Treat sent values as the last synced server values for those keys.
+						foreach (var kvp in pendingChanges)
+						{
+							_lastSyncedServerValues[kvp.Key] = kvp.Value;
+							_serverSnapshotValues[kvp.Key] = kvp.Value;
+						}
 
 						// Server bumps its version by +1 per request. After success we align local and
 						// last-synced versions to serverSnapshot+1 so that subsequent server pushes
@@ -641,6 +677,7 @@ namespace MiniIT.Snipe.Api
 			_attributeValueSetters.Clear();
 			_localValueGetters.Clear();
 			_serverSnapshotValues.Clear();
+			_lastSyncedServerValues.Clear();
 			_serverVersionAttrKey = null;
 		}
 	}
