@@ -26,7 +26,7 @@ namespace MiniIT.Snipe.Unity
 
 		private async UniTaskVoid WaitForInitialization(Action<string> callback)
 		{
-			while (!NutakuMono.Instance.IsInitialized)
+			while (!NutakuSnipeMono.Instance.IsInitialized)
 			{
 				await AlterTask.Delay(INITIALIZATION_DELAY);
 			}
@@ -39,12 +39,12 @@ namespace MiniIT.Snipe.Unity
 
 		private void GetHandshake()
         {
-            SetToken(NutakuMono.Instance.HandshakeToken);
+            SetToken(NutakuSnipeMono.Instance.HandshakeToken);
         }
 
         private void SetId()
         {
-            SetId(NutakuMono.Instance.UserId);
+            SetId(NutakuSnipeMono.Instance.UserId);
         }
 
         private void SetToken(string value)

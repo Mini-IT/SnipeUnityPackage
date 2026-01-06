@@ -4,35 +4,21 @@ using UnityEngine;
 
 namespace MiniIT.Snipe.Unity
 {
-	public sealed class NutakuMono : MonoBehaviour
+	public sealed class NutakuSnipeMono : MonoBehaviour
 	{
-		private sealed class HandshakeResponse
-		{
-			public string errorCode;
-			public string token;
-		}
-
-		public sealed class UserInfoResponse
-		{
-			public int id { get; set; }
-			public string nickname { get; set; }
-
-			public int test { get; set; }
-			public int grade { get; set; }
-
-			public string titleId { get; set; }
-			public string language { get; set; }
-			public string gameType { get; set; }
-		}
-
-
 		[DllImport("__Internal")]
 		private static extern string GetUserInfo_js();
 
 		[DllImport("__Internal")]
 		private static extern string GetHandshake_js();
 
-		public static NutakuMono Instance
+		private sealed class HandshakeResponse
+		{
+			public string errorCode;
+			public string token;
+		}
+
+		public static NutakuSnipeMono Instance
 		{
 			get
 			{
@@ -53,14 +39,13 @@ namespace MiniIT.Snipe.Unity
 
 		public string HandshakeToken { get; private set; }
 		public string UserId { get; private set; }
+		
 
-		public UserInfoResponse UserInfo { get; private set; }
-
-		private static NutakuMono _instance;
+		private static NutakuSnipeMono _instance;
 
 		public void OnHandshakeReceived(string json)
 		{
-			UnityEngine.Debug.Log("[NutakuMono] OnHandshakeReceived");
+			UnityEngine.Debug.Log("[NutakuSnipeMono] OnHandshakeReceived");
 			var handshake = fastJSON.JSON.ToObject<HandshakeResponse>(json);
 			if (handshake?.errorCode == "ok")
 			{
@@ -69,18 +54,16 @@ namespace MiniIT.Snipe.Unity
 			}
 		}
 
-		public void OnUserInfoReceived(string json)
+		public void OnUserIdReceived(string userId)
 		{
-			UnityEngine.Debug.Log("[NutakuMono] OnUserInfoReceived");
-			UserInfo = fastJSON.JSON.ToObject<UserInfoResponse>(json);
-			UserId = UserInfo?.id.ToString();
-
+			UnityEngine.Debug.Log("[NutakuSnipeMono] OnUserInfoReceived");
+			UserId = userId;
 			SetIsInitialized();
 		}
 
 		private static void CreateMono()
 		{
-			Instance = new GameObject("NutakuMono").AddComponent<NutakuMono>();
+			Instance = new GameObject("NutakuSnipeMono").AddComponent<NutakuSnipeMono>();
 		}
 
 		private void SetIsInitialized()
