@@ -229,6 +229,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			_profileManager.Dispose();
 			_profileManager = new ProfileManager(_mockApiService, _mockApiService.Communicator, _mockApiService.Auth, _mockSharedPrefs);
 			_profileManager.Initialize(_mockVersionAttribute);
+			_profileManager.ForceLoggedInForTests(true);
 			// Get attribute to register local value getter so RebuildPendingChanges can find the value
 			var attr = _profileManager.GetAttribute<int>(serverAttr);
 			// Changing the value triggers SendPendingChanges, which will sync the existing dirty keys
@@ -289,6 +290,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			attr.ValueChanged += _ => valueChangedCount++;
 
 			// Act 1: go offline and change value
+			_profileManager.ForceLoggedInForTests(false);
 			_mockApiService.SetNextRequestSuccess(false);
 			attr.Value = 20;
 			Assert.AreEqual(20, attr.Value);
@@ -297,6 +299,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			int requestCountBeforeReconnect = _mockApiService.RequestCount;
 
 			// Act 2: reconnect and receive old snapshot (attr.getAll), then sync succeeds
+			_profileManager.ForceLoggedInForTests(true);
 			_mockApiService.SetNextRequestSuccess(true);
 			_profileManager.HandleServerMessage("attr.getAll", "ok", new Dictionary<string, object>()
 			{
@@ -357,6 +360,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			_profileManager.Initialize(_mockVersionAttribute);
 
 			// Offline: server attribute value isn't initialized
+			_profileManager.ForceLoggedInForTests(false);
 			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
 			_mockUserAttributes.RegisterAttribute(serverAttr);
 
@@ -372,6 +376,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			int requestCountBeforeReconnect = _mockApiService.RequestCount;
 
+			_profileManager.ForceLoggedInForTests(true);
 			_mockApiService.SetNextRequestSuccess(true);
 			_profileManager.HandleServerMessage("attr.getAll", "ok", new Dictionary<string, object>()
 			{
@@ -549,6 +554,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			_profileManager = new ProfileManager(_mockApiService, _mockApiService.Communicator, _mockApiService.Auth, _mockSharedPrefs);
 			_profileManager.Initialize(_mockVersionAttribute);
+			_profileManager.ForceLoggedInForTests(false);
 
 			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
 			_mockUserAttributes.RegisterAttribute(serverAttr);
@@ -560,6 +566,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			int requestCountBeforeReconnect = _mockApiService.RequestCount;
 
+			_profileManager.ForceLoggedInForTests(true);
 			_mockApiService.SetNextRequestSuccess(true);
 			_profileManager.HandleServerMessage("attr.getAll", "ok", new Dictionary<string, object>()
 			{
@@ -617,6 +624,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			_mockApiService.SetNextRequestSuccess(true);
 			_profileManager = new ProfileManager(_mockApiService, _mockApiService.Communicator, _mockApiService.Auth, _mockSharedPrefs);
 			_profileManager.Initialize(_mockVersionAttribute);
+			_profileManager.ForceLoggedInForTests(true);
 
 			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
 			serverAttr.SetValue(10);

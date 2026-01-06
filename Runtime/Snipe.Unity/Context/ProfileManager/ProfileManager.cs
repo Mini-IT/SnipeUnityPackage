@@ -474,9 +474,32 @@ namespace MiniIT.Snipe.Api
 			return pendingChanges;
 		}
 
+		private bool CheckCommunicatorLoggedIn()
+		{
+#if UNITY_EDITOR || UNITY_INCLUDE_TESTS
+			if (_forceLoggedInForTests)
+			{
+				return true;
+			}
+#endif
+			return _communicator != null && _communicator.LoggedIn;
+		}
+
+#if UNITY_EDITOR || UNITY_INCLUDE_TESTS
+		private bool _forceLoggedInForTests;
+
+		/// <summary>
+		/// Test-only helper to simulate login state without establishing a real connection.
+		/// </summary>
+		internal void ForceLoggedInForTests(bool loggedIn)
+		{
+			_forceLoggedInForTests = loggedIn;
+		}
+#endif
+
 		private void SendPendingChanges(Dictionary<string, object> pendingChanges)
 		{
-			if (_syncInProgress || _requestFactory == null ||
+			if (_syncInProgress || _requestFactory == null || !CheckCommunicatorLoggedIn() ||
 			    pendingChanges == null || pendingChanges.Count == 0)
 			{
 				return;
