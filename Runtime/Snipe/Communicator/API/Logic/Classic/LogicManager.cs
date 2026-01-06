@@ -165,8 +165,7 @@ namespace MiniIT.Snipe.Api
 			_updateRequestedTime = TimeSpan.Zero; // reset timer
 		}
 
-		protected override void OnSnipeMessageReceived(string messageType, string errorCode, IDictionary<string, object> data,
-			int requestId)
+		protected override void OnSnipeMessageReceived(string messageType, string errorCode, IDictionary<string, object> data, int requestId)
 		{
 			switch (messageType)
 			{
@@ -315,7 +314,7 @@ namespace MiniIT.Snipe.Api
 		private void OnLogicExitNode(string errorCode, IDictionary<string, object> data)
 		{
 			LogicNode node = GetNodeById(data.SafeGetValue("id", 0));
-			ExitNode?.Invoke(node, data.SafeGetValue<object>("results") as List<object>);
+			ExitNode?.Invoke(node, data.SafeGetValue<List<object>>("results"));
 			RequestLogicGet(true);
 		}
 
