@@ -100,7 +100,7 @@ namespace MiniIT.Snipe.Api
 
 		private void OnBadgesGet(string errorCode, IDictionary<string, object> data)
 		{
-			if (data["list"] is IList list)
+			if (data.TryGetValue("list", out object value) && value is IList list)
 			{
 				_badges.Clear();
 				foreach (IDictionary<string, object> o in list)
