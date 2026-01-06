@@ -13,20 +13,9 @@ namespace MiniIT.Snipe.Api
 		public SnipeTableLogicNode node { get; private set; }
 		public List<SnipeLogicNodeVar> vars { get; private set; }
 
-		public string name
-		{
-			get => node?.name;
-		}
-
-		public string stringID
-		{
-			get => node?.stringID;
-		}
-
-		public List<SnipeTableLogicRawNodeResult> results
-		{
-			get => node?.results;
-		}
+		public string name => node?.name;
+		public string stringID => node?.stringID;
+		public List<SnipeTableLogicRawNodeResult> results => node?.results;
 
 		public int timeleft = -1; // seconds left. (-1) means that the node does not have a timer
 		public bool isTimeout { get; private set; }
@@ -217,14 +206,7 @@ namespace MiniIT.Snipe.Api
 		public int value;
 		public int maxValue;
 
-		public string name
-		{
-			get => var?.name;
-		}
-
-		public float condValue
-		{
-			get => var is SnipeTableLogicNodeVarCondCounter cc_var ? cc_var.condValue : default;
-		}
+		public string name => var?.name;
+		public float condValue => var is SnipeTableLogicNodeVarCondCounter ccVar ? ccVar.condValue : default;
 	}
 }

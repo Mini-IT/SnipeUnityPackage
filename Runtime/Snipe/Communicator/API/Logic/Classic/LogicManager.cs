@@ -10,7 +10,9 @@ namespace MiniIT.Snipe.Api
 		public static TimeSpan UpdateMinTimeout = TimeSpan.FromSeconds(30);
 
 		public delegate void LogicUpdatedHandler(Dictionary<int, LogicNode> nodes);
+
 		public delegate void ExitNodeHandler(LogicNode node, List<object> results);
+
 		public delegate void NodeProgressHandler(LogicNode node, SnipeLogicNodeVar nodeVar, int oldValue);
 
 		public event LogicUpdatedHandler LogicUpdated;
@@ -151,6 +153,7 @@ namespace MiniIT.Snipe.Api
 			{
 				requestData["treeID"] = tree_id;
 			}
+
 			//if (amount != 0)
 			//	request_data["amount"] = amount;
 			var request = _requestFactory.Invoke("logic.incVar", requestData);
@@ -162,7 +165,8 @@ namespace MiniIT.Snipe.Api
 			_updateRequestedTime = TimeSpan.Zero; // reset timer
 		}
 
-		protected override void OnSnipeMessageReceived(string messageType, string errorCode, IDictionary<string, object> data, int requestId)
+		protected override void OnSnipeMessageReceived(string messageType, string errorCode, IDictionary<string, object> data,
+			int requestId)
 		{
 			switch (messageType)
 			{
@@ -261,6 +265,7 @@ namespace MiniIT.Snipe.Api
 							break;
 						}
 					}
+
 					if (!found)
 					{
 						nodesToExclude ??= new List<int>();
@@ -310,12 +315,7 @@ namespace MiniIT.Snipe.Api
 		private void OnLogicExitNode(string errorCode, IDictionary<string, object> data)
 		{
 			LogicNode node = GetNodeById(data.SafeGetValue("id", 0));
-
-			if (data.TryGetValue("results", out object value))
-			{
-				ExitNode?.Invoke(node, value as List<object>);
-			}
-
+			ExitNode?.Invoke(node, data.SafeGetValue<object>("results") as List<object>);
 			RequestLogicGet(true);
 		}
 
@@ -328,6 +328,7 @@ namespace MiniIT.Snipe.Api
 			//			data.SafeGetValue<int>("maxValue"));
 
 			LogicNode node = GetNodeById(data.SafeGetValue("id", 0));
+
 			if (node == null)
 			{
 				return;
