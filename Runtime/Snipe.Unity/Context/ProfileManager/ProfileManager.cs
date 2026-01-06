@@ -291,7 +291,7 @@ namespace MiniIT.Snipe.Api
 
 			// Server is authoritative only when its snapshot version is greater than the local version.
 			// Otherwise, preserve local offline progress.
-			if (_serverVersion > localVersion)
+			if (_serverVersion >= localVersion)
 			{
 				// Server value is authoritative - accept it
 				// Update local storage with server value
