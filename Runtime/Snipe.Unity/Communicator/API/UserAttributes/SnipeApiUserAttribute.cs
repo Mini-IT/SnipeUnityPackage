@@ -137,8 +137,15 @@ namespace MiniIT.Snipe.Api
 
 		public void SetValue(TAttrValue val, SetCallback callback = null)
 		{
+			var prevPendingChange = _pendingChange;
+
 			SetValueWithoutEvent(val, callback);
 			RaisePendingValueChangedEvent();
+
+			if (prevPendingChange != _pendingChange)
+			{
+				AddSetRequest(val, callback);
+			}
 		}
 
 		internal override void SetValueWithoutEvent(object val, SetCallback callback = null)
@@ -191,6 +198,11 @@ namespace MiniIT.Snipe.Api
 		{
 			return attr._value;
 		}
+
+		protected virtual void AddSetRequest(object val, SetCallback callback = null)
+		{
+			// nothing
+		}
 	}
 
 	public class SnipeApiUserAttribute<TAttrValue> : SnipeApiReadOnlyUserAttribute<TAttrValue>, IDisposable
@@ -220,15 +232,13 @@ namespace MiniIT.Snipe.Api
 						_oldValue = oldValue,
 						_newValue = val,
 					};
-
-					AddSetRequest(_value, callback);
 				}
 			}
 
 			_initialized = true;
 		}
 
-		protected async void AddSetRequest(object val, SetCallback callback = null)
+		protected override async void AddSetRequest(object val, SetCallback callback = null)
 		{
 			bool semaphoreOccupied = false;
 
