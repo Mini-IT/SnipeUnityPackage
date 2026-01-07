@@ -349,7 +349,7 @@ namespace MiniIT.Snipe.Api
 				return;
 			}
 
-			bool versionUpdated = false;
+			int prevServerVersion = _serverVersion;
 
 			// Udpate server version first
 			if (_serverVersionAttrKey != null)
@@ -365,7 +365,6 @@ namespace MiniIT.Snipe.Api
 							{
 								int newServerVersion = TypeConverter.Convert<int>(val);
 								_serverVersion = newServerVersion;
-								versionUpdated = true;
 							}
 							break;
 						}
@@ -393,7 +392,7 @@ namespace MiniIT.Snipe.Api
 				}
 			}
 
-			if (versionUpdated)
+			if (_serverVersion > prevServerVersion)
 			{
 				SyncWithServer();
 			}
@@ -442,11 +441,11 @@ namespace MiniIT.Snipe.Api
 			int localVersion = GetLocalVersion();
 			int lastSyncedVersion = GetLastSyncedVersion();
 
-			// Rebuild pending changes from dirty keys
-			var pendingChanges = RebuildPendingChanges();
-
 			if (localVersion > lastSyncedVersion)
 			{
+				// Rebuild pending changes
+				var pendingChanges = RebuildPendingChanges();
+
 				// Client has unsynced changes
 				// If nothing is registered yet, pendingChanges can be empty even when prefs contain dirty keys.
 				// Don't advance lastSynced in this case - just wait for attributes to be registered.
@@ -465,7 +464,9 @@ namespace MiniIT.Snipe.Api
 			}
 			else
 			{
-				// Versions are equal - no action needed
+				// Rebuild pending changes
+				var pendingChanges = RebuildPendingChanges();
+
 				if (pendingChanges.Count == 0)
 				{
 					SetLastSyncedVersion(_serverVersion);
