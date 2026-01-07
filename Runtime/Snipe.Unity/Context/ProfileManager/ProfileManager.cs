@@ -349,8 +349,6 @@ namespace MiniIT.Snipe.Api
 				return;
 			}
 
-			int prevServerVersion = _serverVersion;
-
 			// Udpate server version first
 			if (_serverVersionAttrKey != null)
 			{
@@ -392,10 +390,7 @@ namespace MiniIT.Snipe.Api
 				}
 			}
 
-			if (_serverVersion > prevServerVersion)
-			{
-				SyncWithServer();
-			}
+			SyncWithServer();
 		}
 
 		private bool IsSelfMessage(IDictionary<string, object> data)
