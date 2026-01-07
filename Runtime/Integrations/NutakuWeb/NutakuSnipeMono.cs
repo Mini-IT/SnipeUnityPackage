@@ -7,7 +7,7 @@ namespace MiniIT.Snipe.Unity
 	public sealed class NutakuSnipeMono : MonoBehaviour
 	{
 		[DllImport("__Internal")]
-		private static extern string GetUserInfo_js();
+		private static extern string GetUserId_js();
 
 		[DllImport("__Internal")]
 		private static extern string GetHandshake_js();
@@ -79,7 +79,7 @@ namespace MiniIT.Snipe.Unity
 		private void Awake()
 		{
 			DontDestroyOnLoad(gameObject);
-			GetUserInfo_js();
+			GetUserId_js();
 			GetHandshake_js();
 		}
 	}
