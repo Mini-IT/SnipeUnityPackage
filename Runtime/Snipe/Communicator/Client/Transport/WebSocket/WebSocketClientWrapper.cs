@@ -36,6 +36,8 @@ namespace MiniIT.Snipe
 		private readonly ConcurrentQueue<ArraySegment<byte>> _sendQueue = new ConcurrentQueue<ArraySegment<byte>>();
 		private readonly ILogger _logger;
 
+		private int _closeNotified; // 0 = not closed, 1 = close already notified
+
 		/// <summary>
 		/// <c>System.Net.WebSockets.ClientWebSocket</c> wrapper. Reads incoming messages by chunks
 		/// of <para>receiveBufferSize</para> bytes and merges them into message buffer.
@@ -55,6 +57,8 @@ namespace MiniIT.Snipe
 		public override void Connect(string url)
 		{
 			Disconnect();
+
+			_closeNotified = 0; // reset for new connection attempt
 
 			_cancellation = new CancellationTokenSource();
 			_ = Task.Run(() => StartConnection(new Uri(url), _cancellation.Token));
@@ -154,7 +158,7 @@ namespace MiniIT.Snipe
 				catch (WebSocketException e)
 				{
 					string exceptionMessage = LogUtil.GetReducedException(e);
-					Disconnect($"Send exception: {exceptionMessage}");
+					OnWebSocketClosed($"Send exception: {exceptionMessage}");
 					break;
 				}
 				catch (OperationCanceledException)
@@ -218,7 +222,7 @@ namespace MiniIT.Snipe
 				catch (WebSocketException e)
 				{
 					string exceptionMessage = LogUtil.GetReducedException(e);
-					Disconnect($"Receive exception: {exceptionMessage}");
+					OnWebSocketClosed($"Receive exception: {exceptionMessage}");
 				}
 				catch (System.Net.Sockets.SocketException e)
 				{
@@ -264,6 +268,12 @@ namespace MiniIT.Snipe
 
 		private void OnWebSocketClosed(string reason)
 		{
+			// Thread-safe guard from firing twice
+			if (Interlocked.Exchange(ref _closeNotified, 1) != 0)
+			{
+				return;
+			}
+
 			_logger.LogTrace($"[WebSocketWrapper] OnWebSocketClosed: {reason}");
 
 			Disconnect(reason);
