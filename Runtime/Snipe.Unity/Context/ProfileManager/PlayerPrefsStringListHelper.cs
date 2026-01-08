@@ -7,81 +7,89 @@ namespace MiniIT.Snipe.Api
 {
 	public class PlayerPrefsStringListHelper
 	{
-		private const string SEPARATOR = ",";
+		private const char SEPARATOR = ',';
 		private readonly ISharedPrefs _sharedPrefs;
+		private readonly string _key;
+		private List<string> _values;
 
-		public PlayerPrefsStringListHelper(ISharedPrefs sharedPrefs)
+		public PlayerPrefsStringListHelper(ISharedPrefs sharedPrefs, string key)
 		{
 			_sharedPrefs = sharedPrefs;
+			_key = key;
+			_values = InitList();
 		}
 
-		public List<string> GetList(string key)
+		private List<string> InitList()
 		{
-			string value = _sharedPrefs.GetString(key, string.Empty);
+			string value = _sharedPrefs.GetString(_key, string.Empty);
 			if (string.IsNullOrEmpty(value))
 			{
 				return new List<string>();
 			}
 
-			return value.Split(SEPARATOR[0]).Where(s => !string.IsNullOrEmpty(s)).ToList();
+			return value.Split(SEPARATOR).Where(s => !string.IsNullOrEmpty(s)).ToList();
 		}
 
-		public void SetList(string key, IList<string> list)
+		public List<string> GetList() => _values;
+
+		public void SetList(List<string> list)
 		{
+			_values = list;
+
 			if (list == null || list.Count == 0)
 			{
-				_sharedPrefs.DeleteKey(key);
+				_sharedPrefs.DeleteKey(_key);
 				return;
 			}
 
 			string value = string.Join(SEPARATOR, list);
-			_sharedPrefs.SetString(key, value);
+			_sharedPrefs.SetString(_key, value);
 		}
 
-		public void Add(string key, string item)
+		public void Add(string item)
 		{
 			if (string.IsNullOrEmpty(item))
 			{
 				return;
 			}
 
-			var list = GetList(key);
+			var list = GetList();
 			if (!list.Contains(item))
 			{
 				list.Add(item);
-				SetList(key, list);
+				SetList(list);
 			}
 		}
 
-		public void Remove(string key, string item)
+		public void Remove(string item)
 		{
 			if (string.IsNullOrEmpty(item))
 			{
 				return;
 			}
 
-			var list = GetList(key);
+			var list = GetList();
 			if (list.Remove(item))
 			{
-				SetList(key, list);
+				SetList(list);
 			}
 		}
 
-		public void Clear(string key)
+		public void Clear()
 		{
-			_sharedPrefs.DeleteKey(key);
+			_sharedPrefs.DeleteKey(_key);
 		}
 
-		public bool Contains(string key, string item)
+		public bool Contains(string item)
 		{
-			var list = GetList(key);
+			var list = GetList();
 			return list.Contains(item);
 		}
 	}
 
 	public class PlayerPrefsTypeHelper
 	{
-		private const string LIST_SEPARATOR = ";";
+		private const char LIST_SEPARATOR = ';';
 		private static readonly System.Globalization.NumberFormatInfo InvariantNumberFormat = System.Globalization.NumberFormatInfo.InvariantInfo;
 		private readonly ISharedPrefs _sharedPrefs;
 
@@ -364,7 +372,7 @@ namespace MiniIT.Snipe.Api
 					inQuotes = !inQuotes;
 					current.Append(c);
 				}
-				else if (c == LIST_SEPARATOR[0] && !inQuotes)
+				else if (c == LIST_SEPARATOR && !inQuotes)
 				{
 					if (current.Length > 0)
 					{

@@ -58,7 +58,7 @@ namespace MiniIT.Snipe
 				}
 			}
 
-			ProfileManager = new ProfileManager(_api, SnipeServices.Instance.SharedPrefs);
+			ProfileManager = new ProfileManager(this, SnipeServices.Instance.SharedPrefs);
 		}
 
 		public AbstractSnipeApiService GetSnipeApiService() => _api;
