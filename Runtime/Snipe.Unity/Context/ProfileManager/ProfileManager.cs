@@ -126,7 +126,13 @@ namespace MiniIT.Snipe.Api
 						string key = data.SafeGetString("key");
 						if (!string.IsNullOrEmpty(key) && data.TryGetValue("val", out object val))
 						{
-							ApplyServerAttributeChange(key, val);
+							bool updateVersions = ApplyServerAttributeChange(key, val);
+							if (updateVersions)
+							{
+								// We just accepted server state as authoritative, so local versions are now in sync.
+								SetLocalVersion(_serverVersion);
+								SetLastSyncedVersion(_serverVersion);
+							}
 						}
 					}
 					break;
@@ -268,18 +274,18 @@ namespace MiniIT.Snipe.Api
 			SyncWithServer();
 		}
 
-		private void ApplyServerAttributeChange(string key, object value)
+		private bool ApplyServerAttributeChange(string key, object value)
 		{
 			if (_disposed)
 			{
-				return;
+				return false;
 			}
 
 			// Update ONLY registered attributes (GetAttribute must be called).
 			// Server snapshot values for unregistered keys are stored in _serverSnapshotValues.
 			if (!_attributeValueSetters.TryGetValue(key, out Action<object> attrValueSetter))
 			{
-				return;
+				return false;
 			}
 
 			var localVersion = GetLocalVersion();
@@ -288,7 +294,7 @@ namespace MiniIT.Snipe.Api
 			// Ignore stale server pushes (older than last synced snapshot)
 			if (_serverVersion <= lastSyncedVersion)
 			{
-				return;
+				return false;
 			}
 
 			// If local value diverged from what we last considered synced, don't blindly overwrite it just because
@@ -303,14 +309,14 @@ namespace MiniIT.Snipe.Api
 				if (localChangedSinceSync && SnipeApiUserAttribute.AreEqual(lastServerValue, value))
 				{
 					// Server still has the last synced value -> keep local dirty value.
-					return;
+					return false;
 				}
 
 				// If local changed since sync and server value differs from last synced value,
 				// server changed this key elsewhere -> accept server as authoritative.
 			}
 
-			// Server is authoritative only when its snapshot version is greater than the local version.
+			// Server is authoritative only when its snapshot version is greater than (or equal to) the local version.
 			// Otherwise, preserve local offline progress.
 			if (_serverVersion >= localVersion)
 			{
@@ -323,9 +329,11 @@ namespace MiniIT.Snipe.Api
 
 				_lastSyncedServerValues[key] = value;
 
-				// We just accepted server state as authoritative, so local versions are now in sync.
-				SetLocalVersion(_serverVersion);
-				SetLastSyncedVersion(_serverVersion);
+				// For list-based snapshots (attr.getAll/attr.changed/etc) ApplyServerAttributeChange is called
+				// multiple times within the same server version. Advancing lastSynced here would make the
+				// remaining items look stale and get skipped. Version reconciliation is done once after the
+				// whole list via SyncWithServer().
+				return true;
 			}
 			else
 			{
@@ -335,6 +343,7 @@ namespace MiniIT.Snipe.Api
 			}
 
 			// Versions are updated above when accepting server state.
+			return false;
 		}
 
 		private void ApplyAttributeList(IDictionary<string, object> data, string listKey)

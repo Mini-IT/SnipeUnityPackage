@@ -163,6 +163,49 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[Test]
+		public void OnServerAttributeChanged_MultipleAttributesInOneMessage_AllAreApplied()
+		{
+			// Arrange
+			var coinsServerAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+			var gemsServerAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "gems");
+			_mockUserAttributes.RegisterAttribute(coinsServerAttr);
+			_mockUserAttributes.RegisterAttribute(gemsServerAttr);
+
+			var coinsAttr = _profileManager.GetAttribute<int>(coinsServerAttr);
+			var gemsAttr = _profileManager.GetAttribute<int>(gemsServerAttr);
+
+			// Act - one server message contains multiple attributes with the same _version
+			_profileManager.HandleServerMessage("attr.changed", "ok", new Dictionary<string, object>()
+			{
+				["list"] = new List<IDictionary<string, object>>()
+				{
+					new Dictionary<string, object>()
+					{
+						["key"] = "_version",
+						["val"] = 2
+					},
+					new Dictionary<string, object>()
+					{
+						["key"] = "coins",
+						["val"] = 200
+					},
+					new Dictionary<string, object>()
+					{
+						["key"] = "gems",
+						["val"] = 15
+					}
+				}
+			}, 0);
+
+			// Assert - both values must be applied
+			Assert.AreEqual(200, coinsAttr.Value);
+			Assert.AreEqual(15, gemsAttr.Value);
+
+			Assert.AreEqual(200, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 0));
+			Assert.AreEqual(15, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "gems", 0));
+		}
+
+		[Test]
 		public void SyncWithServer_LocalVersionGreater_SendsPendingChangesSingle()
 		{
 			// Arrange - simulate a previous session where attribute was used and dirty keys were created
