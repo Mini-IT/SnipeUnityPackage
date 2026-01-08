@@ -17,7 +17,7 @@ namespace MiniIT.Snipe.Api
 				}
 
 				_value = value;
-				_manager?.OnLocalAttributeChanged(_key, value);
+				_manager?.OnAttributeLocalValueChanged(_key, value);
 				NotifyObservers(value);
 			}
 		}

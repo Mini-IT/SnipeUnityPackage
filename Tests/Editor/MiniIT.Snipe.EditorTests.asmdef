@@ -7,6 +7,7 @@
         "MiniIT.Snipe.Communicator",
         "MiniIT.Snipe.Communicator.Unity",
         "MiniIT.Snipe.Core",
+        "MiniIT.Snipe.Context",
         "MiniIT.Snipe.MessagePack",
         "MiniIT.Snipe.Services",
         "MiniIT.Snipe.Unity",

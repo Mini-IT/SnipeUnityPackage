@@ -68,9 +68,14 @@ namespace MiniIT.Snipe.Api
 			}
 		}
 
-		private void OnMessageReceived(string message_type, string error_code, IDictionary<string, object> data, int request_id)
+		private void OnMessageReceived(string messageType, string errorCode, IDictionary<string, object> data, int requestID)
 		{
-			switch (message_type)
+			if (!string.Equals(errorCode, SnipeErrorCodes.OK, StringComparison.Ordinal))
+			{
+				return;
+			}
+
+			switch (messageType)
 			{
 				case "attr.getAll":
 					UpdateValues(data["data"]);
@@ -78,6 +83,48 @@ namespace MiniIT.Snipe.Api
 
 				case "attr.changed":
 					UpdateValues(data["list"]);
+					break;
+
+				case "attr.set":
+				{
+					string key = data.SafeGetString("key");
+					if (!string.IsNullOrEmpty(key) && data.TryGetValue("val", out object val))
+					{
+						UpdateValues(new List<IDictionary<string, object>>()
+						{
+							new Dictionary<string, object>()
+							{
+								["key"] = key,
+								["val"] = val
+							}
+						});
+					}
+					break;
+				}
+
+				case "attr.setMulti":
+					// Server typically returns updated values in "data"
+					if (data.TryGetValue("data", out object rawList))
+					{
+						UpdateValues(rawList);
+						break;
+					}
+
+					// Be defensive: if server returns a single key/val pair.
+					{
+						string key = data.SafeGetString("key");
+						if (!string.IsNullOrEmpty(key) && data.TryGetValue("val", out object val))
+						{
+							UpdateValues(new List<IDictionary<string, object>>()
+							{
+								new Dictionary<string, object>()
+								{
+									["key"] = key,
+									["val"] = val
+								}
+							});
+						}
+					}
 					break;
 			}
 		}
@@ -88,13 +135,23 @@ namespace MiniIT.Snipe.Api
 			{
 				lock (_attributesLock)
 				{
+					var attributes = new List<SnipeApiUserAttribute>(list.Count);
+
+					// Phase 1: Set all values without raising events
 					foreach (IDictionary<string, object> o in list)
 					{
 						string key = o.SafeGetString("key");
 						if (_attributes.TryGetValue(key, out SnipeApiUserAttribute attr))
 						{
-							attr.SetValue(o["val"]);
+							attributes.Add(attr);
+							attr.SetValueWithoutEvent(o["val"]);
 						}
+					}
+
+					// Phase 2: Raising ValueChanged event for all affected attributes
+					foreach (var attr in attributes)
+					{
+						attr.RaisePendingValueChangedEvent();
 					}
 				}
 			}
