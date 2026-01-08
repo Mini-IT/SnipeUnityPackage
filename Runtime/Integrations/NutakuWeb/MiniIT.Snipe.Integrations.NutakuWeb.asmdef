@@ -1,0 +1,20 @@
+{
+	"name": "MiniIT.Snipe.Integrations.NutakuWeb",
+	"rootNamespace": "MiniIT.Snipe",
+	"references": [
+		"MiniIT.Snipe.Core",
+		"MiniIT.Snipe.Communicator",
+		"MiniIT.AlterTask",
+		"UniTask",
+		"fastJSON"
+	],
+	"includePlatforms": [],
+	"excludePlatforms": [],
+	"allowUnsafeCode": false,
+	"overrideReferences": false,
+	"precompiledReferences": [],
+	"autoReferenced": true,
+	"defineConstraints": [],
+	"versionDefines": [],
+	"noEngineReferences": false
+}
