@@ -137,12 +137,19 @@ namespace MiniIT.Snipe.Api
 
 		public void SetValue(TAttrValue val, SetCallback callback = null)
 		{
-			var prevPendingChange = _pendingChange;
+			bool wasInitialized = _initialized;
+			var oldValue = _value;
 
 			SetValueWithoutEvent(val, callback);
+
+			// NOTE:
+			// - _pendingChange is used only for ValueChanged event semantics and is cleared by RaisePendingValueChangedEvent().
+			// - sending to server should be based on actual explicit set intent/value change (and also allow first explicit set).
+			bool shouldSendRequest = !wasInitialized || !AreEqual(oldValue, _value);
+
 			RaisePendingValueChangedEvent();
 
-			if (prevPendingChange != _pendingChange)
+			if (shouldSendRequest)
 			{
 				AddSetRequest(val, callback);
 			}
