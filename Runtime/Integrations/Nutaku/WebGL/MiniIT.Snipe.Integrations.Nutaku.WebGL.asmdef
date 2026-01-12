@@ -1,5 +1,5 @@
 {
-	"name": "MiniIT.Snipe.Integrations.NutakuWeb",
+	"name": "MiniIT.Snipe.Integrations.Nutaku.WebGL",
 	"rootNamespace": "MiniIT.Snipe",
 	"references": [
 		"MiniIT.Snipe.Core",
@@ -8,7 +8,7 @@
 		"UniTask",
 		"fastJSON"
 	],
-	"includePlatforms": [],
+	"includePlatforms": ["WebGL", "Editor"],
 	"excludePlatforms": [],
 	"allowUnsafeCode": false,
 	"overrideReferences": false,

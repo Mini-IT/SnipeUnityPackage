@@ -1,5 +1,5 @@
 {
-	"name": "MiniIT.Snipe.Integrations.Nutaku",
+	"name": "MiniIT.Snipe.Integrations.Nutaku.Android",
 	"rootNamespace": "MiniIT.Snipe",
 	"references": [
 		"MiniIT.Snipe.Core",
@@ -7,7 +7,7 @@
 		"fastJSON",
 		"Nutaku.Unity"
 	],
-	"includePlatforms": [],
+	"includePlatforms": ["Android", "Editor"],
 	"excludePlatforms": [],
 	"allowUnsafeCode": false,
 	"overrideReferences": false,
