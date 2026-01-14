@@ -310,7 +310,7 @@ namespace MiniIT.Snipe
 
 		protected abstract UniTaskVoid RegisterAndLogin();
 
-		protected async UniTask FetchLoginId(AuthBinding binding, List<IDictionary<string, object>> providers)
+		protected async UniTask FetchLoginId(AuthBinding binding, Dictionary<string, Dictionary<string, object>> providers)
 		{
 			string provider = binding.ProviderId;
 			AuthIdFetcher fetcher = binding.Fetcher;
@@ -338,7 +338,7 @@ namespace MiniIT.Snipe
 						providerData.Add("token", tokenFetcher.Token);
 					}
 
-					providers.Add(providerData);
+					providers[provider] = providerData;
 				}
 				done = true;
 			});
@@ -346,11 +346,14 @@ namespace MiniIT.Snipe
 			await UniTask.WaitUntil(() => done);
 		}
 
-		protected void RequestRegisterAndLogin(List<IDictionary<string, object>> providers)
+		protected void RequestRegisterAndLogin(Dictionary<string, Dictionary<string, object>> providers)
 		{
+			// Convert dictionary to list
+			var providersList = providers.Values.ToList();
+
 			IDictionary<string, object> data = _config.LoginParameters != null ? new Dictionary<string, object>(_config.LoginParameters) : new Dictionary<string, object>();
 			data["ckey"] = _config.ClientKey;
-			data["auths"] = providers;
+			data["auths"] = providersList;
 			FillCommonAuthRequestParameters(data);
 
 			if (_config.CompressionEnabled)
