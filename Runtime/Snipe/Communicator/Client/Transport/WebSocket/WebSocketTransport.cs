@@ -17,6 +17,7 @@ namespace MiniIT.Snipe
 		private const double HEARTBEAT_INTERVAL = 30; // seconds
 		private const int HEARTBEAT_TASK_DELAY = 5000; //milliseconds
 		private const int CHECK_CONNECTION_TIMEOUT = 5000; // milliseconds
+		private const int LOGIN_TIMEOUT = 10000;
 		private readonly byte[] COMPRESSED_HEADER = new byte[] { 0xAA, 0xBB };
 		private readonly byte[] BATCH_HEADER = new byte[] { 0xAA, 0xBC };
 
@@ -51,6 +52,11 @@ namespace MiniIT.Snipe
 
 		private bool _connected;
 		private bool _loggedIn;
+
+		public bool BadConnection { get; private set; } = false;
+
+		private CancellationTokenSource _checkConnectionCancellation;
+		private CancellationTokenSource _loginTimeoutCancellation;
 
 		internal WebSocketTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
 			: base(config, analytics)
@@ -102,6 +108,7 @@ namespace MiniIT.Snipe
 
 			lock (_lock)
 			{
+				StopLoginTimeout();
 				StopSendTask();
 				StopHeartbeat();
 				StopCheckConnection();
@@ -128,6 +135,7 @@ namespace MiniIT.Snipe
 
 			if (_loggedIn && _heartbeatEnabled)
 			{
+				StopLoginTimeout();
 				StartHeartbeat();
 			}
 		}
@@ -138,15 +146,23 @@ namespace MiniIT.Snipe
 
 			_logger.LogTrace("OnWebSocketConnected");
 
+			StartLoginTimeout();
+
 			ConnectionOpenedHandler?.Invoke(this);
 		}
 
 		private void OnWebSocketClosed()
 		{
+			CloseConnection("OnWebSocketClosed");
+		}
+
+		private void CloseConnection(string reason)
+		{
 			_logger.LogTrace("OnWebSocketClosed");
 
 			_loggedIn = false;
 
+			Disconnect();
 			ConnectionClosedHandler?.Invoke(this);
 		}
 
@@ -388,6 +404,47 @@ namespace MiniIT.Snipe
 
 		#endregion // Send task
 
+		#region Login timeout
+
+		private void StartLoginTimeout()
+		{
+			StopLoginTimeout();
+
+			_loginTimeoutCancellation = new CancellationTokenSource();
+			AlterTask.RunAndForget(() => LoginTimeoutTask(_loginTimeoutCancellation.Token).Forget());
+		}
+
+		private void StopLoginTimeout()
+		{
+			CancellationTokenHelper.CancelAndDispose(ref _loginTimeoutCancellation);
+		}
+
+		private async UniTaskVoid LoginTimeoutTask(CancellationToken cancellation)
+		{
+			try
+			{
+				await AlterTask.Delay(LOGIN_TIMEOUT, cancellation);
+			}
+			catch (OperationCanceledException)
+			{
+				return;
+			}
+
+			if (cancellation.IsCancellationRequested)
+			{
+				return;
+			}
+
+			// If not logged in within timeout, consider the connection attempt failed and close transport.
+			if (!_loggedIn && Started)
+			{
+				_logger.LogTrace($"LoginTimeoutTask - login timeout ({LOGIN_TIMEOUT} ms)");
+				CloseConnection($"Login timeout ({LOGIN_TIMEOUT} ms)");
+			}
+		}
+
+		#endregion
+
 		#region Heartbeat
 
 		private long _heartbeatTriggerTicks = 0;
@@ -427,6 +484,12 @@ namespace MiniIT.Snipe
 				// then wait one more HEARTBEAT_TASK_DELAY and then send another ping
 				if (pinging)
 				{
+					if (forcePing)
+					{
+						OnDisconnectDetected();
+						break;
+					}
+
 					pinging = false;
 					forcePing = true;
 				}
@@ -484,10 +547,6 @@ namespace MiniIT.Snipe
 		#endregion
 
 		#region CheckConnection
-
-		public bool BadConnection { get; private set; } = false;
-
-		private CancellationTokenSource _checkConnectionCancellation;
 
 		private void StartCheckConnection()
 		{
