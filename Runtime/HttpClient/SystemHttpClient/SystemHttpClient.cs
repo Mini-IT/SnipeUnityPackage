@@ -16,7 +16,7 @@ namespace MiniIT.Http
 		public SystemHttpClient()
 		{
 			_httpClient = new HttpClient();
-			_httpClient.Timeout = TimeSpan.FromSeconds(4);
+			_httpClient.Timeout = TimeSpan.FromSeconds(15);
 		}
 
 		public void Reset()
