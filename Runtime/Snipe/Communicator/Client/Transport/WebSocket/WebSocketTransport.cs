@@ -160,7 +160,7 @@ namespace MiniIT.Snipe
 
 		private void CloseConncetion(string reason)
 		{
-			_logger.LogTrace("OnWebSocketClosed");
+			_logger.LogTrace("CloseConncetion: " + reason);
 
 			_loggedIn = false;
 

@@ -168,7 +168,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			_logger.LogInformation("Auto login is disabled. You must manually call Authorize()");
+			_logger.LogInformation($"Auto login is disabled. You must manually call {nameof(Authorize)}()");
 		}
 
 		private void OnMessageReceived(string messagetype, string errorcode, IDictionary<string, object> data, int requestid)
