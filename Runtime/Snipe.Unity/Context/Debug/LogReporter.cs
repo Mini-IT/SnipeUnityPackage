@@ -124,7 +124,7 @@ namespace MiniIT
 				return false;
 			}
 
-			bool result = false;
+			bool success = false;
 			string filepath = null;
 
 			bool semaphoreOccupied = false;
@@ -156,14 +156,15 @@ namespace MiniIT
 			{
 				file = File.OpenText(filepath);
 				var sender = new LogSender(_snipeContext, _snipeConfig);
-				result = await sender.SendAsync(file);
+				success = await sender.SendAsync(file);
 			}
 			catch (Exception ex)
 			{
 				string exceptionMessage = LogUtil.GetReducedException(ex);
 				DebugLogger.LogError($"[{nameof(LogReporter)}] {exceptionMessage}");
 			}
-			finally
+
+			if (success)
 			{
 				try
 				{
@@ -189,7 +190,7 @@ namespace MiniIT
 				}
 			}
 
-			return result;
+			return success;
 		}
 
 		private static void OnLogMessageReceived(string condition, string stackTrace, LogType type)
