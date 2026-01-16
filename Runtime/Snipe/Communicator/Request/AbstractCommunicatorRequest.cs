@@ -329,6 +329,16 @@ namespace MiniIT.Snipe
 
 		private static bool CheckDataIsFullyContained(IDictionary<string, object> container, IDictionary<string, object> data)
 		{
+			if (data == null)
+			{
+				return container is null;
+			}
+
+			if (container == null)
+			{
+				return false;
+			}
+
 			foreach (var item in data)
 			{
 				if (!container.TryGetValue(item.Key, out object value) || value != item.Value)
