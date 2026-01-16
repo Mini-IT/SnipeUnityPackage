@@ -55,6 +55,8 @@ namespace MiniIT.Snipe
 
 		public bool BadConnection { get; private set; } = false;
 
+		private int _checkConnectionGeneration = 0;
+
 		private CancellationTokenSource _checkConnectionCancellation;
 		private CancellationTokenSource _loginTimeoutCancellation;
 
@@ -563,7 +565,8 @@ namespace MiniIT.Snipe
 			}
 
 			_checkConnectionCancellation = new CancellationTokenSource();
-			AlterTask.RunAndForget(() => CheckConnectionTask(_checkConnectionCancellation.Token));
+			int generation = Interlocked.Increment(ref _checkConnectionGeneration);
+			AlterTask.RunAndForget(() => CheckConnectionTask(_checkConnectionCancellation.Token, generation));
 		}
 
 		private void StopCheckConnection()
@@ -573,10 +576,11 @@ namespace MiniIT.Snipe
 				CancellationTokenHelper.CancelAndDispose(ref _checkConnectionCancellation);
 			}
 
+			Interlocked.Increment(ref _checkConnectionGeneration);
 			BadConnection = false;
 		}
 
-		private async void CheckConnectionTask(CancellationToken cancellation)
+		private async void CheckConnectionTask(CancellationToken cancellation, int generation)
 		{
 			BadConnection = false;
 
@@ -591,7 +595,7 @@ namespace MiniIT.Snipe
 			}
 
 			// if the connection is ok then this task should already be cancelled
-			if (cancellation.IsCancellationRequested)
+			if (cancellation.IsCancellationRequested || generation != Volatile.Read(ref _checkConnectionGeneration))
 				return;
 
 			BadConnection = true;
@@ -601,7 +605,7 @@ namespace MiniIT.Snipe
 			while (Connected && BadConnection)
 			{
 				// if the connection is ok then this task should be cancelled
-				if (cancellation.IsCancellationRequested)
+				if (cancellation.IsCancellationRequested || generation != Volatile.Read(ref _checkConnectionGeneration))
 				{
 					BadConnection = false;
 					return;
