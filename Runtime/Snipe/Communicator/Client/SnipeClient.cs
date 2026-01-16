@@ -273,10 +273,6 @@ namespace MiniIT.Snipe
 			}
 
 			var entry = GetCurrentEntry();
-			if (entry == null)
-			{
-				return;
-			}
 
 			if (transport is KcpTransport)
 			{
@@ -291,8 +287,8 @@ namespace MiniIT.Snipe
 			_loggedIn = false;
 			ResetAnalyticsMetrics();
 
-			bool hasMoreUrls = entry.TryAdvanceUrl();
-			if (!hasMoreUrls)
+			bool hasMoreUrls = entry != null && entry.TryAdvanceUrl();
+			if (!hasMoreUrls && entry != null)
 			{
 				DisposeEntry(entry);
 			}
