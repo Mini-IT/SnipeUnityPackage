@@ -109,9 +109,14 @@ namespace MiniIT.Snipe
 			_currentTransportIndex = -1;
 			_retryCurrentTransport = false;
 
-			if (_transportEntries.Count > 0)
+			for (int i = 0; i < _transportEntries.Count; i++)
 			{
-				return;
+				if (_transportEntries[i] != null)
+				{
+					// We already have at least one entry.
+					// It means that the initialization is already done.
+					return;
+				}
 			}
 
 #if !UNITY_WEBGL
@@ -425,6 +430,9 @@ namespace MiniIT.Snipe
 		{
 			// Create a copy to avoid modifying collection during enumeration
 			var entriesToDispose = _transportEntries.ToArray();
+			// And clear the original list to avoid the inner loop work in `DisposeEntry`
+			_transportEntries.Clear();
+
 			foreach (var entry in entriesToDispose)
 			{
 				DisposeEntry(entry);
