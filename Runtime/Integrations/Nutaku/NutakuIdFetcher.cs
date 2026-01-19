@@ -66,7 +66,7 @@ namespace MiniIT.Snipe.Unity
 				var handshake = fastJSON.JSON.ToObject<NutakuSnipeMono.HandshakeResponse>(result.message);
 				if (handshake?.errorCode == "ok")
 				{
-					SetToken(_mono.HandshakeToken);
+					SetToken(handshake.token);
 					_callback?.Invoke(Value);
 				}
 
