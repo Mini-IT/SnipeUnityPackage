@@ -3,6 +3,7 @@
 #endif
 
 using System;
+using System.Collections.Generic;
 using MiniIT.Snipe;
 using MiniIT.Snipe.Internal;
 using MiniIT.Threading;
@@ -21,6 +22,7 @@ namespace MiniIT
 		private static readonly AlterSemaphore s_semaphore;
 
 		private static string s_filePath;
+		private static Queue<string> s_filePathsToSend = new ();
 		private static FileStream s_file;
 		private static int s_bytesWritten;
 		private SnipeContext _snipeContext;
@@ -48,7 +50,8 @@ namespace MiniIT
 					}
 					catch (Exception ex)
 					{
-						DebugLogger.LogWarning($"[{nameof(LogReporter)}] Error closing previous log file: {ex.Message}");
+						string exceptionMessage = LogUtil.GetReducedException(ex);
+						DebugLogger.LogWarning($"[{nameof(LogReporter)}] Error closing previous log file: {exceptionMessage}");
 					}
 				}
 
@@ -62,7 +65,8 @@ namespace MiniIT
 					}
 					catch (Exception ex)
 					{
-						DebugLogger.LogError($"[{nameof(LogReporter)}] Failed to create cache directory: {ex.Message}");
+						string exceptionMessage = LogUtil.GetReducedException(ex);
+						DebugLogger.LogError($"[{nameof(LogReporter)}] Failed to create cache directory: {exceptionMessage}");
 						s_canWrite = false;
 						return;
 					}
@@ -80,26 +84,30 @@ namespace MiniIT
 				catch (IOException ioEx)
 				{
 					// I/O error handling, including full disk drive
-					DebugLogger.LogError($"[{nameof(LogReporter)}] IO Error creating log file: {ioEx.Message}");
+					string exceptionMessage = LogUtil.GetReducedException(ioEx);
+					DebugLogger.LogError($"[{nameof(LogReporter)}] IO Error creating log file: {exceptionMessage}");
 					s_canWrite = false;
 				}
 				catch (UnauthorizedAccessException uaEx)
 				{
 					// Access error handling
-					DebugLogger.LogError($"[{nameof(LogReporter)}] Access denied when creating log file: {uaEx.Message}");
+					string exceptionMessage = LogUtil.GetReducedException(uaEx);
+					DebugLogger.LogError($"[{nameof(LogReporter)}] Access denied when creating log file: {exceptionMessage}");
 					s_canWrite = false;
 				}
 				catch (Exception ex)
 				{
 					// Handling other errors
-					DebugLogger.LogError($"[{nameof(LogReporter)}] Error creating log file: {ex.Message}");
+					string exceptionMessage = LogUtil.GetReducedException(ex);
+					DebugLogger.LogError($"[{nameof(LogReporter)}] Error creating log file: {exceptionMessage}");
 					s_canWrite = false;
 				}
 			}
 			catch (Exception ex)
 			{
 				// Handling any unforeseen errors
-				DebugLogger.LogError($"[{nameof(LogReporter)}] Unexpected error in CreateNewFile: {ex.Message}");
+				string exceptionMessage = LogUtil.GetReducedException(ex);
+				DebugLogger.LogError($"[{nameof(LogReporter)}] Unexpected error in CreateNewFile: {exceptionMessage}");
 				s_canWrite = false;
 			}
 		}
@@ -116,9 +124,6 @@ namespace MiniIT
 				return false;
 			}
 
-			bool success = false;
-			string filepath = null;
-
 			bool semaphoreOccupied = false;
 
 			try
@@ -126,7 +131,7 @@ namespace MiniIT
 				await s_semaphore.WaitAsync();
 				semaphoreOccupied = true;
 
-				filepath = s_filePath;
+				s_filePathsToSend.Enqueue(s_filePath);
 				CreateNewFile();
 			}
 			catch (Exception ex)
@@ -142,22 +147,24 @@ namespace MiniIT
 				}
 			}
 
-			StreamReader file = null;
+			bool success = false;
+			while (s_filePathsToSend.TryDequeue(out string filepath))
+			{
+				success = false;
+				StreamReader file = null;
 
-			try
-			{
-				file = File.OpenText(filepath);
-				var sender = new LogSender(_snipeContext);
-				success = await sender.SendAsync(file);
-			}
-			catch (Exception ex)
-			{
-				string exceptionMessage = LogUtil.GetReducedException(ex);
-				DebugLogger.LogError($"[{nameof(LogReporter)}] {exceptionMessage}");
-			}
+				try
+				{
+					file = File.OpenText(filepath);
+					var sender = new LogSender(_snipeContext);
+					success = await sender.SendAsync(file);
+				}
+				catch (Exception ex)
+				{
+					string exceptionMessage = LogUtil.GetReducedException(ex);
+					DebugLogger.LogError($"[{nameof(LogReporter)}] {exceptionMessage}");
+				}
 
-			if (success)
-			{
 				try
 				{
 					file?.Dispose();
@@ -167,19 +174,12 @@ namespace MiniIT
 					// Ignore
 				}
 
-				if (!string.IsNullOrEmpty(filepath) && File.Exists(filepath))
+				if (!success)
 				{
-					try
-					{
-						File.Delete(filepath);
-						DebugLogger.Log($"[{nameof(LogReporter)}] Temp log file deleted {filepath}");
-					}
-					catch (Exception e)
-					{
-						string exceptionMessage = LogUtil.GetReducedException(e);
-						DebugLogger.LogError($"[{nameof(LogReporter)}] Failed deleting temp log file: {exceptionMessage}");
-					}
+					break;
 				}
+
+				TryDeleteFile(filepath);
 			}
 
 			return success;
@@ -219,28 +219,29 @@ namespace MiniIT
 						await s_file.WriteAsync(bytes, 0, bytes.Length);
 #endif
 
-						s_bytesWritten += bytes.Length;
-						if (s_bytesWritten >= MIN_BYTES_TO_FLUSH)
+						// During the awaiting Dispose could be invoked.
+						if (s_file != null && s_canWrite)
 						{
-							s_bytesWritten = 0;
+							s_bytesWritten += bytes.Length;
+							if (s_bytesWritten >= MIN_BYTES_TO_FLUSH)
+							{
+								s_bytesWritten = 0;
 #if SINGLE_THREAD
-							s_file.Flush();
+								s_file.Flush();
 #else
-							await s_file.FlushAsync();
+								await s_file.FlushAsync();
 #endif
+							}
 						}
-					}
-					catch (IOException ioEx)
-					{
-						// I/O error handling, including full disk drive
-						DebugLogger.LogError($"[{nameof(LogReporter)}] IO Error writing to log file: {ioEx.Message}");
-						s_canWrite = false;
-						StaticDispose();
+						else
+						{
+							DebugLogger.Log($"[{nameof(LogReporter)}] Could not write to log file. The file seems to be closed.");
+						}
 					}
 					catch (Exception ex)
 					{
-						// Handling other errors
-						DebugLogger.LogError($"[{nameof(LogReporter)}] Error writing to log file: {ex.Message}");
+						string exceptionMessage = LogUtil.GetReducedException(ex);
+						DebugLogger.LogError($"[{nameof(LogReporter)}] Error writing to log file: {exceptionMessage}");
 						s_canWrite = false;
 						StaticDispose();
 					}
@@ -248,7 +249,8 @@ namespace MiniIT
 			}
 			catch (Exception ex)
 			{
-				DebugLogger.LogError($"[{nameof(LogReporter)}] Error in ProcessLogMessageAsync: {ex.Message}");
+				string exceptionMessage = LogUtil.GetReducedException(ex);
+				DebugLogger.LogError($"[{nameof(LogReporter)}] Error in ProcessLogMessageAsync: {exceptionMessage}");
 				s_canWrite = false;
 				StaticDispose();
 			}
@@ -322,7 +324,8 @@ namespace MiniIT
 					}
 					catch (Exception ex)
 					{
-						DebugLogger.LogWarning($"[{nameof(LogReporter)}] Error disposing log file: {ex.Message}");
+						string exceptionMessage = LogUtil.GetReducedException(ex);
+						DebugLogger.LogWarning($"[{nameof(LogReporter)}] Error disposing log file: {exceptionMessage}");
 					}
 					finally
 					{
@@ -330,27 +333,39 @@ namespace MiniIT
 					}
 				}
 
-				if (!string.IsNullOrEmpty(s_filePath) && File.Exists(s_filePath))
+				TryDeleteFile(s_filePath);
+				s_filePath = null;
+
+				while (s_filePathsToSend.TryDequeue(out string filePath))
 				{
-					try
-					{
-						File.Delete(s_filePath);
-						DebugLogger.Log($"[{nameof(LogReporter)}] File {s_filePath} deleted");
-					}
-					catch (Exception e)
-					{
-						string exceptionMessage = LogUtil.GetReducedException(e);
-						DebugLogger.LogError($"[{nameof(LogReporter)}] Failed to delete {s_filePath}: {exceptionMessage}");
-					}
+					TryDeleteFile(filePath);
 				}
 			}
 			catch (Exception ex)
 			{
-				DebugLogger.LogError($"[{nameof(LogReporter)}] Error in StaticDispose: {ex.Message}");
+				string exceptionMessage = LogUtil.GetReducedException(ex);
+				DebugLogger.LogError($"[{nameof(LogReporter)}] Error in StaticDispose: {exceptionMessage}");
 			}
 			finally
 			{
 				Application.logMessageReceivedThreaded -= OnLogMessageReceived;
+			}
+		}
+
+		private static void TryDeleteFile(string filePath)
+		{
+			if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+			{
+				try
+				{
+					File.Delete(filePath);
+					DebugLogger.Log($"[{nameof(LogReporter)}] File {filePath} deleted");
+				}
+				catch (Exception e)
+				{
+					string exceptionMessage = LogUtil.GetReducedException(e);
+					DebugLogger.LogError($"[{nameof(LogReporter)}] Failed to delete {filePath}: {exceptionMessage}");
+				}
 			}
 		}
 	}
