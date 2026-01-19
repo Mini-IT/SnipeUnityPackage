@@ -16,6 +16,7 @@ namespace MiniIT.Snipe
 	{
 		private const double HEARTBEAT_INTERVAL = 30; // seconds
 		private const int HEARTBEAT_TASK_DELAY = 5000; //milliseconds
+		private const int BAD_CONNECTION_PING_INTERVAL = 1000; // milliseconds
 		private const int CHECK_CONNECTION_TIMEOUT = 5000; // milliseconds
 		private const int LOGIN_TIMEOUT = 10000;
 		private readonly byte[] COMPRESSED_HEADER = new byte[] { 0xAA, 0xBB };
@@ -495,7 +496,7 @@ namespace MiniIT.Snipe
 					pinging = false;
 					forcePing = true;
 				}
-				else if (forcePing || DateTime.UtcNow.Ticks >= _heartbeatTriggerTicks) // it's time to send a ping
+				else if (forcePing || BadConnection || DateTime.UtcNow.Ticks >= _heartbeatTriggerTicks) // it's time to send a ping
 				{
 					lock (_lock)
 					{
@@ -512,6 +513,11 @@ namespace MiniIT.Snipe
 							if (pong)
 							{
 								_logger.LogTrace($"Heartbeat pong {_analytics.PingTime.TotalMilliseconds} ms");
+								if (BadConnection)
+								{
+									BadConnection = false;
+									ResetHeartbeatTimer();
+								}
 							}
 							else
 							{
@@ -522,7 +528,7 @@ namespace MiniIT.Snipe
 
 					ResetHeartbeatTimer();
 
-					_logger.LogTrace($"Heartbeat ping");
+					_logger.LogTrace("Heartbeat ping");
 				}
 
 				if (cancellation.IsCancellationRequested)
@@ -532,7 +538,8 @@ namespace MiniIT.Snipe
 
 				try
 				{
-					await AlterTask.Delay(HEARTBEAT_TASK_DELAY, cancellation);
+					int delay = BadConnection ? BAD_CONNECTION_PING_INTERVAL : HEARTBEAT_TASK_DELAY;
+					await AlterTask.Delay(delay, cancellation);
 				}
 				catch (OperationCanceledException)
 				{
@@ -599,7 +606,12 @@ namespace MiniIT.Snipe
 				return;
 
 			BadConnection = true;
-			_logger.LogTrace($"CheckConnectionTask - Bad connection detected");
+			_logger.LogTrace("CheckConnectionTask - Bad connection detected");
+
+			if (_heartbeatEnabled)
+			{
+				return;
+			}
 
 			bool pinging = false;
 			while (Connected && BadConnection)
@@ -613,7 +625,14 @@ namespace MiniIT.Snipe
 
 				if (pinging)
 				{
-					await AlterTask.Delay(100);
+					try
+					{
+						await AlterTask.Delay(BAD_CONNECTION_PING_INTERVAL, cancellation);
+					}
+					catch (OperationCanceledException)
+					{
+						return;
+					}
 				}
 				else
 				{
@@ -627,11 +646,11 @@ namespace MiniIT.Snipe
 							if (pong)
 							{
 								BadConnection = false;
-								_logger.LogTrace($"CheckConnectionTask - pong received");
+								_logger.LogTrace("CheckConnectionTask - pong received");
 							}
 							else
 							{
-								_logger.LogTrace($"CheckConnectionTask - pong NOT received");
+								_logger.LogTrace("CheckConnectionTask - pong NOT received");
 								OnDisconnectDetected();
 							}
 						});
@@ -645,7 +664,7 @@ namespace MiniIT.Snipe
 			if (Connected)
 			{
 				// Disconnect detected
-				_logger.LogTrace($"CheckConnectionTask - Disconnect detected");
+				_logger.LogTrace("CheckConnectionTask - Disconnect detected");
 
 				OnWebSocketClosed();
 			}
