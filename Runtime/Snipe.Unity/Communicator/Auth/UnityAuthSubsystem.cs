@@ -44,7 +44,7 @@ namespace MiniIT.Snipe.Unity
 				return;
 			}
 
-			var providers = new List<SnipeObject>();
+			var providers = new Dictionary<string, Dictionary<string, object>>();
 
 			if (_bindings.Count > 0)
 			{
