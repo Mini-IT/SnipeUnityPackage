@@ -3,6 +3,7 @@
 #endif
 
 using System;
+using System.Collections.Generic;
 using MiniIT.Snipe;
 using MiniIT.Snipe.Internal;
 using MiniIT.Threading;
@@ -21,6 +22,7 @@ namespace MiniIT
 		private static readonly AlterSemaphore s_semaphore;
 
 		private static string s_filePath;
+		private static Queue<string> s_filePathsToSend = new ();
 		private static FileStream s_file;
 		private static int s_bytesWritten;
 		private SnipeContext _snipeContext;
@@ -124,9 +126,6 @@ namespace MiniIT
 				return false;
 			}
 
-			bool success = false;
-			string filepath = null;
-
 			bool semaphoreOccupied = false;
 
 			try
@@ -134,7 +133,7 @@ namespace MiniIT
 				await s_semaphore.WaitAsync();
 				semaphoreOccupied = true;
 
-				filepath = s_filePath;
+				s_filePathsToSend.Enqueue(s_filePath);
 				CreateNewFile();
 			}
 			catch (Exception ex)
@@ -150,22 +149,24 @@ namespace MiniIT
 				}
 			}
 
-			StreamReader file = null;
+			bool success = false;
+			while (s_filePathsToSend.TryDequeue(out string filepath))
+			{
+				success = false;
+				StreamReader file = null;
 
-			try
-			{
-				file = File.OpenText(filepath);
-				var sender = new LogSender(_snipeContext, _snipeConfig);
-				success = await sender.SendAsync(file);
-			}
-			catch (Exception ex)
-			{
-				string exceptionMessage = LogUtil.GetReducedException(ex);
-				DebugLogger.LogError($"[{nameof(LogReporter)}] {exceptionMessage}");
-			}
+				try
+				{
+					file = File.OpenText(filepath);
+					var sender = new LogSender(_snipeContext, _snipeConfig);
+					success = await sender.SendAsync(file);
+				}
+				catch (Exception ex)
+				{
+					string exceptionMessage = LogUtil.GetReducedException(ex);
+					DebugLogger.LogError($"[{nameof(LogReporter)}] {exceptionMessage}");
+				}
 
-			if (success)
-			{
 				try
 				{
 					file?.Dispose();
@@ -175,19 +176,12 @@ namespace MiniIT
 					// Ignore
 				}
 
-				if (!string.IsNullOrEmpty(filepath) && File.Exists(filepath))
+				if (!success)
 				{
-					try
-					{
-						File.Delete(filepath);
-						DebugLogger.Log($"[{nameof(LogReporter)}] Temp log file deleted {filepath}");
-					}
-					catch (Exception e)
-					{
-						string exceptionMessage = LogUtil.GetReducedException(e);
-						DebugLogger.LogError($"[{nameof(LogReporter)}] Failed deleting temp log file: {exceptionMessage}");
-					}
+					break;
 				}
+
+				TryDeleteFile(filepath);
 			}
 
 			return success;
@@ -341,18 +335,12 @@ namespace MiniIT
 					}
 				}
 
-				if (!string.IsNullOrEmpty(s_filePath) && File.Exists(s_filePath))
+				TryDeleteFile(s_filePath);
+				s_filePath = null;
+
+				while (s_filePathsToSend.TryDequeue(out string filePath))
 				{
-					try
-					{
-						File.Delete(s_filePath);
-						DebugLogger.Log($"[{nameof(LogReporter)}] File {s_filePath} deleted");
-					}
-					catch (Exception e)
-					{
-						string exceptionMessage = LogUtil.GetReducedException(e);
-						DebugLogger.LogError($"[{nameof(LogReporter)}] Failed to delete {s_filePath}: {exceptionMessage}");
-					}
+					TryDeleteFile(filePath);
 				}
 			}
 			catch (Exception ex)
@@ -363,6 +351,23 @@ namespace MiniIT
 			finally
 			{
 				Application.logMessageReceivedThreaded -= OnLogMessageReceived;
+			}
+		}
+
+		private static void TryDeleteFile(string filePath)
+		{
+			if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+			{
+				try
+				{
+					File.Delete(filePath);
+					DebugLogger.Log($"[{nameof(LogReporter)}] File {filePath} deleted");
+				}
+				catch (Exception e)
+				{
+					string exceptionMessage = LogUtil.GetReducedException(e);
+					DebugLogger.LogError($"[{nameof(LogReporter)}] Failed to delete {filePath}: {exceptionMessage}");
+				}
 			}
 		}
 	}
