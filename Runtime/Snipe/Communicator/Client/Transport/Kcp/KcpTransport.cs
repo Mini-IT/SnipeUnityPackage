@@ -368,7 +368,14 @@ namespace MiniIT.Snipe
 			// Set pending=1; only release when transitioning 0 -> 1
 			if (Interlocked.Exchange(ref _pending, 1) == 0)
 			{
-				_updateSignal.Release();
+				try
+				{
+					_updateSignal.Release();
+				}
+				catch (SemaphoreFullException)
+				{
+					// Already signaled; ignore.
+				}
 			}
 		}
 
