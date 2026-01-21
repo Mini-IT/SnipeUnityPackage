@@ -14,13 +14,14 @@ namespace MiniIT.Snipe.Unity
 		[DllImport("__Internal")]
 		private static extern string GetHandshake_js();
 #endif
+
 		internal sealed class HandshakeResponse
 		{
 			public string errorCode;
 			public string token;
 		}
 
-		public bool IsInitialized { get; private set; }
+		public bool IsInitialized => !string.IsNullOrEmpty(HandshakeToken) && !string.IsNullOrEmpty(UserId);
 		public string HandshakeToken { get; private set; }
 		public string UserId { get; private set; }
 
@@ -31,7 +32,6 @@ namespace MiniIT.Snipe.Unity
 			if (handshake?.errorCode == "ok")
 			{
 				HandshakeToken = handshake.token;
-				SetIsInitialized();
 			}
 		}
 
@@ -39,17 +39,6 @@ namespace MiniIT.Snipe.Unity
 		public void OnUserIdReceived(string userId)
 		{
 			UserId = userId;
-			SetIsInitialized();
-		}
-
-		private void SetIsInitialized()
-		{
-			if (string.IsNullOrEmpty(HandshakeToken) || string.IsNullOrEmpty(UserId))
-			{
-				return;
-			}
-
-			IsInitialized = true;
 		}
 
 		private void Awake()
