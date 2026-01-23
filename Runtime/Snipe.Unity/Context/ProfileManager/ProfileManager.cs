@@ -30,8 +30,8 @@ namespace MiniIT.Snipe.Api
 		// Used to detect whether the server actually changed a dirty key while we were offline.
 		private readonly Dictionary<string, object> _lastSyncedServerValues = new();
 
-		// Tracks which keys were processed by ApplyServerAttributeChange during the current snapshot processing.
-		// Used to distinguish between attributes that were registered when snapshot arrived vs those that weren't.
+		// Tracks which keys were processed by ApplyServerAttributeChange at least once.
+		// Used to distinguish between attributes that were registered when a snapshot arrived vs those that weren't.
 		private readonly HashSet<string> _snapshotProcessedKeys = new();
 		private readonly ISharedPrefs _sharedPrefs;
 		private readonly PlayerPrefsTypeHelper _prefsHelper;
@@ -368,9 +368,6 @@ namespace MiniIT.Snipe.Api
 			{
 				return;
 			}
-
-			// Clear the set of processed keys at the start of snapshot processing
-			_snapshotProcessedKeys.Clear();
 
 			// Udpate server version first
 			if (_serverVersionAttrKey != null)
