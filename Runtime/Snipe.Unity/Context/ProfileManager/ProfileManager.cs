@@ -501,6 +501,15 @@ namespace MiniIT.Snipe.Api
 					continue;
 				}
 
+				// If we have a server snapshot value but haven't synced this attribute yet
+				// (not in _lastSyncedServerValues), it means we received it from the server
+				// but the attribute wasn't registered at that time. Don't send the local default
+				// value as a pending change - we should accept the server value instead.
+				if (!_lastSyncedServerValues.ContainsKey(key))
+				{
+					continue;
+				}
+
 				var localValue = kvp.Value?.Invoke();
 				if (!SnipeApiUserAttribute.AreEqual(localValue, serverValue))
 				{
