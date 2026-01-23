@@ -11,12 +11,16 @@ namespace MiniIT.Snipe
 	{
 		// MsgPack serialized {"t":"server.ping"}
 		private readonly byte[] PING_SERIALIZED_DATA = new byte[] { 0x81, 0xA1, 0x74, 0xAB, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2E, 0x70, 0x69, 0x6E, 0x67 };
+		private readonly byte[] PONG_FRAGMENT = new byte[] { 0xA1, 0x74, 0xAB, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2E, 0x70, 0x69, 0x6E, 0x67 }; // "t":"server.ping"
 
 		public override bool AutoPing => false;
 
 		private WebSocket _webSocket = null;
 		private readonly object _lock = new object();
 		private readonly ILogger _logger;
+
+		private Action<bool> _pongCallback;
+		private readonly object _pongLock = new object();
 
 		public WebSocketJSWrapper()
 		{
@@ -70,6 +74,25 @@ namespace MiniIT.Snipe
 
 		private void OnWebSocketMessage(byte[] msg)
 		{
+			// Check if this is a custom PONG message
+			if (msg.AsSpan().IndexOf(PONG_FRAGMENT) >= 0)
+			{
+				lock (_pongLock)
+				{
+					if (_pongCallback != null)
+					{
+						_pongCallback.Invoke(true);
+						_pongCallback = null;
+					}
+				}
+				return;
+			}
+
+			if (ProcessMessage == null)
+			{
+				return;
+			}
+
 			ProcessMessage?.Invoke(msg);
 		}
 
@@ -104,10 +127,21 @@ namespace MiniIT.Snipe
 
 		public override void Ping(Action<bool> callback = null)
 		{
-			if (!Connected)
+			lock (_pongLock)
 			{
-				callback?.Invoke(false);
-				return;
+				if (!Connected)
+				{
+					if (_pongCallback != callback)
+					{
+						_pongCallback?.Invoke(false);
+					}
+					_pongCallback = null;
+
+					callback?.Invoke(false);
+					return;
+				}
+
+				_pongCallback = callback;
 			}
 
 			SendRequest(PING_SERIALIZED_DATA);
