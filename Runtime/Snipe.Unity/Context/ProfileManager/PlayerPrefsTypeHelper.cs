@@ -225,6 +225,9 @@ namespace MiniIT.Snipe.Api
 				case int intValue:
 					_sharedPrefs.SetInt(key, intValue);
 					break;
+				case uint intValue:
+					_sharedPrefs.SetInt(key, (int)intValue);
+					break;
 				case byte intValue:
 					_sharedPrefs.SetInt(key, intValue);
 					break;
