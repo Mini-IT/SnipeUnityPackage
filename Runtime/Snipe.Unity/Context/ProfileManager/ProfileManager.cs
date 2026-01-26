@@ -19,13 +19,20 @@ namespace MiniIT.Snipe.Api
 		private readonly AuthSubsystem _auth;
 		private readonly Dictionary<string, AbstractProfileAttribute> _attributes = new();
 		private readonly Dictionary<string, Action<object>> _attributeValueSetters = new();
+
 		private readonly Dictionary<string, Func<object>> _localValueGetters = new();
+
 		// Stores latest server snapshot values for all keys received from the server.
 		// We DO NOT persist these to SharedPrefs unless the attribute is registered via GetAttribute.
 		private readonly Dictionary<string, object> _serverSnapshotValues = new();
+
 		// Stores last known server values for registered attributes at the moment we considered them synced.
 		// Used to detect whether the server actually changed a dirty key while we were offline.
 		private readonly Dictionary<string, object> _lastSyncedServerValues = new();
+
+		// Tracks which keys were processed by ApplyServerAttributeChange at least once.
+		// Used to distinguish between attributes that were registered when a snapshot arrived vs those that weren't.
+		private readonly HashSet<string> _snapshotProcessedKeys = new();
 		private readonly ISharedPrefs _sharedPrefs;
 		private readonly PlayerPrefsTypeHelper _prefsHelper;
 		private bool _syncInProgress;
@@ -58,6 +65,7 @@ namespace MiniIT.Snipe.Api
 			{
 				Dispose();
 			}
+
 			_disposed = false;
 			_initialSnapshotReceived = false;
 
@@ -288,6 +296,9 @@ namespace MiniIT.Snipe.Api
 				return false;
 			}
 
+			// Mark that this key was processed during snapshot handling (attribute was registered).
+			_snapshotProcessedKeys.Add(key);
+
 			var localVersion = GetLocalVersion();
 			var lastSyncedVersion = GetLastSyncedVersion();
 
@@ -373,6 +384,7 @@ namespace MiniIT.Snipe.Api
 								int newServerVersion = TypeConverter.Convert<int>(val);
 								_serverVersion = newServerVersion;
 							}
+
 							break;
 						}
 					}
@@ -457,6 +469,7 @@ namespace MiniIT.Snipe.Api
 				{
 					return;
 				}
+
 				SendPendingChanges(pendingChanges);
 			}
 			else if (_serverVersion > localVersion)
@@ -502,10 +515,34 @@ namespace MiniIT.Snipe.Api
 				}
 
 				var localValue = kvp.Value?.Invoke();
-				if (!SnipeApiUserAttribute.AreEqual(localValue, serverValue))
+
+				// If values are equal, no need to send anything.
+				if (SnipeApiUserAttribute.AreEqual(localValue, serverValue))
+				{
+					continue;
+				}
+
+				// Values differ. Check if we should send the local value.
+				// If the attribute was previously synced (in _lastSyncedServerValues), we can safely
+				// send local changes as they represent legitimate modifications.
+				if (_lastSyncedServerValues.ContainsKey(key))
 				{
 					pendingChanges[key] = localValue;
+					continue;
 				}
+
+				// Attribute wasn't synced yet. Check if it was registered when the snapshot arrived.
+				// If ApplyServerAttributeChange was called for this key during snapshot processing,
+				// the attribute was registered, so we should send local changes even if server value
+				// wasn't accepted (e.g., local version ahead).
+				// If ApplyServerAttributeChange was NOT called, the attribute wasn't registered when
+				// snapshot arrived, and local value is likely default. We shouldn't send default values.
+				if (_snapshotProcessedKeys.Contains(key))
+				{
+					// Attribute was registered when snapshot arrived - send local value
+					pendingChanges[key] = localValue;
+				}
+				// else: attribute wasn't registered when snapshot arrived, skip sending default value
 			}
 
 			return pendingChanges;
@@ -683,6 +720,7 @@ namespace MiniIT.Snipe.Api
 			_localValueGetters.Clear();
 			_serverSnapshotValues.Clear();
 			_lastSyncedServerValues.Clear();
+			_snapshotProcessedKeys.Clear();
 			_serverVersionAttrKey = null;
 		}
 	}

@@ -594,6 +594,89 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[Test]
+		public void Scenario6_OfflinePendingChange_ThenChangedSnapshotWithoutKey_StillSyncsLocalChange()
+		{
+			// Initial:
+			// offline
+			// local: { _version = 1; coins = 10 }
+			//
+			// Act:
+			// set coins=20 -> localVersion=2 (still offline)
+			// receive attr.getAll { _version=1; coins=10 } while offline (no send)
+			// reconnect and receive attr.changed with unrelated key (coins not included)
+			//
+			// Assert:
+			// local coins still sent to server on reconnect even though snapshot list didn't include it.
+
+			_profileManager.Dispose();
+
+			SetLocalVersion(1);
+			_mockSharedPrefs.SetInt(ProfileManager.KEY_LAST_SYNCED_VERSION, 1);
+			_mockSharedPrefs.SetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 10);
+
+			_mockVersionAttribute = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "_version");
+			_mockUserAttributes = new MockSnipeApiUserAttributes(_mockApiService);
+
+			_profileManager = new ProfileManager(_mockApiService, _mockApiService.Communicator, _mockApiService.Auth, _mockSharedPrefs);
+			_profileManager.Initialize(_mockVersionAttribute);
+			_profileManager.ForceLoggedInForTests(false);
+
+			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
+			_mockUserAttributes.RegisterAttribute(serverAttr);
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
+			Assert.AreEqual(10, attr.Value);
+
+			_mockApiService.SetNextRequestSuccess(false);
+			attr.Value = 20;
+
+			int requestCountBeforeSnapshots = _mockApiService.RequestCount;
+
+			_profileManager.HandleServerMessage("attr.getAll", "ok", new Dictionary<string, object>()
+			{
+				["data"] = new List<IDictionary<string, object>>()
+				{
+					new Dictionary<string, object>()
+					{
+						["key"] = "_version",
+						["val"] = 1
+					},
+					new Dictionary<string, object>()
+					{
+						["key"] = "coins",
+						["val"] = 10
+					}
+				}
+			}, 0);
+
+			Assert.AreEqual(20, attr.Value);
+			Assert.AreEqual(requestCountBeforeSnapshots, _mockApiService.RequestCount);
+
+			_profileManager.ForceLoggedInForTests(true);
+			_mockApiService.SetNextRequestSuccess(true);
+			_profileManager.HandleServerMessage("attr.changed", "ok", new Dictionary<string, object>()
+			{
+				["list"] = new List<IDictionary<string, object>>()
+				{
+					new Dictionary<string, object>()
+					{
+						["key"] = "_version",
+						["val"] = 2
+					},
+					new Dictionary<string, object>()
+					{
+						["key"] = "gems",
+						["val"] = 5
+					}
+				}
+			}, 0);
+
+			Assert.Greater(_mockApiService.RequestCount, requestCountBeforeSnapshots);
+			Assert.AreEqual("attr.set", _mockApiService.LastRequestType);
+			Assert.AreEqual("coins", _mockApiService.LastRequestData["key"]);
+			Assert.AreEqual(20, _mockApiService.LastRequestData["val"]);
+		}
+
+		[Test]
 		public void Scenario3_OnlineStart_SnapshotArrivesBeforeAttributeCreation_LateCreatedAttributeReadsServerValue()
 		{
 			// Real-life regression:

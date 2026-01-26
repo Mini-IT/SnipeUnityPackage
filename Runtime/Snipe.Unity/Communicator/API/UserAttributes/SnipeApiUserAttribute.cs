@@ -37,8 +37,6 @@ namespace MiniIT.Snipe.Api
 
 			if (objA == null)
 			{
-				if (objB == null)
-					return true;
 				if (objB is ICollection colB)
 					return (colB.Count == 0);
 
