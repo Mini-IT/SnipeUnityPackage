@@ -100,35 +100,36 @@ namespace MiniIT.Snipe.Api
 
 		public T GetPrefsValue<T>(string key)
 		{
-			if (typeof(T) == typeof(int))
+			Type type = typeof(T);
+			if (type == typeof(int) || type == typeof(byte) || type == typeof(short) || type == typeof(ushort) || type == typeof(long) || type == typeof(ulong))
 			{
 				return (T)(object)_sharedPrefs.GetInt(key, 0);
 			}
-			else if (typeof(T) == typeof(float))
+			else if (type == typeof(float) || type == typeof(double) || type == typeof(decimal))
 			{
 				return (T)(object)_sharedPrefs.GetFloat(key, 0f);
 			}
-			else if (typeof(T) == typeof(bool))
+			else if (type == typeof(bool))
 			{
 				return (T)(object)(_sharedPrefs.GetInt(key, 0) == 1);
 			}
-			else if (typeof(T) == typeof(string))
+			else if (type == typeof(string))
 			{
 				return (T)(object)_sharedPrefs.GetString(key, "");
 			}
-			else if (typeof(T) == typeof(List<int>))
+			else if (type == typeof(List<int>))
 			{
 				return (T)(object)ParseIntList(_sharedPrefs.GetString(key, ""));
 			}
-			else if (typeof(T) == typeof(List<float>))
+			else if (type == typeof(List<float>))
 			{
 				return (T)(object)ParseFloatList(_sharedPrefs.GetString(key, ""));
 			}
-			else if (typeof(T) == typeof(List<bool>))
+			else if (type == typeof(List<bool>))
 			{
 				return (T)(object)ParseBoolList(_sharedPrefs.GetString(key, ""));
 			}
-			else if (typeof(T) == typeof(List<string>))
+			else if (type == typeof(List<string>))
 			{
 				return (T)(object)ParseStringList(_sharedPrefs.GetString(key, ""));
 			}
@@ -138,38 +139,39 @@ namespace MiniIT.Snipe.Api
 
 		public T GetPrefsValue<T>(string key, T defaultValue)
 		{
-			if (typeof(T) == typeof(int))
+			Type type = typeof(T);
+			if (type == typeof(int) || type == typeof(byte) || type == typeof(short) || type == typeof(ushort) || type == typeof(long) || type == typeof(ulong))
 			{
 				return (T)(object)_sharedPrefs.GetInt(key, Convert.ToInt32(defaultValue));
 			}
-			else if (typeof(T) == typeof(float))
+			else if (type == typeof(float) || type == typeof(double) || type == typeof(decimal))
 			{
 				return (T)(object)_sharedPrefs.GetFloat(key, Convert.ToSingle(defaultValue));
 			}
-			else if (typeof(T) == typeof(bool))
+			else if (type == typeof(bool))
 			{
 				return (T)(object)(_sharedPrefs.GetInt(key, Convert.ToInt32(defaultValue)) == 1);
 			}
-			else if (typeof(T) == typeof(string))
+			else if (type == typeof(string))
 			{
 				return (T)(object)_sharedPrefs.GetString(key, defaultValue?.ToString() ?? string.Empty);
 			}
-			else if (typeof(T) == typeof(List<int>))
+			else if (type == typeof(List<int>))
 			{
 				var stored = _sharedPrefs.GetString(key, "");
 				return string.IsNullOrEmpty(stored) ? defaultValue : (T)(object)ParseIntList(stored);
 			}
-			else if (typeof(T) == typeof(List<float>))
+			else if (type == typeof(List<float>))
 			{
 				var stored = _sharedPrefs.GetString(key, "");
 				return string.IsNullOrEmpty(stored) ? defaultValue : (T)(object)ParseFloatList(stored);
 			}
-			else if (typeof(T) == typeof(List<bool>))
+			else if (type == typeof(List<bool>))
 			{
 				var stored = _sharedPrefs.GetString(key, "");
 				return string.IsNullOrEmpty(stored) ? defaultValue : (T)(object)ParseBoolList(stored);
 			}
-			else if (typeof(T) == typeof(List<string>))
+			else if (type == typeof(List<string>))
 			{
 				var stored = _sharedPrefs.GetString(key, "");
 				return string.IsNullOrEmpty(stored) ? defaultValue : (T)(object)ParseStringList(stored);
@@ -180,37 +182,50 @@ namespace MiniIT.Snipe.Api
 
 		public void SetLocalValue(string key, object value)
 		{
-			if (value is int intValue)
+			switch (value)
 			{
-				_sharedPrefs.SetInt(key, intValue);
-			}
-			else if (value is float floatValue)
-			{
-				_sharedPrefs.SetFloat(key, floatValue);
-			}
-			else if (value is bool boolValue)
-			{
-				_sharedPrefs.SetInt(key, boolValue ? 1 : 0);
-			}
-			else if (value is string stringValue)
-			{
-				_sharedPrefs.SetString(key, stringValue);
-			}
-			else if (value is List<int> intList)
-			{
-				_sharedPrefs.SetString(key, SerializeIntList(intList));
-			}
-			else if (value is List<float> floatList)
-			{
-				_sharedPrefs.SetString(key, SerializeFloatList(floatList));
-			}
-			else if (value is List<bool> boolList)
-			{
-				_sharedPrefs.SetString(key, SerializeBoolList(boolList));
-			}
-			else if (value is List<string> stringList)
-			{
-				_sharedPrefs.SetString(key, SerializeStringList(stringList));
+				case int intValue:
+					_sharedPrefs.SetInt(key, intValue);
+					break;
+				case byte intValue:
+					_sharedPrefs.SetInt(key, intValue);
+					break;
+				case short intValue:
+					_sharedPrefs.SetInt(key, intValue);
+					break;
+				case ushort intValue:
+					_sharedPrefs.SetInt(key, intValue);
+					break;
+				case long intValue:
+					_sharedPrefs.SetInt(key, (int)intValue);
+					break;
+				case ulong intValue:
+					_sharedPrefs.SetInt(key, (int)intValue);
+					break;
+				case float floatValue:
+					_sharedPrefs.SetFloat(key, floatValue);
+					break;
+				case double floatValue:
+					_sharedPrefs.SetFloat(key, (float)floatValue);
+					break;
+				case bool boolValue:
+					_sharedPrefs.SetInt(key, boolValue ? 1 : 0);
+					break;
+				case string stringValue:
+					_sharedPrefs.SetString(key, stringValue);
+					break;
+				case List<int> intList:
+					_sharedPrefs.SetString(key, SerializeIntList(intList));
+					break;
+				case List<float> floatList:
+					_sharedPrefs.SetString(key, SerializeFloatList(floatList));
+					break;
+				case List<bool> boolList:
+					_sharedPrefs.SetString(key, SerializeBoolList(boolList));
+					break;
+				case List<string> stringList:
+					_sharedPrefs.SetString(key, SerializeStringList(stringList));
+					break;
 			}
 		}
 
