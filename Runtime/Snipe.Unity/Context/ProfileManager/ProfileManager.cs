@@ -134,7 +134,6 @@ namespace MiniIT.Snipe.Api
 						string key = data.SafeGetString("key");
 						if (!string.IsNullOrEmpty(key) && data.TryGetValue("val", out object val))
 						{
-							val = NormalizeServerValue(val);
 							bool updateVersions = ApplyServerAttributeChange(key, val);
 							if (updateVersions)
 							{
@@ -406,7 +405,6 @@ namespace MiniIT.Snipe.Api
 					if (!string.IsNullOrEmpty(key) && item.TryGetValue("val", out object val))
 					{
 						// Store snapshot for late-created attributes (do NOT persist to prefs here).
-						val = NormalizeServerValue(val);
 						_serverSnapshotValues[key] = val;
 						ApplyServerAttributeChange(key, val);
 					}
@@ -726,11 +724,4 @@ namespace MiniIT.Snipe.Api
 			_serverVersionAttrKey = null;
 		}
 	}
-
-	private object NormalizeServerValue(object value) =>
-	value switch
-	{
-		byte or sbyte or short or ushort => Convert.ToInt32(value),
-		_ => value
-	};
 }
