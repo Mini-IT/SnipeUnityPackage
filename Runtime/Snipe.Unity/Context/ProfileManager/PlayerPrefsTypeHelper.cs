@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using MiniIT.Storage;
 
@@ -8,7 +9,7 @@ namespace MiniIT.Snipe.Api
 	public class PlayerPrefsTypeHelper
 	{
 		private const char LIST_SEPARATOR = ';';
-		private static readonly System.Globalization.NumberFormatInfo InvariantNumberFormat = System.Globalization.NumberFormatInfo.InvariantInfo;
+		private static readonly NumberFormatInfo InvariantNumberFormat = NumberFormatInfo.InvariantInfo;
 		private readonly ISharedPrefs _sharedPrefs;
 
 		public PlayerPrefsTypeHelper(ISharedPrefs sharedPrefs)
@@ -39,9 +40,37 @@ namespace MiniIT.Snipe.Api
 			{
 				return (T)(object)ParseIntList(_sharedPrefs.GetString(key, ""));
 			}
+			else if (type == typeof(List<byte>))
+			{
+				return (T)(object)ParseByteList(_sharedPrefs.GetString(key, ""));
+			}
+			else if (type == typeof(List<short>))
+			{
+				return (T)(object)ParseShortList(_sharedPrefs.GetString(key, ""));
+			}
+			else if (type == typeof(List<ushort>))
+			{
+				return (T)(object)ParseUShortList(_sharedPrefs.GetString(key, ""));
+			}
+			else if (type == typeof(List<long>))
+			{
+				return (T)(object)ParseLongList(_sharedPrefs.GetString(key, ""));
+			}
+			else if (type == typeof(List<ulong>))
+			{
+				return (T)(object)ParseULongList(_sharedPrefs.GetString(key, ""));
+			}
 			else if (type == typeof(List<float>))
 			{
 				return (T)(object)ParseFloatList(_sharedPrefs.GetString(key, ""));
+			}
+			else if (type == typeof(List<double>))
+			{
+				return (T)(object)ParseDoubleList(_sharedPrefs.GetString(key, ""));
+			}
+			else if (type == typeof(List<decimal>))
+			{
+				return (T)(object)ParseDecimalList(_sharedPrefs.GetString(key, ""));
 			}
 			else if (type == typeof(List<bool>))
 			{
@@ -79,10 +108,45 @@ namespace MiniIT.Snipe.Api
 				var stored = _sharedPrefs.GetString(key, "");
 				return string.IsNullOrEmpty(stored) ? defaultValue : (T)(object)ParseIntList(stored);
 			}
+			else if (type == typeof(List<byte>))
+			{
+				var stored = _sharedPrefs.GetString(key, "");
+				return string.IsNullOrEmpty(stored) ? defaultValue : (T)(object)ParseByteList(stored);
+			}
+			else if (type == typeof(List<short>))
+			{
+				var stored = _sharedPrefs.GetString(key, "");
+				return string.IsNullOrEmpty(stored) ? defaultValue : (T)(object)ParseShortList(stored);
+			}
+			else if (type == typeof(List<ushort>))
+			{
+				var stored = _sharedPrefs.GetString(key, "");
+				return string.IsNullOrEmpty(stored) ? defaultValue : (T)(object)ParseUShortList(stored);
+			}
+			else if (type == typeof(List<long>))
+			{
+				var stored = _sharedPrefs.GetString(key, "");
+				return string.IsNullOrEmpty(stored) ? defaultValue : (T)(object)ParseLongList(stored);
+			}
+			else if (type == typeof(List<ulong>))
+			{
+				var stored = _sharedPrefs.GetString(key, "");
+				return string.IsNullOrEmpty(stored) ? defaultValue : (T)(object)ParseULongList(stored);
+			}
 			else if (type == typeof(List<float>))
 			{
 				var stored = _sharedPrefs.GetString(key, "");
 				return string.IsNullOrEmpty(stored) ? defaultValue : (T)(object)ParseFloatList(stored);
+			}
+			else if (type == typeof(List<double>))
+			{
+				var stored = _sharedPrefs.GetString(key, "");
+				return string.IsNullOrEmpty(stored) ? defaultValue : (T)(object)ParseDoubleList(stored);
+			}
+			else if (type == typeof(List<decimal>))
+			{
+				var stored = _sharedPrefs.GetString(key, "");
+				return string.IsNullOrEmpty(stored) ? defaultValue : (T)(object)ParseDecimalList(stored);
 			}
 			else if (type == typeof(List<bool>))
 			{
@@ -135,8 +199,29 @@ namespace MiniIT.Snipe.Api
 				case List<int> intList:
 					_sharedPrefs.SetString(key, SerializeIntList(intList));
 					break;
+				case List<byte> byteList:
+					_sharedPrefs.SetString(key, SerializeByteList(byteList));
+					break;
+				case List<short> shortList:
+					_sharedPrefs.SetString(key, SerializeShortList(shortList));
+					break;
+				case List<ushort> ushortList:
+					_sharedPrefs.SetString(key, SerializeUShortList(ushortList));
+					break;
+				case List<long> longList:
+					_sharedPrefs.SetString(key, SerializeLongList(longList));
+					break;
+				case List<ulong> ulongList:
+					_sharedPrefs.SetString(key, SerializeULongList(ulongList));
+					break;
 				case List<float> floatList:
 					_sharedPrefs.SetString(key, SerializeFloatList(floatList));
+					break;
+				case List<double> doubleList:
+					_sharedPrefs.SetString(key, SerializeDoubleList(doubleList));
+					break;
+				case List<decimal> decimalList:
+					_sharedPrefs.SetString(key, SerializeDecimalList(decimalList));
 					break;
 				case List<bool> boolList:
 					_sharedPrefs.SetString(key, SerializeBoolList(boolList));
@@ -147,43 +232,38 @@ namespace MiniIT.Snipe.Api
 			}
 		}
 
-		private List<int> ParseIntList(string value)
+		private List<T> ParseNumericList<T>(string value, Func<string, T> parser)
 		{
 			if (string.IsNullOrEmpty(value))
 			{
-				return new List<int>();
+				return new List<T>();
 			}
 
 			var parts = SplitQuotedStrings(value);
-			var result = new List<int>(parts.Count);
+			var result = new List<T>(parts.Count);
 			foreach (var part in parts)
 			{
-				if (int.TryParse(UnquoteString(part), System.Globalization.NumberStyles.Integer, InvariantNumberFormat, out var num))
+				try
 				{
-					result.Add(num);
+					result.Add(parser(UnquoteString(part)));
+				}
+				catch
+				{
+					// Skip invalid values
 				}
 			}
 			return result;
 		}
 
-		private List<float> ParseFloatList(string value)
-		{
-			if (string.IsNullOrEmpty(value))
-			{
-				return new List<float>();
-			}
-
-			var parts = SplitQuotedStrings(value);
-			var result = new List<float>(parts.Count);
-			foreach (var part in parts)
-			{
-				if (float.TryParse(UnquoteString(part), System.Globalization.NumberStyles.Float, InvariantNumberFormat, out var num))
-				{
-					result.Add(num);
-				}
-			}
-			return result;
-		}
+		private List<int> ParseIntList(string value) => ParseNumericList(value, s => int.Parse(s, NumberStyles.Integer, InvariantNumberFormat));
+		private List<byte> ParseByteList(string value) => ParseNumericList(value, s => byte.Parse(s, NumberStyles.Integer, InvariantNumberFormat));
+		private List<short> ParseShortList(string value) => ParseNumericList(value, s => short.Parse(s, NumberStyles.Integer, InvariantNumberFormat));
+		private List<ushort> ParseUShortList(string value) => ParseNumericList(value, s => ushort.Parse(s, NumberStyles.Integer, InvariantNumberFormat));
+		private List<long> ParseLongList(string value) => ParseNumericList(value, s => long.Parse(s, NumberStyles.Integer, InvariantNumberFormat));
+		private List<ulong> ParseULongList(string value) => ParseNumericList(value, s => ulong.Parse(s, NumberStyles.Integer, InvariantNumberFormat));
+		private List<float> ParseFloatList(string value) => ParseNumericList(value, s => float.Parse(s, NumberStyles.Float, InvariantNumberFormat));
+		private List<double> ParseDoubleList(string value) => ParseNumericList(value, s => double.Parse(s, NumberStyles.Float, InvariantNumberFormat));
+		private List<decimal> ParseDecimalList(string value) => ParseNumericList(value, s => decimal.Parse(s, NumberStyles.Float, InvariantNumberFormat));
 
 		private List<bool> ParseBoolList(string value)
 		{
@@ -220,23 +300,24 @@ namespace MiniIT.Snipe.Api
 			return parts.Select(UnquoteString).ToList();
 		}
 
-		private string SerializeIntList(List<int> list)
+		private string SerializeNumericList<T>(List<T> list) where T : IFormattable
 		{
 			if (list == null || list.Count == 0)
 			{
 				return string.Empty;
 			}
-			return string.Join(LIST_SEPARATOR, list.Select(i => QuoteString(i.ToString(InvariantNumberFormat))));
+			return string.Join(LIST_SEPARATOR, list.Select(item => QuoteString(item.ToString(null, InvariantNumberFormat))));
 		}
 
-		private string SerializeFloatList(List<float> list)
-		{
-			if (list == null || list.Count == 0)
-			{
-				return string.Empty;
-			}
-			return string.Join(LIST_SEPARATOR, list.Select(f => QuoteString(f.ToString(InvariantNumberFormat))));
-		}
+		private string SerializeIntList(List<int> list) => SerializeNumericList(list);
+		private string SerializeByteList(List<byte> list) => SerializeNumericList(list);
+		private string SerializeShortList(List<short> list) => SerializeNumericList(list);
+		private string SerializeUShortList(List<ushort> list) => SerializeNumericList(list);
+		private string SerializeLongList(List<long> list) => SerializeNumericList(list);
+		private string SerializeULongList(List<ulong> list) => SerializeNumericList(list);
+		private string SerializeFloatList(List<float> list) => SerializeNumericList(list);
+		private string SerializeDoubleList(List<double> list) => SerializeNumericList(list);
+		private string SerializeDecimalList(List<decimal> list) => SerializeNumericList(list);
 
 		private string SerializeBoolList(List<bool> list)
 		{
