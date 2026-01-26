@@ -725,11 +725,12 @@ namespace MiniIT.Snipe.Api
 			_snapshotProcessedKeys.Clear();
 			_serverVersionAttrKey = null;
 		}
-		private object NormalizeServerValue(object value) => value switch
-		{
-			byte or sbyte or short or ushort => Convert.ToInt32(value),
-			_ => value
-		};
 	}
 
+	private object NormalizeServerValue(object value) =>
+	value switch
+	{
+		byte or sbyte or short or ushort => Convert.ToInt32(value),
+		_ => value
+	};
 }
