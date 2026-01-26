@@ -24,6 +24,10 @@ namespace MiniIT.Snipe.Api
 			{
 				return (T)(object)_sharedPrefs.GetInt(key, 0);
 			}
+			else if (type == typeof(uint))
+			{
+				return (T)(object)_sharedPrefs.GetInt(key, 0);
+			}
 			else if (type == typeof(byte))
 			{
 				return (T)(object)(byte)_sharedPrefs.GetInt(key, 0);
@@ -67,6 +71,10 @@ namespace MiniIT.Snipe.Api
 			else if (type == typeof(List<int>))
 			{
 				return (T)(object)ParseIntList(_sharedPrefs.GetString(key, ""));
+			}
+			else if (type == typeof(List<uint>))
+			{
+				return (T)(object)ParseUIntList(_sharedPrefs.GetString(key, ""));
 			}
 			else if (type == typeof(List<byte>))
 			{
@@ -116,6 +124,10 @@ namespace MiniIT.Snipe.Api
 		{
 			Type type = typeof(T);
 			if (type == typeof(int))
+			{
+				return (T)(object)_sharedPrefs.GetInt(key, Convert.ToInt32(defaultValue));
+			}
+			else if (type == typeof(uint))
 			{
 				return (T)(object)_sharedPrefs.GetInt(key, Convert.ToInt32(defaultValue));
 			}
@@ -258,6 +270,9 @@ namespace MiniIT.Snipe.Api
 				case List<int> intList:
 					_sharedPrefs.SetString(key, SerializeIntList(intList));
 					break;
+				case List<uint> uintList:
+					_sharedPrefs.SetString(key, SerializeUIntList(uintList));
+					break;
 				case List<byte> byteList:
 					_sharedPrefs.SetString(key, SerializeByteList(byteList));
 					break;
@@ -316,6 +331,7 @@ namespace MiniIT.Snipe.Api
 		}
 
 		private List<int> ParseIntList(string value) => ParseNumericList(value, s => int.Parse(s, NumberStyles.Integer, InvariantNumberFormat));
+		private List<int> ParseUIntList(string value) => ParseNumericList(value, s => int.Parse(s, NumberStyles.Integer, InvariantNumberFormat));
 		private List<byte> ParseByteList(string value) => ParseNumericList(value, s => byte.Parse(s, NumberStyles.Integer, InvariantNumberFormat));
 		private List<short> ParseShortList(string value) => ParseNumericList(value, s => short.Parse(s, NumberStyles.Integer, InvariantNumberFormat));
 		private List<ushort> ParseUShortList(string value) => ParseNumericList(value, s => ushort.Parse(s, NumberStyles.Integer, InvariantNumberFormat));
@@ -372,6 +388,7 @@ namespace MiniIT.Snipe.Api
 		}
 
 		private string SerializeIntList(List<int> list) => SerializeNumericList(list);
+		private string SerializeUIntList(List<uint> list) => SerializeNumericList(list);
 		private string SerializeByteList(List<byte> list) => SerializeNumericList(list);
 		private string SerializeShortList(List<short> list) => SerializeNumericList(list);
 		private string SerializeUShortList(List<ushort> list) => SerializeNumericList(list);
