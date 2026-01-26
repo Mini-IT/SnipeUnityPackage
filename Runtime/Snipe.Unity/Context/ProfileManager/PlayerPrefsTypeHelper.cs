@@ -20,13 +20,41 @@ namespace MiniIT.Snipe.Api
 		public T GetPrefsValue<T>(string key)
 		{
 			Type type = typeof(T);
-			if (type == typeof(int) || type == typeof(byte) || type == typeof(short) || type == typeof(ushort) || type == typeof(long) || type == typeof(ulong))
+			if (type == typeof(int))
 			{
 				return (T)(object)_sharedPrefs.GetInt(key, 0);
 			}
-			else if (type == typeof(float) || type == typeof(double) || type == typeof(decimal))
+			else if (type == typeof(byte))
+			{
+				return (T)(object)(byte)_sharedPrefs.GetInt(key, 0);
+			}
+			else if (type == typeof(short))
+			{
+				return (T)(object)(short)_sharedPrefs.GetInt(key, 0);
+			}
+			else if (type == typeof(ushort))
+			{
+				return (T)(object)(ushort)_sharedPrefs.GetInt(key, 0);
+			}
+			else if (type == typeof(long))
+			{
+				return (T)(object)(long)_sharedPrefs.GetInt(key, 0);
+			}
+			else if (type == typeof(ulong))
+			{
+				return (T)(object)(ulong)_sharedPrefs.GetInt(key, 0);
+			}
+			else if (type == typeof(float))
 			{
 				return (T)(object)_sharedPrefs.GetFloat(key, 0f);
+			}
+			else if (type == typeof(double))
+			{
+				return (T)(object)(double)_sharedPrefs.GetFloat(key, 0f);
+			}
+			else if (type == typeof(decimal))
+			{
+				return (T)(object)(decimal)_sharedPrefs.GetFloat(key, 0f);
 			}
 			else if (type == typeof(bool))
 			{
@@ -87,13 +115,41 @@ namespace MiniIT.Snipe.Api
 		public T GetPrefsValue<T>(string key, T defaultValue)
 		{
 			Type type = typeof(T);
-			if (type == typeof(int) || type == typeof(byte) || type == typeof(short) || type == typeof(ushort) || type == typeof(long) || type == typeof(ulong))
+			if (type == typeof(int))
 			{
 				return (T)(object)_sharedPrefs.GetInt(key, Convert.ToInt32(defaultValue));
 			}
-			else if (type == typeof(float) || type == typeof(double) || type == typeof(decimal))
+			else if (type == typeof(byte))
+			{
+				return (T)(object)(byte)_sharedPrefs.GetInt(key, Convert.ToInt32(defaultValue));
+			}
+			else if (type == typeof(short))
+			{
+				return (T)(object)(short)_sharedPrefs.GetInt(key, Convert.ToInt32(defaultValue));
+			}
+			else if (type == typeof(ushort))
+			{
+				return (T)(object)(ushort)_sharedPrefs.GetInt(key, Convert.ToInt32(defaultValue));
+			}
+			else if (type == typeof(long))
+			{
+				return (T)(object)(long)_sharedPrefs.GetInt(key, Convert.ToInt32(defaultValue));
+			}
+			else if (type == typeof(ulong))
+			{
+				return (T)(object)(ulong)_sharedPrefs.GetInt(key, Convert.ToInt32(defaultValue));
+			}
+			else if (type == typeof(float))
 			{
 				return (T)(object)_sharedPrefs.GetFloat(key, Convert.ToSingle(defaultValue));
+			}
+			else if (type == typeof(double))
+			{
+				return (T)(object)(double)_sharedPrefs.GetFloat(key, Convert.ToSingle(defaultValue));
+			}
+			else if (type == typeof(decimal))
+			{
+				return (T)(object)(decimal)_sharedPrefs.GetFloat(key, Convert.ToSingle(defaultValue));
 			}
 			else if (type == typeof(bool))
 			{
@@ -252,6 +308,7 @@ namespace MiniIT.Snipe.Api
 					// Skip invalid values
 				}
 			}
+
 			return result;
 		}
 
@@ -286,6 +343,7 @@ namespace MiniIT.Snipe.Api
 					result.Add(num != 0);
 				}
 			}
+
 			return result;
 		}
 
@@ -306,6 +364,7 @@ namespace MiniIT.Snipe.Api
 			{
 				return string.Empty;
 			}
+
 			return string.Join(LIST_SEPARATOR, list.Select(item => QuoteString(item.ToString(null, InvariantNumberFormat))));
 		}
 
@@ -325,6 +384,7 @@ namespace MiniIT.Snipe.Api
 			{
 				return string.Empty;
 			}
+
 			return string.Join(LIST_SEPARATOR, list.Select(b => QuoteString(b.ToString())));
 		}
 
@@ -334,6 +394,7 @@ namespace MiniIT.Snipe.Api
 			{
 				return string.Empty;
 			}
+
 			return string.Join(LIST_SEPARATOR, list.Select(QuoteString));
 		}
 
