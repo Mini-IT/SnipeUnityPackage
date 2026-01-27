@@ -5,8 +5,7 @@
 		"MiniIT.Snipe.Core",
 		"MiniIT.Snipe.Communicator",
 		"MiniIT.AlterTask",
-		"UniTask",
-		"Nutaku.Unity",
+		"MiniIT.Integrations.Nutaku",
 		"fastJSON"
 	],
 	"includePlatforms": [],
