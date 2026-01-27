@@ -4,8 +4,8 @@
 	"references": [
 		"MiniIT.Snipe.Core",
 		"MiniIT.Snipe.Communicator",
-		"fastJSON",
-		"Nutaku.Unity"
+		"MiniIT.Integrations.Nutaku",
+		"fastJSON"
 	],
 	"includePlatforms": [],
 	"excludePlatforms": [],
@@ -13,7 +13,7 @@
 	"overrideReferences": false,
 	"precompiledReferences": [],
 	"autoReferenced": true,
-	"defineConstraints": [],
+	"defineConstraints": ["NUTAKU"],
 	"versionDefines": [],
 	"noEngineReferences": false
 }
