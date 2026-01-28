@@ -1,6 +1,6 @@
 namespace MiniIT.Snipe
 {
-	public interface IAuthIdFetcherWithToken : IAuthIdFetcher
+	public interface IAuthIdFetcherWithToken
 	{
 		public string Token { get; }
 	}

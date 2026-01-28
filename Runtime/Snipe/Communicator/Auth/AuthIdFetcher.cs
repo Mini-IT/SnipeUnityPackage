@@ -2,7 +2,7 @@
 
 namespace MiniIT.Snipe
 {
-	public abstract class AuthIdFetcher : IAuthIdFetcher
+	public abstract class AuthIdFetcher
 	{
 		public string Value { get; protected set; }
 
