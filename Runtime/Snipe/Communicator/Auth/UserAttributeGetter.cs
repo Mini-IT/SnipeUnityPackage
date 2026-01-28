@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace MiniIT.Snipe
@@ -69,7 +69,7 @@ namespace MiniIT.Snipe
 
 			requestData["key"] = key;
 
-			new UnauthorizedRequest(_communicator, SnipeMessageTypes.ATTR_GET).Request(
+			new UnauthorizedRequest(_communicator, _communicator.Services, SnipeMessageTypes.ATTR_GET).Request(
 				requestData,
 				(error_code, response) =>
 				{
@@ -95,7 +95,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			new UnauthorizedRequest(_communicator, SnipeMessageTypes.ATTR_GET_MULTI).Request(
+			new UnauthorizedRequest(_communicator, _communicator.Services, SnipeMessageTypes.ATTR_GET_MULTI).Request(
 				requestData,
 				(error_code, response) =>
 				{

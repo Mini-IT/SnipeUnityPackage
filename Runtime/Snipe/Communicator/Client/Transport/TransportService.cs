@@ -36,11 +36,16 @@ namespace MiniIT.Snipe
 		public event Action UdpConnectionFailed;
 		public event Action<IDictionary<string, object>> MessageReceived;
 
-		internal TransportService(SnipeConfig config, SnipeAnalyticsTracker analytics)
+		internal TransportService(SnipeConfig config, SnipeAnalyticsTracker analytics, ISnipeServices services)
 		{
+			if (services == null)
+			{
+				throw new ArgumentNullException(nameof(services));
+			}
+
 			_config = config;
 			_analytics = analytics;
-			_transportFactory = new TransportFactory(config, analytics);
+			_transportFactory = new TransportFactory(config, analytics, services);
 		}
 
 		public Transport GetCurrentTransport() => _currentTransport;

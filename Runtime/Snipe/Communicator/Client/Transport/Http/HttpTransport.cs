@@ -56,16 +56,16 @@ namespace MiniIT.Snipe
 
 		private readonly AlterSemaphore _sendSemaphore = new AlterSemaphore(1, 1);
 
-		internal HttpTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
-			: base(config, analytics)
+		internal HttpTransport(SnipeConfig config, SnipeAnalyticsTracker analytics, ISnipeServices services)
+			: base(config, analytics, services)
 		{
-			SnipeServices.Instance.MainThreadRunner.RunInMainThread(() =>
+			_services.MainThreadRunner.RunInMainThread(() =>
 			{
-				_persistentClientId = SnipeServices.Instance.SharedPrefs.GetString(PREFS_PERSISTENT_CLIENT_ID);
+				_persistentClientId = _services.SharedPrefs.GetString(PREFS_PERSISTENT_CLIENT_ID);
 				if (string.IsNullOrEmpty(_persistentClientId))
 				{
 					_persistentClientId = Guid.NewGuid().ToString();
-					SnipeServices.Instance.SharedPrefs.SetString(PREFS_PERSISTENT_CLIENT_ID, _persistentClientId);
+					_services.SharedPrefs.SetString(PREFS_PERSISTENT_CLIENT_ID, _persistentClientId);
 				}
 			});
 		}
@@ -94,7 +94,7 @@ namespace MiniIT.Snipe
 
 				if (_client == null)
 				{
-					_client = SnipeServices.Instance.HttpClientFactory.CreateHttpClient();
+					_client = _services.HttpClientFactory.CreateHttpClient();
 					//_client.SetPersistentClientId(_persistentClientId);
 				}
 				else

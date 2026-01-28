@@ -24,9 +24,9 @@ namespace MiniIT.Snipe.Api
 			{
 				if (communicator.BatchMode && !communicator.LoggedIn)
 				{
-					return new UnauthorizedRequest(communicator, messageType, data);
+					return new UnauthorizedRequest(communicator, communicator.Services, messageType, data);
 				}
-				return new SnipeCommunicatorRequest(communicator, auth, messageType, data);
+				return new SnipeCommunicatorRequest(communicator, communicator.Services, auth, messageType, data);
 			};
 
 			_modules = new List<SnipeApiModule>();

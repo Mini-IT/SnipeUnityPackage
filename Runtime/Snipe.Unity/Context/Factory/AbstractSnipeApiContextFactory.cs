@@ -1,6 +1,7 @@
 using System;
 using MiniIT.Snipe.Configuration;
 using MiniIT.Snipe.Unity;
+using MiniIT.Snipe;
 
 namespace MiniIT.Snipe.Api
 {
@@ -8,25 +9,27 @@ namespace MiniIT.Snipe.Api
 	{
 		private readonly SnipeConfigBuilder _configBuilder;
 		private readonly ISnipeTablesProvider _tablesProvider;
+		private readonly ISnipeServices _services;
 
-		protected AbstractSnipeApiContextFactory(ISnipeTablesProvider tablesProvider, SnipeConfigBuilder configBuilder)
+		protected AbstractSnipeApiContextFactory(
+			ISnipeTablesProvider tablesProvider,
+			SnipeConfigBuilder configBuilder,
+			ISnipeServices services = null)
 		{
 			_tablesProvider = tablesProvider;
 			_configBuilder = configBuilder;
+			_services = services;
 		}
 
 		public SnipeContext CreateContext(int id)
 		{
-			if (!SnipeServices.IsInitialized)
-			{
-				SnipeServices.Initialize(new UnitySnipeServicesFactory());
-			}
+			var services = _services ?? SnipeUnityDefaults.CreateDefaultServices();
 
-			var config = _configBuilder.Build(id);
+			var config = _configBuilder.Build(id, services);
 
-			var analytics = SnipeServices.Instance.Analytics.GetTracker(id);
-			var communicator = new SnipeCommunicator(analytics);
-			var auth = new UnityAuthSubsystem(id, communicator, analytics);
+			var analytics = services.Analytics.GetTracker(id);
+			var communicator = new SnipeCommunicator(analytics, services);
+			var auth = new UnityAuthSubsystem(id, communicator, analytics, services);
 			var logReporter = new LogReporter();
 
 			communicator.Initialize(config);
@@ -40,7 +43,8 @@ namespace MiniIT.Snipe.Api
 		public void Reconfigure(SnipeContext context)
 		{
 			int id = context.Id;
-			var config = _configBuilder.Build(id);
+			var services = _services ?? SnipeUnityDefaults.CreateDefaultServices();
+			var config = _configBuilder.Build(id, services);
 
 			context.Communicator.Initialize(config);
 			context.Auth.Initialize(config);

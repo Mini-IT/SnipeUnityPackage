@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using MiniIT.Snipe.Configuration;
+using MiniIT.Storage;
 using MiniIT.Utils;
 
 namespace MiniIT.Snipe
@@ -42,15 +43,24 @@ namespace MiniIT.Snipe
 		private int _serverWebSocketUrlIndex = 0;
 		private int _serverUdpUrlIndex = 0;
 		private int _serverHttpUrlIndex = 0;
+		private readonly ISharedPrefs _sharedPrefs;
 		private readonly IMainThreadRunner _mainThreadRunner;
 		private readonly IApplicationInfo _applicationInfo;
+		private readonly ISnipeAnalyticsService _analytics;
 
 		private readonly SnipeConfigData _data;
 
-		public SnipeConfig(int contextId, SnipeConfigData data)
+		public SnipeConfig(int contextId, SnipeConfigData data, ISnipeServices services)
 		{
-			_mainThreadRunner = SnipeServices.Instance.MainThreadRunner;
-			_applicationInfo = SnipeServices.Instance.ApplicationInfo;
+			if (services == null)
+			{
+				throw new ArgumentNullException(nameof(services));
+			}
+
+			_sharedPrefs = services.SharedPrefs;
+			_mainThreadRunner = services.MainThreadRunner;
+			_applicationInfo = services.ApplicationInfo;
+			_analytics = services.Analytics;
 
 			ContextId = contextId;
 			_data = data;
@@ -85,8 +95,8 @@ namespace MiniIT.Snipe
 
 		private void InitializeUrlIndices()
 		{
-			_serverWebSocketUrlIndex = SnipeServices.Instance.SharedPrefs.GetInt(SnipePrefs.GetWebSocketUrlIndex(ContextId), 0);
-			_serverUdpUrlIndex = SnipeServices.Instance.SharedPrefs.GetInt(SnipePrefs.GetUdpUrlIndex(ContextId), 0);
+			_serverWebSocketUrlIndex = _sharedPrefs.GetInt(SnipePrefs.GetWebSocketUrlIndex(ContextId), 0);
+			_serverUdpUrlIndex = _sharedPrefs.GetInt(SnipePrefs.GetUdpUrlIndex(ContextId), 0);
 		}
 
 		private void InitializeDefaultTablesConfigDev()
@@ -121,7 +131,7 @@ namespace MiniIT.Snipe
 			AppInfo = JsonUtility.ToJson(appInfo);
 
 			DebugId = GenerateDebugId();
-			SnipeServices.Instance.Analytics.GetTracker(ContextId).SetDebugId(DebugId);
+			_analytics.GetTracker(ContextId).SetDebugId(DebugId);
 
 		}
 
@@ -178,7 +188,7 @@ namespace MiniIT.Snipe
 			_mainThreadRunner.RunInMainThread(() =>
 			{
 				string key = SnipePrefs.GetWebSocketUrlIndex(ContextId);
-				SnipeServices.Instance.SharedPrefs.SetInt(key, _serverWebSocketUrlIndex);
+				_sharedPrefs.SetInt(key, _serverWebSocketUrlIndex);
 			});
 
 			return _serverWebSocketUrlIndex > prev;
@@ -192,7 +202,7 @@ namespace MiniIT.Snipe
 			_mainThreadRunner.RunInMainThread(() =>
 			{
 				string key = SnipePrefs.GetUdpUrlIndex(ContextId);
-				SnipeServices.Instance.SharedPrefs.SetInt(key, _serverUdpUrlIndex);
+				_sharedPrefs.SetInt(key, _serverUdpUrlIndex);
 			});
 
 			return _serverUdpUrlIndex > prev;
@@ -206,7 +216,7 @@ namespace MiniIT.Snipe
 			_mainThreadRunner.RunInMainThread(() =>
 			{
 				string key = SnipePrefs.GetHttpUrlIndex(ContextId);
-				SnipeServices.Instance.SharedPrefs.SetInt(key, _serverHttpUrlIndex);
+				_sharedPrefs.SetInt(key, _serverHttpUrlIndex);
 			});
 
 			return _serverHttpUrlIndex > prev;

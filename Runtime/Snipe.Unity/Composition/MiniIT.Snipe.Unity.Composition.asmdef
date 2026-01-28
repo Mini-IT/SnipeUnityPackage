@@ -1,0 +1,18 @@
+{
+    "name": "MiniIT.Snipe.Unity.Composition",
+    "rootNamespace": "MiniIT.Snipe.Unity",
+    "references": [
+        "MiniIT.Snipe.Composition",
+        "MiniIT.Snipe.Services",
+        "MiniIT.Snipe.Unity"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

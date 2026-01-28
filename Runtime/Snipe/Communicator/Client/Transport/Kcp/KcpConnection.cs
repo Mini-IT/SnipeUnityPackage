@@ -104,6 +104,7 @@ namespace MiniIT.Snipe
 
 		private readonly object _lock = new object();
 		private readonly ILogger _logger;
+		private readonly ISnipeServices _services;
 
 		private string _host;
 		private ushort _port;
@@ -112,9 +113,15 @@ namespace MiniIT.Snipe
 		private bool _hasReceivedValidMessage;
 		private CancellationTokenSource _reconnectCancellation;
 
-		public KcpConnection()
+		public KcpConnection(ISnipeServices services)
 		{
-			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(KcpConnection));
+			if (services == null)
+			{
+				throw new ArgumentNullException(nameof(services));
+			}
+
+			_services = services;
+			_logger = services.LogService.GetLogger(nameof(KcpConnection));
 		}
 
 		public void Connect(string host, ushort port, int timeout = 10000, int authenticationTimeout = 0)
@@ -135,7 +142,7 @@ namespace MiniIT.Snipe
 					_state = KcpState.Disconnected;
 				}
 
-				_socket = new UdpSocketWrapper();
+				_socket = new UdpSocketWrapper(_services);
 				_socket.OnConnected += OnSocketConnected;
 				_socket.OnDisconnected += OnSocketDisconnected;
 				_socket.Connect(host, port);

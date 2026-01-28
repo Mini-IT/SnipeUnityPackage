@@ -1,12 +1,13 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
+using MiniIT.Snipe;
 
 namespace MiniIT.Snipe.Unity
 {
 	public class UnityAuthSubsystem : AuthSubsystem
 	{
-		public UnityAuthSubsystem(int contextId, SnipeCommunicator communicator, SnipeAnalyticsTracker analytics)
-			: base(contextId, communicator, analytics)
+		public UnityAuthSubsystem(int contextId, SnipeCommunicator communicator, SnipeAnalyticsTracker analytics, ISnipeServices services)
+			: base(contextId, communicator, analytics, services)
 		{
 		}
 

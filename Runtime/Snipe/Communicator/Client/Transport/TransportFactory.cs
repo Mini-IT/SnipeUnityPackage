@@ -8,17 +8,24 @@ namespace MiniIT.Snipe
 	{
 		private readonly SnipeConfig _config;
 		private readonly SnipeAnalyticsTracker _analytics;
+		private readonly ISnipeServices _services;
 
-		internal TransportFactory(SnipeConfig config, SnipeAnalyticsTracker analytics)
+		internal TransportFactory(SnipeConfig config, SnipeAnalyticsTracker analytics, ISnipeServices services)
 		{
+			if (services == null)
+			{
+				throw new ArgumentNullException(nameof(services));
+			}
+
 			_config = config;
 			_analytics = analytics;
+			_services = services;
 		}
 
 		internal KcpTransport CreateKcpTransport(Action<Transport> onConnectionOpened, Action<Transport> onConnectionClosed,
 			Action<IDictionary<string, object>> onMessageReceived)
 		{
-			var transport = new KcpTransport(_config, _analytics);
+			var transport = new KcpTransport(_config, _analytics, _services);
 
 			transport.ConnectionOpenedHandler = (t) =>
 			{
@@ -35,7 +42,7 @@ namespace MiniIT.Snipe
 		internal WebSocketTransport CreateWebSocketTransport(Action<Transport> onConnectionOpened, Action<Transport> onConnectionClosed,
 			Action<IDictionary<string, object>> onMessageReceived)
 		{
-			return new WebSocketTransport(_config, _analytics)
+			return new WebSocketTransport(_config, _analytics, _services)
 			{
 				ConnectionOpenedHandler = onConnectionOpened,
 				ConnectionClosedHandler = onConnectionClosed,
@@ -46,7 +53,7 @@ namespace MiniIT.Snipe
 		internal HttpTransport CreateHttpTransport(Action<Transport> onConnectionOpened, Action<Transport> onConnectionClosed,
 			Action<IDictionary<string, object>> onMessageReceived)
 		{
-			return new HttpTransport(_config, _analytics)
+			return new HttpTransport(_config, _analytics, _services)
 			{
 				ConnectionOpenedHandler = onConnectionOpened,
 				ConnectionClosedHandler = onConnectionClosed,

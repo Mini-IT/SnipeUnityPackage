@@ -8,7 +8,7 @@ using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeServiceLocator : ISnipeServiceLocator
+	public class SnipeServiceLocator : ISnipeServiceLocator, ISnipeServices
 	{
 		public ISharedPrefs SharedPrefs { get; }
 		public ILogService LogService { get; }
@@ -26,6 +26,10 @@ namespace MiniIT.Snipe
 			LogService = factory.CreateLogService();
 			Analytics = factory.CreateAnalyticsService();
 			MainThreadRunner = factory.CreateMainThreadRunner();
+			if (Analytics is SnipeAnalyticsService analyticsService)
+			{
+				analyticsService.SetMainThreadRunner(MainThreadRunner);
+			}
 			FuzzyStopwatchFactory = factory.CreateFuzzyStopwatchFactory();
 			HttpClientFactory = factory.CreateHttpClientFactory();
 			ApplicationInfo = factory.CreateApplicationInfo();

@@ -44,13 +44,18 @@ namespace MiniIT.Snipe
 		/// <param name="receiveBufferSize">Max receive chunk size</param>
 		/// <param name="messageBufferSize">Start receiving message buffer size. If the size of a message is greater than
 		/// the size of the buffer, then the buffer will be automatically enlarged.</param>
-		public WebSocketClientWrapper(int receiveBufferSize = 4096, int messageBufferSize = 10240)
+		public WebSocketClientWrapper(ISnipeServices services, int receiveBufferSize = 4096, int messageBufferSize = 10240)
 		{
+			if (services == null)
+			{
+				throw new ArgumentNullException(nameof(services));
+			}
+
 			_receiveBuffer = new ArraySegment<byte>(new byte[receiveBufferSize]);
 			_receiveMessageBuffer = new byte[messageBufferSize];
 
-			_mainThreadRunner = SnipeServices.Instance.MainThreadRunner;
-			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(WebSocketClientWrapper));
+			_mainThreadRunner = services.MainThreadRunner;
+			_logger = services.LogService.GetLogger(nameof(WebSocketClientWrapper));
 		}
 
 		public override void Connect(string url)

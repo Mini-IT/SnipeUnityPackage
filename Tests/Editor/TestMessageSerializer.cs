@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using MiniIT.MessagePack;
 using MiniIT.Snipe.Configuration;
-using MiniIT.Snipe.Unity;
+using MiniIT.Snipe;
 
 namespace MiniIT.Snipe.Tests.Editor
 {
@@ -17,13 +17,9 @@ namespace MiniIT.Snipe.Tests.Editor
 			List<IDictionary<string, object>> data = new List<IDictionary<string, object>>(THREADS_COUNT);
 			List<byte[]> serialized = new List<byte[]>(THREADS_COUNT);
 
-			if (!SnipeServices.IsInitialized)
-			{
-				SnipeServices.Initialize(new UnitySnipeServicesFactory());
-			}
-
+			var services = new NullSnipeServices();
 			var serializer = new MessagePackSerializer(4096);
-			var config = new SnipeConfig(0, new SnipeConfigData());
+			var config = new SnipeConfig(0, new SnipeConfigData(), services);
 
 			for (int i = 0; i < THREADS_COUNT; i++)
 			{
@@ -33,7 +29,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			}
 
 			// Unique WebSocketTransport instances
-			List<byte[]> result = Task.Run(async () => await TestWSMessageSerializerAsync(data, config)).GetAwaiter()
+			List<byte[]> result = Task.Run(async () => await TestWSMessageSerializerAsync(data, config, services)).GetAwaiter()
 				.GetResult();
 
 			Assert.AreEqual(serialized.Count, result.Count);
@@ -43,7 +39,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			}
 
 			// Single WebSocketTransport instance
-			var transport = new WebSocketTransport(config, null);
+			var transport = new WebSocketTransport(config, null, services);
 			result = Task.Run(async () => await TestWSMessageSerializerAsync(data, transport)).GetAwaiter().GetResult();
 			Assert.AreEqual(serialized.Count, result.Count);
 			for (int i = 0; i < data.Count; i++)
@@ -52,9 +48,9 @@ namespace MiniIT.Snipe.Tests.Editor
 			}
 		}
 
-		private async Task<List<byte[]>> TestWSMessageSerializerAsync(List<IDictionary<string, object>> data, SnipeConfig config)
+		private async Task<List<byte[]>> TestWSMessageSerializerAsync(List<IDictionary<string, object>> data, SnipeConfig config, ISnipeServices services)
 		{
-			var transport = new WebSocketTransport(config, null);
+			var transport = new WebSocketTransport(config, null, services);
 			return await TestWSMessageSerializerAsync(data, transport);
 		}
 

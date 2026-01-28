@@ -19,9 +19,14 @@ namespace MiniIT.Snipe
 		private readonly object _lock = new object();
 		private readonly ILogger _logger;
 
-		public WebSocketBestWrapper()
+		public WebSocketBestWrapper(ISnipeServices services)
 		{
-			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(WebSocketBestWrapper));
+			if (services == null)
+			{
+				throw new ArgumentNullException(nameof(services));
+			}
+
+			_logger = services.LogService.GetLogger(nameof(WebSocketBestWrapper));
 			Best.HTTP.Shared.HTTPManager.Setup();
 		}
 

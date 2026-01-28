@@ -1,0 +1,23 @@
+{
+    "name": "MiniIT.Snipe.Nulls",
+    "rootNamespace": "MiniIT.Snipe",
+    "references": [
+        "MiniIT.Snipe.Abstractions",
+        "MiniIT.Snipe.Services",
+        "MiniIT.Snipe.Logging",
+        "MiniIT.HttpClient.Abstraction",
+        "MiniIT.Storage.SharedPrefs",
+        "MiniIT.Framework.Utilities",
+        "Microsoft.Extensions.Logging.Abstractions",
+        "UniTask"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

@@ -78,9 +78,9 @@ namespace MiniIT.Snipe
 		{
 			if (Communicator.BatchMode && !Communicator.LoggedIn)
 			{
-				return new UnauthorizedRequest(Communicator, messageType, data);
+				return new UnauthorizedRequest(Communicator, Communicator.Services, messageType, data);
 			}
-			return new SnipeCommunicatorRequest(Communicator, Auth, messageType, data);
+			return new SnipeCommunicatorRequest(Communicator, Communicator.Services, Auth, messageType, data);
 		}
 	}
 }

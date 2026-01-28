@@ -68,13 +68,18 @@ namespace MiniIT.Snipe
 		private readonly ResponseMonitor _responseMonitor;
 		private readonly ILogger _logger;
 
-		internal SnipeClient(SnipeConfig config)
+		internal SnipeClient(SnipeConfig config, ISnipeServices services)
 		{
+			if (services == null)
+			{
+				throw new ArgumentNullException(nameof(services));
+			}
+
 			_config = config;
-			_analytics = SnipeServices.Instance.Analytics.GetTracker(config.ContextId);
-			_responseMonitor = new ResponseMonitor(_analytics);
-			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(SnipeClient));
-			_transportService = new TransportService(config, _analytics);
+			_analytics = services.Analytics.GetTracker(config.ContextId);
+			_responseMonitor = new ResponseMonitor(_analytics, services);
+			_logger = services.LogService.GetLogger(nameof(SnipeClient));
+			_transportService = new TransportService(config, _analytics, services);
 
 			_transportService.ConnectionOpened += OnTransportConnectionOpened;
 			_transportService.ConnectionClosed += OnTransportConnectionClosed;

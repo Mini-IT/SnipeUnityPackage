@@ -1,10 +1,12 @@
-﻿
+
+using MiniIT.Snipe;
+
 namespace MiniIT.Snipe.Unity
 {
 	public class AmazonBinding : AuthBinding<AmazonIdFetcher>
 	{
-		public AmazonBinding()
-			: base("amzn")
+		public AmazonBinding(ISnipeServices services)
+			: base("amzn", services)
 		{
 		}
 

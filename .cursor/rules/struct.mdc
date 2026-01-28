@@ -1,0 +1,190 @@
+---
+alwaysApply: false
+---
+
+The main contant is splitted into 2 directories: `Runtime/Snipe` and `Runtime/Snipe.Unity`. It is supposed that `Runtime/Snipe.Unity` contains code for wirking with the library int Unity. There are plans to support also other engines. And `Runtime/Snipe` contains a common shared code independant from an engine.
+
+# Directories
+
+- Runtime
+    - HttpClient - wrapper for working with HTTP. Used for sigle requests (e.g. external config loading and static files loading) as well as for working as a transport for communicating with backend
+    - Integrations - adapters for retrieving external ids for binding user's account (helps users to restore their game accounts and progress)
+    - kcp2k - implememtation of KCP protocol for communicating with backend
+    - Snipe - common code
+        - Communicator - intracting with server
+            - API - High-level essences implemented both on the backend and the frontend
+                - Tables - abstraction that stores static data loaded from CDN
+            - Auth - Handling user accounts and bindings to external IDs
+            - Client - Main low-level classes for interacting with the backend
+                - Transport - implementations of different transports for interacting with the backend
+            - Common - common classes used by other modules
+            - Request - classes that wrap request data, send messages to the backend, wait for answers and invoke callbacks as a result of a request
+            - SnipeCommunicator - High-level wrapper for `Client`. Hadles states and requests
+        - Core - some common classes
+        - Logging - debug logging helpers
+        - MessagePack - serializater and deserializer
+        - Services - internal services
+    - Snipe.Unity - Unity boundings
+        - Communicator
+            - API - High-level implementations if the API modules
+                - Tables - loading data form CDN and parsing it into dictionaries
+                - UserAttributes - handling data accociated with user's profile on the backend
+            - Auth - IDs available form Unity to identify the user
+        - Config - remote config - loader for fetching it from server
+        - Context - Main high-level abstraction that wraps a single configured instance for working with the library
+            - Debug - debug logging helpers
+            - Factory - initialization of contexts
+            - Manager - Main entry point for interacting with the library from Unity
+            - ProfileManager - helpter class for resolving and synchronizing user's profile values (local and remote)
+        - Logger
+        - Services - Unity-compatible implementations of internal services
+- Tests - contains unit tests
+- WebSocketJS - implementation of websocket for working in web browsers
+
+# SnipeConfig
+
+`Snipe/Common/SnipeConfig.cs` defines URLs for connection and loading tables and settings for different internal services. Maybe it would be better to rename it to `SnipeOptions`.
+
+Normally the config gets filled once and stay permanent during the whole session, but tt's also a normal situation when SnipeConfig should be reconfigured on the fly (e.g. late remote config data was fetched with different URLs).
+
+# Tables
+
+Normally tables are loaded once and stay unchanged during the whole session even if connection gets lost or the app goes offline. There is always a local copy of the tables on user's device. Initial values are baked into the build; newly loaded ones get saved to cache. So the app can always work even offline.
+
+# Task
+
+We have a complex task - we need to refactor the enire library. I need it to be fully DI-friendly. All main modules should be pluggable and interchangable (e.g. Null-implementations). The librarry should be easy to configure and use. Modules should be testable and there should be an ability to use mock-implementations for testing. And also we should make the projects updating process (from the current version of the library to the refactored one) easy and smooth.
+Code should be easy to use and maintain.
+
+# Suggested solution
+
+What a “DI-friendly” target structure should guarantee
+Engine-agnostic core lives in Runtime/Snipe (assemblies with noEngineReferences: true).
+Unity glue only lives in Runtime/Snipe.Unity (PlayerPrefs/Unity logging/Unity HTTP/time, MonoBehaviours if needed).
+All behavior is behind interfaces (no static singletons), with explicit composition roots (no reflection scanning).
+Every major module is swappable (real / null / mock) and can be unit-tested without Unity.
+Proposed folder + assembly structure (target-state)
+Keep your current split (Runtime/Snipe vs Runtime/Snipe.Unity), but make it more “ports/adapters + composition” shaped:
+
+```
+Runtime/
+  Snipe/                       // engine-agnostic
+    Abstractions/              // *interfaces + options only*
+      Logging/
+      Time/
+      Storage/
+      Serialization/
+      Transport/
+      Config/
+      Modules/                 // module-level interfaces (Auth/Tables/etc)
+    Composition/               // minimal DI + builder
+      SnipeClientBuilder.cs
+      ISnipeModule.cs
+      ISnipeServiceRegistry.cs // tiny container abstraction (no reflection)
+    Modules/                   // “business modules”, depend only on Abstractions
+      Auth/
+      Tables/
+      UserAttributes/
+      RemoteConfig/
+      ProfileSync/
+      Communicator/            // your “client/communicator” orchestration
+    Implementations/           // concrete non-Unity implementations
+      MessagePack/
+      Transport.WebSocket/
+      Transport.Kcp/
+      Storage.* (if non-Unity exists)
+    Nulls/                     // null implementations for every port/module
+      NullAuthModule.cs
+      NullTablesModule.cs
+      NullLogger.cs
+      ...
+    Testing/ (optional runtime) // fakes/in-memory adapters for tests & samples
+
+  Snipe.Unity/                  // Unity-specific adapters + Unity-friendly entrypoints
+    Abstractions/ (optional)    // only if you need Unity-only ports
+    Adapters/
+      Storage.PlayerPrefs/
+      Logging.UnityLogger/
+      Time.Unity/
+      HttpClient.Unity/         // if your HTTP wrapper has Unity impl
+      ExternalIds.Unity/        // Facebook/Amazon/etc could plug in here
+    Composition/
+      SnipeUnityDefaults.cs     // “add recommended Unity adapters”
+      SnipeUnityBuilder.cs      // wraps core builder + Unity defaults
+    EntryPoints/                // migration-friendly API surface
+      ContextFactory/           // keep your current “Context/Factory/Manager” story
+      Manager/                  // but implemented as thin wrappers over builder
+
+  Integrations/                 // keep, but turn into modules/adapters
+  HttpClient/                   // keep, but expose ports in Abstractions
+```
+
+Assembly definitions (recommended names)
+MiniIT.Snipe.Abstractions (noEngineReferences true)
+MiniIT.Snipe.Composition (noEngineReferences true)
+MiniIT.Snipe.Modules.* (noEngineReferences true, one per module if you want)
+MiniIT.Snipe.Implementations.* (noEngineReferences true)
+MiniIT.Snipe.Nulls (noEngineReferences true)
+MiniIT.Snipe.Testing (noEngineReferences true, optional)
+MiniIT.Snipe.Unity.Adapters.* (Unity)
+MiniIT.Snipe.Unity.Composition (Unity)
+MiniIT.Snipe.Unity.EntryPoints (Unity)
+This fits your existing pattern of multiple asmdefs (MiniIT.Snipe.Core, ...Communicator, ...Unity, ...Context) but makes responsibilities much clearer.
+The key design rule: “ports” first, modules second, adapters last
+Define stable interfaces in Runtime/Snipe/Abstractions (no Unity types). Typical ports you’ll want:
+Cross-cutting
+ILogger, ILogSink (or reuse existing logging but keep it injectable)
+ITimeProvider / IClock
+IScheduler (so you can test timeouts/retries deterministically)
+IRandom (optional, for reproducible tests)
+I/O & persistence
+IKeyValueStore (ISharedPrefs), Unity: PlayerPrefs; tests: in-memory)
+ICacheStore / IFileStore (for tables cache; Unity/non-Unity adapters)
+IHttpClient (you already have MiniIT.HttpClient.Abstraction—wrap/standardize usage)
+ITransport (websocket/kcp/http-longpoll etc)
+Protocol
+IMessageSerializer / IMessagePackSerializer (your MessagePack layer becomes an implementation)
+ICompression (if you compress messages)
+Snipe-specific module interfaces
+IAuthModule, ITablesModule, IUserAttributesModule, IRemoteConfigModule, IProfileSyncModule
+A single high-level facade: ISnipeClient (or ISnipeContext) that depends only on module interfaces
+Then the “business” modules in Runtime/Snipe/Modules/* depend only on ports + options. Concrete Unity/non-Unity details are pushed into adapters.
+Composition root (how DI becomes easy without forcing a DI framework)
+Make one canonical way to build the client, and let users override pieces.
+Minimal pattern (no reflection, no LINQ):
+```
+// New code sketch (concept)
+public sealed class SnipeClientBuilder
+{
+    public SnipeOptions Options { get; }
+    public SnipeClientBuilder(SnipeOptions options) { Options = options; }
+
+    public SnipeClientBuilder AddModule(ISnipeModule module) { ... }
+    public SnipeClientBuilder UseTransport(ITransport transport) { ... }
+    public SnipeClientBuilder UseLogger(ILogger logger) { ... }
+
+    public ISnipeClient Build() { ... } // validates required ports/modules
+}
+```
+Unity side:
+SnipeUnityDefaults.Configure(builder, unityAdapters...)
+SnipeUnityBuilder.Create(options).UsePlayerPrefs().UseUnityLogger().Build();
+This gives you:
+Pluggability: swap a module/adapter with a null/mock in one place.
+Testability: tests call new SnipeClientBuilder(...).UseInMemoryStore().UseFakeTransport().
+Smooth upgrade: existing ContextFactory/Manager can internally instantiate the builder.
+“Smooth migration” strategy (so existing projects don’t break)
+Do it in layers; don’t move everything at once.
+Keep current public entrypoints (likely your Unity Context/Factory/Manager) but re-implement them as thin wrappers around the new builder.
+Introduce new namespaces alongside old ones:
+MiniIT.Snipe.* (new core)
+MiniIT.Snipe.Unity.* (new Unity)
+MiniIT.Snipe.Legacy.* (optional: shims + [Obsolete] guidance)
+Provide a compat options mapper:
+SnipeConfig → SnipeOptions (explicit mapping, no reflection).
+Deprecate old APIs gradually with clear messages and “how to replace”.
+How this maps to your current layout (so it feels familiar)
+Your current Runtime/Snipe/Communicator becomes “module orchestration + protocol”, but should depend on ports (ITransport, IMessageSerializer, ILogger, storage, scheduler), not concrete implementations.
+Runtime/Snipe.Unity/Context becomes mostly “Unity composition + entrypoints”, not core logic.
+Runtime/Integrations/* become adapters/modules that implement a small port like IExternalIdProvider.
+If you want, I can tailor this to your actual public API surface by quickly scanning the current “entrypoint” types (likely in Runtime/Snipe.Unity/Context/Factory and .../Manager) and then propose an exact “Legacy wrapper → New builder” mapping that minimizes breaking changes.

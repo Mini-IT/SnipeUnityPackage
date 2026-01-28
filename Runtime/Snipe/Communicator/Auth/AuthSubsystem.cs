@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -103,17 +103,26 @@ namespace MiniIT.Snipe
 		protected readonly ISharedPrefs _sharedPrefs;
 		protected readonly IMainThreadRunner _mainThreadRunner;
 		protected readonly ILogger _logger;
+		private readonly ISnipeServices _services;
 
-		protected AuthSubsystem(int contextId, SnipeCommunicator communicator, SnipeAnalyticsTracker analytics)
+		public ISnipeServices Services => _services;
+
+		protected AuthSubsystem(int contextId, SnipeCommunicator communicator, SnipeAnalyticsTracker analytics, ISnipeServices services)
 		{
+			if (services == null)
+			{
+				throw new ArgumentNullException(nameof(services));
+			}
+
 			_communicator = communicator;
 			_communicator.ConnectionEstablished += OnConnectionEstablished;
 
 			_contextId = contextId;
 			_analytics = analytics;
-			_sharedPrefs = SnipeServices.Instance.SharedPrefs;
-			_mainThreadRunner = SnipeServices.Instance.MainThreadRunner;
-			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(AuthSubsystem));
+			_services = services;
+			_sharedPrefs = services.SharedPrefs;
+			_mainThreadRunner = services.MainThreadRunner;
+			_logger = services.LogService.GetLogger(nameof(AuthSubsystem));
 		}
 
 		public void Initialize(SnipeConfig config)
@@ -283,7 +292,7 @@ namespace MiniIT.Snipe
 
 			long startTimespamp = Stopwatch.GetTimestamp();
 
-			RunAuthRequest(() => new UnauthorizedRequest(_communicator, SnipeMessageTypes.USER_LOGIN, data)
+			RunAuthRequest(() => new UnauthorizedRequest(_communicator, _services, SnipeMessageTypes.USER_LOGIN, data)
 				.Request((errorCode, response) =>
 				{
 					var elapsed = TimeSpan.FromTicks(Stopwatch.GetTimestamp() - startTimespamp);
@@ -363,7 +372,7 @@ namespace MiniIT.Snipe
 
 			_registering = true;
 
-			RunAuthRequest(() => new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN)
+			RunAuthRequest(() => new UnauthorizedRequest(_communicator, _services, SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN)
 				.Request(data, (errorCode, response) =>
 				{
 					_registering = false;
@@ -479,7 +488,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_RESTORE)
+			new UnauthorizedRequest(_communicator, _services, SnipeMessageTypes.AUTH_RESTORE)
 				.Request(new Dictionary<string, object>()
 				{
 					["ckey"] = _config.ClientKey,

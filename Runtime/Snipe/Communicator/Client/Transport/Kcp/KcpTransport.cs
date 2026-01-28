@@ -26,8 +26,8 @@ namespace MiniIT.Snipe
 		private readonly ITicker _updateTicker;
 		private Task _networkLoop;
 
-		internal KcpTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
-			: base(config, analytics)
+		internal KcpTransport(SnipeConfig config, SnipeAnalyticsTracker analytics, ISnipeServices services)
+			: base(config, analytics, services)
 		{
 			Info = new TransportInfo()
 			{
@@ -35,7 +35,7 @@ namespace MiniIT.Snipe
 				ClientImplementation = "kcp"
 			};
 
-			_updateTicker = SnipeServices.Instance.Ticker;
+			_updateTicker = services.Ticker;
 		}
 
 		public override void Connect(string endpoint, ushort port = 0)
@@ -54,7 +54,7 @@ namespace MiniIT.Snipe
 
 				_connectionEstablished = false;
 
-				_kcpConnection = new KcpConnection
+				_kcpConnection = new KcpConnection(_services)
 				{
 					OnAuthenticated = OnClientConnected,
 					OnData = OnClientDataReceived,

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using Microsoft.Extensions.Logging;
@@ -55,21 +55,30 @@ namespace MiniIT.Snipe
 		private SnipeConfig _config;
 		private readonly SnipeAnalyticsTracker _analytics;
 		private readonly IMainThreadRunner _mainThreadRunner;
+		private readonly ISnipeServices _services;
 		private readonly RoomStateObserver _roomStateObserver;
 		private readonly ILogger _logger;
 
-		public SnipeCommunicator(SnipeAnalyticsTracker analytics)
+		public SnipeCommunicator(SnipeAnalyticsTracker analytics, ISnipeServices services)
 		{
-			_analytics = analytics;
+			if (services == null)
+			{
+				throw new ArgumentNullException(nameof(services));
+			}
 
-			_mainThreadRunner = SnipeServices.Instance.MainThreadRunner;
-			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(SnipeCommunicator));
+			_analytics = analytics;
+			_services = services;
+
+			_mainThreadRunner = services.MainThreadRunner;
+			_logger = services.LogService.GetLogger(nameof(SnipeCommunicator));
 			_logger.BeginScope($"{InstanceId}");
 
 			_roomStateObserver = new RoomStateObserver(this);
 
 			_logger.LogInformation($"PACKAGE VERSION: {PackageInfo.VERSION_NAME}");
 		}
+
+		internal ISnipeServices Services => _services;
 
 		public void Initialize(SnipeConfig config)
 		{
@@ -81,7 +90,7 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public void Start()
 		{
-			if (!SnipeServices.Instance.InternetReachabilityProvider.IsInternetAvailable)
+			if (!_services.InternetReachabilityProvider.IsInternetAvailable)
 			{
 				_logger.LogInformation("Internet is not available");
 				ConnectionDisrupted?.Invoke();
@@ -113,7 +122,7 @@ namespace MiniIT.Snipe
 			{
 				if (_client == null)
 				{
-					_client = new SnipeClient(_config);
+					_client = new SnipeClient(_config, _services);
 					_client.ConnectionOpened += OnClientConnectionOpened;
 					_client.ConnectionClosed += OnClientConnectionClosed;
 					_client.ConnectionDisrupted += OnClientConnectionDisrupted;

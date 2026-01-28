@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using MiniIT.Threading;
@@ -18,6 +18,7 @@ namespace MiniIT.Snipe
 		public delegate void ResponseHandler(string errorCode, IDictionary<string, object> data);
 
 		protected SnipeCommunicator _communicator;
+		private readonly ISnipeServices _services;
 		protected ResponseHandler _callback;
 
 		protected int _requestId { get; private set; }
@@ -28,9 +29,15 @@ namespace MiniIT.Snipe
 
 		private ILogger _logger;
 
-		public AbstractCommunicatorRequest(SnipeCommunicator communicator, string messageType = null, IDictionary<string, object> data = null)
+		public AbstractCommunicatorRequest(SnipeCommunicator communicator, ISnipeServices services, string messageType = null, IDictionary<string, object> data = null)
 		{
+			if (services == null)
+			{
+				throw new ArgumentNullException(nameof(services));
+			}
+
 			_communicator = communicator;
+			_services = services;
 			MessageType = messageType;
 			Data = data;
 
@@ -323,7 +330,7 @@ namespace MiniIT.Snipe
 
 		private ILogger GetLogger()
 		{
-			_logger ??= SnipeServices.Instance.LogService.GetLogger(nameof(AbstractCommunicatorRequest));
+			_logger ??= _services.LogService.GetLogger(nameof(AbstractCommunicatorRequest));
 			return _logger;
 		}
 

@@ -35,14 +35,21 @@ namespace MiniIT.Snipe
 		protected readonly SnipeConfig _config;
 		protected readonly SnipeAnalyticsTracker _analytics;
 		protected readonly ILogger _logger;
+		protected readonly ISnipeServices _services;
 
 		protected bool _disposed = false;
 
-		internal Transport(SnipeConfig config, SnipeAnalyticsTracker analytics)
+		internal Transport(SnipeConfig config, SnipeAnalyticsTracker analytics, ISnipeServices services)
 		{
+			if (services == null)
+			{
+				throw new ArgumentNullException(nameof(services));
+			}
+
 			_config = config;
 			_analytics = analytics;
-			_logger = SnipeServices.Instance.LogService.GetLogger(GetType().Name);
+			_services = services;
+			_logger = services.LogService.GetLogger(GetType().Name);
 		}
 
 		public abstract void Connect(string endpoint, ushort port = 0);

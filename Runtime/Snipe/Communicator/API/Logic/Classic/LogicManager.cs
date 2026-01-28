@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -205,7 +205,7 @@ namespace MiniIT.Snipe.Api
 					if (o is IDictionary<string, object> so &&
 					    so.TryGetValue("node", out object n) && n is IDictionary<string, object> node)
 					{
-						logicNodes.Add(new LogicNode(node, _logicTable));
+						logicNodes.Add(new LogicNode(node, _logicTable, _snipeCommunicator.Services));
 					}
 				}
 			}

@@ -36,12 +36,16 @@ namespace MiniIT.Snipe
 		private readonly SnipeAnalyticsService _analyticsService;
 		private readonly IMainThreadRunner _mainThreadRunner;
 
-		internal SnipeAnalyticsTracker(SnipeAnalyticsService analyticsService, int contextId, Func<ISnipeErrorsTracker> errorsTrackerGetter)
+		internal SnipeAnalyticsTracker(
+			SnipeAnalyticsService analyticsService,
+			int contextId,
+			Func<ISnipeErrorsTracker> errorsTrackerGetter,
+			IMainThreadRunner mainThreadRunner)
 		{
 			_analyticsService = analyticsService;
 			_contextId = contextId;
 			_errorsTrackerGetter = errorsTrackerGetter;
-			_mainThreadRunner = SnipeServices.Instance.MainThreadRunner;
+			_mainThreadRunner = mainThreadRunner;
 		}
 
 		internal void SetExternalTracker(ISnipeCommunicatorAnalyticsTracker externalTracker)
@@ -168,10 +172,7 @@ namespace MiniIT.Snipe
 					properties["server_reaction"] = ServerReaction.TotalMilliseconds;
 
 				// Some trackers (for example Amplitude) may crash if used not in the main Unity thread.
-				_mainThreadRunner.RunInMainThread(() =>
-				{
-					_externalTracker.TrackEvent(EVENT_NAME, properties);
-				});
+				RunOnMainThread(() => _externalTracker.TrackEvent(EVENT_NAME, properties));
 			}
 		}
 
@@ -232,10 +233,7 @@ namespace MiniIT.Snipe
 				properties["sinpe_context"] = _contextId;
 			}
 
-			_mainThreadRunner.RunInMainThread(() =>
-			{
-				_externalTracker.TrackError(name, exception, properties);
-			});
+			RunOnMainThread(() => _externalTracker.TrackError(name, exception, properties));
 		}
 
 		public void TrackABEnter(string name, string variant)
@@ -277,10 +275,18 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			_mainThreadRunner.RunInMainThread(() =>
+			RunOnMainThread(() => tracker.TrackSnipeConfigLoadingStats(statistics));
+		}
+
+		private void RunOnMainThread(Action action)
+		{
+			if (_mainThreadRunner != null)
 			{
-				tracker.TrackSnipeConfigLoadingStats(statistics);
-			});
+				_mainThreadRunner.RunInMainThread(action);
+				return;
+			}
+
+			action?.Invoke();
 		}
 	}
 }

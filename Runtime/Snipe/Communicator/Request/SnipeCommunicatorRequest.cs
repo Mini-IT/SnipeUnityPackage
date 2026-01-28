@@ -1,4 +1,4 @@
-﻿
+
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 
@@ -9,15 +9,23 @@ namespace MiniIT.Snipe
 		public bool WaitingForRoomJoined { get; private set; } = false;
 
 		private ILogger _logger;
+		private readonly ISnipeServices _services;
 
 		private readonly AuthSubsystem _authSubsystem;
 
 		public SnipeCommunicatorRequest(SnipeCommunicator communicator,
+			ISnipeServices services,
 			AuthSubsystem authSubsystem,
 			string messageType = null,
 			IDictionary<string, object> data = null)
-			: base(communicator, messageType, data)
+			: base(communicator, services, messageType, data)
 		{
+			if (services == null)
+			{
+				throw new ArgumentNullException(nameof(services));
+			}
+
+			_services = services;
 			_authSubsystem = authSubsystem;
 		}
 
@@ -110,7 +118,7 @@ namespace MiniIT.Snipe
 
 		private ILogger GetLogger()
 		{
-			_logger ??= SnipeServices.Instance.LogService.GetLogger(nameof(SnipeCommunicatorRequest));
+			_logger ??= _services.LogService.GetLogger(nameof(SnipeCommunicatorRequest));
 			return _logger;
 		}
 	}

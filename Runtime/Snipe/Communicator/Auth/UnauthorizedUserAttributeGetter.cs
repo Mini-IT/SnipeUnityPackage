@@ -1,4 +1,4 @@
-﻿
+
 using System.Collections.Generic;
 
 namespace MiniIT.Snipe
@@ -23,7 +23,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_ATTR_GET).Request(
+			new UnauthorizedRequest(_communicator, _communicator.Services, SnipeMessageTypes.AUTH_ATTR_GET).Request(
 				new Dictionary<string, object>()
 				{
 					["provider"] = provider_id,

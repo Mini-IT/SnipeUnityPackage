@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using fastJSON;
+using MiniIT.Snipe;
 
 namespace MiniIT.Snipe.Configuration
 {
@@ -76,9 +77,9 @@ namespace MiniIT.Snipe.Configuration
 			return this;
 		}
 
-		public SnipeConfig Build(int contextId)
+		public SnipeConfig Build(int contextId, ISnipeServices services)
 		{
-			return new SnipeConfig(contextId, _data);
+			return new SnipeConfig(contextId, _data, services);
 		}
 
 		//----------------------

@@ -30,7 +30,7 @@ namespace MiniIT.Snipe
 			var graphsTable = tables.GetTable<SnipeTableGraphsItem>();
 			if (graphsTable != null)
 			{
-				GraphManager = new GraphLogicManager(Communicator, CreateRequest, graphsTable);
+				GraphManager = new GraphLogicManager(Communicator, CreateRequest, graphsTable, Communicator.Services);
 			}
 
 			var badgesTable = tables.GetTable<SnipeTableBadgesItem>();
@@ -58,7 +58,7 @@ namespace MiniIT.Snipe
 				}
 			}
 
-			ProfileManager = new ProfileManager(this, SnipeServices.Instance.SharedPrefs);
+			ProfileManager = new ProfileManager(this, Communicator.Services.SharedPrefs);
 		}
 
 		public AbstractSnipeApiService GetSnipeApiService() => _api;

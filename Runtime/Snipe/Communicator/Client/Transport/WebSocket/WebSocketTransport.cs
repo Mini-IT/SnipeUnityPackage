@@ -62,8 +62,8 @@ namespace MiniIT.Snipe
 		private CancellationTokenSource _checkConnectionCancellation;
 		private CancellationTokenSource _loginTimeoutCancellation;
 
-		internal WebSocketTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
-			: base(config, analytics)
+		internal WebSocketTransport(SnipeConfig config, SnipeAnalyticsTracker analytics, ISnipeServices services)
+			: base(config, analytics, services)
 		{
 		}
 
@@ -78,7 +78,7 @@ namespace MiniIT.Snipe
 
 			_logger.LogTrace("WebSocket Connect to " + url);
 
-			_webSocket = new WebSocketFactory(_config).CreateWebSocket();
+			_webSocket = new WebSocketFactory(_config, _services).CreateWebSocket();
 
 			Info = new TransportInfo()
 			{
