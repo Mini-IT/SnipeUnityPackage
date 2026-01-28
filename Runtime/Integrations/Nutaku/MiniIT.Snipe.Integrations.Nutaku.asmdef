@@ -1,20 +1,26 @@
 {
-	"name": "MiniIT.Snipe.Integrations.Nutaku",
-	"rootNamespace": "MiniIT.Snipe",
-	"references": [
-		"MiniIT.Snipe.Core",
-		"MiniIT.Snipe.Communicator",
-		"MiniIT.AlterTask",
-		"MiniIT.Integrations.Nutaku",
-		"fastJSON"
-	],
-	"includePlatforms": [],
-	"excludePlatforms": [],
-	"allowUnsafeCode": false,
-	"overrideReferences": false,
-	"precompiledReferences": [],
-	"autoReferenced": true,
-	"defineConstraints": ["NUTAKU"],
-	"versionDefines": [],
-	"noEngineReferences": false
+    "name": "MiniIT.Snipe.Integrations.Nutaku",
+    "rootNamespace": "MiniIT.Snipe",
+    "references": [
+        "MiniIT.Snipe.Core",
+        "MiniIT.Snipe.Communicator",
+        "MiniIT.AlterTask",
+        "MiniIT.Integrations.Nutaku",
+        "fastJSON"
+    ],
+    "includePlatforms": [
+        "Android",
+        "Editor",
+        "WebGL"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "NUTAKU"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
 }
