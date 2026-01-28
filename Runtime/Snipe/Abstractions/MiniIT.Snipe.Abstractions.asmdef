@@ -4,6 +4,7 @@
     "references": [
         "MiniIT.Storage.SharedPrefs",
         "MiniIT.Snipe.Logging",
+        "MiniIT.Snipe.Services",
         "MiniIT.HttpClient.Abstraction",
         "MiniIT.Framework.Utilities"
     ],
