@@ -1,8 +1,5 @@
-﻿#if NUTAKU
-
 using System;
-using NutakuUnitySdk;
-using UnityEngine;
+using MiniIT.Integrations.Nutaku;
 
 namespace MiniIT.Snipe.Unity
 {
@@ -10,75 +7,35 @@ namespace MiniIT.Snipe.Unity
 	{
 		public string Token { get; private set; }
 
-		public sealed class NutakuMono : MonoBehaviour
-		{
-			private void Awake()
-			{
-				DontDestroyOnLoad(gameObject);
-			}
-		}
-
-		private sealed class HandshakeResponse
-		{
-			public string errorCode;
-			public string token;
-		}
-
 		private Action<string> _callback;
-		private NutakuMono _mono;
-		private readonly object _monoLock = new object();
+		private readonly INutakuAdapter _nutakuAdapter;
+
+		public NutakuIdFetcher()
+			: this(NutakuAdapterLocator.Instance)
+		{
+		}
+
+		private NutakuIdFetcher(INutakuAdapter nutakuAdapter)
+		{
+			_nutakuAdapter = nutakuAdapter;
+		}
 
 		public override void Fetch(bool waitInitialization, Action<string> callback = null)
 		{
 			_callback = callback;
-
-			if (string.IsNullOrEmpty(Value))
-			{
-				string userId = NutakuCurrentUser.GetUserId().ToString();
-				SetValue(userId);
-			}
-
-			CreateMono();
-			GetHandshake();
+			_nutakuAdapter.FetchAuthData(waitInitialization, OnAuthDataReceived);
 		}
 
-		private void CreateMono()
+		private void OnAuthDataReceived(NutakuAuthData data)
 		{
-			lock (_monoLock)
-			{
-				var nutakuObj = new GameObject("NutakuHandshakeMono");
-				_mono = nutakuObj.AddComponent<NutakuMono>();
-			}
+			SetValue(data.UserId);
+			SetToken(data.Token);
+			InvokeCallback(Value);
 		}
 
-		private void GetHandshake()
+		private void SetToken(string value)
 		{
-			lock (_monoLock)
-			{
-				NutakuApi.GameHandshake(_mono, OnHandshakeReceived);
-			}
-		}
-
-		private void OnHandshakeReceived(NutakuApiRawResult rawresult)
-		{
-			if (rawresult.responseCode is > 199 and < 300)
-			{
-				var result = NutakuApi.Parse_GameHandshake(rawresult);
-				var handshake = fastJSON.JSON.ToObject<HandshakeResponse>(result.message);
-				if (handshake?.errorCode == "ok")
-				{
-					Token = handshake.token;
-					_callback?.Invoke(Value);
-				}
-
-			}
-
-			lock (_monoLock)
-			{
-				var monoGameObject = _mono.gameObject;
-				_mono = null;
-				GameObject.Destroy(monoGameObject);
-			}
+			Token = CheckValueValid(value) ? value : "";
 		}
 
 		private void SetValue(string value)
@@ -90,7 +47,10 @@ namespace MiniIT.Snipe.Unity
 		{
 			return !string.IsNullOrEmpty(value);
 		}
+
+		private void InvokeCallback(string value)
+		{
+			_callback?.Invoke(value);
+		}
 	}
 }
-
-#endif
