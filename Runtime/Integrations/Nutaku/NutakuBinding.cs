@@ -1,5 +1,3 @@
-﻿#if NUTAKU
-
 namespace MiniIT.Snipe.Unity
 {
 	public class NutakuBinding : AuthBinding<NutakuIdFetcher>
@@ -11,5 +9,3 @@ namespace MiniIT.Snipe.Unity
 		}
 	}
 }
-
-#endif
