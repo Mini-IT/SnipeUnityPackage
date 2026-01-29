@@ -660,7 +660,7 @@ namespace MiniIT.Snipe.Api
 
 		private int GetLocalVersion()
 		{
-			return _sharedPrefs.GetInt(KEY_LOCAL_VERSION, 0);
+			return _sharedPrefs.GetInt(KEY_LOCAL_VERSION, 1);
 		}
 
 		private void SetLocalVersion(int version)
