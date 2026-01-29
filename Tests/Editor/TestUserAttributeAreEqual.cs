@@ -95,6 +95,24 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[Test]
+		public void AreEqual_DifferentNumericTypesSameValue_ReturnsTrue()
+		{
+			// Arrange
+			object byteValue = (byte)10;
+			object ushortValue = (ushort)10;
+			object intValue = 10;
+			object longValue = 10L;
+
+			// Act
+			bool resultByteUshort = SnipeApiUserAttribute.AreEqual(byteValue, ushortValue);
+			bool resultIntLong = SnipeApiUserAttribute.AreEqual(intValue, longValue);
+
+			// Assert
+			Assert.IsTrue(resultByteUshort);
+			Assert.IsTrue(resultIntLong);
+		}
+
+		[Test]
 		public void AreEqual_DictionariesWithDifferentValues_ReturnsFalse()
 		{
 			// Arrange
