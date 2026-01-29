@@ -612,7 +612,7 @@ namespace MiniIT.Snipe.Api
 
 			if (request != null)
 			{
-				request.Request((errorCode, _) =>
+				request.Request((errorCode, data) =>
 				{
 					_syncInProgress = false;
 
@@ -625,11 +625,18 @@ namespace MiniIT.Snipe.Api
 							_serverSnapshotValues[kvp.Key] = kvp.Value;
 						}
 
-						// Server bumps its version by +1 per request. After success we align local and
-						// last-synced versions to serverSnapshot+1 so that subsequent server pushes
-						// are not considered "older". This can lower localVersion, but the change is
-						// already accepted by the server, so server is authoritative.
-						_serverVersion++;
+						if (data.TryGetValue(_serverVersionAttrKey, out int serverVersion))
+						{
+							_serverVersion = serverVersion;
+						}
+						else
+						{
+							// Server bumps its version by +1 per request. After success we align local and
+							// last-synced versions to serverSnapshot+1 so that subsequent server pushes
+							// are not considered "older". This can lower localVersion, but the change is
+							// already accepted by the server, so server is authoritative.
+							_serverVersion++;
+						}
 
 						SetLocalVersion(_serverVersion);
 						SetLastSyncedVersion(_serverVersion);
