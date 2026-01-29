@@ -263,7 +263,7 @@ namespace MiniIT.Snipe
 			// try to load a built-in file
 			if (await LoadTableAsync(loaderItem.Table,
 				SnipeTable.LoadingLocation.BuiltIn,
-					new SnipeTableStreamingAssetsLoader(_builtInTablesListService, _services.LogService.GetLogger("SnipeTable")).LoadAsync(
+				new SnipeTableStreamingAssetsLoader(_builtInTablesListService, _services.LogService.GetLogger("SnipeTable")).LoadAsync(
 					loaderItem.WrapperType,
 					loaderItem.Table.GetItems(),
 					loaderItem.Name,
