@@ -2,6 +2,7 @@
     "name": "MiniIT.Snipe.Communicator.Unity",
     "rootNamespace": "MiniIT.Snipe",
     "references": [
+        "MiniIT.Snipe.Abstractions",
         "MiniIT.Snipe.Core",
         "MiniIT.Snipe.Communicator",
         "MiniIT.Snipe.Services",

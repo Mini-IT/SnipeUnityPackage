@@ -62,7 +62,7 @@ namespace MiniIT.Snipe
 		private CancellationTokenSource _checkConnectionCancellation;
 		private CancellationTokenSource _loginTimeoutCancellation;
 
-		internal WebSocketTransport(SnipeConfig config, SnipeAnalyticsTracker analytics, ISnipeServices services)
+		internal WebSocketTransport(SnipeConfig config, ISnipeAnalyticsTracker analytics, ISnipeServices services)
 			: base(config, analytics, services)
 		{
 		}

@@ -2,9 +2,11 @@
     "name": "MiniIT.Snipe.Context",
     "rootNamespace": "MiniIT.Snipe",
     "references": [
+        "MiniIT.Snipe.Abstractions",
         "MiniIT.Snipe.Core",
         "MiniIT.Snipe.Communicator",
         "MiniIT.Snipe.Communicator.Unity",
+        "MiniIT.Snipe.Unity.Composition",
         "MiniIT.Snipe.Logging",
         "MiniIT.Snipe.Services",
         "MiniIT.Snipe.Unity",

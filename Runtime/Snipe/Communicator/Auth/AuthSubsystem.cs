@@ -99,7 +99,7 @@ namespace MiniIT.Snipe
 
 		private readonly int _contextId;
 		protected SnipeConfig _config;
-		protected readonly SnipeAnalyticsTracker _analytics;
+		protected readonly ISnipeAnalyticsTracker _analytics;
 		protected readonly ISharedPrefs _sharedPrefs;
 		protected readonly IMainThreadRunner _mainThreadRunner;
 		protected readonly ILogger _logger;
@@ -107,7 +107,7 @@ namespace MiniIT.Snipe
 
 		public ISnipeServices Services => _services;
 
-		protected AuthSubsystem(int contextId, SnipeCommunicator communicator, SnipeAnalyticsTracker analytics, ISnipeServices services)
+		protected AuthSubsystem(int contextId, SnipeCommunicator communicator, ISnipeAnalyticsTracker analytics, ISnipeServices services)
 		{
 			if (services == null)
 			{

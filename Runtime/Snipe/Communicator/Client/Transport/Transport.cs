@@ -33,13 +33,13 @@ namespace MiniIT.Snipe
 		public TransportInfo Info { get; protected set; }
 
 		protected readonly SnipeConfig _config;
-		protected readonly SnipeAnalyticsTracker _analytics;
+		protected readonly ISnipeAnalyticsTracker _analytics;
 		protected readonly ILogger _logger;
 		protected readonly ISnipeServices _services;
 
 		protected bool _disposed = false;
 
-		internal Transport(SnipeConfig config, SnipeAnalyticsTracker analytics, ISnipeServices services)
+		internal Transport(SnipeConfig config, ISnipeAnalyticsTracker analytics, ISnipeServices services)
 		{
 			if (services == null)
 			{

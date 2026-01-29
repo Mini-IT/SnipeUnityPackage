@@ -20,10 +20,10 @@ namespace MiniIT.Snipe.Tables
 		}
 
 		private readonly BuiltInTablesListService _builtInTablesListService;
-		private readonly SnipeAnalyticsTracker _analyticsTracker;
+		private readonly ISnipeAnalyticsTracker _analyticsTracker;
 		private readonly ILogger _logger;
 
-		public TablesVersionsLoader(BuiltInTablesListService builtInTablesListService, SnipeAnalyticsTracker analyticsTracker)
+		public TablesVersionsLoader(BuiltInTablesListService builtInTablesListService, ISnipeAnalyticsTracker analyticsTracker)
 		{
 			_builtInTablesListService = builtInTablesListService;
 			_analyticsTracker = analyticsTracker;

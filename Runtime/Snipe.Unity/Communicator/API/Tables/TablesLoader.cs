@@ -27,7 +27,7 @@ namespace MiniIT.Snipe
 		private HashSet<TablesLoaderItem> _loadingItems;
 		private readonly TablesVersionsLoader _versionsLoader;
 		private readonly BuiltInTablesListService _builtInTablesListService;
-		private readonly SnipeAnalyticsTracker _analyticsTracker;
+		private readonly ISnipeAnalyticsTracker _analyticsTracker;
 		private readonly IInternetReachabilityProvider _internetReachabilityProvider;
 		private readonly ILogger _logger;
 

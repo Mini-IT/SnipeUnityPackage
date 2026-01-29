@@ -64,7 +64,7 @@ namespace MiniIT.Snipe
 		private int _requestId = 0;
 
 		private readonly SnipeConfig _config;
-		private readonly SnipeAnalyticsTracker _analytics;
+		private readonly ISnipeAnalyticsTracker _analytics;
 		private readonly ResponseMonitor _responseMonitor;
 		private readonly ILogger _logger;
 

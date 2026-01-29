@@ -1309,7 +1309,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			RequestCount++;
 			// Return MockSnipeCommunicatorRequest which extends SnipeCommunicatorRequest
 			// to handle the case where CreateRequest is called through base class reference
-			return new MockSnipeCommunicatorRequest(_mockCommunicator, _mockAuth, messageType, data, _nextRequestSuccess);
+			return new MockSnipeCommunicatorRequest(_mockCommunicator, _mockCommunicator.Services, _mockAuth, messageType, data, _nextRequestSuccess);
 		}
 	}
 
@@ -1317,9 +1317,9 @@ namespace MiniIT.Snipe.Tests.Editor
 	{
 		private readonly bool _success;
 
-		public MockSnipeCommunicatorRequest(SnipeCommunicator communicator, AuthSubsystem auth,
+		public MockSnipeCommunicatorRequest(SnipeCommunicator communicator, ISnipeServices services, AuthSubsystem auth,
 			string messageType, IDictionary<string, object> data, bool success)
-			: base(communicator, auth, messageType, data)
+			: base(communicator, services, auth, messageType, data)
 		{
 			_success = success;
 		}
@@ -1409,7 +1409,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		private DelayedMockSnipeApiService _service;
 
 		public ManualCommunicatorRequest(DelayedMockSnipeApiService service, SnipeCommunicator communicator, AuthSubsystem auth, string messageType, IDictionary<string, object> data, bool success)
-			: base(communicator, auth, messageType, data, success)
+			: base(communicator, communicator.Services, auth, messageType, data, success)
 		{
 			_service = service;
 		}

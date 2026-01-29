@@ -27,8 +27,6 @@ namespace MiniIT.Snipe.Unity
 				return AccessToken.CurrentAccessToken.TokenString;
 			}
 #endif
-
-			return "";
 		}
 
 		protected override void FillExtraParameters(IDictionary<string, object> data)

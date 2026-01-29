@@ -26,7 +26,7 @@ namespace MiniIT.Snipe
 			_mainThreadRunner = mainThreadRunner;
 		}
 
-		public SnipeAnalyticsTracker GetTracker(int contextId = 0)
+		public ISnipeAnalyticsTracker GetTracker(int contextId = 0)
 		{
 			SnipeAnalyticsTracker tracker;
 

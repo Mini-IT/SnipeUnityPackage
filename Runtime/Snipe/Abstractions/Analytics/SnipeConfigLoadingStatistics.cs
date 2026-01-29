@@ -26,7 +26,7 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public int FireCount { get; set; }
 
-		public string PackageVersionName { get; } = PackageInfo.VERSION_NAME;
+		public string PackageVersionName { get; set; } = string.Empty;
 		public List<StateChange> StateChanges { get; } = new List<StateChange>(4);
 		public LoadingState State { get; private set; } = LoadingState.NotStarted;
 		public bool Success { get; set; } = false;

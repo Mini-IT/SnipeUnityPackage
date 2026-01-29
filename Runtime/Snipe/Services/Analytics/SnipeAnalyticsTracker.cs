@@ -5,7 +5,7 @@ using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeAnalyticsTracker : ISnipeConfigLoadingAnalyticsTracker
+	public class SnipeAnalyticsTracker : ISnipeAnalyticsTracker, ISnipeConfigLoadingAnalyticsTracker
 	{
 		public bool IsEnabled => _analyticsService.IsEnabled;
 

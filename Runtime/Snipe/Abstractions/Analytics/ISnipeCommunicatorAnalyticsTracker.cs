@@ -17,11 +17,7 @@ namespace MiniIT.Snipe
 		void SetUserProperty(string name, IDictionary<string, object> value);
 
 		void TrackEvent(string name, IDictionary<string, object> properties = null);
-		//void TrackEvent(string name, string property_name, object property_value);
-		//void TrackEvent(string name, object property_value);
-
 		void TrackError(string name, Exception exception = null, IDictionary<string, object> properties = null);
-
 		void TrackABEnter(string name, string variant);
 
 		// Used for excluding some messages or error codes from analytics tracking

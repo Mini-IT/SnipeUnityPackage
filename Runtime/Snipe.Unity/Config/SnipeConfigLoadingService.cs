@@ -30,6 +30,7 @@ namespace MiniIT.Snipe
 		public SnipeConfigLoadingService(string projectID)
 		{
 			_projectID = projectID;
+			Statistics.PackageVersionName = PackageInfo.VERSION_NAME;
 		}
 
 		public void Dispose()

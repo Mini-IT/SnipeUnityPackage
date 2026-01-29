@@ -73,7 +73,7 @@ namespace MiniIT.Snipe
 			set { }
 		}
 
-		public SnipeAnalyticsTracker GetTracker(int contextId = 0)
+		public ISnipeAnalyticsTracker GetTracker(int contextId = 0)
 		{
 			_inner.IsEnabled = false;
 			return _inner.GetTracker(contextId);

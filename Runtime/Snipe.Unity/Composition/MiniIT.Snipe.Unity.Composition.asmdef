@@ -4,7 +4,8 @@
     "references": [
         "MiniIT.Snipe.Composition",
         "MiniIT.Snipe.Services",
-        "MiniIT.Snipe.Unity"
+        "MiniIT.Snipe.Unity",
+        "MiniIT.Snipe.Abstractions"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
