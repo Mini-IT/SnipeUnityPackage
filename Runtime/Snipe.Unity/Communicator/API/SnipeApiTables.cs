@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Cysharp.Threading.Tasks;
@@ -14,10 +15,13 @@ namespace MiniIT.Snipe.Api
 		private readonly object _lock = new object();
 		private bool _loading = false;
 
-		public SnipeApiTables()
+		private readonly ISnipeServices _services;
+
+		public SnipeApiTables(ISnipeServices services)
 		{
+			_services = services ?? throw new ArgumentNullException(nameof(services));
 			_tables = new HashSet<SnipeTable>();
-			_loader = new TablesLoader();
+			_loader = new TablesLoader(_services);
 		}
 		
 		public SnipeTable<ItemType> RegisterTable<ItemType>(SnipeTable<ItemType> table, string name)

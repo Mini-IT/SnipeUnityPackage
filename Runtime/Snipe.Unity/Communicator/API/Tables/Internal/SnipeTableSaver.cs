@@ -7,17 +7,17 @@ namespace MiniIT.Snipe.Tables
 {
 	public static class SnipeTableSaver
 	{
-		public static async UniTask SaveToCacheAsync(Stream stream, string table_name, long version)
+		public static async UniTask SaveToCacheAsync(ISnipeServices services, Stream stream, string table_name, long version)
 		{
-			string cache_path = TablesLoader.GetCachePath(table_name, version);
+			string cache_path = TablesLoader.GetCachePath(services, table_name, version);
 
 			try
 			{
 				if (!File.Exists(cache_path))
 				{
-					SnipeServices.Instance.LogService.GetLogger("SnipeTable").LogTrace($"Save to cache {cache_path}");
+					services.LogService.GetLogger("SnipeTable").LogTrace($"Save to cache {cache_path}");
 
-					string directory_path = TablesLoader.GetCacheDirectoryPath();
+					string directory_path = TablesLoader.GetCacheDirectoryPath(services);
 					if (!Directory.Exists(directory_path))
 					{
 						Directory.CreateDirectory(directory_path);
@@ -36,7 +36,7 @@ namespace MiniIT.Snipe.Tables
 			}
 			catch (Exception e)
 			{
-				SnipeServices.Instance.LogService.GetLogger("SnipeTable").LogTrace($"Failed to save to cache - {table_name} - {e}");
+				services.LogService.GetLogger("SnipeTable").LogTrace($"Failed to save to cache - {table_name} - {e}");
 
 				if (File.Exists(cache_path))
 				{

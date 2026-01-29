@@ -15,13 +15,15 @@ namespace MiniIT.Snipe
 		private readonly string _url;
 		private readonly IApplicationInfo _appInfo;
 		private readonly ILogger _logger;
+		private readonly IHttpClientFactory _httpClientFactory;
 
-		public SnipeConfigLoader(string projectID, IApplicationInfo appInfo)
+		public SnipeConfigLoader(string projectID, IApplicationInfo appInfo, ILogger logger, IHttpClientFactory httpClientFactory)
 		{
 			_projectID = projectID;
 			_appInfo = appInfo;
 			_url = "https://config.snipe.dev/api/v1/configStrings";
-			_logger = SnipeServices.Instance.LogService.GetLogger<SnipeConfigLoader>();
+			_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+			_httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
 		}
 
 		public async UniTask<Dictionary<string, object>> Load(Dictionary<string, object> additionalParams = null, SnipeConfigLoadingStatistics loadingStatistics = null)
@@ -30,7 +32,7 @@ namespace MiniIT.Snipe
 
 			Dictionary<string, object> config = null;
 
-			IHttpClient httpClient = SnipeServices.Instance.HttpClientFactory.CreateHttpClient();
+			IHttpClient httpClient = _httpClientFactory.CreateHttpClient();
 
 			if (loadingStatistics != null)
 			{

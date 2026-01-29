@@ -158,7 +158,15 @@ namespace MiniIT
 				try
 				{
 					file = File.OpenText(filepath);
-					var sender = new LogSender(_snipeContext, _snipeConfig);
+					var services = _snipeContext?.Communicator?.Services;
+					if (services == null)
+					{
+						DebugLogger.LogError($"[{nameof(LogReporter)}] Missing services for log sender");
+						success = false;
+						break;
+					}
+
+					var sender = new LogSender(_snipeContext, _snipeConfig, services);
 					success = await sender.SendAsync(file);
 				}
 				catch (Exception ex)

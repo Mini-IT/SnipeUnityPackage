@@ -57,6 +57,7 @@ namespace MiniIT.Snipe
 
 			ProviderId = providerId;
 			Fetcher = fetcher;
+			Fetcher?.SetServices(services);
 		}
 
 		public void Initialize(int contextId,

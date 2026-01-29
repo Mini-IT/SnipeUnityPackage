@@ -23,11 +23,11 @@ namespace MiniIT.Snipe.Tables
 		private readonly ISnipeAnalyticsTracker _analyticsTracker;
 		private readonly ILogger _logger;
 
-		public TablesVersionsLoader(BuiltInTablesListService builtInTablesListService, ISnipeAnalyticsTracker analyticsTracker)
+		public TablesVersionsLoader(BuiltInTablesListService builtInTablesListService, ISnipeAnalyticsTracker analyticsTracker, ILogger logger)
 		{
 			_builtInTablesListService = builtInTablesListService;
 			_analyticsTracker = analyticsTracker;
-			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(TablesVersionsLoader));
+			_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 		}
 
 		public async UniTask<LoadResult> Load(IHttpClient httpClient, CancellationToken cancellationToken)

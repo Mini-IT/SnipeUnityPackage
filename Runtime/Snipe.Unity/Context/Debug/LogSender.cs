@@ -21,10 +21,12 @@ namespace MiniIT.Snipe.Internal
 		private readonly SnipeContext _snipeContext;
 		private readonly string _apiKey;
 		private readonly string _url;
+		private readonly ISnipeServices _services;
 
-		public LogSender(SnipeContext snipeContext, SnipeConfig snipeConfig)
+		public LogSender(SnipeContext snipeContext, SnipeConfig snipeConfig, ISnipeServices services)
 		{
 			_snipeContext = snipeContext;
+			_services = services ?? throw new ArgumentNullException(nameof(services));
 
 			_apiKey = snipeConfig.ClientKey;
 			_url = snipeConfig.LogReporterUrl;
@@ -53,7 +55,7 @@ namespace MiniIT.Snipe.Internal
 
 			string line = null;
 
-			IHttpClient httpClient = SnipeServices.Instance.HttpClientFactory.CreateHttpClient();
+			IHttpClient httpClient = _services.HttpClientFactory.CreateHttpClient();
 			httpClient.SetAuthToken(_apiKey);
 
 			while (!file.EndOfStream)

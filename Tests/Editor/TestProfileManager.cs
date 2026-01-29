@@ -6,7 +6,6 @@ using UnityEngine;
 using MiniIT.Snipe;
 using MiniIT.Snipe.Api;
 using MiniIT.Snipe.Unity;
-using MiniIT.Storage;
 
 namespace MiniIT.Snipe.Tests.Editor
 {
@@ -21,18 +20,8 @@ namespace MiniIT.Snipe.Tests.Editor
 		[SetUp]
 		public void SetUp()
 		{
-			// Dispose existing SnipeServices if initialized
-			if (SnipeServices.IsInitialized)
-			{
-				SnipeServices.Dispose();
-			}
-
 			// Create mock shared prefs
 			_mockSharedPrefs = new MockSharedPrefs();
-
-			// Initialize SnipeServices with mock factory
-			var mockFactory = new MockUnitySnipeServicesFactory(_mockSharedPrefs);
-			SnipeServices.Initialize(mockFactory);
 
 			_mockApiService = new MockSnipeApiService();
 			_mockUserAttributes = new MockSnipeApiUserAttributes(_mockApiService);
@@ -50,7 +39,6 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void TearDown()
 		{
 			_profileManager?.Dispose();
-			SnipeServices.Dispose();
 		}
 
 		[Test]
@@ -1225,18 +1213,6 @@ namespace MiniIT.Snipe.Tests.Editor
 
 		private int GetLocalVersion() => _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION, 0);
 		private void SetLocalVersion(int value) => _mockSharedPrefs.SetInt(ProfileManager.KEY_LOCAL_VERSION, value);
-	}
-
-	internal class MockUnitySnipeServicesFactory : UnitySnipeServicesFactory
-	{
-		private readonly ISharedPrefs _sharedPrefs;
-
-		public MockUnitySnipeServicesFactory(ISharedPrefs sharedPrefs)
-		{
-			_sharedPrefs = sharedPrefs;
-		}
-
-		public override ISharedPrefs CreateSharedPrefs() => _sharedPrefs;
 	}
 
 	internal class MockAuthSubsystem : AuthSubsystem

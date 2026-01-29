@@ -9,7 +9,7 @@ namespace MiniIT.Snipe.Api
 	{
 		private readonly SnipeConfigBuilder _configBuilder;
 		private readonly ISnipeTablesProvider _tablesProvider;
-		private readonly ISnipeServices _services;
+		protected readonly ISnipeServices _services;
 
 		protected AbstractSnipeApiContextFactory(
 			ISnipeTablesProvider tablesProvider,
