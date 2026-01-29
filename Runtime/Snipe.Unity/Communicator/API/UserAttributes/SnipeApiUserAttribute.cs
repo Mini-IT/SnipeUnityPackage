@@ -52,7 +52,15 @@ namespace MiniIT.Snipe.Api
 
 			if (objA.GetType() != objB.GetType())
 			{
-				return false;
+				try
+				{
+					var convertedB = (T)Convert.ChangeType(objB, objA.GetType(), null);
+					return objA.Equals(convertedB);
+				}
+				catch (Exception e)
+				{
+					return false;
+				}
 			}
 
 			if (objA is ICollection collectionA && objB is ICollection collectionB)

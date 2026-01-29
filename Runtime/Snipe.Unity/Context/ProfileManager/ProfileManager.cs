@@ -33,6 +33,7 @@ namespace MiniIT.Snipe.Api
 		// Tracks which keys were processed by ApplyServerAttributeChange at least once.
 		// Used to distinguish between attributes that were registered when a snapshot arrived vs those that weren't.
 		private readonly HashSet<string> _snapshotProcessedKeys = new();
+		private readonly Dictionary<string, object> _dirtyLocalValues = new();
 		private readonly ISharedPrefs _sharedPrefs;
 		private readonly PlayerPrefsTypeHelper _prefsHelper;
 		private bool _syncInProgress;
@@ -278,6 +279,8 @@ namespace MiniIT.Snipe.Api
 			int localVersion = GetLocalVersion() + 1;
 			SetLocalVersion(localVersion);
 
+			_dirtyLocalValues[key] = value;
+
 			// Try to send local changes to server
 			SyncWithServer();
 		}
@@ -497,9 +500,53 @@ namespace MiniIT.Snipe.Api
 			// ProfileManager operates only on registered attributes.
 			var pendingChanges = new Dictionary<string, object>();
 
+			if (_dirtyLocalValues.Count > 0)
+			{
+				List<string> keysToClear = null;
+				foreach (var dirty in _dirtyLocalValues)
+				{
+					string key = dirty.Key;
+
+					// Never send version attribute.
+					if (!string.IsNullOrEmpty(_serverVersionAttrKey) &&
+					    string.Equals(key, _serverVersionAttrKey, StringComparison.Ordinal))
+					{
+						continue;
+					}
+
+					// If we don't have this key in snapshot yet, we can't reliably decide.
+					if (!_serverSnapshotValues.TryGetValue(key, out object serverValue))
+					{
+						continue;
+					}
+
+					if (SnipeApiUserAttribute.AreEqual(dirty.Value, serverValue))
+					{
+						keysToClear ??= new List<string>();
+						keysToClear.Add(key);
+						continue;
+					}
+
+					pendingChanges[key] = dirty.Value;
+				}
+
+				if (keysToClear != null)
+				{
+					foreach (var key in keysToClear)
+					{
+						_dirtyLocalValues.Remove(key);
+					}
+				}
+			}
+
 			foreach (var kvp in _localValueGetters)
 			{
 				string key = kvp.Key;
+
+				if (_dirtyLocalValues.ContainsKey(key))
+				{
+					continue;
+				}
 
 				// Never send version attribute.
 				if (!string.IsNullOrEmpty(_serverVersionAttrKey) &&
@@ -612,7 +659,7 @@ namespace MiniIT.Snipe.Api
 
 			if (request != null)
 			{
-				request.Request((errorCode, _) =>
+				request.Request((errorCode, data) =>
 				{
 					_syncInProgress = false;
 
@@ -625,19 +672,44 @@ namespace MiniIT.Snipe.Api
 							_serverSnapshotValues[kvp.Key] = kvp.Value;
 						}
 
-						// Server bumps its version by +1 per request. After success we align local and
-						// last-synced versions to serverSnapshot+1 so that subsequent server pushes
-						// are not considered "older". This can lower localVersion, but the change is
-						// already accepted by the server, so server is authoritative.
-						_serverVersion++;
+						if (data.TryGetValue(_serverVersionAttrKey, out int serverVersion))
+						{
+							// Server returned the version in the response. Use it.
+							_serverVersion = serverVersion;
+						}
+						else
+						{
+							// Server bumps its version by +1 per request. After success we align local and
+							// last-synced versions to serverSnapshot+1 so that subsequent server pushes
+							// are not considered "older". This can lower localVersion, but the change is
+							// already accepted by the server, so server is authoritative.
+							_serverVersion++;
+						}
 
-						SetLocalVersion(_serverVersion);
-						SetLastSyncedVersion(_serverVersion);
+						foreach (var kvp in pendingChanges)
+						{
+							if (_dirtyLocalValues.TryGetValue(kvp.Key, out object dirtyValue) &&
+							    SnipeApiUserAttribute.AreEqual(dirtyValue, kvp.Value))
+							{
+								_dirtyLocalValues.Remove(kvp.Key);
+							}
+						}
+
+						if (_dirtyLocalValues.Count == 0)
+						{
+							SetLocalVersion(_serverVersion);
+							SetLastSyncedVersion(_serverVersion);
+						}
 					}
 					else
 					{
 						// Failure - keep dirty keys for retry
 						Debug.LogWarning($"ProfileManager: attr.set/setMulti failed with error {errorCode}");
+					}
+
+					if (_dirtyLocalValues.Count > 0)
+					{
+						SyncWithServer();
 					}
 				});
 			}

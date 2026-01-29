@@ -27,7 +27,7 @@ namespace MiniIT.Snipe.Unity
                 if (string.IsNullOrEmpty(value))
                 {
                     value = Guid.NewGuid().ToString();
-                    sharedPrefs.GetString(ID_PREFS_KEY);
+                    sharedPrefs.SetString(ID_PREFS_KEY, value);
                 }
 
                 Value = value;
