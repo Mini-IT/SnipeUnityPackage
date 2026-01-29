@@ -15,15 +15,17 @@ namespace MiniIT.Snipe.Api
 		private readonly object _lock = new object();
 		private bool _loading = false;
 
-		private readonly ISnipeServices _services;
-
 		public SnipeApiTables(ISnipeServices services)
 		{
-			_services = services ?? throw new ArgumentNullException(nameof(services));
+			if (services == null)
+			{
+				throw new ArgumentNullException(nameof(services));
+			}
+
 			_tables = new HashSet<SnipeTable>();
-			_loader = new TablesLoader(_services);
+			_loader = new TablesLoader(services);
 		}
-		
+
 		public SnipeTable<ItemType> RegisterTable<ItemType>(SnipeTable<ItemType> table, string name)
 			where ItemType : SnipeTableItem, new()
 		{
@@ -79,7 +81,7 @@ namespace MiniIT.Snipe.Api
 				_ = await _loader.Load();
 				_loading = false;
 			}
-			
+
 			while (_loading)
 			{
 				await AlterTask.Delay(100);
@@ -96,7 +98,7 @@ namespace MiniIT.Snipe.Api
 					{
 						return true;
 					}
-					
+
 					foreach (var table in _tables)
 					{
 						if (table == null)
@@ -104,7 +106,7 @@ namespace MiniIT.Snipe.Api
 						if (!table.Loaded)
 							return false;
 					}
-					
+
 					return true;
 				}
 			}
@@ -120,7 +122,7 @@ namespace MiniIT.Snipe.Api
 					{
 						return false;
 					}
-					
+
 					foreach (var table in _tables)
 					{
 						if (table == null)
@@ -128,7 +130,7 @@ namespace MiniIT.Snipe.Api
 						if (table.LoadingFailed)
 							return true;
 					}
-					
+
 					return false;
 				}
 			}
