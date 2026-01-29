@@ -289,6 +289,64 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[Test]
+		public void LocalChangeDuringSync_IsNotLost_AndResyncsAfterCompletion()
+		{
+			_profileManager.Dispose();
+
+			SetLocalVersion(1);
+			_mockSharedPrefs.SetInt(ProfileManager.KEY_LAST_SYNCED_VERSION, 1);
+
+			var delayedService = new DelayedMockSnipeApiService();
+			delayedService.AutoComplete = false;
+			delayedService.SetNextRequestSuccess(true);
+
+			_mockUserAttributes = new MockSnipeApiUserAttributes(delayedService);
+			_mockVersionAttribute = new MockSnipeApiReadOnlyUserAttribute<int>(delayedService, "_version");
+			_mockVersionAttribute.SetValue(1);
+			_mockUserAttributes.RegisterAttribute(_mockVersionAttribute);
+
+			_profileManager = new ProfileManager(delayedService, delayedService.Communicator, delayedService.Auth, _mockSharedPrefs);
+			_profileManager.Initialize(_mockVersionAttribute);
+			_profileManager.ForceLoggedInForTests(true);
+
+			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(delayedService, "coins");
+			_mockUserAttributes.RegisterAttribute(serverAttr);
+			var attr = _profileManager.GetAttribute<int>(serverAttr);
+
+			_profileManager.HandleServerMessage("attr.getAll", "ok", new Dictionary<string, object>()
+			{
+				["data"] = new List<IDictionary<string, object>>()
+				{
+					new Dictionary<string, object>()
+					{
+						["key"] = "_version",
+						["val"] = 1
+					},
+					new Dictionary<string, object>()
+					{
+						["key"] = "coins",
+						["val"] = 10
+					}
+				}
+			}, 0);
+
+			attr.Value = 11;
+
+			Assert.AreEqual(1, delayedService.RequestCount);
+			Assert.IsNotNull(delayedService.PendingCallback);
+
+			attr.Value = 12;
+
+			delayedService.AutoComplete = true;
+			delayedService.PendingCallback.Invoke("ok", new Dictionary<string, object>());
+
+			Assert.AreEqual(2, delayedService.RequestCount);
+			Assert.AreEqual("attr.set", delayedService.LastRequestType);
+			Assert.AreEqual("coins", delayedService.LastRequestData["key"]);
+			Assert.AreEqual(12, delayedService.LastRequestData["val"]);
+		}
+
+		[Test]
 		public void Scenario1_OnlineThenOfflineThenReconnect_OlderServerSnapshot_DoesNotOverwrite_SyncsToServer()
 		{
 			// Initial:
