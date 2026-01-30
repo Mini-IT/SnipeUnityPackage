@@ -33,6 +33,12 @@ namespace MiniIT.Snipe
 					return;
 
 				_intensiveHeartbeat = value;
+
+				if (_intensiveHeartbeat)
+				{
+					_tempIntensiveHeartbeatCount = 0;
+				}
+
 				UpdateHeartbeat();
 			}
 		}
@@ -43,6 +49,7 @@ namespace MiniIT.Snipe
 		private CancellationTokenSource _heartbeatCancellation;
 		private bool _heartbeatRunning = false;
 		private bool _intensiveHeartbeat = false;
+		private int _tempIntensiveHeartbeatCount;
 		private TimeSpan _heartbeatInterval;
 		private readonly TimeSpan _heartbeatIntensiveInterval = TimeSpan.FromSeconds(1);
 		private long _sessionAliveTillTicks;
@@ -228,6 +235,13 @@ namespace MiniIT.Snipe
 			{
 				InternalProcessMessage(messageType, message);
 			}
+
+			if (!IntensiveHeartbeat && message.TryGetValue("id", out int id) && id > 0)
+			{
+				// Start temp intensive heartbeat
+				IntensiveHeartbeat = true;
+				_tempIntensiveHeartbeatCount = 3;
+			}
 		}
 
 		private void ProcessBatchInnerMessages(IList innerMessages)
@@ -244,7 +258,7 @@ namespace MiniIT.Snipe
 
 		private void InternalProcessMessage(string messageType, IDictionary<string, object> message)
 		{
-			_logger.LogTrace(JsonUtility.ToJson(message));
+			//_logger.LogTrace(JsonUtility.ToJson(message));
 
 			if (messageType == "user.login")
 			{
@@ -419,7 +433,9 @@ namespace MiniIT.Snipe
 			{
 				var interval = GetCurrentHeartbeatInterval();
 				if (interval.TotalSeconds < 1)
+				{
 					break;
+				}
 
 				try
 				{
@@ -442,6 +458,19 @@ namespace MiniIT.Snipe
 				}
 
 				SendMessage(s_pingMessage);
+
+				// Temporary intensive mode
+				if (_tempIntensiveHeartbeatCount > 0)
+				{
+					_tempIntensiveHeartbeatCount--;
+
+					if (_tempIntensiveHeartbeatCount <= 0)
+					{
+						// Stop intensive mode.
+						// Don't use the property `IntensiveHeartbeat` because it will stop and rerun the task
+						_intensiveHeartbeat = false;
+					}
+				}
 			}
 
 			_heartbeatRunning = false;
