@@ -150,6 +150,19 @@ namespace MiniIT.Snipe.Api
 
 		public ProfileAttribute<T> GetAttribute<T>(SnipeApiReadOnlyUserAttribute<T> serverAttribute)
 		{
+			return GetAttribute(serverAttribute, default, false);
+		}
+
+		public ProfileAttribute<T> GetAttribute<T>(SnipeApiReadOnlyUserAttribute<T> serverAttribute, T defaultValue)
+		{
+			return GetAttribute(serverAttribute, defaultValue, true);
+		}
+
+		private ProfileAttribute<T> GetAttribute<T>(
+			SnipeApiReadOnlyUserAttribute<T> serverAttribute,
+			T defaultValue,
+			bool useDefaultValue)
+		{
 			string key = serverAttribute.Key;
 			if (_attributes.TryGetValue(key, out var attr))
 			{
@@ -159,10 +172,12 @@ namespace MiniIT.Snipe.Api
 			var newAttr = new ProfileAttribute<T>(key, this, _sharedPrefs);
 			_attributes[key] = newAttr;
 			_attributeValueSetters[key] = (val) => newAttr.SetValueFromServer(TypeConverter.Convert<T>(val));
-			_localValueGetters[key] = () => GetLocalValue<T>(key);
+			_localValueGetters[key] = useDefaultValue
+				? (Func<object>)(() => GetLocalValue(key, defaultValue))
+				: () => GetLocalValue<T>(key);
 
 			// Initialize value from server or local storage
-			InitializeAttributeValue(serverAttribute, newAttr);
+			InitializeAttributeValue(serverAttribute, newAttr, defaultValue, useDefaultValue);
 
 			// If there are pending changes from a previous session (dirty keys), we can only rebuild
 			// them after the attribute is created and its local getter is registered.
@@ -194,7 +209,11 @@ namespace MiniIT.Snipe.Api
 			return newAttr;
 		}
 
-		private void InitializeAttributeValue<T>(SnipeApiReadOnlyUserAttribute<T> serverAttr, ProfileAttribute<T> attr)
+		private void InitializeAttributeValue<T>(
+			SnipeApiReadOnlyUserAttribute<T> serverAttr,
+			ProfileAttribute<T> attr,
+			T defaultValue,
+			bool useDefaultValue)
 		{
 			string key = serverAttr.Key;
 			int localVersion = GetLocalVersion();
@@ -239,8 +258,12 @@ namespace MiniIT.Snipe.Api
 			// rely on local storage to avoid overwriting with default(T).
 			if (!serverAttr.IsInitialized)
 			{
-				var localValue = GetLocalValue<T>(key);
+				var localValue = useDefaultValue ? GetLocalValue(key, defaultValue) : GetLocalValue<T>(key);
 				attr.SetValueFromServer(localValue);
+				if (useDefaultValue && !HasLocalValue(key))
+				{
+					SetLocalValue(key, localValue);
+				}
 				return;
 			}
 
@@ -260,7 +283,7 @@ namespace MiniIT.Snipe.Api
 			else // use local value
 			{
 				// Use local storage value (either server not initialized yet, or local changes are newer)
-				var localValue = GetLocalValue<T>(key);
+				var localValue = useDefaultValue ? GetLocalValue(key, defaultValue) : GetLocalValue<T>(key);
 				attr.SetValueFromServer(localValue);
 			}
 		}
@@ -754,6 +777,18 @@ namespace MiniIT.Snipe.Api
 		{
 			var prefsKey = KEY_ATTR_PREFIX + key;
 			return GetPrefsValue<T>(prefsKey);
+		}
+
+		internal T GetLocalValue<T>(string key, T defaultValue)
+		{
+			var prefsKey = KEY_ATTR_PREFIX + key;
+			return _prefsHelper.GetPrefsValue<T>(prefsKey, defaultValue);
+		}
+
+		private bool HasLocalValue(string key)
+		{
+			var prefsKey = KEY_ATTR_PREFIX + key;
+			return _sharedPrefs.HasKey(prefsKey);
 		}
 
 		internal T GetPrefsValue<T>(string prefsKey)
