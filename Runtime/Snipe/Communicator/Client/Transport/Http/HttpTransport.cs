@@ -25,10 +25,34 @@ namespace MiniIT.Snipe
 		public override bool ConnectionEstablished => _connectionEstablished;
 		public override bool ConnectionVerified => _connectionEstablished;
 
+		public bool IntensiveHeartbeat
+		{
+			get => _intensiveHeartbeat;
+			set
+			{
+				if (_intensiveHeartbeat == value)
+					return;
+
+				_intensiveHeartbeat = value;
+
+				if (_intensiveHeartbeat)
+				{
+					_tempIntensiveHeartbeatCount = 0;
+				}
+
+				UpdateHeartbeat();
+			}
+		}
+
 		private IHttpClient _client;
 		private string _persistentClientId;
 
+		private CancellationTokenSource _heartbeatCancellation;
+		private bool _heartbeatRunning = false;
+		private bool _intensiveHeartbeat = false;
+		private int _tempIntensiveHeartbeatCount;
 		private TimeSpan _heartbeatInterval;
+		private readonly TimeSpan _heartbeatIntensiveInterval = TimeSpan.FromSeconds(1);
 		private long _sessionAliveTillTicks;
 
 		private Uri _baseUrl;
@@ -211,6 +235,13 @@ namespace MiniIT.Snipe
 			{
 				InternalProcessMessage(messageType, message);
 			}
+
+			if (!IntensiveHeartbeat && message.TryGetValue("id", out int id) && id > 0)
+			{
+				// Start temp intensive heartbeat
+				IntensiveHeartbeat = true;
+				_tempIntensiveHeartbeatCount = 3;
+			}
 		}
 
 		private void ProcessBatchInnerMessages(IList innerMessages)
@@ -227,7 +258,7 @@ namespace MiniIT.Snipe
 
 		private void InternalProcessMessage(string messageType, SnipeObject message)
 		{
-			_logger.LogTrace(message.ToJSONString());
+			// _logger.LogTrace(message.ToJSONString());
 
 			if (messageType == "user.login")
 			{
@@ -345,19 +376,43 @@ namespace MiniIT.Snipe
 
 		#region Heartbeat
 
-		private CancellationTokenSource _heartbeatCancellation;
+		private void UpdateHeartbeat()
+		{
+			// Determine if heartbeat should be running
+			bool shouldRun = _connected && GetCurrentHeartbeatInterval().TotalSeconds >= 1;
+
+			if (shouldRun && !_heartbeatRunning)
+			{
+				StartHeartbeat();
+			}
+			else if (!shouldRun && _heartbeatRunning)
+			{
+				StopHeartbeat();
+			}
+			// If already running, but interval changed (e.g., mode switched), restart
+			else if (shouldRun && _heartbeatRunning)
+			{
+				StopHeartbeat();
+				StartHeartbeat();
+			}
+		}
+
+		private TimeSpan GetCurrentHeartbeatInterval()
+		{
+			return IntensiveHeartbeat ? _heartbeatIntensiveInterval : _config.HttpHeartbeatInterval;
+		}
 
 		private void StartHeartbeat()
 		{
-			_heartbeatCancellation?.Cancel();
+			StopHeartbeat(); // Ensure only one task is running
 
-			if (_config.HttpHeartbeatInterval.TotalSeconds < 1)
+			var interval = GetCurrentHeartbeatInterval();
+			if (interval.TotalSeconds < 1)
 			{
 				return;
 			}
 
-			_heartbeatInterval = _config.HttpHeartbeatInterval;
-
+			_heartbeatRunning = true;
 			_heartbeatCancellation = new CancellationTokenSource();
 			AlterTask.RunAndForget(() => HeartbeatTask(_heartbeatCancellation.Token));
 		}
@@ -369,15 +424,23 @@ namespace MiniIT.Snipe
 				_heartbeatCancellation.Cancel();
 				_heartbeatCancellation = null;
 			}
+
+			_heartbeatRunning = false;
 		}
 
 		private async void HeartbeatTask(CancellationToken cancellation)
 		{
 			while (!cancellation.IsCancellationRequested && Connected)
 			{
+				var interval = GetCurrentHeartbeatInterval();
+				if (interval.TotalSeconds < 1)
+				{
+					break;
+				}
+
 				try
 				{
-					await AlterTask.Delay(_heartbeatInterval, cancellation);
+					await AlterTask.Delay(interval, cancellation);
 				}
 				catch (OperationCanceledException)
 				{
@@ -396,7 +459,22 @@ namespace MiniIT.Snipe
 				}
 
 				SendMessage(s_pingMessage);
+
+				// Temporary intensive mode
+				if (_tempIntensiveHeartbeatCount > 0)
+				{
+					_tempIntensiveHeartbeatCount--;
+
+					if (_tempIntensiveHeartbeatCount <= 0)
+					{
+						// Stop intensive mode.
+						// Don't use the property `IntensiveHeartbeat` because it will stop and rerun the task
+						_intensiveHeartbeat = false;
+					}
+				}
 			}
+
+			_heartbeatRunning = false;
 		}
 
 		#endregion
@@ -469,7 +547,7 @@ namespace MiniIT.Snipe
 
 			ConnectionOpenedHandler?.Invoke(this);
 
-			StartHeartbeat();
+			UpdateHeartbeat();
 		}
 
 		private void RefreshSessionAliveTimestamp()
