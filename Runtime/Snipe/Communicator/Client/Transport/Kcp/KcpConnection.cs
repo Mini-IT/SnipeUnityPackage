@@ -1053,12 +1053,18 @@ namespace MiniIT.Snipe
 
 		private void DisposeSocket()
 		{
-			if (_socket != null)
+			UdpSocketWrapper socket;
+			lock (_lock)
 			{
-				_socket.OnConnected -= OnSocketConnected;
-				_socket.OnDisconnected -= OnSocketDisconnected;
-				_socket.Dispose();
+				socket = _socket;
 				_socket = null;
+			}
+
+			if (socket != null)
+			{
+				socket.OnConnected -= OnSocketConnected;
+				socket.OnDisconnected -= OnSocketDisconnected;
+				socket.Dispose();
 			}
 		}
 
