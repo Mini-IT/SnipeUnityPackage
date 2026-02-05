@@ -611,8 +611,9 @@ namespace MiniIT.Snipe
 			}
 
 			_checkConnectionCancellation = new CancellationTokenSource();
+			var cancellation = _checkConnectionCancellation.Token;
 			int generation = Interlocked.Increment(ref _checkConnectionGeneration);
-			AlterTask.RunAndForget(() => CheckConnectionTask(_checkConnectionCancellation.Token, generation).Forget());
+			AlterTask.RunAndForget(() => CheckConnectionTask(cancellation, generation).Forget());
 		}
 
 		private void StopCheckConnection()
