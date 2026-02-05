@@ -5,7 +5,7 @@ namespace MiniIT.Snipe
 {
 	public class UnauthorizedRequest : AbstractCommunicatorRequest
 	{
-		public UnauthorizedRequest(SnipeCommunicator communicator, ISnipeServices services, string messageType = null, IDictionary<string, object> data = null)
+		public UnauthorizedRequest(ISnipeCommunicator communicator, ISnipeServices services, string messageType = null, IDictionary<string, object> data = null)
 			: base(communicator, services, messageType, data)
 		{
 		}

@@ -87,7 +87,7 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public string UserName { get; protected set; }
 
-		protected readonly SnipeCommunicator _communicator;
+		protected readonly ISnipeCommunicator _communicator;
 		protected readonly HashSet<AuthBinding> _bindings = new ();
 
 		protected int _loginAttempt;
@@ -107,7 +107,7 @@ namespace MiniIT.Snipe
 
 		public ISnipeServices Services => _services;
 
-		protected AuthSubsystem(int contextId, SnipeCommunicator communicator, ISnipeAnalyticsTracker analytics, ISnipeServices services)
+		protected AuthSubsystem(int contextId, ISnipeCommunicator communicator, ISnipeAnalyticsTracker analytics, ISnipeServices services)
 		{
 			if (services == null)
 			{

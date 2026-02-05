@@ -1275,7 +1275,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 	internal class MockAuthSubsystem : AuthSubsystem
 	{
-		public MockAuthSubsystem(SnipeCommunicator communicator, ISnipeServices services)
+		public MockAuthSubsystem(ISnipeCommunicator communicator, ISnipeServices services)
 			: base(0, communicator, null, services)
 		{
 			// Initialize with contextId=0, communicator, and null analytics for testing
@@ -1298,34 +1298,34 @@ namespace MiniIT.Snipe.Tests.Editor
 		public string LastRequestType { get; private set; }
 		public IDictionary<string, object> LastRequestData { get; private set; }
 		public int RequestCount { get; private set; }
-		public SnipeCommunicator Communicator => _mockCommunicator;
+		public ISnipeCommunicator Communicator => _mockCommunicator;
 		public AuthSubsystem Auth => _mockAuth;
 
 		private static MockAuthSubsystem s_tempMockAuth;
 		private static ISnipeServices s_tempServices;
 
 		protected bool _nextRequestSuccess = false; // Default to false so dirty keys persist for testing
-		protected readonly SnipeCommunicator _mockCommunicator;
+		protected readonly ISnipeCommunicator _mockCommunicator;
 		protected readonly MockAuthSubsystem _mockAuth;
 
 		public MockSnipeApiService() : this(CreateMockCommunicator())
 		{
 		}
 
-		private static SnipeCommunicator CreateMockCommunicator()
+		private static ISnipeCommunicator CreateMockCommunicator()
 		{
 			s_tempServices = new NullSnipeServices();
 			return new SnipeCommunicator(null, s_tempServices);
 		}
 
-		private MockSnipeApiService(SnipeCommunicator communicator) : base(communicator, CreateMockAuth(communicator))
+		private MockSnipeApiService(ISnipeCommunicator communicator) : base(communicator, CreateMockAuth(communicator))
 		{
 			_mockCommunicator = _communicator;
 			_mockAuth = s_tempMockAuth;
 			s_tempMockAuth = null;
 		}
 
-		private static MockAuthSubsystem CreateMockAuth(SnipeCommunicator communicator)
+		private static MockAuthSubsystem CreateMockAuth(ISnipeCommunicator communicator)
 		{
 			s_tempMockAuth ??= new MockAuthSubsystem(communicator, s_tempServices);
 			return s_tempMockAuth;
@@ -1351,7 +1351,7 @@ namespace MiniIT.Snipe.Tests.Editor
 	{
 		private readonly bool _success;
 
-		public MockSnipeCommunicatorRequest(SnipeCommunicator communicator, ISnipeServices services, AuthSubsystem auth,
+		public MockSnipeCommunicatorRequest(ISnipeCommunicator communicator, ISnipeServices services, AuthSubsystem auth,
 			string messageType, IDictionary<string, object> data, bool success)
 			: base(communicator, services, auth, messageType, data)
 		{
@@ -1442,7 +1442,7 @@ namespace MiniIT.Snipe.Tests.Editor
 	{
 		private DelayedMockSnipeApiService _service;
 
-		public ManualCommunicatorRequest(DelayedMockSnipeApiService service, SnipeCommunicator communicator, AuthSubsystem auth, string messageType, IDictionary<string, object> data, bool success)
+		public ManualCommunicatorRequest(DelayedMockSnipeApiService service, ISnipeCommunicator communicator, AuthSubsystem auth, string messageType, IDictionary<string, object> data, bool success)
 			: base(communicator, communicator.Services, auth, messageType, data, success)
 		{
 			_service = service;

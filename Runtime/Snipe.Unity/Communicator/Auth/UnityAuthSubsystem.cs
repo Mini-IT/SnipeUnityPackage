@@ -6,7 +6,7 @@ namespace MiniIT.Snipe.Unity
 {
 	public class UnityAuthSubsystem : AuthSubsystem
 	{
-		public UnityAuthSubsystem(int contextId, SnipeCommunicator communicator, ISnipeAnalyticsTracker analytics, ISnipeServices services)
+		public UnityAuthSubsystem(int contextId, ISnipeCommunicator communicator, ISnipeAnalyticsTracker analytics, ISnipeServices services)
 			: base(contextId, communicator, analytics, services)
 		{
 		}

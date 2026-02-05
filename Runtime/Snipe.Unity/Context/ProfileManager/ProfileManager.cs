@@ -15,7 +15,7 @@ namespace MiniIT.Snipe.Api
 		internal const string KEY_ATTR_PREFIX = "profile_attr_";
 
 		private readonly IRequestFactory _requestFactory;
-		private readonly SnipeCommunicator _communicator;
+		private readonly ISnipeCommunicator _communicator;
 		private readonly AuthSubsystem _auth;
 		private readonly Dictionary<string, AbstractProfileAttribute> _attributes = new();
 		private readonly Dictionary<string, Action<object>> _attributeValueSetters = new();
@@ -50,7 +50,7 @@ namespace MiniIT.Snipe.Api
 		/// <summary>
 		/// Internal constructor for tests and low-level integration scenarios.
 		/// </summary>
-		internal ProfileManager(IRequestFactory requestFactory, SnipeCommunicator communicator, AuthSubsystem auth, ISharedPrefs sharedPrefs)
+		internal ProfileManager(IRequestFactory requestFactory, ISnipeCommunicator communicator, AuthSubsystem auth, ISharedPrefs sharedPrefs)
 		{
 			_requestFactory = requestFactory;
 			_communicator = communicator;

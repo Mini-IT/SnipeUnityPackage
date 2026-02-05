@@ -7,9 +7,9 @@ using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
-	public sealed partial class SnipeCommunicator : IDisposable
+	public sealed partial class SnipeCommunicator : ISnipeCommunicator
 	{
-		public readonly int InstanceId = new System.Random().Next();
+		public int InstanceId { get; } = new System.Random().Next();
 
 		private const int RETRY_INIT_CLIENT_DELAY = 500; // ms
 		private const int RETRY_INIT_CLIENT_MIN_DELAY = 500; // ms
@@ -20,7 +20,7 @@ namespace MiniIT.Snipe
 
 		public bool AllowRequestsToWaitForLogin { get; set; } = true;
 
-		public int RestoreConnectionAttempts = 3;
+		public int RestoreConnectionAttempts { get; set; } = 3;
 		private int _restoreConnectionAttempt;
 
 		private List<AbstractCommunicatorRequest> _requests;
@@ -167,7 +167,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		internal int SendRequest(string messageType, IDictionary<string, object> data)
+		public int SendRequest(string messageType, IDictionary<string, object> data)
 		{
 			int id = _client?.SendRequest(messageType, data) ?? 0;
 

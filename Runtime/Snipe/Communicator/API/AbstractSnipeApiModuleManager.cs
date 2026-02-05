@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace MiniIT.Snipe.Api
@@ -12,10 +12,10 @@ namespace MiniIT.Snipe.Api
 			internal IDictionary<string, object> _data;
 		}
 
-		protected SnipeCommunicator _snipeCommunicator;
+		protected ISnipeCommunicator _snipeCommunicator;
 		protected readonly AbstractSnipeApiService.RequestFactoryMethod _requestFactory;
 
-		public AbstractSnipeApiModuleManager(SnipeCommunicator communicator,
+		public AbstractSnipeApiModuleManager(ISnipeCommunicator communicator,
 			AbstractSnipeApiService.RequestFactoryMethod requestFactory)
 		{
 			_requestFactory = requestFactory;

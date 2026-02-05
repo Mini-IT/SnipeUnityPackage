@@ -52,6 +52,6 @@ namespace MiniIT.Snipe.Api
 		}
 
 		public abstract TimeSpan GetServerTimeZoneOffset();
-		public abstract AbstractSnipeApiService CreateSnipeApiService(SnipeCommunicator communicator, AuthSubsystem auth);
+		public abstract AbstractSnipeApiService CreateSnipeApiService(ISnipeCommunicator communicator, AuthSubsystem auth);
 	}
 }

@@ -21,14 +21,14 @@ namespace MiniIT.Snipe
 		public string ProjectName { get; private set; }
 		public bool IsDev { get; private set; }
 
-		public SnipeCommunicator Communicator { get; }
+		public ISnipeCommunicator Communicator { get; }
 		public AuthSubsystem Auth { get; }
 		public LogReporter LogReporter { get; }
 
 		/// <summary>
 		/// Protected constructor. Use <see cref="SnipeManager"/> to get an instance
 		/// </summary>
-		protected SnipeContext(int id, SnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter)
+		protected SnipeContext(int id, ISnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter)
 		{
 			Id = id;
 			Communicator = communicator;

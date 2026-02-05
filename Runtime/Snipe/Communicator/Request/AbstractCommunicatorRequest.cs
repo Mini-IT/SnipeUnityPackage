@@ -17,7 +17,7 @@ namespace MiniIT.Snipe
 
 		public delegate void ResponseHandler(string errorCode, IDictionary<string, object> data);
 
-		protected SnipeCommunicator _communicator;
+		protected ISnipeCommunicator _communicator;
 		private readonly ISnipeServices _services;
 		protected ResponseHandler _callback;
 
@@ -29,7 +29,7 @@ namespace MiniIT.Snipe
 
 		private ILogger _logger;
 
-		public AbstractCommunicatorRequest(SnipeCommunicator communicator, ISnipeServices services, string messageType = null, IDictionary<string, object> data = null)
+		public AbstractCommunicatorRequest(ISnipeCommunicator communicator, ISnipeServices services, string messageType = null, IDictionary<string, object> data = null)
 		{
 			if (services == null)
 			{

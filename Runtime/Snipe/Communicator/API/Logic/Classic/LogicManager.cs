@@ -29,7 +29,7 @@ namespace MiniIT.Snipe.Api
 		private readonly Stopwatch _refTime = Stopwatch.StartNew();
 		private UniTimer _secondsTimer;
 
-		public LogicManager(SnipeCommunicator communicator,
+		public LogicManager(ISnipeCommunicator communicator,
 			AbstractSnipeApiService.RequestFactoryMethod requestFactory,
 			ISnipeTable<SnipeTableLogicItem> logicTable)
 			: base(communicator, requestFactory, logicTable)
