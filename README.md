@@ -25,32 +25,17 @@ Alternatively there are some other methods:
 * You may add the same package again using git URL. Package manager will update an existing one.
 * Or you may manually edit your project's `Packages/packages-lock.json`. Just remove `"com.miniit.snipe.client"` section.
 
-## DI-friendly setup (new)
+## DI-friendly setup
 
-The package now exposes an explicit composition root to make modules and services pluggable and testable.
+The package exposes services as interfaces to make them pluggable and testable.
 
-- Default Unity wiring: `SnipeUnityBuilder.CreateDefault()` or `SnipeUnityDefaults.CreateDefaultServices()`
-- Core composition: `SnipeClientBuilder` and `SnipeClientScope`
+- Default Unity wiring: `SnipeUnityDefaults.CreateDefaultServices()`
 - Null/test-friendly services: `NullSnipeServices`
-
-Example (Unity defaults + explicit config):
-
-```csharp
-var services = SnipeUnityDefaults.CreateDefaultServices();
-var config = new SnipeConfigBuilder()
-    .SetProjectInfo(projectInfo)
-    .Build(contextId, services);
-
-var builder = new SnipeClientBuilder()
-    .UseServices(services);
-
-using var scope = builder.Build();
-```
 
 ## Migration notes
 
-- Legacy entrypoints remain available but prefer constructors that accept `ISnipeServices`.
-- `SnipeConfigBuilder.Build(int, ISnipeServices)` should be used instead of the old `Build(int)`.
+- Prefer constructors that accept `ISnipeServices`.
+- `SnipeOptionsBuilder.Build(int, ISnipeServices)` should be used instead of the old `Build(int)`.
 - For context factories, pass an explicit `ISnipeServices` (e.g. via `SnipeUnityDefaults.CreateDefaultServices()`).
 - For tests, use `NullSnipeServices` or provide custom implementations via its constructor.
 

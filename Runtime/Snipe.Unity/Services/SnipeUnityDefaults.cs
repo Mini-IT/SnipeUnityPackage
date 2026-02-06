@@ -8,10 +8,5 @@ namespace MiniIT.Snipe.Unity
 		{
 			return new SnipeServiceLocator(new UnitySnipeServicesFactory());
 		}
-
-		public static SnipeClientBuilder CreateDefaultBuilder()
-		{
-			return new SnipeClientBuilder().UseServices(CreateDefaultServices());
-		}
 	}
 }
