@@ -101,17 +101,17 @@ namespace MiniIT.Snipe
 
 		private void InitializeDefaultTablesConfigDev()
 		{
-			TablesConfig.ResetTablesUrls();
-			TablesConfig.AddTableUrl($"https://static-dev.snipe.dev/{ProjectName}/");
-			TablesConfig.AddTableUrl($"https://static-dev-noproxy.snipe.dev/{ProjectName}/");
+			TablesOptions.ResetTablesUrls();
+			TablesOptions.AddTableUrl($"https://static-dev.snipe.dev/{ProjectName}/");
+			TablesOptions.AddTableUrl($"https://static-dev-noproxy.snipe.dev/{ProjectName}/");
 		}
 
 		private void InitializeDefaultTablesConfigLive()
 		{
-			TablesConfig.ResetTablesUrls();
-			TablesConfig.AddTableUrl($"https://static.snipe.dev/{ProjectName}/");
-			TablesConfig.AddTableUrl($"https://static-noproxy.snipe.dev/{ProjectName}/");
-			TablesConfig.AddTableUrl($"https://snipe.tuner-life.com/{ProjectName}/");
+			TablesOptions.ResetTablesUrls();
+			TablesOptions.AddTableUrl($"https://static.snipe.dev/{ProjectName}/");
+			TablesOptions.AddTableUrl($"https://static-noproxy.snipe.dev/{ProjectName}/");
+			TablesOptions.AddTableUrl($"https://snipe.tuner-life.com/{ProjectName}/");
 		}
 
 		private void InitializeAppInfo()

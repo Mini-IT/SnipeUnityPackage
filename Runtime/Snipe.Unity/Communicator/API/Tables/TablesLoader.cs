@@ -98,8 +98,8 @@ namespace MiniIT.Snipe
 			{
 				await _builtInTablesListService.InitializeAsync(cancellationToken);
 
-				bool fallbackEnabled = TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceExternal;
-				bool loadExternal = TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceBuiltIn
+				bool fallbackEnabled = TablesOptions.Versioning != TablesOptions.VersionsResolution.ForceExternal;
+				bool loadExternal = TablesOptions.Versioning != TablesOptions.VersionsResolution.ForceBuiltIn
 				                    && _internetReachabilityProvider.IsInternetAvailable;
 
 				if (fallbackEnabled)

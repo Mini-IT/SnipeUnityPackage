@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace MiniIT.Snipe
 {
-	public static class TablesConfig
+	public static class TablesOptions
 	{
 		public enum VersionsResolution
 		{

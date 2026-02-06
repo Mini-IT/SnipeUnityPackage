@@ -126,7 +126,7 @@ namespace MiniIT.Snipe.Tables
 
 		private static string GetTableUrl(string tableName, long version)
 		{
-			return $"{TablesConfig.GetTablesPath()}{version}_{tableName}.json.gz";
+			return $"{TablesOptions.GetTablesPath()}{version}_{tableName}.json.gz";
 		}
 	}
 }

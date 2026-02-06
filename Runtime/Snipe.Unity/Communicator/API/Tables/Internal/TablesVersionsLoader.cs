@@ -176,7 +176,7 @@ namespace MiniIT.Snipe.Tables
 
 		private static string GetVersionsUrl()
 		{
-			return TablesConfig.GetTablesPath(true) + "version.json";
+			return TablesOptions.GetTablesPath(true) + "version.json";
 		}
 
 		private Dictionary<string, long> ParseVersionsJson(string json)
