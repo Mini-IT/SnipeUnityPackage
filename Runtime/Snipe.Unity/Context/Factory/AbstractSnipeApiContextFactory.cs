@@ -7,17 +7,17 @@ namespace MiniIT.Snipe.Api
 {
 	public abstract class AbstractSnipeApiContextFactory : ISnipeContextFactory, ISnipeApiContextItemsFactory
 	{
-		private readonly SnipeConfigBuilder _configBuilder;
+		private readonly SnipeOptionsBuilder _optionsBuilder;
 		private readonly ISnipeTablesProvider _tablesProvider;
 		protected readonly ISnipeServices _services;
 
 		protected AbstractSnipeApiContextFactory(
 			ISnipeTablesProvider tablesProvider,
-			SnipeConfigBuilder configBuilder,
+			SnipeOptionsBuilder optionsBuilder,
 			ISnipeServices services = null)
 		{
 			_tablesProvider = tablesProvider;
-			_configBuilder = configBuilder;
+			_optionsBuilder = optionsBuilder;
 			_services = services;
 		}
 
@@ -25,7 +25,7 @@ namespace MiniIT.Snipe.Api
 		{
 			var services = _services ?? SnipeUnityDefaults.CreateDefaultServices();
 
-			var config = _configBuilder.Build(id, services);
+			var config = _optionsBuilder.Build(id, services);
 
 			var analytics = (services.Analytics as IAnalyticsTrackerProvider)?.GetTracker(id);
 			var communicator = new SnipeCommunicator(analytics, services);
@@ -44,7 +44,7 @@ namespace MiniIT.Snipe.Api
 		{
 			int id = context.Id;
 			var services = _services ?? SnipeUnityDefaults.CreateDefaultServices();
-			var config = _configBuilder.Build(id, services);
+			var config = _optionsBuilder.Build(id, services);
 
 			context.Communicator.Initialize(config);
 			context.Auth.Initialize(config);

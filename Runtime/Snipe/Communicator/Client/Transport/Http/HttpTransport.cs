@@ -63,8 +63,8 @@ namespace MiniIT.Snipe
 
 		private readonly AlterSemaphore _sendSemaphore = new AlterSemaphore(1, 1);
 
-		internal HttpTransport(SnipeConfig config, IAnalyticsContext analytics, ISnipeServices services)
-			: base(config, analytics, services)
+		internal HttpTransport(SnipeOptions options, IAnalyticsContext analytics, ISnipeServices services)
+			: base(options, analytics, services)
 		{
 			_services.MainThreadRunner.RunInMainThread(() =>
 			{
@@ -398,7 +398,7 @@ namespace MiniIT.Snipe
 
 		private TimeSpan GetCurrentHeartbeatInterval()
 		{
-			return IntensiveHeartbeat ? _heartbeatIntensiveInterval : _config.HttpHeartbeatInterval;
+			return IntensiveHeartbeat ? _heartbeatIntensiveInterval : _options.HttpHeartbeatInterval;
 		}
 
 		private void StartHeartbeat()

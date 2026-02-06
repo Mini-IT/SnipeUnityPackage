@@ -63,23 +63,23 @@ namespace MiniIT.Snipe
 
 		private int _requestId = 0;
 
-		private readonly SnipeConfig _config;
+		private readonly SnipeOptions _options;
 		private readonly IAnalyticsContext _analytics;
 		private readonly ResponseMonitor _responseMonitor;
 		private readonly ILogger _logger;
 
-		internal SnipeClient(SnipeConfig config, ISnipeServices services)
+		internal SnipeClient(SnipeOptions options, ISnipeServices services)
 		{
 			if (services == null)
 			{
 				throw new ArgumentNullException(nameof(services));
 			}
 
-			_config = config;
-			_analytics = (services.Analytics as IAnalyticsTrackerProvider)?.GetTracker(config.ContextId);
+			_options = options;
+			_analytics = (services.Analytics as IAnalyticsTrackerProvider)?.GetTracker(options.ContextId);
 			_responseMonitor = new ResponseMonitor(_analytics, services);
 			_logger = services.LogService.GetLogger(nameof(SnipeClient));
-			_transportService = new TransportService(config, _analytics, services);
+			_transportService = new TransportService(options, _analytics, services);
 
 			_transportService.ConnectionOpened += OnTransportConnectionOpened;
 			_transportService.ConnectionClosed += OnTransportConnectionClosed;
@@ -168,14 +168,14 @@ namespace MiniIT.Snipe
 			if (!_loggedIn && (_batchedRequests == null || _batchedRequests.IsEmpty))
 			{
 				EnsureMessageData(ref data, message);
-				data["ckey"] = _config.ClientKey;
+				data["ckey"] = _options.ClientKey;
 				message["data"] = data;
 			}
 
-			if (_config.DebugId != null)
+			if (_options.DebugId != null)
 			{
 				EnsureMessageData(ref data, message);
-				data["debugID"] = _config.DebugId;
+				data["debugID"] = _options.DebugId;
 			}
 
 			if (BatchMode)

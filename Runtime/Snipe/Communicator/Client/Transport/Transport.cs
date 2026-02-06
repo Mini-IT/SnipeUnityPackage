@@ -18,21 +18,21 @@ namespace MiniIT.Snipe
 
 		public TransportInfo Info { get; protected set; }
 
-		protected readonly SnipeConfig _config;
+		protected readonly SnipeOptions _options;
 		protected readonly IAnalyticsContext _analytics;
 		protected readonly ILogger _logger;
 		protected readonly ISnipeServices _services;
 
 		protected bool _disposed = false;
 
-		internal Transport(SnipeConfig config, IAnalyticsContext analytics, ISnipeServices services)
+		internal Transport(SnipeOptions options, IAnalyticsContext analytics, ISnipeServices services)
 		{
 			if (services == null)
 			{
 				throw new ArgumentNullException(nameof(services));
 			}
 
-			_config = config;
+			_options = options;
 			_analytics = analytics;
 			_services = services;
 			_logger = services.LogService.GetLogger(GetType().Name);

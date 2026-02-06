@@ -26,8 +26,8 @@ namespace MiniIT.Snipe
 		private readonly ITicker _updateTicker;
 		private Task _networkLoop;
 
-		internal KcpTransport(SnipeConfig config, IAnalyticsContext analytics, ISnipeServices services)
-			: base(config, analytics, services)
+		internal KcpTransport(SnipeOptions options, IAnalyticsContext analytics, ISnipeServices services)
+			: base(options, analytics, services)
 		{
 			Info = new TransportInfo()
 			{
@@ -282,7 +282,7 @@ namespace MiniIT.Snipe
 
 			Span<byte> msgData = _messageSerializer.Serialize(offset, message);
 
-			if (_config.CompressionEnabled && msgData.Length >= _config.MinMessageBytesToCompress) // compression needed
+			if (_options.CompressionEnabled && msgData.Length >= _options.MinMessageBytesToCompress) // compression needed
 			{
 				_logger.LogTrace("compress message");
 				// _logger.LogTrace("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));

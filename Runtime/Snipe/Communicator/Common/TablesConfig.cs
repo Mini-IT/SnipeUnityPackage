@@ -71,7 +71,7 @@ namespace MiniIT.Snipe
 
 		public static string GetTablesPath(bool next = false)
 		{
-			_tablesUrlIndex = SnipeConfig.GetValidIndex(_tablesUrls, _tablesUrlIndex, next);
+			_tablesUrlIndex = SnipeOptions.GetValidIndex(_tablesUrls, _tablesUrlIndex, next);
 			if (_tablesUrlIndex >= 0)
 			{
 				return _tablesUrls[_tablesUrlIndex];

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
@@ -8,7 +8,7 @@ using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeConfig
+	public class SnipeOptions
 	{
 		public int ContextId { get; }
 
@@ -48,9 +48,9 @@ namespace MiniIT.Snipe
 		private readonly IApplicationInfo _applicationInfo;
 		private readonly ISnipeAnalyticsService _analytics;
 
-		private readonly SnipeConfigData _data;
+		private readonly SnipeOptionsData _data;
 
-		public SnipeConfig(int contextId, SnipeConfigData data, ISnipeServices services)
+		public SnipeOptions(int contextId, SnipeOptionsData data, ISnipeServices services)
 		{
 			if (services == null)
 			{

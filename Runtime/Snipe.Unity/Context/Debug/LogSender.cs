@@ -23,13 +23,13 @@ namespace MiniIT.Snipe.Internal
 		private readonly string _url;
 		private readonly ISnipeServices _services;
 
-		public LogSender(SnipeContext snipeContext, SnipeConfig snipeConfig, ISnipeServices services)
+		public LogSender(SnipeContext snipeContext, SnipeOptions snipeOptions, ISnipeServices services)
 		{
 			_snipeContext = snipeContext;
 			_services = services ?? throw new ArgumentNullException(nameof(services));
 
-			_apiKey = snipeConfig.ClientKey;
-			_url = snipeConfig.LogReporterUrl;
+			_apiKey = snipeOptions.ClientKey;
+			_url = snipeOptions.LogReporterUrl;
 		}
 
 		internal async UniTask<bool> SendAsync(StreamReader file)

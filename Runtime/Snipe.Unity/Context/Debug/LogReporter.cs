@@ -26,7 +26,7 @@ namespace MiniIT
 		private static FileStream s_file;
 		private static int s_bytesWritten;
 		private SnipeContext _snipeContext;
-		private SnipeConfig _snipeConfig;
+		private SnipeOptions _snipeOptions;
 
 		private static bool s_canWrite = true;
 
@@ -113,10 +113,10 @@ namespace MiniIT
 			}
 		}
 
-		public void Initialize(SnipeContext snipeContext, SnipeConfig snipeConfig)
+		public void Initialize(SnipeContext snipeContext, SnipeOptions snipeOptions)
 		{
 			_snipeContext = snipeContext;
-			_snipeConfig = snipeConfig;
+			_snipeOptions = snipeOptions;
 		}
 
 		public async UniTask<bool> SendAsync()
@@ -166,7 +166,7 @@ namespace MiniIT
 						break;
 					}
 
-					var sender = new LogSender(_snipeContext, _snipeConfig, services);
+					var sender = new LogSender(_snipeContext, _snipeOptions, services);
 					success = await sender.SendAsync(file);
 				}
 				catch (Exception ex)

@@ -4,39 +4,39 @@ using MiniIT.Snipe.Configuration;
 
 namespace MiniIT.Snipe.Tests.Editor
 {
-	public class TestSnipeConfig
+	public class TestSnipeOptions
 	{
 		[Test]
 		public void TestGetValidIndex()
 		{
 			List<int> list = null;
-			Assert.AreEqual(-1, SnipeConfig.GetValidIndex(list, 0, false));
-			Assert.AreEqual(-1, SnipeConfig.GetValidIndex(list, 1, false));
-			Assert.AreEqual(-1, SnipeConfig.GetValidIndex(list, 10, false));
-			Assert.AreEqual(-1, SnipeConfig.GetValidIndex(list, 0, true));
-			Assert.AreEqual(-1, SnipeConfig.GetValidIndex(list, 1, true));
-			Assert.AreEqual(-1, SnipeConfig.GetValidIndex(list, 10, true));
+			Assert.AreEqual(-1, SnipeOptions.GetValidIndex(list, 0, false));
+			Assert.AreEqual(-1, SnipeOptions.GetValidIndex(list, 1, false));
+			Assert.AreEqual(-1, SnipeOptions.GetValidIndex(list, 10, false));
+			Assert.AreEqual(-1, SnipeOptions.GetValidIndex(list, 0, true));
+			Assert.AreEqual(-1, SnipeOptions.GetValidIndex(list, 1, true));
+			Assert.AreEqual(-1, SnipeOptions.GetValidIndex(list, 10, true));
 
 			list = new List<int>();
-			Assert.AreEqual(-1, SnipeConfig.GetValidIndex(list, 0, false));
-			Assert.AreEqual(-1, SnipeConfig.GetValidIndex(list, 1, false));
-			Assert.AreEqual(-1, SnipeConfig.GetValidIndex(list, 10, false));
-			Assert.AreEqual(-1, SnipeConfig.GetValidIndex(list, 0, true));
-			Assert.AreEqual(-1, SnipeConfig.GetValidIndex(list, 1, true));
-			Assert.AreEqual(-1, SnipeConfig.GetValidIndex(list, 10, true));
+			Assert.AreEqual(-1, SnipeOptions.GetValidIndex(list, 0, false));
+			Assert.AreEqual(-1, SnipeOptions.GetValidIndex(list, 1, false));
+			Assert.AreEqual(-1, SnipeOptions.GetValidIndex(list, 10, false));
+			Assert.AreEqual(-1, SnipeOptions.GetValidIndex(list, 0, true));
+			Assert.AreEqual(-1, SnipeOptions.GetValidIndex(list, 1, true));
+			Assert.AreEqual(-1, SnipeOptions.GetValidIndex(list, 10, true));
 
 			list = new List<int>() { 10, 11, 12, };
-			Assert.AreEqual(0, SnipeConfig.GetValidIndex(list, 0, false));
-			Assert.AreEqual(1, SnipeConfig.GetValidIndex(list, 1, false));
-			Assert.AreEqual(2, SnipeConfig.GetValidIndex(list, 2, false));
-			Assert.AreEqual(0, SnipeConfig.GetValidIndex(list, 3, false));
-			Assert.AreEqual(0, SnipeConfig.GetValidIndex(list, 10, false));
+			Assert.AreEqual(0, SnipeOptions.GetValidIndex(list, 0, false));
+			Assert.AreEqual(1, SnipeOptions.GetValidIndex(list, 1, false));
+			Assert.AreEqual(2, SnipeOptions.GetValidIndex(list, 2, false));
+			Assert.AreEqual(0, SnipeOptions.GetValidIndex(list, 3, false));
+			Assert.AreEqual(0, SnipeOptions.GetValidIndex(list, 10, false));
 
-			Assert.AreEqual(1, SnipeConfig.GetValidIndex(list, 0, true));
-			Assert.AreEqual(2, SnipeConfig.GetValidIndex(list, 1, true));
-			Assert.AreEqual(0, SnipeConfig.GetValidIndex(list, 2, true));
-			Assert.AreEqual(0, SnipeConfig.GetValidIndex(list, 3, true));
-			Assert.AreEqual(0, SnipeConfig.GetValidIndex(list, 10, true));
+			Assert.AreEqual(1, SnipeOptions.GetValidIndex(list, 0, true));
+			Assert.AreEqual(2, SnipeOptions.GetValidIndex(list, 1, true));
+			Assert.AreEqual(0, SnipeOptions.GetValidIndex(list, 2, true));
+			Assert.AreEqual(0, SnipeOptions.GetValidIndex(list, 3, true));
+			Assert.AreEqual(0, SnipeOptions.GetValidIndex(list, 10, true));
 		}
 
 		[Test]
@@ -44,7 +44,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			List<string> outputList = new List<string>();
 			object input = new List<string>();
-			SnipeConfigBuilder.ParseWebSocketUrls(outputList, input);
+			SnipeOptionsBuilder.ParseWebSocketUrls(outputList, input);
 			Assert.AreEqual(0, outputList.Count);
 		}
 
@@ -53,7 +53,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			List<string> outputList = new List<string>();
 			object input = new List<string> { "wss://test1.com", "wss://test2.com" };
-			SnipeConfigBuilder.ParseWebSocketUrls(outputList, input);
+			SnipeOptionsBuilder.ParseWebSocketUrls(outputList, input);
 			Assert.AreEqual(2, outputList.Count);
 		}
 
@@ -62,7 +62,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			List<string> outputList = new List<string>();
 			object input = new List<string> { "test1.com", "wss://test2.com" };
-			SnipeConfigBuilder.ParseWebSocketUrls(outputList, input);
+			SnipeOptionsBuilder.ParseWebSocketUrls(outputList, input);
 			Assert.AreEqual(1, outputList.Count);
 		}
 
@@ -71,7 +71,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			List<string> outputList = new List<string>();
 			object input = "wss://test.com";
-			SnipeConfigBuilder.ParseWebSocketUrls(outputList, input);
+			SnipeOptionsBuilder.ParseWebSocketUrls(outputList, input);
 			Assert.AreEqual(1, outputList.Count);
 		}
 
@@ -80,7 +80,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			List<string> outputList = new List<string>();
 			object input = "wSs://test.com";
-			SnipeConfigBuilder.ParseWebSocketUrls(outputList, input);
+			SnipeOptionsBuilder.ParseWebSocketUrls(outputList, input);
 			Assert.AreEqual(1, outputList.Count);
 		}
 
@@ -89,7 +89,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			List<string> outputList = new List<string>();
 			object input = "invalid_url";
-			SnipeConfigBuilder.ParseWebSocketUrls(outputList, input);
+			SnipeOptionsBuilder.ParseWebSocketUrls(outputList, input);
 			Assert.AreEqual(0, outputList.Count);
 		}
 
@@ -98,7 +98,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			List<string> outputList = new List<string>();
 			object input = new List<string>();
-			SnipeConfigBuilder.ParseHttpUrls(outputList, input);
+			SnipeOptionsBuilder.ParseHttpUrls(outputList, input);
 			Assert.AreEqual(0, outputList.Count);
 		}
 
@@ -107,7 +107,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			List<string> outputList = new List<string>();
 			object input = new List<string> { "wss://test1.com", "wss://test2.com" };
-			SnipeConfigBuilder.ParseHttpUrls(outputList, input);
+			SnipeOptionsBuilder.ParseHttpUrls(outputList, input);
 			Assert.AreEqual(0, outputList.Count);
 		}
 
@@ -116,7 +116,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			List<string> outputList = new List<string>();
 			object input = new List<string> { "https://test1.com", "https://test2.com" };
-			SnipeConfigBuilder.ParseHttpUrls(outputList, input);
+			SnipeOptionsBuilder.ParseHttpUrls(outputList, input);
 			Assert.AreEqual(2, outputList.Count);
 		}
 
@@ -125,7 +125,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			List<string> outputList = new List<string>();
 			object input = new List<string> { "http://test1.com", "http://test2.com" };
-			SnipeConfigBuilder.ParseHttpUrls(outputList, input);
+			SnipeOptionsBuilder.ParseHttpUrls(outputList, input);
 			Assert.AreEqual(0, outputList.Count);
 		}
 
@@ -134,7 +134,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			List<string> outputList = new List<string>();
 			object input = new List<string> { "test1.com", "https://test2.com" };
-			SnipeConfigBuilder.ParseHttpUrls(outputList, input);
+			SnipeOptionsBuilder.ParseHttpUrls(outputList, input);
 			Assert.AreEqual(1, outputList.Count);
 		}
 
@@ -143,7 +143,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			List<string> outputList = new List<string>();
 			object input = "wss://test.com";
-			SnipeConfigBuilder.ParseHttpUrls(outputList, input);
+			SnipeOptionsBuilder.ParseHttpUrls(outputList, input);
 			Assert.AreEqual(0, outputList.Count);
 		}
 
@@ -152,7 +152,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			List<string> outputList = new List<string>();
 			object input = "https://test.com";
-			SnipeConfigBuilder.ParseHttpUrls(outputList, input);
+			SnipeOptionsBuilder.ParseHttpUrls(outputList, input);
 			Assert.AreEqual(1, outputList.Count);
 		}
 
@@ -161,7 +161,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			List<string> outputList = new List<string>();
 			object input = "wSs://test.com";
-			SnipeConfigBuilder.ParseHttpUrls(outputList, input);
+			SnipeOptionsBuilder.ParseHttpUrls(outputList, input);
 			Assert.AreEqual(0, outputList.Count);
 		}
 
@@ -170,7 +170,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			List<string> outputList = new List<string>();
 			string input = "HtTpS://test.com";
-			SnipeConfigBuilder.ParseHttpUrls(outputList, input);
+			SnipeOptionsBuilder.ParseHttpUrls(outputList, input);
 			Assert.AreEqual(1, outputList.Count);
 			Assert.AreEqual("https://test.com", outputList[0].ToLower());
 		}
@@ -180,7 +180,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			List<string> outputList = new List<string>();
 			object input = "invalid_url";
-			SnipeConfigBuilder.ParseHttpUrls(outputList, input);
+			SnipeOptionsBuilder.ParseHttpUrls(outputList, input);
 			Assert.AreEqual(0, outputList.Count);
 		}
 
@@ -189,7 +189,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			var outputList = new List<UdpAddress>();
 			object input = new List<string>();
-			SnipeConfigBuilder.ParseUdpUrls(outputList, input);
+			SnipeOptionsBuilder.ParseUdpUrls(outputList, input);
 			Assert.AreEqual(0, outputList.Count);
 		}
 
@@ -198,7 +198,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			var outputList = new List<UdpAddress>();
 			object input = new List<string> { "https://test1.com:100", "http://test2.com/:777" };
-			SnipeConfigBuilder.ParseUdpUrls(outputList, input);
+			SnipeOptionsBuilder.ParseUdpUrls(outputList, input);
 			Assert.AreEqual(2, outputList.Count);
 			Assert.AreEqual(outputList[0].Host, "test1.com");
 			Assert.AreEqual(outputList[0].Port, 100);
@@ -211,7 +211,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			var outputList = new List<UdpAddress>();
 			object input = new List<string> { "test1.com:100", "test2.com/:777" };
-			SnipeConfigBuilder.ParseUdpUrls(outputList, input);
+			SnipeOptionsBuilder.ParseUdpUrls(outputList, input);
 			Assert.AreEqual(2, outputList.Count);
 			Assert.AreEqual(outputList[0].Host, "test1.com");
 			Assert.AreEqual(outputList[0].Port, 100);
@@ -224,7 +224,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			var outputList = new List<UdpAddress>();
 			object input = new List<string> { "test1.com", "https://test2.com:99" };
-			SnipeConfigBuilder.ParseUdpUrls(outputList, input);
+			SnipeOptionsBuilder.ParseUdpUrls(outputList, input);
 			Assert.AreEqual(1, outputList.Count);
 			Assert.AreEqual(outputList[0].Host, "test2.com");
 			Assert.AreEqual(outputList[0].Port, 99);

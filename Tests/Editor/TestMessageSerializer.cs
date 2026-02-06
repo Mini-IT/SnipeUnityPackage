@@ -19,7 +19,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			var services = new NullSnipeServices();
 			var serializer = new MessagePackSerializer(4096);
-			var config = new SnipeConfig(0, new SnipeConfigData(), services);
+			var config = new SnipeOptions(0, new SnipeOptionsData(), services);
 
 			for (int i = 0; i < THREADS_COUNT; i++)
 			{
@@ -48,9 +48,9 @@ namespace MiniIT.Snipe.Tests.Editor
 			}
 		}
 
-		private async Task<List<byte[]>> TestWSMessageSerializerAsync(List<IDictionary<string, object>> data, SnipeConfig config, ISnipeServices services)
+		private async Task<List<byte[]>> TestWSMessageSerializerAsync(List<IDictionary<string, object>> data, SnipeOptions options, ISnipeServices services)
 		{
-			var transport = new WebSocketTransport(config, null, services);
+			var transport = new WebSocketTransport(options, null, services);
 			return await TestWSMessageSerializerAsync(data, transport);
 		}
 

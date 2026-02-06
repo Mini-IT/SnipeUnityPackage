@@ -52,7 +52,7 @@ namespace MiniIT.Snipe
 
 		private CancellationTokenSource _delayedInitCancellation;
 
-		private SnipeConfig _config;
+		private SnipeOptions _options;
 		private readonly IAnalyticsContext _analytics;
 		private readonly IMainThreadRunner _mainThreadRunner;
 		private readonly ISnipeServices _services;
@@ -80,9 +80,9 @@ namespace MiniIT.Snipe
 
 		public ISnipeServices Services => _services;
 
-		public void Initialize(SnipeConfig config)
+		public void Initialize(SnipeOptions options)
 		{
-			_config = config;
+			_options = options;
 		}
 
 		/// <summary>
@@ -122,7 +122,7 @@ namespace MiniIT.Snipe
 			{
 				if (_client == null)
 				{
-					_client = new SnipeClient(_config, _services);
+					_client = new SnipeClient(_options, _services);
 					_client.ConnectionOpened += OnClientConnectionOpened;
 					_client.ConnectionClosed += OnClientConnectionClosed;
 					_client.ConnectionDisrupted += OnClientConnectionDisrupted;

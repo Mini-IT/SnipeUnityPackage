@@ -3,83 +3,82 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using fastJSON;
-using MiniIT.Snipe;
 
 namespace MiniIT.Snipe.Configuration
 {
-	public class SnipeConfigBuilder
+	public class SnipeOptionsBuilder
 	{
-		private readonly SnipeConfigData _data = new();
+		private readonly SnipeOptionsData _data = new();
 
-		public SnipeConfigBuilder SetProjectInfo(SnipeProjectInfo projectInfo)
+		public SnipeOptionsBuilder SetProjectInfo(SnipeProjectInfo projectInfo)
 		{
 			_data.ProjectInfo = projectInfo;
 			return this;
 		}
 
-		public SnipeConfigBuilder SetWebSocketImplementation(WebSocketImplementations webSocketImplementation)
+		public SnipeOptionsBuilder SetWebSocketImplementation(WebSocketImplementations webSocketImplementation)
 		{
 			_data.WebSocketImplementation = webSocketImplementation;
 			return this;
 		}
 
-		public SnipeConfigBuilder SetAutoJoinRoom(bool autoJoinRoom)
+		public SnipeOptionsBuilder SetAutoJoinRoom(bool autoJoinRoom)
 		{
 			_data.AutoJoinRoom = autoJoinRoom;
 			return this;
 		}
 
-		public SnipeConfigBuilder SetServerWebSocketUrls(List<string> urls)
+		public SnipeOptionsBuilder SetServerWebSocketUrls(List<string> urls)
 		{
 			_data.ServerWebSocketUrls = urls ?? new List<string>();
 			return this;
 		}
 
-		public SnipeConfigBuilder SetServerUdpUrls(List<UdpAddress> urls)
+		public SnipeOptionsBuilder SetServerUdpUrls(List<UdpAddress> urls)
 		{
 			_data.ServerUdpUrls = urls ?? new List<UdpAddress>();
 			return this;
 		}
 
-		public SnipeConfigBuilder SetServerHttpUrls(List<string> urls)
+		public SnipeOptionsBuilder SetServerHttpUrls(List<string> urls)
 		{
 			_data.ServerHttpUrls = urls ?? new List<string>();
 			return this;
 		}
 
-		public SnipeConfigBuilder SetHeartbeatInterval(TimeSpan heartbeatInterval)
+		public SnipeOptionsBuilder SetHeartbeatInterval(TimeSpan heartbeatInterval)
 		{
 			_data.HttpHeartbeatInterval = heartbeatInterval;
 			return this;
 		}
 
-		public SnipeConfigBuilder SetCompressionEnabled(bool compressionEnabled)
+		public SnipeOptionsBuilder SetCompressionEnabled(bool compressionEnabled)
 		{
 			_data.CompressionEnabled = compressionEnabled;
 			return this;
 		}
 
-		public SnipeConfigBuilder SetMinMessageBytesToCompress(int minMessageBytesToCompress)
+		public SnipeOptionsBuilder SetMinMessageBytesToCompress(int minMessageBytesToCompress)
 		{
 			_data.MinMessageBytesToCompress = minMessageBytesToCompress;
 			return this;
 		}
 
-		public SnipeConfigBuilder SetLogReporterUrl(string logReporterUrl)
+		public SnipeOptionsBuilder SetLogReporterUrl(string logReporterUrl)
 		{
 			_data.LogReporterUrl = logReporterUrl;
 			return this;
 		}
 
-		public SnipeConfigBuilder SetLoginParameters(Dictionary<string, object> loginParameters)
+		public SnipeOptionsBuilder SetLoginParameters(Dictionary<string, object> loginParameters)
 		{
 			_data.LoginParameters = loginParameters;
 			return this;
 		}
 
-		public SnipeConfig Build(int contextId, ISnipeServices services)
+		public SnipeOptions Build(int contextId, ISnipeServices services)
 		{
-			return new SnipeConfig(contextId, _data, services);
+			return new SnipeOptions(contextId, _data, services);
 		}
 
 		//----------------------

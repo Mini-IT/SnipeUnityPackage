@@ -29,7 +29,7 @@ namespace MiniIT.Snipe.Configuration
 		public ushort Port;
 	}
 
-	public class SnipeConfigData
+	public class SnipeOptionsData
 	{
 		public SnipeProjectInfo ProjectInfo;
 		public WebSocketImplementations WebSocketImplementation = WebSocketImplementations.BestWebSocket;

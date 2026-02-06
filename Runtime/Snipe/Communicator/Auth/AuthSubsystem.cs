@@ -98,7 +98,7 @@ namespace MiniIT.Snipe
 		private string _authToken;
 
 		private readonly int _contextId;
-		protected SnipeConfig _config;
+		protected SnipeOptions _options;
 		protected readonly IAnalyticsContext _analytics;
 		protected readonly ISharedPrefs _sharedPrefs;
 		protected readonly IMainThreadRunner _mainThreadRunner;
@@ -125,9 +125,9 @@ namespace MiniIT.Snipe
 			_logger = services.LogService.GetLogger(nameof(AuthSubsystem));
 		}
 
-		public void Initialize(SnipeConfig config)
+		public void Initialize(SnipeOptions options)
 		{
-			_config = config;
+			_options = options;
 		}
 
 		public void Authorize()
@@ -280,12 +280,12 @@ namespace MiniIT.Snipe
 				return false;
 			}
 
-			IDictionary<string, object> data = _config.LoginParameters != null ? new Dictionary<string, object>(_config.LoginParameters) : new Dictionary<string, object>();
+			IDictionary<string, object> data = _options.LoginParameters != null ? new Dictionary<string, object>(_options.LoginParameters) : new Dictionary<string, object>();
 			data["login"] = login;
 			data["auth"] = password;
 			FillCommonAuthRequestParameters(data);
 
-			if (_config.CompressionEnabled)
+			if (_options.CompressionEnabled)
 			{
 				data["flagCanPack"] = true;
 			}
@@ -312,8 +312,8 @@ namespace MiniIT.Snipe
 		private void FillCommonAuthRequestParameters(IDictionary<string, object> data)
 		{
 			data["version"] = SnipeClient.SNIPE_VERSION;
-			data["appInfo"] = _config.AppInfo;
-			data["flagAutoJoinRoom"] = _config.AutoJoinRoom;
+			data["appInfo"] = _options.AppInfo;
+			data["flagAutoJoinRoom"] = _options.AutoJoinRoom;
 			data["flagCanAck"] = true;
 		}
 
@@ -360,12 +360,12 @@ namespace MiniIT.Snipe
 			// Convert dictionary to list
 			var providersList = providers.Values.ToList();
 
-			IDictionary<string, object> data = _config.LoginParameters != null ? new Dictionary<string, object>(_config.LoginParameters) : new Dictionary<string, object>();
-			data["ckey"] = _config.ClientKey;
+			IDictionary<string, object> data = _options.LoginParameters != null ? new Dictionary<string, object>(_options.LoginParameters) : new Dictionary<string, object>();
+			data["ckey"] = _options.ClientKey;
 			data["auths"] = providersList;
 			FillCommonAuthRequestParameters(data);
 
-			if (_config.CompressionEnabled)
+			if (_options.CompressionEnabled)
 			{
 				data["flagCanPack"] = true;
 			}
@@ -448,7 +448,7 @@ namespace MiniIT.Snipe
 		{
 			if (string.IsNullOrEmpty(_authLogin))
 			{
-				_authLogin = _sharedPrefs.GetString(SnipePrefs.GetAuthUID(_config.ContextId));
+				_authLogin = _sharedPrefs.GetString(SnipePrefs.GetAuthUID(_options.ContextId));
 			}
 			return _authLogin;
 		}
@@ -457,7 +457,7 @@ namespace MiniIT.Snipe
 		{
 			if (string.IsNullOrEmpty(_authToken))
 			{
-				_authToken = _sharedPrefs.GetString(SnipePrefs.GetAuthKey(_config.ContextId));
+				_authToken = _sharedPrefs.GetString(SnipePrefs.GetAuthKey(_options.ContextId));
 			}
 			return _authToken;
 		}
@@ -491,7 +491,7 @@ namespace MiniIT.Snipe
 			new UnauthorizedRequest(_communicator, _services, SnipeMessageTypes.AUTH_RESTORE)
 				.Request(new Dictionary<string, object>()
 				{
-					["ckey"] = _config.ClientKey,
+					["ckey"] = _options.ClientKey,
 					["token"] = token,
 				},
 				(errorCode, response) =>
@@ -514,7 +514,7 @@ namespace MiniIT.Snipe
 
 		public TBinding RegisterBinding<TBinding>(TBinding binding) where TBinding : AuthBinding
 		{
-			binding.Initialize(_contextId, _communicator, this, () => _config.ClientKey);
+			binding.Initialize(_contextId, _communicator, this, () => _options.ClientKey);
 			_bindings.Add(binding);
 			return binding;
 		}

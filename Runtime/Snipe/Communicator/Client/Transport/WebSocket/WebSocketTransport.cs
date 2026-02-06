@@ -62,8 +62,8 @@ namespace MiniIT.Snipe
 		private CancellationTokenSource _checkConnectionCancellation;
 		private CancellationTokenSource _loginTimeoutCancellation;
 
-		internal WebSocketTransport(SnipeConfig config, IAnalyticsContext analytics, ISnipeServices services)
-			: base(config, analytics, services)
+		internal WebSocketTransport(SnipeOptions options, IAnalyticsContext analytics, ISnipeServices services)
+			: base(options, analytics, services)
 		{
 		}
 
@@ -78,7 +78,7 @@ namespace MiniIT.Snipe
 
 			_logger.LogTrace("WebSocket Connect to " + url);
 
-			_webSocket = new WebSocketFactory(_config, _services).CreateWebSocket();
+			_webSocket = new WebSocketFactory(_options, _services).CreateWebSocket();
 
 			Info = new TransportInfo()
 			{
@@ -268,7 +268,7 @@ namespace MiniIT.Snipe
 
 			var msgData = _messageSerializer.Serialize(message);
 
-			if (_config.CompressionEnabled && msgData.Length >= _config.MinMessageBytesToCompress) // compression needed
+			if (_options.CompressionEnabled && msgData.Length >= _options.MinMessageBytesToCompress) // compression needed
 			{
 				_logger.LogTrace("compress message");
 				//_logger.LogTrace("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
