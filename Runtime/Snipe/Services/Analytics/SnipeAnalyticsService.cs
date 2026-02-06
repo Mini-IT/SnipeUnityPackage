@@ -5,25 +5,21 @@ using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeAnalyticsService : ISnipeAnalyticsService
+	internal class SnipeAnalyticsService : ISnipeAnalyticsService
 	{
 		public bool IsEnabled { get; set; } = true;
 
 		private ISnipeCommunicatorAnalyticsTracker _externalTracker;
 		private readonly Func<ISnipeErrorsTracker> _errorsTrackerGetter;
-		private IMainThreadRunner _mainThreadRunner;
+		private readonly IMainThreadRunner _mainThreadRunner;
 
 		private Dictionary<int, SnipeAnalyticsTracker> _trackers;
 		private readonly object _trackersLock = new object();
 
-		public SnipeAnalyticsService(Func<ISnipeErrorsTracker> errorsTrackerGetter = null)
-		{
-			_errorsTrackerGetter = errorsTrackerGetter;
-		}
-
-		public void SetMainThreadRunner(IMainThreadRunner mainThreadRunner)
+		public SnipeAnalyticsService(IMainThreadRunner mainThreadRunner, Func<ISnipeErrorsTracker> errorsTrackerGetter = null)
 		{
 			_mainThreadRunner = mainThreadRunner;
+			_errorsTrackerGetter = errorsTrackerGetter;
 		}
 
 		public ISnipeAnalyticsTracker GetTracker(int contextId = 0)

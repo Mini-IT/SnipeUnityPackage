@@ -63,27 +63,6 @@ namespace MiniIT.Snipe
 		public ILogger GetLogger(string categoryName) => NullLogger.Instance;
 	}
 
-	public sealed class NullSnipeAnalyticsService : ISnipeAnalyticsService
-	{
-		private readonly SnipeAnalyticsService _inner = new SnipeAnalyticsService();
-
-		public bool IsEnabled
-		{
-			get => false;
-			set { }
-		}
-
-		public ISnipeAnalyticsTracker GetTracker(int contextId = 0)
-		{
-			_inner.IsEnabled = false;
-			return _inner.GetTracker(contextId);
-		}
-
-		public void SetTracker(ISnipeCommunicatorAnalyticsTracker externalTracker)
-		{
-		}
-	}
-
 	public sealed class ImmediateMainThreadRunner : IMainThreadRunner
 	{
 		public void RunInMainThread(Action action)
@@ -120,33 +99,6 @@ namespace MiniIT.Snipe
 		public void Stop() { }
 	}
 
-	public sealed class NullHttpClientFactory : IHttpClientFactory
-	{
-		public IHttpClient CreateHttpClient() => new NullHttpClient();
-	}
-
-	public sealed class NullHttpClient : IHttpClient
-	{
-		public void Reset() { }
-		public void SetAuthToken(string token) { }
-		public void SetPersistentClientId(string token) { }
-		public UniTask<IHttpClientResponse> Get(Uri uri) => UniTask.FromResult<IHttpClientResponse>(new NullHttpClientResponse());
-		public UniTask<IHttpClientResponse> Get(Uri uri, TimeSpan timeout) => UniTask.FromResult<IHttpClientResponse>(new NullHttpClientResponse());
-		public UniTask<IHttpClientResponse> PostJson(Uri uri, string content, TimeSpan timeout) => UniTask.FromResult<IHttpClientResponse>(new NullHttpClientResponse());
-		public UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content, TimeSpan timeout) => UniTask.FromResult<IHttpClientResponse>(new NullHttpClientResponse());
-	}
-
-	public sealed class NullHttpClientResponse : IHttpClientResponse
-	{
-		public long ResponseCode => 0;
-		public bool IsSuccess => false;
-		public string Error => "NullHttpClient";
-
-		public UniTask<string> GetStringContentAsync() => UniTask.FromResult(string.Empty);
-		public UniTask<byte[]> GetBinaryContentAsync() => UniTask.FromResult(Array.Empty<byte>());
-		public void Dispose() { }
-	}
-
 	public sealed class NullInternetReachabilityProvider : IInternetReachabilityProvider
 	{
 		public bool IsInternetAvailable => false;
@@ -155,21 +107,5 @@ namespace MiniIT.Snipe
 	public sealed class NullTicker : ITicker
 	{
 		public event Action OnTick;
-	}
-
-	public sealed class NullSharedPrefs : ISharedPrefs
-	{
-		public bool HasKey(string key) => false;
-		public void DeleteKey(string key) { }
-		public void DeleteAll() { }
-		public void Save() { }
-		public bool GetBool(string key, bool defaultValue = false) => defaultValue;
-		public float GetFloat(string key, float defaultValue = 0) => defaultValue;
-		public int GetInt(string key, int defaultValue = 0) => defaultValue;
-		public string GetString(string key, string defaultValue = null) => defaultValue;
-		public void SetBool(string key, bool value) { }
-		public void SetFloat(string key, float value) { }
-		public void SetInt(string key, int value) { }
-		public void SetString(string key, string value) { }
 	}
 }

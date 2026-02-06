@@ -2,6 +2,7 @@
 
 using System;
 using MiniIT.Http;
+using MiniIT.Snipe.Debugging;
 using MiniIT.Snipe.Logging;
 using MiniIT.Storage;
 using MiniIT.Utils;
@@ -24,12 +25,15 @@ namespace MiniIT.Snipe
 		{
 			SharedPrefs = factory.CreateSharedPrefs();
 			LogService = factory.CreateLogService();
-			Analytics = factory.CreateAnalyticsService();
 			MainThreadRunner = factory.CreateMainThreadRunner();
-			if (Analytics is SnipeAnalyticsService analyticsService)
+
+			Func<ISnipeErrorsTracker> errorsTrackerGetter = null;
+			if (factory is ISnipeErrorsTrackerProvider errorsTrackerProvider)
 			{
-				analyticsService.SetMainThreadRunner(MainThreadRunner);
+				errorsTrackerGetter = () => errorsTrackerProvider.ErrorsTracker;
 			}
+			Analytics = new SnipeAnalyticsService(MainThreadRunner, errorsTrackerGetter);
+
 			FuzzyStopwatchFactory = factory.CreateFuzzyStopwatchFactory();
 			HttpClientFactory = factory.CreateHttpClientFactory();
 			ApplicationInfo = factory.CreateApplicationInfo();

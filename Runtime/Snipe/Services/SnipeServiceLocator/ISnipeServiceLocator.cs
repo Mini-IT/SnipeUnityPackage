@@ -14,7 +14,6 @@ namespace MiniIT.Snipe
 	{
 		ISharedPrefs CreateSharedPrefs();
 		ILogService CreateLogService();
-		ISnipeAnalyticsService CreateAnalyticsService();
 		IMainThreadRunner CreateMainThreadRunner();
 		IApplicationInfo CreateApplicationInfo();
 		IStopwatchFactory CreateFuzzyStopwatchFactory();
