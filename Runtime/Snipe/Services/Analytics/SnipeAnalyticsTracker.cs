@@ -5,7 +5,25 @@ using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeAnalyticsTracker : ISnipeAnalyticsTracker, ISnipeConfigLoadingAnalyticsTracker
+	public static class SnipeAnalyticsEvents
+	{
+		public const string EVENT_COMMUNICATOR_START_CONNECTION = "Communicator Start Connection";
+		public const string EVENT_COMMUNICATOR_CONNECTED = "Communicator Connected";
+		public const string EVENT_COMMUNICATOR_DISCONNECTED = "Communicator Disconnected";
+		public const string EVENT_ROOM_COMMUNICATOR_CONNECTED = "Room Communicator Connected";
+		public const string EVENT_ROOM_COMMUNICATOR_DISCONNECTED = "Room Communicator Disconnected";
+		public const string EVENT_ACCOUNT_REGISTERED = "Account registered";
+		public const string EVENT_ACCOUNT_REGISTERATION_FAILED = "Account registeration failed";
+		public const string EVENT_LOGIN_REQUEST_SENT = "Login request sent";
+		public const string EVENT_LOGIN_RESPONSE_RECEIVED = "Login response received";
+		public const string EVENT_AUTH_LOGIN_REQUEST_SENT = "Auth Login request sent";
+		public const string EVENT_AUTH_LOGIN_RESPONSE_RECEIVED = "Auth Login response received";
+		public const string EVENT_SINGLE_REQUEST_CLIENT_CONNECTED = "SingleRequestClient Connected";
+		public const string EVENT_SINGLE_REQUEST_CLIENT_DISCONNECTED = "SingleRequestClient Disconnected";
+		public const string EVENT_SINGLE_REQUEST_RESPONSE = "SingleRequestClient Response";
+	}
+
+	internal class SnipeAnalyticsTracker : ISnipeAnalyticsTracker, ISnipeConfigLoadingAnalyticsTracker
 	{
 		public bool IsEnabled => _analyticsService.IsEnabled;
 
@@ -249,21 +267,6 @@ namespace MiniIT.Snipe
 		#region Constants
 
 		private const string EVENT_NAME = "Snipe Event";
-		public const string EVENT_COMMUNICATOR_START_CONNECTION = "Communicator Start Connection";
-		public const string EVENT_COMMUNICATOR_CONNECTED = "Communicator Connected";
-		public const string EVENT_COMMUNICATOR_DISCONNECTED = "Communicator Disconnected";
-		public const string EVENT_ROOM_COMMUNICATOR_CONNECTED = "Room Communicator Connected";
-		public const string EVENT_ROOM_COMMUNICATOR_DISCONNECTED = "Room Communicator Disconnected";
-		public const string EVENT_ACCOUNT_REGISTERED = "Account registered";
-		public const string EVENT_ACCOUNT_REGISTERATION_FAILED = "Account registeration failed";
-		public const string EVENT_LOGIN_REQUEST_SENT = "Login request sent";
-		public const string EVENT_LOGIN_RESPONSE_RECEIVED = "Login response received";
-		public const string EVENT_AUTH_LOGIN_REQUEST_SENT = "Auth Login request sent";
-		public const string EVENT_AUTH_LOGIN_RESPONSE_RECEIVED = "Auth Login response received";
-		public const string EVENT_SINGLE_REQUEST_CLIENT_CONNECTED = "SingleRequestClient Connected";
-		public const string EVENT_SINGLE_REQUEST_CLIENT_DISCONNECTED = "SingleRequestClient Disconnected";
-		public const string EVENT_SINGLE_REQUEST_RESPONSE = "SingleRequestClient Response";
-
 		private const string EVENT_ERROR_CODE_NOT_OK = "ErrorCode not ok";
 
 		#endregion Constants

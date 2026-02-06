@@ -15,7 +15,7 @@ namespace MiniIT.Snipe
 			var properties = new Dictionary<string, object>(2);
 			FillTransportInfo(properties, transportInfo);
 
-			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_START_CONNECTION, properties);
+			_analytics.TrackEvent(SnipeAnalyticsEvents.EVENT_COMMUNICATOR_START_CONNECTION, properties);
 		}
 
 		private void AnalyticsTrackConnectionSucceeded(TransportInfo transportInfo)
@@ -44,7 +44,7 @@ namespace MiniIT.Snipe
 
 			FillTransportInfo(data, transportInfo);
 
-			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_CONNECTED, data);
+			_analytics.TrackEvent(SnipeAnalyticsEvents.EVENT_COMMUNICATOR_CONNECTED, data);
 		}
 
 		private void AnalyticsTrackConnectionFailed(TransportInfo transportInfo)
@@ -66,7 +66,7 @@ namespace MiniIT.Snipe
 			};
 			FillTransportInfo(properties, transportInfo);
 
-			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_DISCONNECTED, properties);
+			_analytics.TrackEvent(SnipeAnalyticsEvents.EVENT_COMMUNICATOR_DISCONNECTED, properties);
 		}
 
 		private void AnalyticsTrackUdpConnectionFailed(TransportInfo transportInfo)
@@ -82,7 +82,7 @@ namespace MiniIT.Snipe
 			};
 			FillTransportInfo(properties, transportInfo);
 
-			_analytics.TrackEvent(SnipeAnalyticsTracker.EVENT_COMMUNICATOR_DISCONNECTED + " UDP", properties);
+			_analytics.TrackEvent(SnipeAnalyticsEvents.EVENT_COMMUNICATOR_DISCONNECTED + " UDP", properties);
 		}
 
 		private static void FillTransportInfo(IDictionary<string, object> properties, TransportInfo transportInfo)
