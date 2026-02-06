@@ -63,7 +63,7 @@ namespace MiniIT.Snipe
 
 		private readonly AlterSemaphore _sendSemaphore = new AlterSemaphore(1, 1);
 
-		internal HttpTransport(SnipeConfig config, ISnipeAnalyticsTracker analytics, ISnipeServices services)
+		internal HttpTransport(SnipeConfig config, IAnalyticsContext analytics, ISnipeServices services)
 			: base(config, analytics, services)
 		{
 			_services.MainThreadRunner.RunInMainThread(() =>

@@ -1,4 +1,3 @@
-using System;
 using MiniIT.Http;
 using MiniIT.Snipe.Logging;
 using MiniIT.Storage;
@@ -6,10 +5,6 @@ using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
-	public interface ISnipeServiceLocator : ISnipeServices, IDisposable
-	{
-	}
-
 	public interface ISnipeServiceLocatorFactory
 	{
 		ISharedPrefs CreateSharedPrefs();

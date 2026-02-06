@@ -26,7 +26,7 @@ namespace MiniIT.Snipe
 		private readonly ITicker _updateTicker;
 		private Task _networkLoop;
 
-		internal KcpTransport(SnipeConfig config, ISnipeAnalyticsTracker analytics, ISnipeServices services)
+		internal KcpTransport(SnipeConfig config, IAnalyticsContext analytics, ISnipeServices services)
 			: base(config, analytics, services)
 		{
 			Info = new TransportInfo()

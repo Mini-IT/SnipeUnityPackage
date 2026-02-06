@@ -3,34 +3,29 @@ using System.Collections.Generic;
 
 namespace MiniIT.Snipe
 {
-	public sealed class NullSnipeAnalyticsService : ISnipeAnalyticsService
+	public sealed class NullSnipeAnalyticsService : ISnipeAnalyticsService, IAnalyticsTrackerProvider
 	{
-		public bool IsEnabled
+		public bool Enabled
 		{
 			get => false;
 			set { }
 		}
 
-		public ISnipeAnalyticsTracker GetTracker(int contextId = 0) => NullSnipeAnalyticsTracker.Instance;
+		public IAnalyticsContext GetTracker(int contextId = 0) => NullAnalyticsContext.Instance;
 
 		public void SetTracker(ISnipeCommunicatorAnalyticsTracker externalTracker)
 		{
 		}
 	}
 
-	public sealed class NullSnipeAnalyticsTracker : ISnipeAnalyticsTracker
+	public sealed class NullAnalyticsContext : IAnalyticsContext
 	{
-		public static readonly NullSnipeAnalyticsTracker Instance = new NullSnipeAnalyticsTracker();
+		public static readonly NullAnalyticsContext Instance = new NullAnalyticsContext();
 
 		public bool ConnectionEventsEnabled { get; set; }
 		public TimeSpan PingTime { get; set; }
 		public TimeSpan ServerReaction { get; set; }
 		public TimeSpan ConnectionEstablishmentTime { get; set; }
-		public TimeSpan WebSocketTcpClientConnectionTime { get; set; }
-		public TimeSpan WebSocketSslAuthenticateTime { get; set; }
-		public TimeSpan WebSocketHandshakeTime { get; set; }
-		public TimeSpan WebSocketMiscTime { get; set; }
-		public string WebSocketDisconnectReason { get; set; }
 		public string ConnectionUrl { get; set; }
 		public TimeSpan UdpConnectionTime { get; set; }
 
@@ -50,5 +45,9 @@ namespace MiniIT.Snipe
 		public void TrackError(string name, Exception exception = null, IDictionary<string, object> properties = null) { }
 		public void TrackABEnter(string name, string variant) { }
 		public void TrackSnipeConfigLoadingStats(SnipeConfigLoadingStatistics statistics) { }
+		public void TrackConnectionStarted(TransportInfo transportInfo) { }
+		public void TrackConnectionSucceeded(bool udpConnected, TransportInfo transportInfo) { }
+		public void TrackConnectionFailed(string connectionId, TransportInfo transportInfo) { }
+		public void TrackUdpConnectionFailed(TransportInfo transportInfo) { }
 	}
 }

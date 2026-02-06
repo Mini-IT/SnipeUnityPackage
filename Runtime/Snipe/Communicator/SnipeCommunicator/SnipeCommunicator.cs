@@ -53,13 +53,13 @@ namespace MiniIT.Snipe
 		private CancellationTokenSource _delayedInitCancellation;
 
 		private SnipeConfig _config;
-		private readonly ISnipeAnalyticsTracker _analytics;
+		private readonly IAnalyticsContext _analytics;
 		private readonly IMainThreadRunner _mainThreadRunner;
 		private readonly ISnipeServices _services;
 		private readonly RoomStateObserver _roomStateObserver;
 		private readonly ILogger _logger;
 
-		public SnipeCommunicator(ISnipeAnalyticsTracker analytics, ISnipeServices services)
+		public SnipeCommunicator(IAnalyticsContext analytics, ISnipeServices services)
 		{
 			if (services == null)
 			{

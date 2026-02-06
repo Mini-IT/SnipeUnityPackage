@@ -6,20 +6,6 @@ using MiniIT.Threading;
 
 namespace MiniIT.Snipe
 {
-	public enum TransportProtocol
-	{
-		Undefined,
-		Kcp,
-		WebSocket,
-		Http,
-	}
-
-	public struct TransportInfo
-	{
-		public TransportProtocol Protocol;
-		public string ClientImplementation;
-	}
-
 	public abstract class Transport : IDisposable
 	{
 		public Action<Transport> ConnectionOpenedHandler;
@@ -33,13 +19,13 @@ namespace MiniIT.Snipe
 		public TransportInfo Info { get; protected set; }
 
 		protected readonly SnipeConfig _config;
-		protected readonly ISnipeAnalyticsTracker _analytics;
+		protected readonly IAnalyticsContext _analytics;
 		protected readonly ILogger _logger;
 		protected readonly ISnipeServices _services;
 
 		protected bool _disposed = false;
 
-		internal Transport(SnipeConfig config, ISnipeAnalyticsTracker analytics, ISnipeServices services)
+		internal Transport(SnipeConfig config, IAnalyticsContext analytics, ISnipeServices services)
 		{
 			if (services == null)
 			{

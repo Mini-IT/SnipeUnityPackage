@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -99,7 +99,7 @@ namespace MiniIT.Snipe
 
 		private readonly int _contextId;
 		protected SnipeConfig _config;
-		protected readonly ISnipeAnalyticsTracker _analytics;
+		protected readonly IAnalyticsContext _analytics;
 		protected readonly ISharedPrefs _sharedPrefs;
 		protected readonly IMainThreadRunner _mainThreadRunner;
 		protected readonly ILogger _logger;
@@ -107,7 +107,7 @@ namespace MiniIT.Snipe
 
 		public ISnipeServices Services => _services;
 
-		protected AuthSubsystem(int contextId, ISnipeCommunicator communicator, ISnipeAnalyticsTracker analytics, ISnipeServices services)
+		protected AuthSubsystem(int contextId, ISnipeCommunicator communicator, IAnalyticsContext analytics, ISnipeServices services)
 		{
 			if (services == null)
 			{

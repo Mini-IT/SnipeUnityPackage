@@ -64,7 +64,7 @@ namespace MiniIT.Snipe
 		private int _requestId = 0;
 
 		private readonly SnipeConfig _config;
-		private readonly ISnipeAnalyticsTracker _analytics;
+		private readonly IAnalyticsContext _analytics;
 		private readonly ResponseMonitor _responseMonitor;
 		private readonly ILogger _logger;
 
@@ -76,7 +76,7 @@ namespace MiniIT.Snipe
 			}
 
 			_config = config;
-			_analytics = services.Analytics.GetTracker(config.ContextId);
+			_analytics = (services.Analytics as IAnalyticsTrackerProvider)?.GetTracker(config.ContextId);
 			_responseMonitor = new ResponseMonitor(_analytics, services);
 			_logger = services.LogService.GetLogger(nameof(SnipeClient));
 			_transportService = new TransportService(config, _analytics, services);

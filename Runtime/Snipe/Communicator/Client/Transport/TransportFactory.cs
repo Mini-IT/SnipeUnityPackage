@@ -7,10 +7,10 @@ namespace MiniIT.Snipe
 	internal sealed class TransportFactory
 	{
 		private readonly SnipeConfig _config;
-		private readonly ISnipeAnalyticsTracker _analytics;
+		private readonly IAnalyticsContext _analytics;
 		private readonly ISnipeServices _services;
 
-		internal TransportFactory(SnipeConfig config, ISnipeAnalyticsTracker analytics, ISnipeServices services)
+		internal TransportFactory(SnipeConfig config, IAnalyticsContext analytics, ISnipeServices services)
 		{
 			if (services == null)
 			{

@@ -62,7 +62,7 @@ namespace MiniIT.Snipe
 		private CancellationTokenSource _checkConnectionCancellation;
 		private CancellationTokenSource _loginTimeoutCancellation;
 
-		internal WebSocketTransport(SnipeConfig config, ISnipeAnalyticsTracker analytics, ISnipeServices services)
+		internal WebSocketTransport(SnipeConfig config, IAnalyticsContext analytics, ISnipeServices services)
 			: base(config, analytics, services)
 		{
 		}
@@ -547,11 +547,12 @@ namespace MiniIT.Snipe
 							pinging = false;
 							forcePing = false;
 							pingStopwatch.Stop();
-							_analytics.PingTime = pong ? pingStopwatch.Elapsed : TimeSpan.Zero;
+							var pingTime = pong ? pingStopwatch.Elapsed : TimeSpan.Zero;
+							_analytics.PingTime = pingTime;
 
 							if (pong)
 							{
-								_logger.LogTrace($"Heartbeat pong {_analytics.PingTime.TotalMilliseconds} ms");
+								_logger.LogTrace($"Heartbeat pong {pingTime.TotalMilliseconds} ms");
 								if (BadConnection)
 								{
 									BadConnection = false;

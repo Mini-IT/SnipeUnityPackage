@@ -9,7 +9,7 @@ using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeServiceLocator : ISnipeServiceLocator
+	public class SnipeServiceLocator : ISnipeServices, IDisposable
 	{
 		public ISharedPrefs SharedPrefs { get; }
 		public ILogService LogService { get; }

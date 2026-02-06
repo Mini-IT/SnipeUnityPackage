@@ -23,20 +23,15 @@ namespace MiniIT.Snipe
 		public const string EVENT_SINGLE_REQUEST_RESPONSE = "SingleRequestClient Response";
 	}
 
-	internal class SnipeAnalyticsTracker : ISnipeAnalyticsTracker, ISnipeConfigLoadingAnalyticsTracker
+	internal class AnalyticsContext : IAnalyticsContext, ISnipeConfigLoadingAnalyticsTracker
 	{
-		public bool IsEnabled => _analyticsService.IsEnabled;
+		public bool IsEnabled => _analyticsService.Enabled;
 
 		#region Analytics Properties
 
 		public TimeSpan PingTime { get; set; }
 		public TimeSpan ServerReaction { get; set; }
 		public TimeSpan ConnectionEstablishmentTime { get; set; }
-		public TimeSpan WebSocketTcpClientConnectionTime { get; set; }
-		public TimeSpan WebSocketSslAuthenticateTime { get; set; }
-		public TimeSpan WebSocketHandshakeTime { get; set; }
-		public TimeSpan WebSocketMiscTime { get; set; }
-		public string WebSocketDisconnectReason { get; set; }
 		public string ConnectionUrl { get; set; }
 		public TimeSpan UdpConnectionTime { get; set; }
 
@@ -54,7 +49,7 @@ namespace MiniIT.Snipe
 		private readonly SnipeAnalyticsService _analyticsService;
 		private readonly IMainThreadRunner _mainThreadRunner;
 
-		internal SnipeAnalyticsTracker(
+		internal AnalyticsContext(
 			SnipeAnalyticsService analyticsService,
 			int contextId,
 			Func<ISnipeErrorsTracker> errorsTrackerGetter,
@@ -279,6 +274,98 @@ namespace MiniIT.Snipe
 			}
 
 			RunOnMainThread(() => tracker.TrackSnipeConfigLoadingStats(statistics));
+		}
+
+		public void TrackConnectionStarted(TransportInfo transportInfo)
+		{
+			if (!ConnectionEventsEnabled)
+				return;
+
+			var properties = new Dictionary<string, object>(2);
+			FillTransportInfo(properties, transportInfo);
+
+			TrackEvent(SnipeAnalyticsEvents.EVENT_COMMUNICATOR_START_CONNECTION, properties);
+		}
+
+		public void TrackConnectionSucceeded(bool udpConnected, TransportInfo transportInfo)
+		{
+			Dictionary<string, object> data;
+
+			if (udpConnected)
+			{
+				data = new Dictionary<string, object>()
+				{
+					["connection_type"] = "udp",
+					["connection_time"] = UdpConnectionTime.TotalMilliseconds,
+					["connection_url"] = ConnectionUrl,
+				};
+			}
+			else
+			{
+				data = new Dictionary<string, object>()
+				{
+					["connection_type"] = "websocket",
+					["connection_time"] = ConnectionEstablishmentTime.TotalMilliseconds,
+					["connection_url"] = ConnectionUrl,
+
+					// ["ws tcp client connection"] = WebSocketTcpClientConnectionTime.TotalMilliseconds,
+					// ["ws ssl auth"] = WebSocketSslAuthenticateTime.TotalMilliseconds,
+					// ["ws upgrade request"] = WebSocketHandshakeTime.TotalMilliseconds,
+					// ["ws misc"] = ConnectionEstablishmentTime.TotalMilliseconds <= 0 ? 0 :
+					// 	ConnectionEstablishmentTime.TotalMilliseconds -
+					// 	WebSocketTcpClientConnectionTime.TotalMilliseconds -
+					// 	WebSocketSslAuthenticateTime.TotalMilliseconds -
+					// 	WebSocketHandshakeTime.TotalMilliseconds,
+				};
+			}
+
+			FillTransportInfo(data, transportInfo);
+
+			TrackEvent(SnipeAnalyticsEvents.EVENT_COMMUNICATOR_CONNECTED, data);
+		}
+
+		public void TrackConnectionFailed(string connectionId, TransportInfo transportInfo)
+		{
+			if (!ConnectionEventsEnabled)
+				return;
+
+			var properties = new Dictionary<string, object>()
+			{
+				//["communicator"] = this.name,
+				["connection_id"] = connectionId,
+				//["disconnect_reason"] = Client?.DisconnectReason,
+				//["check_connection_message"] = Client?.CheckConnectionMessageType,
+				["connection_url"] = ConnectionUrl,
+				// ["ws tcp client connection"] = WebSocketTcpClientConnectionTime.TotalMilliseconds,
+				// ["ws ssl auth"] = WebSocketSslAuthenticateTime.TotalMilliseconds,
+				// ["ws upgrade request"] = WebSocketHandshakeTime.TotalMilliseconds,
+				// ["ws disconnect reason"] = WebSocketDisconnectReason,
+			};
+			FillTransportInfo(properties, transportInfo);
+
+			TrackEvent(SnipeAnalyticsEvents.EVENT_COMMUNICATOR_DISCONNECTED, properties);
+		}
+
+		public void TrackUdpConnectionFailed(TransportInfo transportInfo)
+		{
+			if (!ConnectionEventsEnabled)
+				return;
+
+			var properties = new Dictionary<string, object>()
+			{
+				["connection_type"] = "udp",
+				["connection_time"] = UdpConnectionTime.TotalMilliseconds,
+				["connection_url"] = ConnectionUrl,
+			};
+			FillTransportInfo(properties, transportInfo);
+
+			TrackEvent(SnipeAnalyticsEvents.EVENT_COMMUNICATOR_DISCONNECTED + " UDP", properties);
+		}
+
+		private static void FillTransportInfo(IDictionary<string, object> properties, TransportInfo transportInfo)
+		{
+			properties["transport_protocol"] = transportInfo.Protocol.ToString();
+			properties["transport_implementation"] = transportInfo.ClientImplementation;
 		}
 
 		private void RunOnMainThread(Action action)

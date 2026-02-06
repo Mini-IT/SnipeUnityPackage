@@ -15,7 +15,7 @@ namespace MiniIT.Snipe
 		}
 
 		private readonly SnipeConfig _config;
-		private readonly ISnipeAnalyticsTracker _analytics;
+		private readonly IAnalyticsContext _analytics;
 		private readonly TransportFactory _transportFactory;
 		private readonly List<TransportEntry> _transportEntries = new List<TransportEntry>(3);
 		private int _currentTransportIndex;
@@ -36,7 +36,7 @@ namespace MiniIT.Snipe
 		public event Action UdpConnectionFailed;
 		public event Action<IDictionary<string, object>> MessageReceived;
 
-		internal TransportService(SnipeConfig config, ISnipeAnalyticsTracker analytics, ISnipeServices services)
+		internal TransportService(SnipeConfig config, IAnalyticsContext analytics, ISnipeServices services)
 		{
 			if (services == null)
 			{

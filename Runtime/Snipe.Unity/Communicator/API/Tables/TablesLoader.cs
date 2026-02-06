@@ -27,7 +27,7 @@ namespace MiniIT.Snipe
 		private HashSet<TablesLoaderItem> _loadingItems;
 		private readonly TablesVersionsLoader _versionsLoader;
 		private readonly BuiltInTablesListService _builtInTablesListService;
-		private readonly ISnipeAnalyticsTracker _analyticsTracker;
+		private readonly IAnalyticsContext _analytics;
 		private readonly IInternetReachabilityProvider _internetReachabilityProvider;
 		private readonly ILogger _logger;
 		private readonly ISnipeServices _services;
@@ -39,10 +39,10 @@ namespace MiniIT.Snipe
 		{
 			_services = services ?? throw new ArgumentNullException(nameof(services));
 			StreamingAssetsReader.Initialize();
-			_analyticsTracker = _services.Analytics.GetTracker();
+			_analytics = (_services.Analytics as IAnalyticsTrackerProvider)?.GetTracker();
 			_internetReachabilityProvider = _services.InternetReachabilityProvider;
 			_builtInTablesListService = new BuiltInTablesListService(_services.LogService.GetLogger(nameof(BuiltInTablesListService)));
-			_versionsLoader = new TablesVersionsLoader(_builtInTablesListService, _analyticsTracker, _services.LogService.GetLogger(nameof(TablesVersionsLoader)));
+			_versionsLoader = new TablesVersionsLoader(_builtInTablesListService, _analytics, _services.LogService.GetLogger(nameof(TablesVersionsLoader)));
 			_logger = _services.LogService.GetLogger(nameof(TablesLoader));
 		}
 
@@ -59,7 +59,7 @@ namespace MiniIT.Snipe
 		public void Reset()
 		{
 			_logger.LogTrace("Reset");
-			_analyticsTracker.TrackEvent("TablesLoader - Reset");
+			_analytics.TrackEvent("TablesLoader - Reset");
 
 			StopLoading();
 
@@ -126,7 +126,7 @@ namespace MiniIT.Snipe
 					loaded = await LoadAll(null);
 				}
 
-				_analyticsTracker.TrackEvent($"TablesLoader - " + (loaded ? "Loaded" : "Failed"));
+				_analytics.TrackEvent($"TablesLoader - " + (loaded ? "Loaded" : "Failed"));
 				_loadingTaskCompletion.TrySetResult(loaded);
 				return loaded;
 			}
@@ -229,7 +229,7 @@ namespace MiniIT.Snipe
 
 				if (!cancelled)
 				{
-					_analyticsTracker.TrackError($"Tables - Failed to load table '{loaderItem.Name}'", exception);
+					_analytics.TrackError($"Tables - Failed to load table '{loaderItem.Name}'", exception);
 				}
 
 				StopLoading();

@@ -123,7 +123,7 @@ namespace MiniIT.Snipe
 
 			_statisticsSent = true;
 
-			if (_services.Analytics.GetTracker() is ISnipeConfigLoadingAnalyticsTracker tracker)
+			if ((_services.Analytics as IAnalyticsTrackerProvider)?.GetTracker() is ISnipeConfigLoadingAnalyticsTracker tracker)
 			{
 				tracker.TrackSnipeConfigLoadingStats(Statistics);
 			}

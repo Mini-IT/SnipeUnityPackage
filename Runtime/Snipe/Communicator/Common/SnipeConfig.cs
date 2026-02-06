@@ -131,7 +131,7 @@ namespace MiniIT.Snipe
 			AppInfo = JsonUtility.ToJson(appInfo);
 
 			DebugId = GenerateDebugId();
-			_analytics.GetTracker(ContextId).SetDebugId(DebugId);
+			(_analytics as IAnalyticsTrackerProvider)?.GetTracker(ContextId).SetDebugId(DebugId);
 
 		}
 

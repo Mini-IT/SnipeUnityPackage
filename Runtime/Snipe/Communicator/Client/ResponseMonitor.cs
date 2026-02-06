@@ -22,9 +22,9 @@ namespace MiniIT.Snipe
 		private CancellationTokenSource _cancellation;
 
 		private readonly IDictionary<int, ResponseMonitoringItem> _items;
-		private readonly ISnipeAnalyticsTracker _analytics;
+		private readonly IAnalyticsContext _analytics;
 
-		public ResponseMonitor(ISnipeAnalyticsTracker analytics, ISnipeServices services)
+		public ResponseMonitor(IAnalyticsContext analytics, ISnipeServices services)
 		{
 			if (services == null)
 			{

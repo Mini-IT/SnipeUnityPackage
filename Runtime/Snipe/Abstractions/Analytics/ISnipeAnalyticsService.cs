@@ -2,8 +2,7 @@ namespace MiniIT.Snipe
 {
 	public interface ISnipeAnalyticsService
 	{
-		bool IsEnabled { get; set; }
-		ISnipeAnalyticsTracker GetTracker(int contextId = 0);
+		bool Enabled { get; set; }
 		void SetTracker(ISnipeCommunicatorAnalyticsTracker externalTracker);
 	}
 }
