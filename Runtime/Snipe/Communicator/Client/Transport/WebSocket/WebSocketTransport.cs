@@ -62,8 +62,7 @@ namespace MiniIT.Snipe
 		private CancellationTokenSource _checkConnectionCancellation;
 		private CancellationTokenSource _loginTimeoutCancellation;
 
-		internal WebSocketTransport(SnipeOptions options, IAnalyticsContext analytics, ISnipeServices services)
-			: base(options, analytics, services)
+		internal WebSocketTransport(TransportOptions options) : base(options)
 		{
 		}
 
@@ -72,13 +71,13 @@ namespace MiniIT.Snipe
 			if (string.IsNullOrEmpty(url))
 			{
 				_logger.LogWarning("WebSocket Connect - URL is empty");
-				ConnectionClosedHandler?.Invoke(this);
+				_connectionClosedHandler?.Invoke(this);
 				return;
 			}
 
 			_logger.LogTrace("WebSocket Connect to " + url);
 
-			_webSocket = new WebSocketFactory(_options, _services).CreateWebSocket();
+			_webSocket = new WebSocketFactory(_snipeOptions, _services).CreateWebSocket();
 
 			Info = new TransportInfo()
 			{
@@ -152,7 +151,7 @@ namespace MiniIT.Snipe
 
 			_logger.LogTrace("OnWebSocketConnected");
 
-			ConnectionOpenedHandler?.Invoke(this);
+			_connectionOpenedHandler?.Invoke(this);
 		}
 
 		private void OnWebSocketClosed()
@@ -167,7 +166,7 @@ namespace MiniIT.Snipe
 			_loggedIn = false;
 
 			Disconnect();
-			ConnectionClosedHandler?.Invoke(this);
+			_connectionClosedHandler?.Invoke(this);
 		}
 
 		public override void SendMessage(IDictionary<string, object> message)
@@ -268,7 +267,7 @@ namespace MiniIT.Snipe
 
 			var msgData = _messageSerializer.Serialize(message);
 
-			if (_options.CompressionEnabled && msgData.Length >= _options.MinMessageBytesToCompress) // compression needed
+			if (_snipeOptions.CompressionEnabled && msgData.Length >= _snipeOptions.MinMessageBytesToCompress) // compression needed
 			{
 				_logger.LogTrace("compress message");
 				//_logger.LogTrace("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
@@ -325,7 +324,7 @@ namespace MiniIT.Snipe
 				}
 			}
 
-			MessageReceivedHandler?.Invoke(message);
+			_messageReceivedHandler?.Invoke(message);
 
 			if (_heartbeatEnabled)
 			{

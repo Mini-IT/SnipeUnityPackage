@@ -25,40 +25,47 @@ namespace MiniIT.Snipe
 		internal KcpTransport CreateKcpTransport(Action<Transport> onConnectionOpened, Action<Transport> onConnectionClosed,
 			Action<IDictionary<string, object>> onMessageReceived)
 		{
-			var transport = new KcpTransport(_options, _analytics, _services);
-
-			transport.ConnectionOpenedHandler = (t) =>
+			return new KcpTransport(new TransportOptions()
 			{
-				_analytics.UdpConnectionTime = StopwatchUtil.GetElapsedTime(Stopwatch.GetTimestamp());
-				onConnectionOpened(t);
-			};
-
-			transport.ConnectionClosedHandler = onConnectionClosed;
-			transport.MessageReceivedHandler = onMessageReceived;
-
-			return transport;
+				SnipeOptions = _options,
+				AnalyticsContext = _analytics,
+				SnipeServices = _services,
+				ConnectionOpenedHandler = (t) =>
+				{
+					_analytics.UdpConnectionTime = StopwatchUtil.GetElapsedTime(Stopwatch.GetTimestamp());
+					onConnectionOpened(t);
+				},
+				ConnectionClosedHandler = onConnectionClosed,
+				MessageReceivedHandler = onMessageReceived
+			});
 		}
 
 		internal WebSocketTransport CreateWebSocketTransport(Action<Transport> onConnectionOpened, Action<Transport> onConnectionClosed,
 			Action<IDictionary<string, object>> onMessageReceived)
 		{
-			return new WebSocketTransport(_options, _analytics, _services)
+			return new WebSocketTransport(new TransportOptions()
 			{
+				SnipeOptions = _options,
+				AnalyticsContext = _analytics,
+				SnipeServices = _services,
 				ConnectionOpenedHandler = onConnectionOpened,
 				ConnectionClosedHandler = onConnectionClosed,
 				MessageReceivedHandler = onMessageReceived
-			};
+			});
 		}
 
 		internal HttpTransport CreateHttpTransport(Action<Transport> onConnectionOpened, Action<Transport> onConnectionClosed,
 			Action<IDictionary<string, object>> onMessageReceived)
 		{
-			return new HttpTransport(_options, _analytics, _services)
+			return new HttpTransport(new TransportOptions()
 			{
+				SnipeOptions = _options,
+				AnalyticsContext = _analytics,
+				SnipeServices = _services,
 				ConnectionOpenedHandler = onConnectionOpened,
 				ConnectionClosedHandler = onConnectionClosed,
 				MessageReceivedHandler = onMessageReceived
-			};
+			});
 		}
 	}
 }

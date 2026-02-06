@@ -63,8 +63,7 @@ namespace MiniIT.Snipe
 
 		private readonly AlterSemaphore _sendSemaphore = new AlterSemaphore(1, 1);
 
-		internal HttpTransport(SnipeOptions options, IAnalyticsContext analytics, ISnipeServices services)
-			: base(options, analytics, services)
+		internal HttpTransport(TransportOptions options) : base(options)
 		{
 			_services.MainThreadRunner.RunInMainThread(() =>
 			{
@@ -92,7 +91,7 @@ namespace MiniIT.Snipe
 				{
 					_started = false;
 					_logger.LogWarning("Http Connect - URL is empty");
-					ConnectionClosedHandler?.Invoke(this);
+					_connectionClosedHandler?.Invoke(this);
 					return;
 				}
 
@@ -139,7 +138,7 @@ namespace MiniIT.Snipe
 
 			_client?.Reset();
 
-			ConnectionClosedHandler?.Invoke(this);
+			_connectionClosedHandler?.Invoke(this);
 
 			// It's important to keep the value during ConnectionClosedHandler invocation
 			_connectionEstablished = false;
@@ -265,7 +264,7 @@ namespace MiniIT.Snipe
 				ExtractAuthToken(message);
 			}
 
-			MessageReceivedHandler?.Invoke(message);
+			_messageReceivedHandler?.Invoke(message);
 		}
 
 		private void ExtractAuthToken(IDictionary<string, object> message)
@@ -398,7 +397,7 @@ namespace MiniIT.Snipe
 
 		private TimeSpan GetCurrentHeartbeatInterval()
 		{
-			return IntensiveHeartbeat ? _heartbeatIntensiveInterval : _options.HttpHeartbeatInterval;
+			return IntensiveHeartbeat ? _heartbeatIntensiveInterval : _snipeOptions.HttpHeartbeatInterval;
 		}
 
 		private void StartHeartbeat()
@@ -544,7 +543,7 @@ namespace MiniIT.Snipe
 
 			_logger.LogTrace("OnClientConnected");
 
-			ConnectionOpenedHandler?.Invoke(this);
+			_connectionOpenedHandler?.Invoke(this);
 
 			UpdateHeartbeat();
 		}

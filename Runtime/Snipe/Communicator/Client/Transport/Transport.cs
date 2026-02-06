@@ -6,36 +6,50 @@ using MiniIT.Threading;
 
 namespace MiniIT.Snipe
 {
-	public abstract class Transport : IDisposable
+	public struct TransportOptions
 	{
+		public SnipeOptions SnipeOptions;
+		public IAnalyticsContext AnalyticsContext;
+		public ISnipeServices SnipeServices;
 		public Action<Transport> ConnectionOpenedHandler;
 		public Action<Transport> ConnectionClosedHandler;
 		public Action<IDictionary<string, object>> MessageReceivedHandler;
+	}
 
+	public abstract class Transport : IDisposable
+	{
 		public virtual bool Started { get; } = false;
 		public virtual bool Connected { get; } = false;
 		public virtual bool ConnectionEstablished { get; } = false;
 
 		public TransportInfo Info { get; protected set; }
 
-		protected readonly SnipeOptions _options;
+		protected readonly SnipeOptions _snipeOptions;
 		protected readonly IAnalyticsContext _analytics;
 		protected readonly ILogger _logger;
 		protected readonly ISnipeServices _services;
 
+		protected Action<Transport> _connectionOpenedHandler;
+		protected Action<Transport> _connectionClosedHandler;
+		protected Action<IDictionary<string, object>> _messageReceivedHandler;
+
 		protected bool _disposed = false;
 
-		internal Transport(SnipeOptions options, IAnalyticsContext analytics, ISnipeServices services)
+		internal Transport(TransportOptions options)
 		{
-			if (services == null)
+			if (options.SnipeServices == null)
 			{
-				throw new ArgumentNullException(nameof(services));
+				throw new ArgumentNullException(nameof(options.SnipeServices));
 			}
 
-			_options = options;
-			_analytics = analytics;
-			_services = services;
-			_logger = services.LogService.GetLogger(GetType().Name);
+			_snipeOptions = options.SnipeOptions;
+			_analytics = options.AnalyticsContext;
+			_services = options.SnipeServices;
+			_logger = _services.LogService.GetLogger(GetType().Name);
+
+			_connectionOpenedHandler = options.ConnectionOpenedHandler;
+			_connectionClosedHandler = options.ConnectionClosedHandler;
+			_messageReceivedHandler = options.MessageReceivedHandler;
 		}
 
 		public abstract void Connect(string endpoint, ushort port = 0);
@@ -60,9 +74,9 @@ namespace MiniIT.Snipe
 
 			// Remove connection events handlers before calling Disconnect()
 			// to prevent attempts to start next transport on disconnection
-			ConnectionOpenedHandler = null;
-			ConnectionClosedHandler = null;
-			MessageReceivedHandler = null;
+			_connectionOpenedHandler = null;
+			_connectionClosedHandler = null;
+			_messageReceivedHandler = null;
 
 			Disconnect();
 
