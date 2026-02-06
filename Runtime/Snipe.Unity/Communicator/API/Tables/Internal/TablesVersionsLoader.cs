@@ -20,12 +20,14 @@ namespace MiniIT.Snipe.Tables
 		}
 
 		private readonly BuiltInTablesListService _builtInTablesListService;
+		private readonly TablesOptions _tablesOptions;
 		private readonly IAnalyticsContext _analytics;
 		private readonly ILogger _logger;
 
-		public TablesVersionsLoader(BuiltInTablesListService builtInTablesListService, IAnalyticsContext analytics, ILogger logger)
+		public TablesVersionsLoader(BuiltInTablesListService builtInTablesListService, TablesOptions tablesOptions, IAnalyticsContext analytics, ILogger logger)
 		{
 			_builtInTablesListService = builtInTablesListService;
+			_tablesOptions = tablesOptions ?? throw new ArgumentNullException(nameof(tablesOptions));
 			_analytics = analytics;
 			_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 		}
@@ -174,9 +176,9 @@ namespace MiniIT.Snipe.Tables
 			return versions;
 		}
 
-		private static string GetVersionsUrl()
+		private string GetVersionsUrl()
 		{
-			return TablesOptions.GetTablesPath(true) + "version.json";
+			return _tablesOptions.GetTablesPath(true) + "version.json";
 		}
 
 		private Dictionary<string, long> ParseVersionsJson(string json)

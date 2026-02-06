@@ -27,6 +27,7 @@ namespace MiniIT.Snipe
 		private HashSet<TablesLoaderItem> _loadingItems;
 		private readonly TablesVersionsLoader _versionsLoader;
 		private readonly BuiltInTablesListService _builtInTablesListService;
+		private readonly TablesOptions _tablesOptions;
 		private readonly IAnalyticsContext _analytics;
 		private readonly IInternetReachabilityProvider _internetReachabilityProvider;
 		private readonly ILogger _logger;
@@ -35,14 +36,15 @@ namespace MiniIT.Snipe
 		private UniTaskCompletionSource<bool> _loadingTaskCompletion;
 		private readonly object _loadingTaskCompletionLock = new();
 
-		public TablesLoader(ISnipeServices services)
+		public TablesLoader(ISnipeServices services, TablesOptions tablesOptions)
 		{
 			_services = services ?? throw new ArgumentNullException(nameof(services));
+			_tablesOptions = tablesOptions ?? throw new ArgumentNullException(nameof(tablesOptions));
 			StreamingAssetsReader.Initialize();
 			_analytics = (_services.Analytics as IAnalyticsTrackerProvider)?.GetTracker();
 			_internetReachabilityProvider = _services.InternetReachabilityProvider;
 			_builtInTablesListService = new BuiltInTablesListService(_services.LogService.GetLogger(nameof(BuiltInTablesListService)));
-			_versionsLoader = new TablesVersionsLoader(_builtInTablesListService, _analytics, _services.LogService.GetLogger(nameof(TablesVersionsLoader)));
+			_versionsLoader = new TablesVersionsLoader(_builtInTablesListService, _tablesOptions, _analytics, _services.LogService.GetLogger(nameof(TablesVersionsLoader)));
 			_logger = _services.LogService.GetLogger(nameof(TablesLoader));
 		}
 
@@ -98,8 +100,8 @@ namespace MiniIT.Snipe
 			{
 				await _builtInTablesListService.InitializeAsync(cancellationToken);
 
-				bool fallbackEnabled = TablesOptions.Versioning != TablesOptions.VersionsResolution.ForceExternal;
-				bool loadExternal = TablesOptions.Versioning != TablesOptions.VersionsResolution.ForceBuiltIn
+				bool fallbackEnabled = _tablesOptions.Versioning != TablesOptions.VersionsResolution.ForceExternal;
+				bool loadExternal = _tablesOptions.Versioning != TablesOptions.VersionsResolution.ForceBuiltIn
 				                    && _internetReachabilityProvider.IsInternetAvailable;
 
 				if (fallbackEnabled)
@@ -279,7 +281,7 @@ namespace MiniIT.Snipe
 			{
 				return await LoadTableAsync(loaderItem.Table,
 					SnipeTable.LoadingLocation.Network,
-					new SnipeTableWebLoader(_services.LogService.GetLogger("SnipeTable"), _services).LoadAsync(
+					new SnipeTableWebLoader(_services.LogService.GetLogger("SnipeTable"), _services, _tablesOptions).LoadAsync(
 						httpClient,
 						loaderItem.WrapperType,
 						loaderItem.Table.GetItems(),

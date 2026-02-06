@@ -16,11 +16,13 @@ namespace MiniIT.Snipe.Tables
 
 		private readonly ILogger _logger;
 		private readonly ISnipeServices _services;
+		private readonly TablesOptions _tablesOptions;
 
-		public SnipeTableWebLoader(ILogger logger, ISnipeServices services)
+		public SnipeTableWebLoader(ILogger logger, ISnipeServices services, TablesOptions tablesOptions)
 		{
 			_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 			_services = services ?? throw new ArgumentNullException(nameof(services));
+			_tablesOptions = tablesOptions ?? throw new ArgumentNullException(nameof(tablesOptions));
 		}
 
 		public async UniTask<bool> LoadAsync(IHttpClient httpClient, Type wrapperType, IDictionary items, string tableName, long version, CancellationToken cancellation)
@@ -124,9 +126,9 @@ namespace MiniIT.Snipe.Tables
 			return null;
 		}
 
-		private static string GetTableUrl(string tableName, long version)
+		private string GetTableUrl(string tableName, long version)
 		{
-			return $"{TablesOptions.GetTablesPath()}{version}_{tableName}.json.gz";
+			return $"{_tablesOptions.GetTablesPath()}{version}_{tableName}.json.gz";
 		}
 	}
 }

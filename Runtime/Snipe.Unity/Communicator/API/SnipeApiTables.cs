@@ -15,15 +15,19 @@ namespace MiniIT.Snipe.Api
 		private readonly object _lock = new object();
 		private bool _loading = false;
 
-		public SnipeApiTables(ISnipeServices services)
+		public SnipeApiTables(ISnipeServices services, TablesOptions tablesOptions)
 		{
 			if (services == null)
 			{
 				throw new ArgumentNullException(nameof(services));
 			}
+			if (tablesOptions == null)
+			{
+				throw new ArgumentNullException(nameof(tablesOptions));
+			}
 
 			_tables = new HashSet<SnipeTable>();
-			_loader = new TablesLoader(services);
+			_loader = new TablesLoader(services, tablesOptions);
 		}
 
 		public SnipeTable<ItemType> RegisterTable<ItemType>(SnipeTable<ItemType> table, string name)

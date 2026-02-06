@@ -1,10 +1,10 @@
-﻿
+
 using System.Collections;
 using System.Collections.Generic;
 
 namespace MiniIT.Snipe
 {
-	public static class TablesOptions
+	public class TablesOptions
 	{
 		public enum VersionsResolution
 		{
@@ -13,20 +13,20 @@ namespace MiniIT.Snipe
 			ForceExternal,
 		}
 
-		public static VersionsResolution Versioning = VersionsResolution.Default;
+		public VersionsResolution Versioning = VersionsResolution.Default;
 
-		public static IReadOnlyList<string> TablesUrls => _tablesUrls;
+		public IReadOnlyList<string> TablesUrls => _tablesUrls;
 
-		private static List<string> _tablesUrls = new List<string>();
-		private static int _tablesUrlIndex = -1;
+		private readonly List<string> _tablesUrls = new List<string>();
+		private int _tablesUrlIndex = -1;
 
-		public static void ResetTablesUrls()
+		public void ResetTablesUrls()
 		{
 			_tablesUrls.Clear();
 			_tablesUrlIndex = -1;
 		}
 
-		public static void AddTableUrl(string url)
+		public void AddTableUrl(string url)
 		{
 			url = url.Trim();
 			if (string.IsNullOrEmpty(url))
@@ -42,7 +42,7 @@ namespace MiniIT.Snipe
 			_tablesUrls.Add(url);
 		}
 
-		public static void Init(IDictionary<string, object> data)
+		public void Init(IDictionary<string, object> data)
 		{
 			ResetTablesUrls();
 
@@ -69,7 +69,7 @@ namespace MiniIT.Snipe
 			_tablesUrlIndex = -1;
 		}
 
-		public static string GetTablesPath(bool next = false)
+		public string GetTablesPath(bool next = false)
 		{
 			_tablesUrlIndex = SnipeOptions.GetValidIndex(_tablesUrls, _tablesUrlIndex, next);
 			if (_tablesUrlIndex >= 0)

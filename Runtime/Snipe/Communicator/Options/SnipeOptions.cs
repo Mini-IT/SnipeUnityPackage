@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
@@ -80,15 +80,6 @@ namespace MiniIT.Snipe
 				$"{_data.ProjectInfo.ProjectID}_dev" :
 				$"{_data.ProjectInfo.ProjectID}_live";
 
-			if (Project.Mode == SnipeProjectMode.Dev)
-			{
-				InitializeDefaultTablesConfigDev();
-			}
-			else
-			{
-				InitializeDefaultTablesConfigLive();
-			}
-
 			InitializeUrlIndices();
 			InitializeAppInfo();
 		}
@@ -97,21 +88,6 @@ namespace MiniIT.Snipe
 		{
 			_serverWebSocketUrlIndex = _sharedPrefs.GetInt(SnipePrefs.GetWebSocketUrlIndex(ContextId), 0);
 			_serverUdpUrlIndex = _sharedPrefs.GetInt(SnipePrefs.GetUdpUrlIndex(ContextId), 0);
-		}
-
-		private void InitializeDefaultTablesConfigDev()
-		{
-			TablesOptions.ResetTablesUrls();
-			TablesOptions.AddTableUrl($"https://static-dev.snipe.dev/{ProjectName}/");
-			TablesOptions.AddTableUrl($"https://static-dev-noproxy.snipe.dev/{ProjectName}/");
-		}
-
-		private void InitializeDefaultTablesConfigLive()
-		{
-			TablesOptions.ResetTablesUrls();
-			TablesOptions.AddTableUrl($"https://static.snipe.dev/{ProjectName}/");
-			TablesOptions.AddTableUrl($"https://static-noproxy.snipe.dev/{ProjectName}/");
-			TablesOptions.AddTableUrl($"https://snipe.tuner-life.com/{ProjectName}/");
 		}
 
 		private void InitializeAppInfo()
