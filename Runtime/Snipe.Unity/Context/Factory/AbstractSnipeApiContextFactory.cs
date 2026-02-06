@@ -25,18 +25,18 @@ namespace MiniIT.Snipe.Api
 		{
 			var services = _services ?? SnipeUnityDefaults.CreateDefaultServices();
 
-			var config = _optionsBuilder.Build(id, services);
+			var options = _optionsBuilder.Build(id, services);
 
 			var analytics = (services.Analytics as IAnalyticsTrackerProvider)?.GetTracker(id);
 			var communicator = new SnipeCommunicator(analytics, services);
 			var auth = new UnityAuthSubsystem(id, communicator, analytics, services);
 			var logReporter = new LogReporter();
 
-			communicator.Initialize(config);
-			auth.Initialize(config);
+			communicator.Initialize(options);
+			auth.Initialize(options);
 
 			var context = new SnipeApiContext(id, communicator, auth, logReporter, this, _tablesProvider);
-			context.Initialize(config);
+			context.Initialize(options);
 			return context;
 		}
 
