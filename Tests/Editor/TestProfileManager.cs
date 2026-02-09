@@ -5,6 +5,7 @@ using NUnit.Framework;
 using UnityEngine;
 using MiniIT.Snipe;
 using MiniIT.Snipe.Api;
+using MiniIT.Snipe.Configuration;
 using MiniIT.Snipe.Unity;
 
 namespace MiniIT.Snipe.Tests.Editor
@@ -1275,8 +1276,8 @@ namespace MiniIT.Snipe.Tests.Editor
 
 	internal class MockAuthSubsystem : AuthSubsystem
 	{
-		public MockAuthSubsystem(ISnipeCommunicator communicator, ISnipeServices services)
-			: base(0, communicator, null, services)
+		public MockAuthSubsystem(SnipeOptions options, ISnipeCommunicator communicator, ISnipeServices services)
+			: base(0, options, communicator, null, services)
 		{
 			// Initialize with contextId=0, communicator, and null analytics for testing
 		}
@@ -1303,6 +1304,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 		private static MockAuthSubsystem s_tempMockAuth;
 		private static ISnipeServices s_tempServices;
+		private static SnipeOptions s_tempOptions;
 
 		protected bool _nextRequestSuccess = false; // Default to false so dirty keys persist for testing
 		protected readonly ISnipeCommunicator _mockCommunicator;
@@ -1315,7 +1317,8 @@ namespace MiniIT.Snipe.Tests.Editor
 		private static ISnipeCommunicator CreateMockCommunicator()
 		{
 			s_tempServices = new NullSnipeServices();
-			return new SnipeCommunicator(null, s_tempServices);
+			s_tempOptions = new SnipeOptions(0, new SnipeOptionsData(), s_tempServices);
+			return new SnipeCommunicator(s_tempOptions, null, s_tempServices);
 		}
 
 		private MockSnipeApiService(ISnipeCommunicator communicator) : base(communicator, CreateMockAuth(communicator))
@@ -1327,7 +1330,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 		private static MockAuthSubsystem CreateMockAuth(ISnipeCommunicator communicator)
 		{
-			s_tempMockAuth ??= new MockAuthSubsystem(communicator, s_tempServices);
+			s_tempMockAuth ??= new MockAuthSubsystem(s_tempOptions, communicator, s_tempServices);
 			return s_tempMockAuth;
 		}
 

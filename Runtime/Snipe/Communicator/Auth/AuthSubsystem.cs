@@ -74,13 +74,14 @@ namespace MiniIT.Snipe
 		protected IEnumerable<AuthBinding> Bindings => _bindingManager.Bindings;
 		protected int BindingCount => _bindingManager.BindingCount;
 
-		protected AuthSubsystem(int contextId, ISnipeCommunicator communicator, IAnalyticsContext analytics, ISnipeServices services)
+		protected AuthSubsystem(int contextId, SnipeOptions options, ISnipeCommunicator communicator, IAnalyticsContext analytics, ISnipeServices services)
 		{
 			if (services == null)
 			{
 				throw new ArgumentNullException(nameof(services));
 			}
 
+			_options = options;
 			_communicator = communicator;
 			_communicator.ConnectionEstablished += OnConnectionEstablished;
 
@@ -90,12 +91,13 @@ namespace MiniIT.Snipe
 			_mainThreadRunner = services.MainThreadRunner;
 			_logger = services.LogService.GetLogger(nameof(AuthSubsystem));
 			_credentialStore = new AuthCredentialStore(_contextId, services.SharedPrefs, _analytics);
-			_bindingManager = new AuthBindingManager(_contextId, _communicator, this, services.SharedPrefs, _logger, () => _options.ClientKey);
+			_bindingManager = new AuthBindingManager(_contextId, _communicator, this, _options, services.SharedPrefs, _logger);
 		}
 
-		public void Initialize(SnipeOptions options)
+		public void Reconfigure(SnipeOptions options)
 		{
 			_options = options;
+			_bindingManager.Reconfigure(options);
 		}
 
 		public void Authorize()

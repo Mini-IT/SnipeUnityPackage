@@ -28,17 +28,18 @@ namespace MiniIT.Snipe
 		/// <summary>
 		/// Protected constructor. Use <see cref="SnipeManager"/> to get an instance
 		/// </summary>
-		protected SnipeContext(int id, ISnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter)
+		protected SnipeContext(int id, SnipeOptions options, ISnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter)
 		{
 			Id = id;
 			Communicator = communicator;
 			Auth = auth;
 			LogReporter = logReporter;
 
+			Reconfigure(options);
 			UnityTerminator.AddTarget(this);
 		}
 
-		internal void Initialize(SnipeOptions options)
+		internal void Reconfigure(SnipeOptions options)
 		{
 			ProjectName = options.ProjectName;
 			IsDev = options.Project.Mode == SnipeProjectMode.Dev;

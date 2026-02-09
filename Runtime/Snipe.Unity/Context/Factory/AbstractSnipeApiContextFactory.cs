@@ -30,15 +30,11 @@ namespace MiniIT.Snipe.Api
 			InitializeDefaultTablesConfig(options);
 
 			var analytics = (services.Analytics as IAnalyticsTrackerProvider)?.GetTracker(id);
-			var communicator = new SnipeCommunicator(analytics, services);
-			var auth = new UnityAuthSubsystem(id, communicator, analytics, services);
+			var communicator = new SnipeCommunicator(options, analytics, services);
+			var auth = new UnityAuthSubsystem(id, options, communicator, analytics, services);
 			var logReporter = new LogReporter();
 
-			communicator.Initialize(options);
-			auth.Initialize(options);
-
-			var context = new SnipeApiContext(id, communicator, auth, logReporter, this, _tablesProvider);
-			context.Initialize(options);
+			var context = new SnipeApiContext(id, options, communicator, auth, logReporter, this, _tablesProvider);
 			return context;
 		}
 
@@ -46,12 +42,12 @@ namespace MiniIT.Snipe.Api
 		{
 			int id = context.Id;
 			var services = _services ?? SnipeUnityDefaults.CreateDefaultServices();
-			var config = _optionsBuilder.Build(id, services);
-			InitializeDefaultTablesConfig(config);
+			var options = _optionsBuilder.Build(id, services);
+			InitializeDefaultTablesConfig(options);
 
-			context.Communicator.Initialize(config);
-			context.Auth.Initialize(config);
-			context.Initialize(config);
+			context.Communicator.Reconfigure(options);
+			context.Auth.Reconfigure(options);
+			context.Reconfigure(options);
 		}
 
 		private void InitializeDefaultTablesConfig(SnipeOptions options)

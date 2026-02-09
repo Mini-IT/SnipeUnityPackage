@@ -31,7 +31,7 @@ namespace MiniIT.Snipe
 		event MessageReceivedHandler MessageReceived;
 		event Action PreDestroy;
 
-		void Initialize(SnipeOptions options);
+		void Reconfigure(SnipeOptions options);
 		void Start();
 		void Disconnect();
 		void DisposeRoomRequests();

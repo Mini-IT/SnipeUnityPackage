@@ -12,23 +12,28 @@ namespace MiniIT.Snipe
 		private readonly AuthSubsystem _authSubsystem;
 		private readonly ISharedPrefs _sharedPrefs;
 		private readonly ILogger _logger;
-		private readonly Func<string> _clientKeyProvider;
+		private SnipeOptions _options;
 		private readonly HashSet<AuthBinding> _bindings = new ();
 
 		public AuthBindingManager(
 			int contextId,
 			ISnipeCommunicator communicator,
 			AuthSubsystem authSubsystem,
+			SnipeOptions options,
 			ISharedPrefs sharedPrefs,
-			ILogger logger,
-			Func<string> clientKeyProvider)
+			ILogger logger)
 		{
 			_contextId = contextId;
 			_communicator = communicator;
 			_authSubsystem = authSubsystem;
+			_options = options;
 			_sharedPrefs = sharedPrefs;
 			_logger = logger;
-			_clientKeyProvider = clientKeyProvider;
+		}
+
+		public void Reconfigure(SnipeOptions options)
+		{
+			_options = options;
 		}
 
 		public IEnumerable<AuthBinding> Bindings => _bindings;
@@ -37,7 +42,7 @@ namespace MiniIT.Snipe
 
 		public TBinding RegisterBinding<TBinding>(TBinding binding) where TBinding : AuthBinding
 		{
-			binding.Initialize(_contextId, _communicator, _authSubsystem, _clientKeyProvider);
+			binding.Initialize(_contextId, _communicator, _authSubsystem, () => _options.ClientKey);
 			_bindings.Add(binding);
 			return binding;
 		}

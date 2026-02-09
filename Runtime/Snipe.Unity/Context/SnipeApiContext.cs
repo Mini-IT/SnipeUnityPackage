@@ -14,9 +14,9 @@ namespace MiniIT.Snipe
 
 		private readonly AbstractSnipeApiService _api;
 
-		public SnipeApiContext(int id, ISnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter,
+		public SnipeApiContext(int id, SnipeOptions options, ISnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter,
 			ISnipeApiContextItemsFactory itemsFactory, ISnipeTablesProvider tablesProvider)
-			: base(id, communicator, auth, logReporter)
+			: base(id, options, communicator, auth, logReporter)
 		{
 			_api = itemsFactory.CreateSnipeApiService(communicator, auth);
 			var tables = tablesProvider.GetSnipeTables();

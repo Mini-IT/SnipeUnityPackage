@@ -59,13 +59,14 @@ namespace MiniIT.Snipe
 		private readonly RoomStateObserver _roomStateObserver;
 		private readonly ILogger _logger;
 
-		public SnipeCommunicator(IAnalyticsContext analytics, ISnipeServices services)
+		public SnipeCommunicator(SnipeOptions options, IAnalyticsContext analytics, ISnipeServices services)
 		{
 			if (services == null)
 			{
 				throw new ArgumentNullException(nameof(services));
 			}
 
+			_options = options;
 			_analytics = analytics;
 			_services = services;
 
@@ -80,7 +81,7 @@ namespace MiniIT.Snipe
 
 		public ISnipeServices Services => _services;
 
-		public void Initialize(SnipeOptions options)
+		public void Reconfigure(SnipeOptions options)
 		{
 			_options = options;
 		}
