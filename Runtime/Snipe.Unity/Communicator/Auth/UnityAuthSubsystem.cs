@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using MiniIT.Snipe;
 
@@ -20,11 +20,11 @@ namespace MiniIT.Snipe.Unity
 
 			var providers = new Dictionary<string, Dictionary<string, object>>();
 
-			if (_bindings.Count > 0)
+			if (BindingCount > 0)
 			{
 				var tasks = new List<UniTask>(3);
 
-				foreach (AuthBinding binding in _bindings)
+				foreach (AuthBinding binding in Bindings)
 				{
 					if (binding?.Fetcher == null)
 					{
