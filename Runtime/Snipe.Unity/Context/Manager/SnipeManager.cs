@@ -18,9 +18,20 @@ namespace MiniIT.Snipe
 
 		private readonly ISnipeServices _services;
 
+		// Tests can utilize this constructor with `NullSnipeServices`
 		public SnipeManager(ISnipeServices services)
 		{
 			_services = services ?? throw new ArgumentNullException(nameof(services));
+		}
+
+		public SnipeManager(ISnipeServiceLocatorFactory servicesFactory)
+		{
+			if (servicesFactory == null)
+			{
+				throw new ArgumentNullException(nameof(servicesFactory));
+			}
+
+			_services = new SnipeServiceLocator(servicesFactory);
 		}
 
 		public void Initialize(ISnipeContextAndTablesFactory factory)
