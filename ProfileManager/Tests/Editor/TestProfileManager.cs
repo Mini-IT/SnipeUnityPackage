@@ -1482,4 +1482,3 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 	}
 }
-

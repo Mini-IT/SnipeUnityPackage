@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using MiniIT;
-using MiniIT.Snipe;
 using MiniIT.Storage;
 using UnityEngine;
 
@@ -42,15 +40,7 @@ namespace MiniIT.Snipe.Api
 		private string _serverVersionAttrKey;
 		private bool _initialSnapshotReceived;
 
-		public ProfileManager(SnipeApiContext snipeContext, ISharedPrefs sharedPrefs)
-			: this(snipeContext?.GetSnipeApiService(), snipeContext?.Communicator, snipeContext?.Auth, sharedPrefs)
-		{
-		}
-
-		/// <summary>
-		/// Internal constructor for tests and low-level integration scenarios.
-		/// </summary>
-		internal ProfileManager(IRequestFactory requestFactory, ISnipeCommunicator communicator, AuthSubsystem auth, ISharedPrefs sharedPrefs)
+		public ProfileManager(IRequestFactory requestFactory, ISnipeCommunicator communicator, AuthSubsystem auth, ISharedPrefs sharedPrefs)
 		{
 			_requestFactory = requestFactory;
 			_communicator = communicator;
