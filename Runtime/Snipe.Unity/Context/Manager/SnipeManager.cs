@@ -8,6 +8,7 @@ namespace MiniIT.Snipe
 	{
 		public bool Initialized => _contextFactory != null && _tablesFactory != null;
 		public ISnipeServices Services => _services;
+		public TablesOptions TablesOptions => _tablesFactory.TablesOptions;
 
 		private readonly Dictionary<int, SnipeContext> _contexts = new ();
 		private readonly Dictionary<int, SnipeContextReference> _references = new ();
@@ -32,11 +33,6 @@ namespace MiniIT.Snipe
 			}
 
 			_services = new SnipeServiceLocator(servicesFactory);
-		}
-
-		public void Initialize(ISnipeContextAndTablesFactory factory)
-		{
-			Initialize(factory, factory);
 		}
 
 		public void Initialize(ISnipeContextFactory contextFactory, ISnipeApiTablesFactory tablesFactory)

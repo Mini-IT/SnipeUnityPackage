@@ -4,8 +4,8 @@ namespace MiniIT.Snipe
 	{
 		bool Initialized { get; }
 		ISnipeServices Services { get; }
-		
-		void Initialize(ISnipeContextAndTablesFactory factory);
+		TablesOptions TablesOptions { get; }
+
 		void Initialize(ISnipeContextFactory contextFactory, ISnipeApiTablesFactory tablesFactory);
 	}
 }
