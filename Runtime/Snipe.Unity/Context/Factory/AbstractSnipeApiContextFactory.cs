@@ -9,7 +9,7 @@ namespace MiniIT.Snipe.Api
 	{
 		private readonly SnipeOptionsBuilder _optionsBuilder;
 		private readonly ISnipeTablesProvider _tablesProvider;
-		protected readonly ISnipeServices _services;
+		private readonly ISnipeServices _services;
 		public TablesOptions TablesOptions { get; } = new TablesOptions();
 
 		protected AbstractSnipeApiContextFactory(
@@ -25,7 +25,6 @@ namespace MiniIT.Snipe.Api
 		public SnipeContext CreateContext(int id)
 		{
 			var options = _optionsBuilder.Build(id, _services);
-			InitializeDefaultTablesConfig(options);
 
 			var analytics = (_services.Analytics as IAnalyticsTrackerProvider)?.GetTracker(id);
 			var communicator = new SnipeCommunicator(options, analytics, _services);
@@ -40,28 +39,10 @@ namespace MiniIT.Snipe.Api
 		{
 			int id = context.Id;
 			var options = _optionsBuilder.Build(id, _services);
-			InitializeDefaultTablesConfig(options);
 
 			context.Communicator.Reconfigure(options);
 			context.Auth.Reconfigure(options);
 			context.Reconfigure(options);
-		}
-
-		private void InitializeDefaultTablesConfig(SnipeOptions options)
-		{
-			TablesOptions.ResetTablesUrls();
-
-			if (options.Project.Mode == SnipeProjectMode.Dev)
-			{
-				TablesOptions.AddTableUrl($"https://static-dev.snipe.dev/{options.ProjectName}/");
-				TablesOptions.AddTableUrl($"https://static-dev-noproxy.snipe.dev/{options.ProjectName}/");
-			}
-			else
-			{
-				TablesOptions.AddTableUrl($"https://static.snipe.dev/{options.ProjectName}/");
-				TablesOptions.AddTableUrl($"https://static-noproxy.snipe.dev/{options.ProjectName}/");
-				TablesOptions.AddTableUrl($"https://snipe.tuner-life.com/{options.ProjectName}/");
-			}
 		}
 
 		public abstract TimeSpan GetServerTimeZoneOffset();
