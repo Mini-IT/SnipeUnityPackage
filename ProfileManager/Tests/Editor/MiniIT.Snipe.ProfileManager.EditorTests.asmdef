@@ -8,6 +8,7 @@
         "MiniIT.Snipe.Communicator.Unity",
         "MiniIT.Snipe.Core",
         "MiniIT.Snipe.ProfileManager",
+		"MiniIT.Snipe.Options",
         "MiniIT.Snipe.Services",
         "MiniIT.Snipe.Unity",
         "MiniIT.Storage.SharedPrefs",

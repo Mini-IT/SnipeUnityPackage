@@ -5,6 +5,7 @@
         "MiniIT.Snipe.Abstractions",
         "MiniIT.Snipe.Core",
         "MiniIT.Snipe.Communicator",
+		"MiniIT.Snipe.Options",
         "MiniIT.Snipe.Services",
         "MiniIT.Snipe.Logging",
 		"MiniIT.Snipe.Integrations.Facebook",

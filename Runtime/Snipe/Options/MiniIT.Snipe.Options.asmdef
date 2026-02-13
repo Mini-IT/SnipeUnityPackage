@@ -1,0 +1,22 @@
+{
+    "name": "MiniIT.Snipe.Options",
+    "rootNamespace": "MiniIT.Snipe",
+    "references": [
+		"fastJSON",
+		"MiniIT.Snipe.Core",
+		"MiniIT.Snipe.PackageInfo",
+		"MiniIT.Snipe.Abstractions",
+		"MiniIT.Snipe.Services",
+		"MiniIT.Storage.SharedPrefs",
+		"MiniIT.Framework.Utilities"
+	],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

@@ -50,5 +50,51 @@ namespace MiniIT.Snipe.Configuration
 		public IDictionary<string, object> LoginParameters;// = new Dictionary<string, object>();
 
 		public string LogReporterUrl;
+
+		public SnipeOptionsData Clone()
+		{
+			var copy = new SnipeOptionsData()
+			{
+				ProjectInfo = ProjectInfo,
+				WebSocketImplementation = WebSocketImplementation,
+				AutoJoinRoom = AutoJoinRoom,
+				ServerWebSocketUrls = new List<string>(ServerWebSocketUrls),
+				ServerUdpUrls = CloneUdpAddresses(ServerUdpUrls),
+				ServerHttpUrls = new List<string>(ServerHttpUrls),
+				HttpHeartbeatInterval = HttpHeartbeatInterval,
+				CompressionEnabled = CompressionEnabled,
+				MinMessageBytesToCompress = MinMessageBytesToCompress,
+				LoginParameters = LoginParameters != null ? new Dictionary<string, object>(LoginParameters) : null,
+				LogReporterUrl = LogReporterUrl,
+			};
+
+			return copy;
+		}
+
+		private static List<UdpAddress> CloneUdpAddresses(List<UdpAddress> source)
+		{
+			if (source == null || source.Count == 0)
+			{
+				return new List<UdpAddress>();
+			}
+
+			var result = new List<UdpAddress>(source.Count);
+			for (int i = 0; i < source.Count; i++)
+			{
+				UdpAddress item = source[i];
+				if (item == null)
+				{
+					continue;
+				}
+
+				result.Add(new UdpAddress()
+				{
+					Host = item.Host,
+					Port = item.Port,
+				});
+			}
+
+			return result;
+		}
 	}
 }

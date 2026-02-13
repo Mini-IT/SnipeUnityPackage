@@ -7,6 +7,7 @@
         "MiniIT.Snipe.Communicator",
         "MiniIT.Snipe.Communicator.Unity",
         "MiniIT.Snipe.Logging",
+		"MiniIT.Snipe.Options",
         "MiniIT.Snipe.Services",
         "MiniIT.Snipe.Unity",
         "MiniIT.Storage.SharedPrefs",

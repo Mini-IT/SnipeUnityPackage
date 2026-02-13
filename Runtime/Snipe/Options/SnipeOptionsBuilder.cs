@@ -10,6 +10,35 @@ namespace MiniIT.Snipe.Configuration
 	{
 		private readonly SnipeOptionsData _data = new();
 
+		public SnipeProjectInfo ProjectInfo => _data.ProjectInfo;
+
+		public SnipeProjectOptions BuildProjectOptions()
+		{
+			return new SnipeProjectOptions()
+			{
+				ProjectInfo = _data.ProjectInfo,
+			};
+		}
+
+		public SnipeContextOptions BuildContextOptions()
+		{
+			var contextOptions = new SnipeContextOptions()
+			{
+				WebSocketImplementation = _data.WebSocketImplementation,
+				AutoJoinRoom = _data.AutoJoinRoom,
+				ServerWebSocketUrls = new List<string>(_data.ServerWebSocketUrls),
+				ServerUdpUrls = CloneUdpAddresses(_data.ServerUdpUrls),
+				ServerHttpUrls = new List<string>(_data.ServerHttpUrls),
+				HttpHeartbeatInterval = _data.HttpHeartbeatInterval,
+				CompressionEnabled = _data.CompressionEnabled,
+				MinMessageBytesToCompress = _data.MinMessageBytesToCompress,
+				LoginParameters = _data.LoginParameters != null ? new Dictionary<string, object>(_data.LoginParameters) : null,
+				LogReporterUrl = _data.LogReporterUrl,
+			};
+
+			return contextOptions;
+		}
+
 		public SnipeOptionsBuilder SetProjectInfo(SnipeProjectInfo projectInfo)
 		{
 			_data.ProjectInfo = projectInfo;
@@ -78,7 +107,69 @@ namespace MiniIT.Snipe.Configuration
 
 		public SnipeOptions Build(int contextId, ISnipeServices services)
 		{
-			return new SnipeOptions(contextId, _data, services);
+			return new SnipeOptions(contextId, _data.Clone(), services);
+		}
+
+		public string BuildProjectName()
+		{
+			return (_data.ProjectInfo.Mode == SnipeProjectMode.Dev) ?
+				$"{_data.ProjectInfo.ProjectID}_dev" :
+				$"{_data.ProjectInfo.ProjectID}_live";
+		}
+
+		public void SetProjectOptions(SnipeProjectOptions options)
+		{
+			if (options == null)
+			{
+				return;
+			}
+
+			SetProjectInfo(options.ProjectInfo);
+		}
+
+		public void SetContextOptions(SnipeContextOptions options)
+		{
+			if (options == null)
+			{
+				return;
+			}
+
+			SetWebSocketImplementation(options.WebSocketImplementation);
+			SetAutoJoinRoom(options.AutoJoinRoom);
+			SetServerWebSocketUrls(options.ServerWebSocketUrls != null ? new List<string>(options.ServerWebSocketUrls) : null);
+			SetServerUdpUrls(options.ServerUdpUrls != null ? CloneUdpAddresses(options.ServerUdpUrls) : null);
+			SetServerHttpUrls(options.ServerHttpUrls != null ? new List<string>(options.ServerHttpUrls) : null);
+			SetHeartbeatInterval(options.HttpHeartbeatInterval);
+			SetCompressionEnabled(options.CompressionEnabled);
+			SetMinMessageBytesToCompress(options.MinMessageBytesToCompress);
+			SetLoginParameters(options.LoginParameters != null ? new Dictionary<string, object>(options.LoginParameters) : null);
+			SetLogReporterUrl(options.LogReporterUrl);
+		}
+
+		private static List<UdpAddress> CloneUdpAddresses(List<UdpAddress> source)
+		{
+			if (source == null || source.Count == 0)
+			{
+				return new List<UdpAddress>();
+			}
+
+			var result = new List<UdpAddress>(source.Count);
+			for (int i = 0; i < source.Count; i++)
+			{
+				UdpAddress item = source[i];
+				if (item == null)
+				{
+					continue;
+				}
+
+				result.Add(new UdpAddress()
+				{
+					Host = item.Host,
+					Port = item.Port,
+				});
+			}
+
+			return result;
 		}
 
 		//----------------------

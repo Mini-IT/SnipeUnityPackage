@@ -43,6 +43,7 @@ namespace MiniIT.Snipe
 		private int _serverWebSocketUrlIndex = 0;
 		private int _serverUdpUrlIndex = 0;
 		private int _serverHttpUrlIndex = 0;
+		private const string PREFS_PREFIX = "com.miniit.snipe.";
 		private readonly ISharedPrefs _sharedPrefs;
 		private readonly IMainThreadRunner _mainThreadRunner;
 		private readonly IApplicationInfo _applicationInfo;
@@ -86,8 +87,8 @@ namespace MiniIT.Snipe
 
 		private void InitializeUrlIndices()
 		{
-			_serverWebSocketUrlIndex = _sharedPrefs.GetInt(SnipePrefs.GetWebSocketUrlIndex(ContextId), 0);
-			_serverUdpUrlIndex = _sharedPrefs.GetInt(SnipePrefs.GetUdpUrlIndex(ContextId), 0);
+			_serverWebSocketUrlIndex = _sharedPrefs.GetInt(GetWebSocketUrlIndexKey(), 0);
+			_serverUdpUrlIndex = _sharedPrefs.GetInt(GetUdpUrlIndexKey(), 0);
 		}
 
 		private void InitializeAppInfo()
@@ -163,8 +164,7 @@ namespace MiniIT.Snipe
 
 			_mainThreadRunner.RunInMainThread(() =>
 			{
-				string key = SnipePrefs.GetWebSocketUrlIndex(ContextId);
-				_sharedPrefs.SetInt(key, _serverWebSocketUrlIndex);
+				_sharedPrefs.SetInt(GetWebSocketUrlIndexKey(), _serverWebSocketUrlIndex);
 			});
 
 			return _serverWebSocketUrlIndex > prev;
@@ -177,8 +177,7 @@ namespace MiniIT.Snipe
 
 			_mainThreadRunner.RunInMainThread(() =>
 			{
-				string key = SnipePrefs.GetUdpUrlIndex(ContextId);
-				_sharedPrefs.SetInt(key, _serverUdpUrlIndex);
+				_sharedPrefs.SetInt(GetUdpUrlIndexKey(), _serverUdpUrlIndex);
 			});
 
 			return _serverUdpUrlIndex > prev;
@@ -191,8 +190,7 @@ namespace MiniIT.Snipe
 
 			_mainThreadRunner.RunInMainThread(() =>
 			{
-				string key = SnipePrefs.GetHttpUrlIndex(ContextId);
-				_sharedPrefs.SetInt(key, _serverHttpUrlIndex);
+				_sharedPrefs.SetInt(GetHttpUrlIndexKey(), _serverHttpUrlIndex);
 			});
 
 			return _serverHttpUrlIndex > prev;
@@ -252,6 +250,26 @@ namespace MiniIT.Snipe
 			}
 
 			return index;
+		}
+
+		private string GetUdpUrlIndexKey()
+		{
+			return GetPrefixedContextKey("UdpUrlIndex");
+		}
+
+		private string GetWebSocketUrlIndexKey()
+		{
+			return GetPrefixedContextKey("WebSocketUrlIndex");
+		}
+
+		private string GetHttpUrlIndexKey()
+		{
+			return GetPrefixedContextKey("HttpUrlIndex");
+		}
+
+		private string GetPrefixedContextKey(string value)
+		{
+			return PREFS_PREFIX + (ContextId != 0 ? ContextId.ToString() : "") + value;
 		}
 	}
 }
