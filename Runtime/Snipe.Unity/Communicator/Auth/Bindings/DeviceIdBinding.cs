@@ -1,6 +1,4 @@
 
-using MiniIT.Snipe;
-
 namespace MiniIT.Snipe.Unity
 {
 	public class DeviceIdBinding : AuthBinding<DeviceIdFetcher>
@@ -8,6 +6,7 @@ namespace MiniIT.Snipe.Unity
 		public DeviceIdBinding(ISnipeServices services)
 			: base("dvid", services)
 		{
+			AvailableForRegistration = true;
 #if UNITY_WEBGL
 			UseContextIdPrefix = false;
 #endif

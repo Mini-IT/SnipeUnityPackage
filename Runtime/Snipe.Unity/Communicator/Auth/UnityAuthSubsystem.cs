@@ -26,16 +26,7 @@ namespace MiniIT.Snipe.Unity
 
 				foreach (AuthBinding binding in Bindings)
 				{
-					if (binding?.Fetcher == null)
-					{
-						continue;
-					}
-
-					if (binding is DeviceIdBinding or AdvertisingIdBinding)
-					{
-						tasks.Add(FetchLoginId(binding, providers));
-					}
-					else if (binding.Fetcher is IAuthIdFetcherWithToken)
+					if (binding?.Fetcher != null && binding.AvailableForRegistration)
 					{
 						tasks.Add(FetchLoginId(binding, providers));
 					}

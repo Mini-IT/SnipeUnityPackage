@@ -1,6 +1,4 @@
 
-using MiniIT.Snipe;
-
 namespace MiniIT.Snipe.Unity
 {
 	public class AdvertisingIdBinding : AuthBinding<AdvertisingIdFetcher>
@@ -8,6 +6,7 @@ namespace MiniIT.Snipe.Unity
 		public AdvertisingIdBinding(ISnipeServices services)
 			: base("adid", services)
 		{
+			AvailableForRegistration = true;
 		}
 	}
 }

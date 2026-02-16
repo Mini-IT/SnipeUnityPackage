@@ -23,6 +23,7 @@ namespace MiniIT.Snipe
 		public int ContextId => _contextId;
 
 		public bool UseContextIdPrefix { get; protected set; } = true;
+		public bool AvailableForRegistration { get; protected set; } = false;
 
 		public string BindDonePrefsKey => SnipePrefs.GetAuthBindDone(_contextId) + ProviderId;
 
