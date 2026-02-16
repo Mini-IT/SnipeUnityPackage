@@ -111,7 +111,7 @@ namespace MiniIT.Snipe
 
 				IHttpClient httpClient = loadExternal ? _services.HttpClientFactory.CreateHttpClient() : null;
 
-				bool loaded = await LoadAll(httpClient);
+				bool loaded = await LoadAll(httpClient, cancellationToken);
 
 				if (httpClient is IDisposable disposableHttpClient)
 				{
@@ -125,12 +125,17 @@ namespace MiniIT.Snipe
 				else if (loadExternal && fallbackEnabled)
 				{
 					_versions = null;
-					loaded = await LoadAll(null);
+					loaded = await LoadAll(null, cancellationToken);
 				}
 
 				_analytics.TrackEvent($"TablesLoader - " + (loaded ? "Loaded" : "Failed"));
 				_loadingTaskCompletion.TrySetResult(loaded);
 				return loaded;
+			}
+			catch (OperationCanceledException)
+			{
+				_loadingTaskCompletion.TrySetCanceled();
+				throw;
 			}
 			catch (Exception ex)
 			{
@@ -144,7 +149,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async UniTask<bool> LoadAll(IHttpClient httpClient)
+		private async UniTask<bool> LoadAll(IHttpClient httpClient, CancellationToken cancellationToken = default)
 		{
 			if (_loadingItems == null || _loadingItems.Count == 0)
 			{
@@ -152,34 +157,40 @@ namespace MiniIT.Snipe
 			}
 
 			_cancellation = new CancellationTokenSource();
-			CancellationToken cancellationToken = _cancellation.Token;
+			using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cancellation.Token);
+			CancellationToken linkedToken = linkedCts.Token;
 
-			var versionsLoadResult = await _versionsLoader.Load(httpClient, cancellationToken);
-			_versions = versionsLoadResult.Vesions;
-
-			if (cancellationToken.IsCancellationRequested || _loadingItems == null)
+			try
 			{
-				return false;
-			}
+				var versionsLoadResult = await _versionsLoader.Load(httpClient, linkedToken);
+				_versions = versionsLoadResult.Vesions;
 
-			if (!versionsLoadResult.LoadedFromWeb)
+				if (linkedToken.IsCancellationRequested || _loadingItems == null)
+				{
+					return false;
+				}
+
+				if (!versionsLoadResult.LoadedFromWeb)
+				{
+					httpClient = null;
+				}
+
+				_failed = false;
+				var tasks = new List<UniTask>(_loadingItems.Count);
+				foreach (var item in _loadingItems)
+				{
+					tasks.Add(LoadTable(item, httpClient, linkedToken));
+				}
+
+				await UniTask.WhenAll(tasks);
+
+				return !_failed;
+			}
+			finally
 			{
-				httpClient = null;
+				_cancellation?.Dispose();
+				_cancellation = null;
 			}
-
-			_failed = false;
-			var tasks = new List<UniTask>(_loadingItems.Count);
-			foreach (var item in _loadingItems)
-			{
-				tasks.Add(LoadTable(item, httpClient, cancellationToken));
-			}
-
-			await UniTask.WhenAll(tasks);
-
-			_cancellation?.Dispose();
-			_cancellation = null;
-
-			return !_failed;
 		}
 
 		private async UniTask LoadTable(TablesLoaderItem loaderItem, IHttpClient httpClient, CancellationToken cancellationToken)

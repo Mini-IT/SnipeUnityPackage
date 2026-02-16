@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using MiniIT.Threading;
 
@@ -52,7 +53,7 @@ namespace MiniIT.Snipe.Api
 			}
 		}
 
-		public async UniTask Load(bool restart = false)
+		public async UniTask Load(bool restart = false, CancellationToken cancellationToken = default)
 		{
 			bool startLoading = false;
 
@@ -82,13 +83,22 @@ namespace MiniIT.Snipe.Api
 
 			if (startLoading)
 			{
-				_ = await _loader.Load();
-				_loading = false;
+				try
+				{
+					_ = await _loader.Load(cancellationToken);
+				}
+				finally
+				{
+					_loading = false;
+				}
 			}
-
-			while (_loading)
+			else
 			{
-				await AlterTask.Delay(100);
+				while (_loading)
+				{
+					cancellationToken.ThrowIfCancellationRequested();
+					await AlterTask.Delay(100, cancellationToken);
+				}
 			}
 		}
 
