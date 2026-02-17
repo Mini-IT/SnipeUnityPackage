@@ -12,7 +12,7 @@ After package import is done in Unity editor `Snipe` menu should appear.
 
 ## Updating
 
-Unity Package Manager doesn't support auto updates for git-based packages. That is why Snipe Client Tools comes with its own Updater (<b>`Snipe/Updater`</b> menu item).
+Unity Package Manager doesn't support auto updates for git-based packages. That is why Snipe Client Tools comes with its own Updater (<b>`Snipe -> Updater`</b> menu item).
 
 Alternatively there are some other methods:
 * You may use [UPM Git Extension](https://github.com/mob-sakai/UpmGitExtension).
