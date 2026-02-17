@@ -4,9 +4,11 @@
 ## Installation guide
 
 * Install [External Dependency Manager for Unity](https://github.com/googlesamples/unity-jar-resolver)
-* [Add](https://docs.unity3d.com/Manual/upm-ui-giturl.html) [fastJSON](https://github.com/Mini-IT/fastJSON-unity-package) package
-* [Add](https://docs.unity3d.com/Manual/upm-ui-giturl.html) [unity-logger](https://github.com/Mini-IT/unity-logger) package
-* [Add](https://docs.unity3d.com/Manual/upm-ui-giturl.html) [Snipe Client Tools](https://github.com/Mini-IT/SnipeToolsUnityPackage) package<br />
+* Add the following git packages ([instruction](https://docs.unity3d.com/Manual/upm-ui-giturl.html))
+    * [fastJSON](https://github.com/Mini-IT/fastJSON-unity-package)
+    * [unity-logger](https://github.com/Mini-IT/unity-logger)
+    * [Snipe Client Tools](https://github.com/Mini-IT/SnipeToolsUnityPackage)
+
 After package import is done in Unity editor `Snipe` menu should appear.
 * Click <b>`Snipe -> Install Snipe Package`</b> menu item
 
@@ -56,7 +58,7 @@ var tablesFactory = new SnipeApiTablesFactory(_snipe.Services, builder);
 
 _snipe.Initialize(contextFactory, tablesFactory);
 
-var snipeContext = _snipe.GetOrCreateContext(0);
+var snipeContext = _snipe.GetOrCreateContext();
 
 snipeContext.Auth.RegisterDefaultBindings();
 snipeContext.Auth.LoginSucceeded += OnLoginSucceeded;
