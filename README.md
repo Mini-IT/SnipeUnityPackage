@@ -8,7 +8,7 @@
 * [Add](https://docs.unity3d.com/Manual/upm-ui-giturl.html) [unity-logger](https://github.com/Mini-IT/unity-logger) package
 * [Add](https://docs.unity3d.com/Manual/upm-ui-giturl.html) <b>Snipe Client Tools</b> package to Unity Package Manager - https://github.com/Mini-IT/SnipeToolsUnityPackage.git <br />
 After package import is done in Unity editor `Snipe` menu should appear.
-* Click <b>`Snipe/Install Snipe Package`</b> menu item
+* Click <b>`Snipe -> Install Snipe Package`</b> menu item
 
 ## Updating
 
@@ -22,7 +22,8 @@ Alternatively there are some other methods:
 ## Quick start
 
 Setup the project in the server editor. Get the API key.
-* Click <b>`Snipe/Download SnipeApi`</b> menu item
+* Click <b>`Snipe -> Download SnipeApi ...`</b> menu item.
+
 Enter the API key, specify a directory and download the `SnipeApiService.cs`
 
 DI registration
