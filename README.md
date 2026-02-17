@@ -6,7 +6,7 @@
 * Install [External Dependency Manager for Unity](https://github.com/googlesamples/unity-jar-resolver)
 * [Add](https://docs.unity3d.com/Manual/upm-ui-giturl.html) [fastJSON](https://github.com/Mini-IT/fastJSON-unity-package) package
 * [Add](https://docs.unity3d.com/Manual/upm-ui-giturl.html) [unity-logger](https://github.com/Mini-IT/unity-logger) package
-* [Add](https://docs.unity3d.com/Manual/upm-ui-giturl.html) <b>Snipe Client Tools</b> package to Unity Package Manager - https://github.com/Mini-IT/SnipeToolsUnityPackage.git <br />
+* [Add](https://docs.unity3d.com/Manual/upm-ui-giturl.html) [Snipe Client Tools](https://github.com/Mini-IT/SnipeToolsUnityPackage) package<br />
 After package import is done in Unity editor `Snipe` menu should appear.
 * Click <b>`Snipe -> Install Snipe Package`</b> menu item
 
