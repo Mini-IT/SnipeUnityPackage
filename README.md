@@ -44,7 +44,7 @@ var builder = new SnipeOptionsBuilder();
 
 var snipeProjectInfo = new SnipeProjectInfo()
 {
-    ProjectID = "YOUR_PROJECT_ID",
+    ProjectID = "YOUR_PROJECT_ID",  // Without `_dev` or `_live` ending
     ClientKey = "YOUR_PROJECT_CLIENT_KEY",
     Mode = devMode ? SnipeProjectMode.Dev : SnipeProjectMode.Live,
 };
