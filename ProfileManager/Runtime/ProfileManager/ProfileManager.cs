@@ -24,13 +24,8 @@ namespace MiniIT.Snipe.Api
 		// We DO NOT persist these to SharedPrefs unless the attribute is registered via GetAttribute.
 		private readonly Dictionary<string, object> _serverSnapshotValues = new();
 
-		// Stores last known server values for registered attributes at the moment we considered them synced.
-		// Used to detect whether the server actually changed a dirty key while we were offline.
+		// Stores last known server values for registered attributes.
 		private readonly Dictionary<string, object> _lastSyncedServerValues = new();
-
-		// Tracks which keys were processed by ApplyServerAttributeChange at least once.
-		// Used to distinguish between attributes that were registered when a snapshot arrived vs those that weren't.
-		private readonly HashSet<string> _snapshotProcessedKeys = new();
 		private readonly Dictionary<string, object> _dirtyLocalValues = new();
 		private readonly ISharedPrefs _sharedPrefs;
 		private readonly PlayerPrefsTypeHelper _prefsHelper;
@@ -206,75 +201,49 @@ namespace MiniIT.Snipe.Api
 			bool useDefaultValue)
 		{
 			string key = serverAttr.Key;
-			int localVersion = GetLocalVersion();
 
-			// Prefer server snapshot if we already received it (even if serverAttr wasn't registered
-			// at the moment of attr.getAll/attr.changed and thus never became initialized).
-			if (_serverVersion >= localVersion)
+			T serverValue;
+			bool serverValueExists = false;
+
+			// Prefer the latest snapshot value from server if available.
+			if (_serverSnapshotValues.TryGetValue(key, out object rawServerValue))
 			{
-				T serverValue;
-				bool serverValueExists = false;
-
-				if (_serverSnapshotValues.TryGetValue(key, out object rawServerValue))
-				{
-					serverValue = TypeConverter.Convert<T>(rawServerValue);
-					serverValueExists = true;
-				}
-				else if (serverAttr.IsInitialized)
-				{
-					serverValue = serverAttr.GetValue();
-					serverValueExists = true;
-				}
-				else
-				{
-					serverValue = default;
-				}
-
-				if (serverValueExists)
-				{
-					attr.SetValueFromServer(serverValue);
-					SetLocalValue(key, serverValue);
-
-					_lastSyncedServerValues[key] = serverValue;
-
-					// We just accepted the server snapshot as authoritative, so local is now in sync.
-					SetLocalVersion(_serverVersion);
-					SetLastSyncedVersion(_serverVersion);
-					return;
-				}
+				serverValue = TypeConverter.Convert<T>(rawServerValue);
+				serverValueExists = true;
+			}
+			else if (serverAttr.IsInitialized)
+			{
+				serverValue = serverAttr.GetValue();
+				serverValueExists = true;
+			}
+			else
+			{
+				serverValue = default;
 			}
 
-			// If we don't have the value from server yet (offline or not initialized),
-			// rely on local storage to avoid overwriting with default(T).
-			if (!serverAttr.IsInitialized)
+			if (serverValueExists)
 			{
-				var localValue = useDefaultValue ? GetLocalValue(key, defaultValue) : GetLocalValue<T>(key);
-				attr.SetValueFromServer(localValue);
-				if (useDefaultValue && !HasLocalValue(key))
-				{
-					SetLocalValue(key, localValue);
-				}
-				return;
-			}
-
-			if (_serverVersion >= localVersion)
-			{
-				// Server has newer (or equal) version
-				var serverValue = serverAttr.GetValue();
 				attr.SetValueFromServer(serverValue);
 				SetLocalValue(key, serverValue);
 
 				_lastSyncedServerValues[key] = serverValue;
 
-				// We just accepted the server snapshot as authoritative, so local is now in sync.
-				SetLocalVersion(_serverVersion);
-				SetLastSyncedVersion(_serverVersion);
+				// Server-first mode: if server value is known, treat it as authoritative.
+				if (_serverVersion > 0)
+				{
+					SetLocalVersion(_serverVersion);
+					SetLastSyncedVersion(_serverVersion);
+				}
+
+				return;
 			}
-			else // use local value
+
+			// If server value is not available yet, use local storage (or explicit default).
+			var localValue = useDefaultValue ? GetLocalValue(key, defaultValue) : GetLocalValue<T>(key);
+			attr.SetValueFromServer(localValue);
+			if (useDefaultValue && !HasLocalValue(key))
 			{
-				// Use local storage value (either server not initialized yet, or local changes are newer)
-				var localValue = useDefaultValue ? GetLocalValue(key, defaultValue) : GetLocalValue<T>(key);
-				attr.SetValueFromServer(localValue);
+				SetLocalValue(key, localValue);
 			}
 		}
 
@@ -312,65 +281,12 @@ namespace MiniIT.Snipe.Api
 				return false;
 			}
 
-			// Mark that this key was processed during snapshot handling (attribute was registered).
-			_snapshotProcessedKeys.Add(key);
-
-			var localVersion = GetLocalVersion();
-			var lastSyncedVersion = GetLastSyncedVersion();
-
-			// Ignore stale server pushes (older than last synced snapshot)
-			if (_serverVersion <= lastSyncedVersion)
-			{
-				return false;
-			}
-
-			// If local value diverged from what we last considered synced, don't blindly overwrite it just because
-			// _version is global and can advance due to other keys, reconnects, etc.
-			// We only accept server overwrite if the server value for this key has changed since last sync.
-			if (_lastSyncedServerValues.TryGetValue(key, out object lastServerValue) &&
-			    _localValueGetters.TryGetValue(key, out Func<object> localGetter))
-			{
-				var localValue = localGetter?.Invoke();
-				bool localChangedSinceSync = !SnipeApiUserAttribute.AreEqual(localValue, lastServerValue);
-
-				if (localChangedSinceSync && SnipeApiUserAttribute.AreEqual(lastServerValue, value))
-				{
-					// Server still has the last synced value -> keep local dirty value.
-					return false;
-				}
-
-				// If local changed since sync and server value differs from last synced value,
-				// server changed this key elsewhere -> accept server as authoritative.
-			}
-
-			// Server is authoritative only when its snapshot version is greater than (or equal to) the local version.
-			// Otherwise, preserve local offline progress.
-			if (_serverVersion >= localVersion)
-			{
-				// Server value is authoritative - accept it
-				// Update local storage with server value
-				SetLocalValue(key, value);
-
-				// Update attribute value
-				attrValueSetter.Invoke(value);
-
-				_lastSyncedServerValues[key] = value;
-
-				// For list-based snapshots (attr.getAll/attr.changed/etc) ApplyServerAttributeChange is called
-				// multiple times within the same server version. Advancing lastSynced here would make the
-				// remaining items look stale and get skipped. Version reconciliation is done once after the
-				// whole list via SyncWithServer().
-				return true;
-			}
-			else
-			{
-				// We might have local changes that are newer - keep them and ensure they stay in dirty keys
-				// The local value is already correct, so we don't need to update it
-				// Dirty keys will remain so the local value can be synced to server
-			}
-
-			// Versions are updated above when accepting server state.
-			return false;
+			// Server-first mode: always accept server value for this key.
+			SetLocalValue(key, value);
+			attrValueSetter.Invoke(value);
+			_lastSyncedServerValues[key] = value;
+			_dirtyLocalValues.Remove(key);
+			return true;
 		}
 
 		private void ApplyAttributeList(IDictionary<string, object> data, string listKey)
@@ -470,52 +386,24 @@ namespace MiniIT.Snipe.Api
 				return;
 			}
 
-			int localVersion = GetLocalVersion();
-			int lastSyncedVersion = GetLastSyncedVersion();
-
-			if (localVersion > lastSyncedVersion)
+			var pendingChanges = RebuildPendingChanges();
+			if (pendingChanges.Count > 0)
 			{
-				// Rebuild pending changes
-				var pendingChanges = RebuildPendingChanges();
-
-				// Client has unsynced changes
-				// If nothing is registered yet, pendingChanges can be empty even when prefs contain dirty keys.
-				// Don't advance lastSynced in this case - just wait for attributes to be registered.
-				if (pendingChanges.Count == 0)
-				{
-					return;
-				}
-
 				SendPendingChanges(pendingChanges);
+				return;
 			}
-			else if (_serverVersion > localVersion)
-			{
-				// Server has newer changes - accept all server values.
-				// Values should be handled by incoming messages.
-				SetLocalVersion(_serverVersion);
-				SetLastSyncedVersion(_serverVersion);
-			}
-			else
-			{
-				// Rebuild pending changes
-				var pendingChanges = RebuildPendingChanges();
 
-				if (pendingChanges.Count == 0)
-				{
-					SetLastSyncedVersion(_serverVersion);
-				}
-			}
+			SetLocalVersion(_serverVersion);
+			SetLastSyncedVersion(_serverVersion);
 		}
 
 		private Dictionary<string, object> RebuildPendingChanges()
 		{
-			// Diff registered local values vs the last received server snapshot.
-			// ProfileManager operates only on registered attributes.
+			// Send dirty values first, then discover any other local-vs-server diffs for registered attributes.
 			var pendingChanges = new Dictionary<string, object>();
 
 			if (_dirtyLocalValues.Count > 0)
 			{
-				List<string> keysToClear = null;
 				foreach (var dirty in _dirtyLocalValues)
 				{
 					string key = dirty.Key;
@@ -527,28 +415,7 @@ namespace MiniIT.Snipe.Api
 						continue;
 					}
 
-					// If we don't have this key in snapshot yet, we can't reliably decide.
-					if (!_serverSnapshotValues.TryGetValue(key, out object serverValue))
-					{
-						continue;
-					}
-
-					if (SnipeApiUserAttribute.AreEqual(dirty.Value, serverValue))
-					{
-						keysToClear ??= new List<string>();
-						keysToClear.Add(key);
-						continue;
-					}
-
 					pendingChanges[key] = dirty.Value;
-				}
-
-				if (keysToClear != null)
-				{
-					foreach (var key in keysToClear)
-					{
-						_dirtyLocalValues.Remove(key);
-					}
 				}
 			}
 
@@ -582,27 +449,7 @@ namespace MiniIT.Snipe.Api
 					continue;
 				}
 
-				// Values differ. Check if we should send the local value.
-				// If the attribute was previously synced (in _lastSyncedServerValues), we can safely
-				// send local changes as they represent legitimate modifications.
-				if (_lastSyncedServerValues.ContainsKey(key))
-				{
-					pendingChanges[key] = localValue;
-					continue;
-				}
-
-				// Attribute wasn't synced yet. Check if it was registered when the snapshot arrived.
-				// If ApplyServerAttributeChange was called for this key during snapshot processing,
-				// the attribute was registered, so we should send local changes even if server value
-				// wasn't accepted (e.g., local version ahead).
-				// If ApplyServerAttributeChange was NOT called, the attribute wasn't registered when
-				// snapshot arrived, and local value is likely default. We shouldn't send default values.
-				if (_snapshotProcessedKeys.Contains(key))
-				{
-					// Attribute was registered when snapshot arrived - send local value
-					pendingChanges[key] = localValue;
-				}
-				// else: attribute wasn't registered when snapshot arrived, skip sending default value
+				pendingChanges[key] = localValue;
 			}
 
 			return pendingChanges;
@@ -678,7 +525,7 @@ namespace MiniIT.Snipe.Api
 
 					if (errorCode == "ok")
 					{
-						// Treat sent values as the last synced server values for those keys.
+						// Treat sent values as the last known synced values for those keys.
 						foreach (var kvp in pendingChanges)
 						{
 							_lastSyncedServerValues[kvp.Key] = kvp.Value;
@@ -817,7 +664,6 @@ namespace MiniIT.Snipe.Api
 			_localValueGetters.Clear();
 			_serverSnapshotValues.Clear();
 			_lastSyncedServerValues.Clear();
-			_snapshotProcessedKeys.Clear();
 			_serverVersionAttrKey = null;
 		}
 	}

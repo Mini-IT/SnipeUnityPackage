@@ -195,7 +195,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[Test]
-		public void SyncWithServer_LocalVersionGreater_SendsPendingChangesSingle()
+		public void SyncWithServer_LocalVersionGreater_ServerSnapshotWins_NoPendingSend()
 		{
 			// Arrange - simulate a previous session where attribute was used and dirty keys were created
 			var serverAttr = new MockSnipeApiReadOnlyUserAttribute<int>(_mockApiService, "coins");
@@ -237,15 +237,14 @@ namespace MiniIT.Snipe.Tests.Editor
 					}
 				}
 			}, 0);
-			// Local coins (100) differs from server snapshot (50), so pending changes should be sent now.
 
-			// Assert - should attempt to send pending changes when local version > last synced version
-			Assert.Greater(_mockApiService.RequestCount, initialRequestCount,
-				"Request should be made when local version is greater than last synced version");
-			Assert.AreEqual("attr.set", _mockApiService.LastRequestType,
-				"Request type should be attr.set for syncing pending changes");
-			Assert.AreEqual("coins", _mockApiService.LastRequestData["key"]);
-			Assert.AreEqual(100, _mockApiService.LastRequestData["val"]);
+			// Assert - in server-first mode, latest server snapshot is accepted
+			Assert.AreEqual(initialRequestCount, _mockApiService.RequestCount,
+				"No request should be made because server snapshot wins");
+			Assert.AreEqual(50, attr.Value);
+			Assert.AreEqual(50, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 0));
+			Assert.AreEqual(4, _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION));
+			Assert.AreEqual(4, _mockSharedPrefs.GetInt(ProfileManager.KEY_LAST_SYNCED_VERSION));
 		}
 
 		[Test]
@@ -336,7 +335,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[Test]
-		public void Scenario1_OnlineThenOfflineThenReconnect_OlderServerSnapshot_DoesNotOverwrite_SyncsToServer()
+		public void Scenario1_OnlineThenOfflineThenReconnect_OlderServerSnapshot_OverwritesLocalValue()
 		{
 			// Initial:
 			// server: { _version = 1; coins = 10 }
@@ -347,7 +346,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			// reconnect -> receive attr.getAll { _version=1; coins=10 }
 			//
 			// Assert:
-			// coins == 20, ValueChanged not called due to snapshot, local value sent, versions aligned to server+1.
+			// coins == 10 (server-first), local dirty value is discarded.
 
 			// Arrange
 			SetLocalVersion(1);
@@ -394,30 +393,27 @@ namespace MiniIT.Snipe.Tests.Editor
 				}
 			}, 0);
 
-			// Assert - Local offline changes should be preserved
-			Assert.AreEqual(20, attr.Value);
-			Assert.AreEqual(1, valueChangedCount, "Snapshot should not raise ValueChanged when resolved value didn't change");
+			// Assert - server snapshot overwrites local offline change
+			Assert.AreEqual(10, attr.Value);
+			Assert.AreEqual(2, valueChangedCount, "Snapshot should raise ValueChanged when server value differs");
 
-			Assert.Greater(_mockApiService.RequestCount, requestCountBeforeReconnect,
-				"Reconnect snapshot must trigger sending pending local changes");
-			Assert.AreEqual("attr.set", _mockApiService.LastRequestType);
-			Assert.AreEqual("coins", _mockApiService.LastRequestData["key"]);
-			Assert.AreEqual(20, _mockApiService.LastRequestData["val"]);
+			Assert.AreEqual(requestCountBeforeReconnect, _mockApiService.RequestCount,
+				"Reconnect snapshot should not send overwritten local value");
 
-			Assert.AreEqual(20, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins"));
-			Assert.AreEqual(2, _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION));
-			Assert.AreEqual(2, _mockSharedPrefs.GetInt(ProfileManager.KEY_LAST_SYNCED_VERSION));
+			Assert.AreEqual(10, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins"));
+			Assert.AreEqual(1, _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION));
+			Assert.AreEqual(1, _mockSharedPrefs.GetInt(ProfileManager.KEY_LAST_SYNCED_VERSION));
 		}
 
 		[Test]
-		public void Regression_ReconnectSnapshotHasOldValueButHigherVersion_DoesNotOverwriteDirtyKey()
+		public void Regression_ReconnectSnapshotHasOldValueButHigherVersion_OverwritesDirtyKey()
 		{
 			// Repro:
 			// - online, snapshot: coins=61, _version=896
 			// - coins++ -> 62, attr.set succeeds
 			// - offline, coins++ -> 63, no send
 			// - reconnect snapshot: coins=62, _version=899
-			// BUG: coins becomes 62. Expected: keep 63 and send it.
+			// Server-first expected: coins becomes 62 and local dirty value is discarded.
 
 			_profileManager.Dispose();
 
@@ -487,15 +483,13 @@ namespace MiniIT.Snipe.Tests.Editor
 				}
 			}, 0);
 
-			// Must keep local dirty value and send it
-			Assert.AreEqual(63, attr.Value);
-			Assert.Greater(_mockApiService.RequestCount, requestCountBeforeReconnect);
-			Assert.AreEqual("attr.set", _mockApiService.LastRequestType);
-			Assert.AreEqual(63, _mockApiService.LastRequestData["val"]);
+			// Server-first: overwrite local dirty value
+			Assert.AreEqual(62, attr.Value);
+			Assert.AreEqual(requestCountBeforeReconnect, _mockApiService.RequestCount);
 		}
 
 		[Test]
-		public void Scenario2_OfflineStart_LocalKnown_ThenReconnect_OlderServerSnapshot_DoesNotOverwrite_SyncsToServer()
+		public void Scenario2_OfflineStart_LocalKnown_ThenReconnect_OlderServerSnapshot_OverwritesLocalValue()
 		{
 			// Initial:
 			// offline
@@ -506,7 +500,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			// receive attr.getAll snapshot { _version=1; coins=10 }
 			//
 			// Assert:
-			// coins == 20, snapshot doesn't raise ValueChanged, local value sent, versions aligned.
+			// coins == 10 (server-first), snapshot overwrites local value.
 
 			// Arrange - start offline: server version attribute is NOT initialized
 			_profileManager.Dispose();
@@ -556,17 +550,14 @@ namespace MiniIT.Snipe.Tests.Editor
 				}
 			}, 0);
 
-			Assert.AreEqual(20, attr.Value);
-			Assert.AreEqual(1, valueChangedCount, "Snapshot should not raise ValueChanged when resolved value didn't change");
+			Assert.AreEqual(10, attr.Value);
+			Assert.AreEqual(2, valueChangedCount, "Snapshot should raise ValueChanged when server value differs");
 
-			Assert.Greater(_mockApiService.RequestCount, requestCountBeforeReconnect);
-			Assert.AreEqual("attr.set", _mockApiService.LastRequestType);
-			Assert.AreEqual("coins", _mockApiService.LastRequestData["key"]);
-			Assert.AreEqual(20, _mockApiService.LastRequestData["val"]);
+			Assert.AreEqual(requestCountBeforeReconnect, _mockApiService.RequestCount);
 
-			Assert.AreEqual(20, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins"));
-			Assert.AreEqual(2, _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION));
-			Assert.AreEqual(2, _mockSharedPrefs.GetInt(ProfileManager.KEY_LAST_SYNCED_VERSION));
+			Assert.AreEqual(10, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins"));
+			Assert.AreEqual(1, _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION));
+			Assert.AreEqual(1, _mockSharedPrefs.GetInt(ProfileManager.KEY_LAST_SYNCED_VERSION));
 		}
 
 		[Test]
@@ -641,7 +632,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[Test]
-		public void Scenario6_OfflinePendingChange_ThenChangedSnapshotWithoutKey_StillSyncsLocalChange()
+		public void Scenario6_OfflinePendingChange_ThenChangedSnapshotWithoutKey_LocalChangeDiscardedBySnapshot()
 		{
 			// Initial:
 			// offline
@@ -653,7 +644,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			// reconnect and receive attr.changed with unrelated key (coins not included)
 			//
 			// Assert:
-			// local coins still sent to server on reconnect even though snapshot list didn't include it.
+			// coins local change is discarded by server snapshot; nothing is sent on reconnect.
 
 			_profileManager.Dispose();
 
@@ -695,7 +686,7 @@ namespace MiniIT.Snipe.Tests.Editor
 				}
 			}, 0);
 
-			Assert.AreEqual(20, attr.Value);
+			Assert.AreEqual(10, attr.Value);
 			Assert.AreEqual(requestCountBeforeSnapshots, _mockApiService.RequestCount);
 
 			_profileManager.ForceLoggedInForTests(true);
@@ -717,10 +708,10 @@ namespace MiniIT.Snipe.Tests.Editor
 				}
 			}, 0);
 
-			Assert.Greater(_mockApiService.RequestCount, requestCountBeforeSnapshots);
-			Assert.AreEqual("attr.set", _mockApiService.LastRequestType);
-			Assert.AreEqual("coins", _mockApiService.LastRequestData["key"]);
-			Assert.AreEqual(20, _mockApiService.LastRequestData["val"]);
+			Assert.AreEqual(requestCountBeforeSnapshots, _mockApiService.RequestCount);
+			Assert.AreEqual(10, attr.Value);
+			Assert.AreEqual(2, _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION));
+			Assert.AreEqual(2, _mockSharedPrefs.GetInt(ProfileManager.KEY_LAST_SYNCED_VERSION));
 		}
 
 		[Test]
@@ -773,7 +764,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[Test]
-		public void Scenario4_OfflineStart_LocalAhead_ThenReconnect_NewerServerSnapshot_DoesNotOverwrite_SyncsToServer()
+		public void Scenario4_OfflineStart_LocalAhead_ThenReconnect_NewerServerSnapshot_OverwritesLocalValue()
 		{
 			// Initial:
 			// offline
@@ -783,7 +774,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			// reconnect -> receive attr.getAll { _version = 2; coins = 20 }
 			//
 			// Assert:
-			// coins == 10, snapshot doesn't raise ValueChanged, local value sent, versions aligned to server+1.
+			// coins == 20 (server-first), local value is overwritten.
 
 			_profileManager.Dispose();
 
@@ -827,21 +818,18 @@ namespace MiniIT.Snipe.Tests.Editor
 				}
 			}, 0);
 
-			Assert.AreEqual(10, attr.Value);
-			Assert.AreEqual(0, valueChangedCount, "Snapshot should not raise ValueChanged when resolved value didn't change");
+			Assert.AreEqual(20, attr.Value);
+			Assert.AreEqual(1, valueChangedCount, "Snapshot should raise ValueChanged when server value differs");
 
-			Assert.Greater(_mockApiService.RequestCount, requestCountBeforeReconnect);
-			Assert.AreEqual("attr.set", _mockApiService.LastRequestType);
-			Assert.AreEqual("coins", _mockApiService.LastRequestData["key"]);
-			Assert.AreEqual(10, _mockApiService.LastRequestData["val"]);
+			Assert.AreEqual(requestCountBeforeReconnect, _mockApiService.RequestCount);
 
-			Assert.AreEqual(10, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins"));
-			Assert.AreEqual(3, _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION));
-			Assert.AreEqual(3, _mockSharedPrefs.GetInt(ProfileManager.KEY_LAST_SYNCED_VERSION));
+			Assert.AreEqual(20, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins"));
+			Assert.AreEqual(2, _mockSharedPrefs.GetInt(ProfileManager.KEY_LOCAL_VERSION));
+			Assert.AreEqual(2, _mockSharedPrefs.GetInt(ProfileManager.KEY_LAST_SYNCED_VERSION));
 		}
 
 		[Test]
-		public void Scenario5_OnlineStart_LocalAhead_SendsLocalValueToServer()
+		public void Scenario5_OnlineStart_LocalAhead_ServerValueWins()
 		{
 			// Initial:
 			// online
@@ -849,7 +837,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			// local:  { _version = 3; coins = 20 } (dirty)
 			//
 			// Assert:
-			// ProfileAttribute.Value == 20 and coins=20 is sent to server.
+			// ProfileAttribute.Value == 10 (server-first), no local send.
 
 			_profileManager.Dispose();
 
@@ -892,11 +880,9 @@ namespace MiniIT.Snipe.Tests.Editor
 				}
 			}, 0);
 
-			Assert.AreEqual(20, attr.Value);
-			Assert.Greater(_mockApiService.RequestCount, requestCountBefore);
-			Assert.AreEqual("attr.set", _mockApiService.LastRequestType);
-			Assert.AreEqual("coins", _mockApiService.LastRequestData["key"]);
-			Assert.AreEqual(20, _mockApiService.LastRequestData["val"]);
+			Assert.AreEqual(10, attr.Value);
+			Assert.AreEqual(requestCountBefore, _mockApiService.RequestCount);
+			Assert.AreEqual(10, _mockSharedPrefs.GetInt(ProfileManager.KEY_ATTR_PREFIX + "coins", 0));
 		}
 
 		[Test]
