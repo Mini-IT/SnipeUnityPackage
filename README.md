@@ -1,5 +1,6 @@
 # Snipe Unity Package
 
+[Snipe](https://snipe.dev/) client
 
 ## Installation guide
 
