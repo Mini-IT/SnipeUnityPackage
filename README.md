@@ -10,12 +10,6 @@
 After package import is done in Unity editor `Snipe` menu should appear.
 * Click <b>`Snipe/Install Snipe Package`</b> menu item
 
-### Install managed DLLs from NuGet
-The dependency managed DLL are not included to avoid possible duplication. You need to add them to the project manually. You can extract the needed dlls from NuGet packages (either [manually](https://stackoverflow.com/a/61187711) or using a tool like [NuGetForUnity](https://github.com/GlitchEnzo/NuGetForUnity))
-* [System.Buffers](https://www.nuget.org/packages/System.Buffers/4.5.1)
-* [System.Memory](https://www.nuget.org/packages/System.Memory/4.5.5)
-* [Microsoft.Extensions.Logging.Abstractions](https://www.nuget.org/packages/Microsoft.Extensions.Logging.Abstractions/7.0.1)
-
 ## Updating
 
 Unity Package Manager doesn't support auto updates for git-based packages. That is why Snipe Client Tools comes with its own Updater (<b>`Snipe/Updater`</b> menu item).
@@ -25,19 +19,63 @@ Alternatively there are some other methods:
 * You may add the same package again using git URL. Package manager will update an existing one.
 * Or you may manually edit your project's `Packages/packages-lock.json`. Just remove `"com.miniit.snipe.client"` section.
 
-## DI-friendly setup
+## Quick start
 
-The package exposes services as interfaces to make them pluggable and testable.
+Setup the project in the server editor. Get the API key.
+* Click <b>`Snipe/Download SnipeApi`</b> menu item
+Enter the API key, specify a directory and download the `SnipeApiService.cs`
 
-- Default Unity wiring: `SnipeUnityDefaults.CreateDefaultServices()`
-- Null/test-friendly services: `NullSnipeServices`
+DI registration
+```cs
+using MiniIT.Snipe;
+using MiniIT.Snipe.Unity;
 
-## Migration notes
+builder.RegisterSingleton<ISnipeManager>(c => new SnipeManager(new UnitySnipeServicesFactory()));
+```
 
-- Prefer constructors that accept `ISnipeServices`.
-- `SnipeOptionsBuilder.Build(int, ISnipeServices)` should be used instead of the old `Build(int)`.
-- For context factories, pass an explicit `ISnipeServices` (e.g. via `SnipeUnityDefaults.CreateDefaultServices()`).
-- For tests, use `NullSnipeServices` or provide custom implementations via its constructor.
+Configure `SnipeOptions` with the keys you get in the server editor.
+Note that `ProjectID` should be specified **without** ending (e.g. without `_dev` or `_live`)
+
+```cs
+private readonly ISnipeManager _snipe;
+
+var builder = new SnipeOptionsBuilder();
+
+var snipeProjectInfo = new SnipeProjectInfo()
+{
+    ProjectID = "YOUR_PROJECT_ID",
+    ClientKey = "YOUR_PROJECT_CLIENT_KEY",
+    Mode = devMode ? SnipeProjectMode.Dev : SnipeProjectMode.Live,
+};
+
+builder.Initialize(snipeProjectInfo, snipeConfigData);
+
+var contextFactory = new SnipeApiContextFactory(_snipe, builder);
+var tablesFactory = new SnipeApiTablesFactory(_snipe.Services, builder);
+
+_snipe.Initialize(contextFactory, tablesFactory);
+
+var snipeContext = _snipe.GetOrCreateContext(0);
+
+snipeContext.Auth.RegisterDefaultBindings();
+snipeContext.Auth.LoginSucceeded += OnLoginSucceeded;
+snipeContext.Communicator.ConnectionClosed += OnConnectionClosed;
+
+await _snipe.GetTables().Load();
+
+snipeContext.Communicator.Start();
+
+private void OnLoginSucceeded(int userId)
+{
+    Debug.Log("OnLoginSucceeded. userId: " + userId);
+}
+
+private void OnConnectionClosed()
+{
+    Debug.Log("OnConnectionClosed");
+}
+```
+
 
 ## Third-party libraries used
 
