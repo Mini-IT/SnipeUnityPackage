@@ -78,18 +78,6 @@ namespace MiniIT.Snipe
 			_roomStateObserver = new RoomStateObserver(this);
 
 			_logger.LogInformation($"PACKAGE VERSION: {PackageInfo.VERSION_NAME}");
-			_logger.LogTrace("+++ TEST TRACE");
-			_logger.LogError("+++ TEST ERROR");
-			_logger.LogInformation("+++ TEST INFO");
-			DelayedLog().Forget();
-		}
-
-		private async UniTask DelayedLog()
-		{
-			await UniTask.Delay(3000);
-			_logger.LogTrace("+++ +++ delayed TEST TRACE");
-			_logger.LogError("+++ +++ delayed TEST ERROR");
-			_logger.LogInformation("+++ +++ delayed TEST INFO");
 		}
 
 		public ISnipeServices Services => _services;
