@@ -50,7 +50,7 @@ namespace MiniIT.Snipe.Api
 
 			if (node == null)
 			{
-				var logger = services.LogService.GetLogger(nameof(LogicNode));
+				var logger = services.LoggerFactory.CreateLogger(nameof(LogicNode));
 				logger.LogError($"Table node not found. id = {id}");
 				return;
 			}

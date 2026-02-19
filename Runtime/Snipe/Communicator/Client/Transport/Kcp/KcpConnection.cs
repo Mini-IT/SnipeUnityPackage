@@ -121,7 +121,7 @@ namespace MiniIT.Snipe
 			}
 
 			_services = services;
-			_logger = services.LogService.GetLogger(nameof(KcpConnection));
+			_logger = services.LoggerFactory.CreateLogger(nameof(KcpConnection));
 		}
 
 		public void Connect(string host, ushort port, int timeout = 10000, int authenticationTimeout = 0)

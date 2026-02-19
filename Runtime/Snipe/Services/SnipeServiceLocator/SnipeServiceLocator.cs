@@ -1,9 +1,9 @@
 // ReSharper disable SuspiciousTypeConversion.Global
 
 using System;
+using Microsoft.Extensions.Logging;
 using MiniIT.Http;
 using MiniIT.Snipe.Debugging;
-using MiniIT.Snipe.Logging;
 using MiniIT.Storage;
 using MiniIT.Utils;
 
@@ -12,7 +12,7 @@ namespace MiniIT.Snipe
 	public class SnipeServiceLocator : ISnipeServices, IDisposable
 	{
 		public ISharedPrefs SharedPrefs { get; }
-		public ILogService LogService { get; }
+		public ILoggerFactory LoggerFactory { get; }
 		public ISnipeAnalyticsService Analytics { get; }
 		public IMainThreadRunner MainThreadRunner { get; }
 		public IApplicationInfo ApplicationInfo { get; }
@@ -24,7 +24,7 @@ namespace MiniIT.Snipe
 		public SnipeServiceLocator(ISnipeServiceLocatorFactory factory)
 		{
 			SharedPrefs = factory.CreateSharedPrefs();
-			LogService = factory.CreateLogService();
+			LoggerFactory = factory.CreateLoggerFactory();
 			MainThreadRunner = factory.CreateMainThreadRunner();
 
 			Func<ISnipeErrorsTracker> errorsTrackerGetter = null;
@@ -44,7 +44,7 @@ namespace MiniIT.Snipe
 		public void Dispose()
 		{
 			(SharedPrefs as IDisposable)?.Dispose();
-			(LogService as IDisposable)?.Dispose();
+			LoggerFactory?.Dispose();
 			(Analytics as IDisposable)?.Dispose();
 			(MainThreadRunner as IDisposable)?.Dispose();
 			(ApplicationInfo as IDisposable)?.Dispose();

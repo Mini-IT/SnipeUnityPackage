@@ -330,7 +330,7 @@ namespace MiniIT.Snipe
 
 		private ILogger GetLogger()
 		{
-			_logger ??= _services.LogService.GetLogger(nameof(AbstractCommunicatorRequest));
+			_logger ??= _services.LoggerFactory.CreateLogger(nameof(AbstractCommunicatorRequest));
 			return _logger;
 		}
 

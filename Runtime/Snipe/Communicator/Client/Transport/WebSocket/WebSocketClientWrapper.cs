@@ -55,7 +55,7 @@ namespace MiniIT.Snipe
 			_receiveMessageBuffer = new byte[messageBufferSize];
 
 			_mainThreadRunner = services.MainThreadRunner;
-			_logger = services.LogService.GetLogger(nameof(WebSocketClientWrapper));
+			_logger = services.LoggerFactory.CreateLogger(nameof(WebSocketClientWrapper));
 		}
 
 		public override void Connect(string url)

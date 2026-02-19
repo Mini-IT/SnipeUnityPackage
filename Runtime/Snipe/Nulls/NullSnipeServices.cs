@@ -3,7 +3,6 @@ using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using MiniIT.Http;
-using MiniIT.Snipe.Logging;
 using MiniIT.Storage;
 using MiniIT.Utils;
 
@@ -12,7 +11,7 @@ namespace MiniIT.Snipe
 	public sealed class NullSnipeServices : ISnipeServices
 	{
 		public ISharedPrefs SharedPrefs { get; }
-		public ILogService LogService { get; }
+		public ILoggerFactory LoggerFactory { get; }
 		public ISnipeAnalyticsService Analytics { get; }
 		public IMainThreadRunner MainThreadRunner { get; }
 		public IApplicationInfo ApplicationInfo { get; }
@@ -23,7 +22,7 @@ namespace MiniIT.Snipe
 
 		public NullSnipeServices()
 			: this(new NullSharedPrefs(),
-				new NullLogService(),
+				NullLoggerFactory.Instance,
 				new NullSnipeAnalyticsService(),
 				new ImmediateMainThreadRunner(),
 				new NullApplicationInfo(),
@@ -36,7 +35,7 @@ namespace MiniIT.Snipe
 
 		public NullSnipeServices(
 			ISharedPrefs sharedPrefs,
-			ILogService logService,
+			ILoggerFactory loggerFactory,
 			ISnipeAnalyticsService analytics,
 			IMainThreadRunner mainThreadRunner,
 			IApplicationInfo applicationInfo,
@@ -46,7 +45,7 @@ namespace MiniIT.Snipe
 			ITicker ticker)
 		{
 			SharedPrefs = sharedPrefs ?? throw new ArgumentNullException(nameof(sharedPrefs));
-			LogService = logService ?? throw new ArgumentNullException(nameof(logService));
+			LoggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
 			Analytics = analytics ?? throw new ArgumentNullException(nameof(analytics));
 			MainThreadRunner = mainThreadRunner ?? throw new ArgumentNullException(nameof(mainThreadRunner));
 			ApplicationInfo = applicationInfo ?? throw new ArgumentNullException(nameof(applicationInfo));
@@ -55,12 +54,6 @@ namespace MiniIT.Snipe
 			InternetReachabilityProvider = internetReachabilityProvider ?? throw new ArgumentNullException(nameof(internetReachabilityProvider));
 			Ticker = ticker ?? throw new ArgumentNullException(nameof(ticker));
 		}
-	}
-
-	public sealed class NullLogService : ILogService
-	{
-		public ILogger<T> GetLogger<T>() where T : class => NullLogger<T>.Instance;
-		public ILogger GetLogger(string categoryName) => NullLogger.Instance;
 	}
 
 	public sealed class ImmediateMainThreadRunner : IMainThreadRunner

@@ -29,7 +29,7 @@ namespace MiniIT.Snipe
 				throw new ArgumentNullException(nameof(services));
 			}
 
-			_logger = services.LogService.GetLogger(nameof(WebSocketJSWrapper));
+			_logger = services.LoggerFactory.CreateLogger(nameof(WebSocketJSWrapper));
 		}
 
 		public override void Connect(string url)

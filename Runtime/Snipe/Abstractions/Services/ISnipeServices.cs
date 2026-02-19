@@ -1,5 +1,5 @@
+using Microsoft.Extensions.Logging;
 using MiniIT.Http;
-using MiniIT.Snipe.Logging;
 using MiniIT.Storage;
 using MiniIT.Utils;
 
@@ -8,7 +8,7 @@ namespace MiniIT.Snipe
 	public interface ISnipeServices
 	{
 		ISharedPrefs SharedPrefs { get; }
-		ILogService LogService { get; }
+		ILoggerFactory LoggerFactory { get; }
 		ISnipeAnalyticsService Analytics { get; }
 		IMainThreadRunner MainThreadRunner { get; }
 		IApplicationInfo ApplicationInfo { get; }

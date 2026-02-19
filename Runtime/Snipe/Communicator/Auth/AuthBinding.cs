@@ -54,7 +54,7 @@ namespace MiniIT.Snipe
 
 			Services = services;
 			_sharedPrefs = services.SharedPrefs;
-			_logger = services.LogService.GetLogger(GetType().Name);
+			_logger = services.LoggerFactory.CreateLogger(GetType().Name);
 
 			ProviderId = providerId;
 			Fetcher = fetcher;

@@ -77,7 +77,7 @@ namespace MiniIT.Snipe
 				_loader = new SnipeConfigLoader(
 					_projectID,
 					_services.ApplicationInfo,
-					_services.LogService.GetLogger<SnipeConfigLoader>(),
+					_services.LoggerFactory.CreateLogger(nameof(SnipeConfigLoader)),
 					_services.HttpClientFactory);
 			}
 

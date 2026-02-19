@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.Threading;
 using MiniIT.Utils;
@@ -71,12 +72,24 @@ namespace MiniIT.Snipe
 			_services = services;
 
 			_mainThreadRunner = services.MainThreadRunner;
-			_logger = services.LogService.GetLogger(nameof(SnipeCommunicator));
+			_logger = services.LoggerFactory.CreateLogger(nameof(SnipeCommunicator));
 			_logger.BeginScope($"{InstanceId}");
 
 			_roomStateObserver = new RoomStateObserver(this);
 
 			_logger.LogInformation($"PACKAGE VERSION: {PackageInfo.VERSION_NAME}");
+			_logger.LogTrace("+++ TEST TRACE");
+			_logger.LogError("+++ TEST ERROR");
+			_logger.LogInformation("+++ TEST INFO");
+			DelayedLog().Forget();
+		}
+
+		private async UniTask DelayedLog()
+		{
+			await UniTask.Delay(3000);
+			_logger.LogTrace("+++ +++ delayed TEST TRACE");
+			_logger.LogError("+++ +++ delayed TEST ERROR");
+			_logger.LogInformation("+++ +++ delayed TEST INFO");
 		}
 
 		public ISnipeServices Services => _services;
@@ -182,7 +195,7 @@ namespace MiniIT.Snipe
 
 		private void OnClientConnectionOpened(TransportInfo transportInfo)
 		{
-			_logger.LogTrace("Client connection opened");
+			_logger.LogDebug("Client connection opened");
 
 			_restoreConnectionAttempt = 0;
 			_disconnecting = false;

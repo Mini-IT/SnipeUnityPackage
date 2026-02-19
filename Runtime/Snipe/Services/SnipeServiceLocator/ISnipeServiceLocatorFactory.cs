@@ -1,5 +1,5 @@
+using Microsoft.Extensions.Logging;
 using MiniIT.Http;
-using MiniIT.Snipe.Logging;
 using MiniIT.Storage;
 using MiniIT.Utils;
 
@@ -8,7 +8,7 @@ namespace MiniIT.Snipe
 	public interface ISnipeServiceLocatorFactory
 	{
 		ISharedPrefs CreateSharedPrefs();
-		ILogService CreateLogService();
+		ILoggerFactory CreateLoggerFactory();
 		IMainThreadRunner CreateMainThreadRunner();
 		IApplicationInfo CreateApplicationInfo();
 		IStopwatchFactory CreateFuzzyStopwatchFactory();

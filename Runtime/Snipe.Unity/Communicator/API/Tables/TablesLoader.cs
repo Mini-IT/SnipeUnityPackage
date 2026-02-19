@@ -43,9 +43,9 @@ namespace MiniIT.Snipe
 			StreamingAssetsReader.Initialize();
 			_analytics = (_services.Analytics as IAnalyticsTrackerProvider)?.GetTracker();
 			_internetReachabilityProvider = _services.InternetReachabilityProvider;
-			_builtInTablesListService = new BuiltInTablesListService(_services.LogService.GetLogger(nameof(BuiltInTablesListService)));
-			_versionsLoader = new TablesVersionsLoader(_builtInTablesListService, _tablesOptions, _analytics, _services.LogService.GetLogger(nameof(TablesVersionsLoader)));
-			_logger = _services.LogService.GetLogger(nameof(TablesLoader));
+			_builtInTablesListService = new BuiltInTablesListService(_services.LoggerFactory.CreateLogger(nameof(BuiltInTablesListService)));
+			_versionsLoader = new TablesVersionsLoader(_builtInTablesListService, _tablesOptions, _analytics, _services.LoggerFactory.CreateLogger(nameof(TablesVersionsLoader)));
+			_logger = _services.LoggerFactory.CreateLogger(nameof(TablesLoader));
 		}
 
 		internal static string GetCacheDirectoryPath(ISnipeServices services)
@@ -276,7 +276,7 @@ namespace MiniIT.Snipe
 			// try to load a built-in file
 			if (await LoadTableAsync(loaderItem.Table,
 				SnipeTable.LoadingLocation.BuiltIn,
-				new SnipeTableStreamingAssetsLoader(_builtInTablesListService, _services.LogService.GetLogger("SnipeTable")).LoadAsync(
+				new SnipeTableStreamingAssetsLoader(_builtInTablesListService, _services.LoggerFactory.CreateLogger("SnipeTable")).LoadAsync(
 					loaderItem.WrapperType,
 					loaderItem.Table.GetItems(),
 					loaderItem.Name,
@@ -292,7 +292,7 @@ namespace MiniIT.Snipe
 			{
 				return await LoadTableAsync(loaderItem.Table,
 					SnipeTable.LoadingLocation.Network,
-					new SnipeTableWebLoader(_services.LogService.GetLogger("SnipeTable"), _services, _tablesOptions).LoadAsync(
+					new SnipeTableWebLoader(_services.LoggerFactory.CreateLogger("SnipeTable"), _services, _tablesOptions).LoadAsync(
 						httpClient,
 						loaderItem.WrapperType,
 						loaderItem.Table.GetItems(),

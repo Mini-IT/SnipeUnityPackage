@@ -26,7 +26,7 @@ namespace MiniIT.Snipe
 				throw new ArgumentNullException(nameof(services));
 			}
 
-			_logger = services.LogService.GetLogger(nameof(WebSocketBestWrapper));
+			_logger = services.LoggerFactory.CreateLogger(nameof(WebSocketBestWrapper));
 			Best.HTTP.Shared.HTTPManager.Setup();
 		}
 

@@ -45,7 +45,7 @@ namespace MiniIT.Snipe
 			_snipeOptions = options.SnipeOptions;
 			_analytics = options.AnalyticsContext;
 			_services = options.SnipeServices;
-			_logger = _services.LogService.GetLogger(GetType().Name);
+			_logger = _services.LoggerFactory.CreateLogger(GetType().Name);
 
 			_connectionOpenedHandler = options.ConnectionOpenedHandler;
 			_connectionClosedHandler = options.ConnectionClosedHandler;

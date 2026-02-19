@@ -89,7 +89,7 @@ namespace MiniIT.Snipe
 			_analytics = analytics;
 			_services = services;
 			_mainThreadRunner = services.MainThreadRunner;
-			_logger = services.LogService.GetLogger(nameof(AuthSubsystem));
+			_logger = services.LoggerFactory.CreateLogger(nameof(AuthSubsystem));
 			_credentialStore = new AuthCredentialStore(_contextId, services.SharedPrefs, _analytics);
 			_bindingManager = new AuthBindingManager(_contextId, _communicator, this, _options, services.SharedPrefs, _logger);
 		}

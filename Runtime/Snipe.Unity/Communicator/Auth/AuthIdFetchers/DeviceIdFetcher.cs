@@ -50,7 +50,7 @@ namespace MiniIT.Snipe.Unity
 				throw new InvalidOperationException("Services not initialized.");
 			}
 
-			_logger ??= Services.LogService.GetLogger(nameof(DeviceIdFetcher));
+			_logger ??= Services.LoggerFactory.CreateLogger(nameof(DeviceIdFetcher));
 
 			if (string.IsNullOrEmpty(Value))
 			{

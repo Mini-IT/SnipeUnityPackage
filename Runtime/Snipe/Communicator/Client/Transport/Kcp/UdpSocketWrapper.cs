@@ -25,7 +25,7 @@ namespace MiniIT.Snipe
 				throw new ArgumentNullException(nameof(services));
 			}
 
-			_logger = services.LogService.GetLogger(nameof(UdpSocketWrapper));
+			_logger = services.LoggerFactory.CreateLogger(nameof(UdpSocketWrapper));
 		}
 
 		public void Connect(string host, ushort port)

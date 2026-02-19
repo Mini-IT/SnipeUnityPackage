@@ -1,7 +1,7 @@
+using Microsoft.Extensions.Logging;
 using MiniIT.Http;
+using MiniIT.Logging.Unity;
 using MiniIT.Snipe.Debugging;
-using MiniIT.Snipe.Logging;
-using MiniIT.Snipe.Logging.Unity;
 using MiniIT.Storage;
 using MiniIT.Utils;
 
@@ -15,7 +15,16 @@ namespace MiniIT.Snipe.Unity
 
 		public virtual ISharedPrefs CreateSharedPrefs() => SharedPrefs.Instance;
 
-		public virtual ILogService CreateLogService() => new UnityLogService();
+		public virtual ILoggerFactory CreateLoggerFactory() => LoggerFactory.Create(builder =>
+		{
+			builder.SetMinimumLevel(LogLevel.Trace);
+			builder.AddUnityLogger(options =>
+			{
+				options.MinimumLogLevelProvider = new TraceMinimumLogLevelProvider();
+				options.StackTraceMapper = new ScriptOnlyStackTraceMapper();
+			});
+		});
+
 		public virtual IMainThreadRunner CreateMainThreadRunner() => new MainThreadRunner();
 		public virtual IApplicationInfo CreateApplicationInfo() => new UnityApplicationInfo();
 		public virtual IStopwatchFactory CreateFuzzyStopwatchFactory() => new FuzzyStopwatchFactory();

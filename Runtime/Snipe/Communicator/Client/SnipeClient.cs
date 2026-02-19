@@ -78,7 +78,7 @@ namespace MiniIT.Snipe
 			_options = options;
 			_analytics = (services.Analytics as IAnalyticsTrackerProvider)?.GetTracker(options.ContextId);
 			_responseMonitor = new ResponseMonitor(_analytics, services);
-			_logger = services.LogService.GetLogger(nameof(SnipeClient));
+			_logger = services.LoggerFactory.CreateLogger(nameof(SnipeClient));
 			_transportService = new TransportService(options, _analytics, services);
 
 			_transportService.ConnectionOpened += OnTransportConnectionOpened;
