@@ -15,10 +15,14 @@ namespace MiniIT.Snipe.Tables
 		private const int WEB_REQUEST_TIMEOUT_SECONDS = 3;
 
 		private readonly ILogger _logger;
+		private readonly ISnipeServices _services;
+		private readonly TablesOptions _tablesOptions;
 
-		public SnipeTableWebLoader()
+		public SnipeTableWebLoader(ILogger logger, ISnipeServices services, TablesOptions tablesOptions)
 		{
-			_logger = SnipeServices.Instance.LogService.GetLogger("SnipeTable");
+			_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+			_services = services ?? throw new ArgumentNullException(nameof(services));
+			_tablesOptions = tablesOptions ?? throw new ArgumentNullException(nameof(tablesOptions));
 		}
 
 		public async UniTask<bool> LoadAsync(IHttpClient httpClient, Type wrapperType, IDictionary items, string tableName, long version, CancellationToken cancellation)
@@ -68,7 +72,7 @@ namespace MiniIT.Snipe.Tables
 					}
 
 					stream.Position = 0;
-					await SnipeTableSaver.SaveToCacheAsync(stream, tableName, version);
+					await SnipeTableSaver.SaveToCacheAsync(_services, stream, tableName, version);
 				}
 				catch (Exception e)
 				{
@@ -122,9 +126,9 @@ namespace MiniIT.Snipe.Tables
 			return null;
 		}
 
-		private static string GetTableUrl(string tableName, long version)
+		private string GetTableUrl(string tableName, long version)
 		{
-			return $"{TablesConfig.GetTablesPath()}{version}_{tableName}.json.gz";
+			return $"{_tablesOptions.GetTablesPath()}{version}_{tableName}.json.gz";
 		}
 	}
 }

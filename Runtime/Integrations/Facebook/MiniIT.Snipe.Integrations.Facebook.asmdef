@@ -6,7 +6,8 @@
         "MiniIT.Snipe.Communicator",
         "MiniIT.Framework.Social",
 		"UniTask",
-        "fastJSON"
+        "fastJSON",
+        "MiniIT.Snipe.Abstractions"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

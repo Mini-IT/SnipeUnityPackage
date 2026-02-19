@@ -13,10 +13,10 @@ namespace MiniIT.Snipe.Tables
 		private readonly BuiltInTablesListService _builtInTablesListService;
 		private readonly ILogger _logger;
 
-		public SnipeTableStreamingAssetsLoader(BuiltInTablesListService builtInTablesListService)
+		public SnipeTableStreamingAssetsLoader(BuiltInTablesListService builtInTablesListService, ILogger logger)
 		{
 			_builtInTablesListService = builtInTablesListService;
-			_logger = SnipeServices.Instance.LogService.GetLogger("SnipeTable");
+			_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 		}
 
 		public async UniTask<bool> LoadAsync(Type wrapperType, IDictionary items, string tableName, long version, CancellationToken cancellationToken = default)

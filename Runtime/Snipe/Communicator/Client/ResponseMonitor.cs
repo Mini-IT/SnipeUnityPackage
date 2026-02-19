@@ -22,10 +22,15 @@ namespace MiniIT.Snipe
 		private CancellationTokenSource _cancellation;
 
 		private readonly IDictionary<int, ResponseMonitoringItem> _items;
-		private readonly SnipeAnalyticsTracker _analytics;
+		private readonly IAnalyticsContext _analytics;
 
-		public ResponseMonitor(SnipeAnalyticsTracker analytics)
+		public ResponseMonitor(IAnalyticsContext analytics, ISnipeServices services)
 		{
+			if (services == null)
+			{
+				throw new ArgumentNullException(nameof(services));
+			}
+
 			_analytics = analytics;
 
 #if UNITY_WEBGL
@@ -34,7 +39,7 @@ namespace MiniIT.Snipe
 			_items = new ConcurrentDictionary<int, ResponseMonitoringItem>();
 #endif
 
-			_stopwatch = SnipeServices.Instance.FuzzyStopwatchFactory.Create();
+			_stopwatch = services.FuzzyStopwatchFactory.Create();
 			_stopwatch.Start();
 		}
 

@@ -4,6 +4,7 @@ namespace MiniIT.Snipe
 {
 	public interface ISnipeApiTablesFactory
 	{
+		TablesOptions TablesOptions { get; }
 		SnipeApiTables CreateSnipeApiTables();
 	}
 }

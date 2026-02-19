@@ -4,7 +4,8 @@
     "references": [
         "MiniIT.AlterTask",
         "MiniIT.Snipe.Communicator",
-        "UniTask"
+        "UniTask",
+        "MiniIT.Snipe.Abstractions"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

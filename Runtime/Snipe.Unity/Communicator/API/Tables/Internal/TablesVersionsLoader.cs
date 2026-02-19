@@ -20,14 +20,16 @@ namespace MiniIT.Snipe.Tables
 		}
 
 		private readonly BuiltInTablesListService _builtInTablesListService;
-		private readonly SnipeAnalyticsTracker _analyticsTracker;
+		private readonly TablesOptions _tablesOptions;
+		private readonly IAnalyticsContext _analytics;
 		private readonly ILogger _logger;
 
-		public TablesVersionsLoader(BuiltInTablesListService builtInTablesListService, SnipeAnalyticsTracker analyticsTracker)
+		public TablesVersionsLoader(BuiltInTablesListService builtInTablesListService, TablesOptions tablesOptions, IAnalyticsContext analytics, ILogger logger)
 		{
 			_builtInTablesListService = builtInTablesListService;
-			_analyticsTracker = analyticsTracker;
-			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(TablesVersionsLoader));
+			_tablesOptions = tablesOptions ?? throw new ArgumentNullException(nameof(tablesOptions));
+			_analytics = analytics;
+			_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 		}
 
 		public async UniTask<LoadResult> Load(IHttpClient httpClient, CancellationToken cancellationToken)
@@ -54,7 +56,7 @@ namespace MiniIT.Snipe.Tables
 					if (loadExternal)
 					{
 						_logger.LogTrace("LoadVersion Failed. Trying to use the built-in ones");
-						_analyticsTracker.TrackEvent("Tables - LoadVersion Failed");
+						_analytics.TrackEvent("Tables - LoadVersion Failed");
 					}
 
 					result.Vesions = await LoadBuiltIn();
@@ -99,7 +101,7 @@ namespace MiniIT.Snipe.Tables
 
 						if (versions == null)
 						{
-							_analyticsTracker.TrackEvent("Tables - LoadVersion Failed to prase versions json", new Dictionary<string, object>()
+							_analytics.TrackEvent("Tables - LoadVersion Failed to prase versions json", new Dictionary<string, object>()
 							{
 								["url"] = url,
 								["json"] = json,
@@ -116,7 +118,7 @@ namespace MiniIT.Snipe.Tables
 					{
 						long responseCode = webRequest.ResponseCode;
 
-						_analyticsTracker.TrackEvent("Tables - LoadVersion Failed to load url", new Dictionary<string, object>()
+						_analytics.TrackEvent("Tables - LoadVersion Failed to load url", new Dictionary<string, object>()
 						{
 							["HttpStatus"] = (HttpStatusCode)responseCode,
 							["HttpStatusCode"] = responseCode,
@@ -174,9 +176,9 @@ namespace MiniIT.Snipe.Tables
 			return versions;
 		}
 
-		private static string GetVersionsUrl()
+		private string GetVersionsUrl()
 		{
-			return TablesConfig.GetTablesPath(true) + "version.json";
+			return _tablesOptions.GetTablesPath(true) + "version.json";
 		}
 
 		private Dictionary<string, long> ParseVersionsJson(string json)

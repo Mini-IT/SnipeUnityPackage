@@ -2,10 +2,12 @@
     "name": "MiniIT.Snipe.Context",
     "rootNamespace": "MiniIT.Snipe",
     "references": [
+        "MiniIT.Snipe.Abstractions",
         "MiniIT.Snipe.Core",
         "MiniIT.Snipe.Communicator",
         "MiniIT.Snipe.Communicator.Unity",
         "MiniIT.Snipe.Logging",
+		"MiniIT.Snipe.Options",
         "MiniIT.Snipe.Services",
         "MiniIT.Snipe.Unity",
         "MiniIT.Storage.SharedPrefs",

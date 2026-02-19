@@ -4,9 +4,11 @@ using MiniIT.Snipe.Api;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeManager : ISnipeManager
+	public class SnipeManager : ISnipeManager, IDisposable
 	{
 		public bool Initialized => _contextFactory != null && _tablesFactory != null;
+		public ISnipeServices Services => _services;
+		public TablesOptions TablesOptions => _tablesFactory.TablesOptions;
 
 		private readonly Dictionary<int, SnipeContext> _contexts = new ();
 		private readonly Dictionary<int, SnipeContextReference> _references = new ();
@@ -15,9 +17,22 @@ namespace MiniIT.Snipe
 		private ISnipeApiTablesFactory _tablesFactory;
 		private SnipeApiTables _tables;
 
-		public void Initialize(ISnipeContextAndTablesFactory factory)
+		private readonly ISnipeServices _services;
+
+		// Tests can utilize this constructor with `NullSnipeServices`
+		public SnipeManager(ISnipeServices services)
 		{
-			Initialize(factory, factory);
+			_services = services ?? throw new ArgumentNullException(nameof(services));
+		}
+
+		public SnipeManager(ISnipeInfrastructureProvider servicesFactory)
+		{
+			if (servicesFactory == null)
+			{
+				throw new ArgumentNullException(nameof(servicesFactory));
+			}
+
+			_services = new SnipeServiceLocator(servicesFactory);
 		}
 
 		public void Initialize(ISnipeContextFactory contextFactory, ISnipeApiTablesFactory tablesFactory)
@@ -91,6 +106,11 @@ namespace MiniIT.Snipe
 
 			_tables = _tablesFactory.CreateSnipeApiTables();
 			return _tables;
+		}
+
+		public void Dispose()
+		{
+			(_services as IDisposable)?.Dispose();
 		}
 	}
 }

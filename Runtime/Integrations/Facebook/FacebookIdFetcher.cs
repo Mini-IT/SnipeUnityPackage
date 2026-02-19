@@ -33,11 +33,13 @@ namespace MiniIT.Snipe.Unity
 		{
 			string userId = GetFacebookUserId();
 
+			var cancellationToken = _cts.Token;
+
 			while (string.IsNullOrEmpty(userId))
 			{
 				try
 				{
-					await AlterTask.Delay(100, cancellationToken: _cts.Token);
+					await AlterTask.Delay(100, cancellationToken: cancellationToken);
 					userId = GetFacebookUserId();
 				}
 				catch (OperationCanceledException)

@@ -22,9 +22,14 @@ namespace MiniIT.Snipe
 		private Action<bool> _pongCallback;
 		private readonly object _pongLock = new object();
 
-		public WebSocketJSWrapper()
+		public WebSocketJSWrapper(ISnipeServices services)
 		{
-			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(WebSocketJSWrapper));
+			if (services == null)
+			{
+				throw new ArgumentNullException(nameof(services));
+			}
+
+			_logger = services.LoggerFactory.CreateLogger(nameof(WebSocketJSWrapper));
 		}
 
 		public override void Connect(string url)

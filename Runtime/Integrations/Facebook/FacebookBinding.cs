@@ -1,16 +1,17 @@
-﻿#if SNIPE_FACEBOOK
+#if SNIPE_FACEBOOK
 
 using System;
 using System.Collections.Generic;
 using Facebook.Unity;
 using Microsoft.Extensions.Logging;
+using MiniIT.Snipe;
 
 namespace MiniIT.Snipe.Unity
 {
 	public class FacebookBinding : AuthBinding<FacebookIdFetcher>
 	{
-		public FacebookBinding()
-			: base("fb")
+		public FacebookBinding(ISnipeServices services)
+			: base("fb", services)
 		{
 			UseContextIdPrefix = false;
 		}
@@ -26,8 +27,6 @@ namespace MiniIT.Snipe.Unity
 				return AccessToken.CurrentAccessToken.TokenString;
 			}
 #endif
-
-			return "";
 		}
 
 		protected override void FillExtraParameters(IDictionary<string, object> data)
@@ -125,7 +124,7 @@ namespace MiniIT.Snipe.Unity
 
 			FillExtraParameters(data);
 
-			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_CONNECT, data)
+			new UnauthorizedRequest(_communicator, Services, SnipeMessageTypes.AUTH_CONNECT, data)
 				.Request((string errorCode, IDictionary<string, object> _) =>
 				{
 					callback?.Invoke(this, errorCode);

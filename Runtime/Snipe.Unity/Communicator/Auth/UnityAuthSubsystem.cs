@@ -1,12 +1,13 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
+using MiniIT.Snipe;
 
 namespace MiniIT.Snipe.Unity
 {
 	public class UnityAuthSubsystem : AuthSubsystem
 	{
-		public UnityAuthSubsystem(int contextId, SnipeCommunicator communicator, SnipeAnalyticsTracker analytics)
-			: base(contextId, communicator, analytics)
+		public UnityAuthSubsystem(int contextId, SnipeOptions options, ISnipeCommunicator communicator, IAnalyticsContext analytics, ISnipeServices services)
+			: base(contextId, options, communicator, analytics, services)
 		{
 		}
 
@@ -19,22 +20,13 @@ namespace MiniIT.Snipe.Unity
 
 			var providers = new Dictionary<string, Dictionary<string, object>>();
 
-			if (_bindings.Count > 0)
+			if (BindingCount > 0)
 			{
 				var tasks = new List<UniTask>(3);
 
-				foreach (AuthBinding binding in _bindings)
+				foreach (AuthBinding binding in Bindings)
 				{
-					if (binding?.Fetcher == null)
-					{
-						continue;
-					}
-
-					if (binding is DeviceIdBinding or AdvertisingIdBinding)
-					{
-						tasks.Add(FetchLoginId(binding, providers));
-					}
-					else if (binding.Fetcher is IAuthIdFetcherWithToken)
+					if (binding?.Fetcher != null && binding.AvailableForRegistration)
 					{
 						tasks.Add(FetchLoginId(binding, providers));
 					}

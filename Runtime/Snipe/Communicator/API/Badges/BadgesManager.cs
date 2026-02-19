@@ -20,7 +20,7 @@ namespace MiniIT.Snipe.Api
 		private ISnipeTable<SnipeTableBadgesItem> _badgesTable;
 		private GetCallback _getCallback;
 
-		public BadgesManager(SnipeCommunicator communicator,
+		public BadgesManager(ISnipeCommunicator communicator,
 			AbstractSnipeApiService.RequestFactoryMethod requestFactory,
 			ISnipeTable<SnipeTableBadgesItem> badgesTable)
 			: base(communicator, requestFactory, badgesTable)

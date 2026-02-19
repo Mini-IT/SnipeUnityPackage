@@ -1,39 +1,42 @@
 using System;
 using System.Collections.Generic;
 using MiniIT.Snipe.Debugging;
+using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeAnalyticsService : ISnipeAnalyticsService
+	internal class SnipeAnalyticsService : ISnipeAnalyticsService, IAnalyticsTrackerProvider
 	{
-		public bool IsEnabled { get; set; } = true;
+		public bool Enabled { get; set; } = true;
 
 		private ISnipeCommunicatorAnalyticsTracker _externalTracker;
 		private readonly Func<ISnipeErrorsTracker> _errorsTrackerGetter;
+		private readonly IMainThreadRunner _mainThreadRunner;
 
-		private Dictionary<int, SnipeAnalyticsTracker> _trackers;
+		private Dictionary<int, AnalyticsContext> _trackers;
 		private readonly object _trackersLock = new object();
 
-		public SnipeAnalyticsService(Func<ISnipeErrorsTracker> errorsTrackerGetter = null)
+		public SnipeAnalyticsService(IMainThreadRunner mainThreadRunner, Func<ISnipeErrorsTracker> errorsTrackerGetter = null)
 		{
+			_mainThreadRunner = mainThreadRunner;
 			_errorsTrackerGetter = errorsTrackerGetter;
 		}
 
-		public SnipeAnalyticsTracker GetTracker(int contextId = 0)
+		public IAnalyticsContext GetTracker(int contextId = 0)
 		{
-			SnipeAnalyticsTracker tracker;
+			AnalyticsContext context;
 
 			lock (_trackersLock)
 			{
-				_trackers ??= new Dictionary<int, SnipeAnalyticsTracker>(1);
-				if (!_trackers.TryGetValue(contextId, out tracker))
+				_trackers ??= new Dictionary<int, AnalyticsContext>(1);
+				if (!_trackers.TryGetValue(contextId, out context))
 				{
-					tracker = new SnipeAnalyticsTracker(this, contextId, _errorsTrackerGetter);
-					_trackers[contextId] = tracker;
-					tracker.SetExternalTracker(_externalTracker);
+					context = new AnalyticsContext(this, contextId, _errorsTrackerGetter, _mainThreadRunner);
+					_trackers[contextId] = context;
+					context.SetExternalTracker(_externalTracker);
 				}
 			}
-			return tracker;
+			return context;
 		}
 
 		public void SetTracker(ISnipeCommunicatorAnalyticsTracker externalTracker)

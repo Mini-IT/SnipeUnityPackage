@@ -27,37 +27,41 @@ namespace MiniIT.Snipe
 		private HashSet<TablesLoaderItem> _loadingItems;
 		private readonly TablesVersionsLoader _versionsLoader;
 		private readonly BuiltInTablesListService _builtInTablesListService;
-		private readonly SnipeAnalyticsTracker _analyticsTracker;
-		private readonly IInternetReachabilityProvider _internetReachabilityProvider;
+		private readonly TablesOptions _tablesOptions;
+		private readonly IAnalyticsContext _analytics;
+		private readonly IInternetReachability _internetReachability;
 		private readonly ILogger _logger;
+		private readonly ISnipeServices _services;
 
 		private UniTaskCompletionSource<bool> _loadingTaskCompletion;
 		private readonly object _loadingTaskCompletionLock = new();
 
-		public TablesLoader()
+		public TablesLoader(ISnipeServices services, TablesOptions tablesOptions)
 		{
+			_services = services ?? throw new ArgumentNullException(nameof(services));
+			_tablesOptions = tablesOptions ?? throw new ArgumentNullException(nameof(tablesOptions));
 			StreamingAssetsReader.Initialize();
-			_analyticsTracker = SnipeServices.Instance.Analytics.GetTracker();
-			_internetReachabilityProvider = SnipeServices.Instance.InternetReachabilityProvider;
-			_builtInTablesListService = new BuiltInTablesListService();
-			_versionsLoader = new TablesVersionsLoader(_builtInTablesListService, _analyticsTracker);
-			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(TablesLoader));
+			_analytics = (_services.Analytics as IAnalyticsTrackerProvider)?.GetTracker();
+			_internetReachability = _services.InternetReachability;
+			_builtInTablesListService = new BuiltInTablesListService(_services.LoggerFactory.CreateLogger(nameof(BuiltInTablesListService)));
+			_versionsLoader = new TablesVersionsLoader(_builtInTablesListService, _tablesOptions, _analytics, _services.LoggerFactory.CreateLogger(nameof(TablesVersionsLoader)));
+			_logger = _services.LoggerFactory.CreateLogger(nameof(TablesLoader));
 		}
 
-		internal static string GetCacheDirectoryPath()
+		internal static string GetCacheDirectoryPath(ISnipeServices services)
 		{
-			return Path.Combine(SnipeServices.Instance.ApplicationInfo.PersistentDataPath ?? "", "SnipeTables");
+			return Path.Combine(services?.ApplicationInfo.PersistentDataPath ?? "", "SnipeTables");
 		}
 
-		internal static string GetCachePath(string tableName, long version)
+		internal static string GetCachePath(ISnipeServices services, string tableName, long version)
 		{
-			return Path.Combine(GetCacheDirectoryPath(), $"{version}_{tableName}.json.gz");
+			return Path.Combine(GetCacheDirectoryPath(services), $"{version}_{tableName}.json.gz");
 		}
 
 		public void Reset()
 		{
 			_logger.LogTrace("Reset");
-			_analyticsTracker.TrackEvent("TablesLoader - Reset");
+			_analytics.TrackEvent("TablesLoader - Reset");
 
 			StopLoading();
 
@@ -96,18 +100,18 @@ namespace MiniIT.Snipe
 			{
 				await _builtInTablesListService.InitializeAsync(cancellationToken);
 
-				bool fallbackEnabled = TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceExternal;
-				bool loadExternal = TablesConfig.Versioning != TablesConfig.VersionsResolution.ForceBuiltIn
-				                    && _internetReachabilityProvider.IsInternetAvailable;
+				bool fallbackEnabled = _tablesOptions.Versioning != TablesOptions.VersionsResolution.ForceExternal;
+				bool loadExternal = _tablesOptions.Versioning != TablesOptions.VersionsResolution.ForceBuiltIn
+				                    && _internetReachability.IsInternetAvailable;
 
 				if (fallbackEnabled)
 				{
 					RemoveOutdatedCache();
 				}
 
-				IHttpClient httpClient = loadExternal ? SnipeServices.Instance.HttpClientFactory.CreateHttpClient() : null;
+				IHttpClient httpClient = loadExternal ? _services.HttpClientFactory.CreateHttpClient() : null;
 
-				bool loaded = await LoadAll(httpClient);
+				bool loaded = await LoadAll(httpClient, cancellationToken);
 
 				if (httpClient is IDisposable disposableHttpClient)
 				{
@@ -121,12 +125,17 @@ namespace MiniIT.Snipe
 				else if (loadExternal && fallbackEnabled)
 				{
 					_versions = null;
-					loaded = await LoadAll(null);
+					loaded = await LoadAll(null, cancellationToken);
 				}
 
-				_analyticsTracker.TrackEvent($"TablesLoader - " + (loaded ? "Loaded" : "Failed"));
+				_analytics.TrackEvent($"TablesLoader - " + (loaded ? "Loaded" : "Failed"));
 				_loadingTaskCompletion.TrySetResult(loaded);
 				return loaded;
+			}
+			catch (OperationCanceledException)
+			{
+				_loadingTaskCompletion.TrySetCanceled();
+				throw;
 			}
 			catch (Exception ex)
 			{
@@ -140,7 +149,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async UniTask<bool> LoadAll(IHttpClient httpClient)
+		private async UniTask<bool> LoadAll(IHttpClient httpClient, CancellationToken cancellationToken = default)
 		{
 			if (_loadingItems == null || _loadingItems.Count == 0)
 			{
@@ -148,34 +157,40 @@ namespace MiniIT.Snipe
 			}
 
 			_cancellation = new CancellationTokenSource();
-			CancellationToken cancellationToken = _cancellation.Token;
+			using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cancellation.Token);
+			CancellationToken linkedToken = linkedCts.Token;
 
-			var versionsLoadResult = await _versionsLoader.Load(httpClient, cancellationToken);
-			_versions = versionsLoadResult.Vesions;
-
-			if (cancellationToken.IsCancellationRequested || _loadingItems == null)
+			try
 			{
-				return false;
-			}
+				var versionsLoadResult = await _versionsLoader.Load(httpClient, linkedToken);
+				_versions = versionsLoadResult.Vesions;
 
-			if (!versionsLoadResult.LoadedFromWeb)
+				if (linkedToken.IsCancellationRequested || _loadingItems == null)
+				{
+					return false;
+				}
+
+				if (!versionsLoadResult.LoadedFromWeb)
+				{
+					httpClient = null;
+				}
+
+				_failed = false;
+				var tasks = new List<UniTask>(_loadingItems.Count);
+				foreach (var item in _loadingItems)
+				{
+					tasks.Add(LoadTable(item, httpClient, linkedToken));
+				}
+
+				await UniTask.WhenAll(tasks);
+
+				return !_failed;
+			}
+			finally
 			{
-				httpClient = null;
+				_cancellation?.Dispose();
+				_cancellation = null;
 			}
-
-			_failed = false;
-			var tasks = new List<UniTask>(_loadingItems.Count);
-			foreach (var item in _loadingItems)
-			{
-				tasks.Add(LoadTable(item, httpClient, cancellationToken));
-			}
-
-			await UniTask.WhenAll(tasks);
-
-			_cancellation?.Dispose();
-			_cancellation = null;
-
-			return !_failed;
 		}
 
 		private async UniTask LoadTable(TablesLoaderItem loaderItem, IHttpClient httpClient, CancellationToken cancellationToken)
@@ -227,7 +242,7 @@ namespace MiniIT.Snipe
 
 				if (!cancelled)
 				{
-					_analyticsTracker.TrackError($"Tables - Failed to load table '{loaderItem.Name}'", exception);
+					_analytics.TrackError($"Tables - Failed to load table '{loaderItem.Name}'", exception);
 				}
 
 				StopLoading();
@@ -248,6 +263,7 @@ namespace MiniIT.Snipe
 			if (await LoadTableAsync(loaderItem.Table,
 				SnipeTable.LoadingLocation.Cache,
 				SnipeTableFileLoader.LoadAsync(
+					_services,
 					loaderItem.WrapperType,
 					loaderItem.Table.GetItems(),
 					loaderItem.Name,
@@ -260,7 +276,7 @@ namespace MiniIT.Snipe
 			// try to load a built-in file
 			if (await LoadTableAsync(loaderItem.Table,
 				SnipeTable.LoadingLocation.BuiltIn,
-				new SnipeTableStreamingAssetsLoader(_builtInTablesListService).LoadAsync(
+				new SnipeTableStreamingAssetsLoader(_builtInTablesListService, _services.LoggerFactory.CreateLogger("SnipeTable")).LoadAsync(
 					loaderItem.WrapperType,
 					loaderItem.Table.GetItems(),
 					loaderItem.Name,
@@ -276,7 +292,7 @@ namespace MiniIT.Snipe
 			{
 				return await LoadTableAsync(loaderItem.Table,
 					SnipeTable.LoadingLocation.Network,
-					new SnipeTableWebLoader().LoadAsync(
+					new SnipeTableWebLoader(_services.LoggerFactory.CreateLogger("SnipeTable"), _services, _tablesOptions).LoadAsync(
 						httpClient,
 						loaderItem.WrapperType,
 						loaderItem.Table.GetItems(),
@@ -313,7 +329,7 @@ namespace MiniIT.Snipe
 			if (_versions == null || _versions.Count == 0)
 				return;
 
-			string directory = GetCacheDirectoryPath();
+			string directory = GetCacheDirectoryPath(_services);
 			if (!Directory.Exists(directory))
 				return;
 
@@ -336,7 +352,7 @@ namespace MiniIT.Snipe
 		/// </summary>
 		private void RemoveOutdatedCache()
 		{
-			string directory = GetCacheDirectoryPath();
+			string directory = GetCacheDirectoryPath(_services);
 			if (!Directory.Exists(directory))
 				return;
 

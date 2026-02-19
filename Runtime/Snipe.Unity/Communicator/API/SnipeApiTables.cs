@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using MiniIT.Threading;
 
@@ -14,12 +16,21 @@ namespace MiniIT.Snipe.Api
 		private readonly object _lock = new object();
 		private bool _loading = false;
 
-		public SnipeApiTables()
+		public SnipeApiTables(ISnipeServices services, TablesOptions tablesOptions)
 		{
+			if (services == null)
+			{
+				throw new ArgumentNullException(nameof(services));
+			}
+			if (tablesOptions == null)
+			{
+				throw new ArgumentNullException(nameof(tablesOptions));
+			}
+
 			_tables = new HashSet<SnipeTable>();
-			_loader = new TablesLoader();
+			_loader = new TablesLoader(services, tablesOptions);
 		}
-		
+
 		public SnipeTable<ItemType> RegisterTable<ItemType>(SnipeTable<ItemType> table, string name)
 			where ItemType : SnipeTableItem, new()
 		{
@@ -42,7 +53,7 @@ namespace MiniIT.Snipe.Api
 			}
 		}
 
-		public async UniTask Load(bool restart = false)
+		public async UniTask Load(bool restart = false, CancellationToken cancellationToken = default)
 		{
 			bool startLoading = false;
 
@@ -72,13 +83,22 @@ namespace MiniIT.Snipe.Api
 
 			if (startLoading)
 			{
-				_ = await _loader.Load();
-				_loading = false;
+				try
+				{
+					_ = await _loader.Load(cancellationToken);
+				}
+				finally
+				{
+					_loading = false;
+				}
 			}
-			
-			while (_loading)
+			else
 			{
-				await AlterTask.Delay(100);
+				while (_loading)
+				{
+					cancellationToken.ThrowIfCancellationRequested();
+					await AlterTask.Delay(100, cancellationToken);
+				}
 			}
 		}
 
@@ -92,7 +112,7 @@ namespace MiniIT.Snipe.Api
 					{
 						return true;
 					}
-					
+
 					foreach (var table in _tables)
 					{
 						if (table == null)
@@ -100,7 +120,7 @@ namespace MiniIT.Snipe.Api
 						if (!table.Loaded)
 							return false;
 					}
-					
+
 					return true;
 				}
 			}
@@ -116,7 +136,7 @@ namespace MiniIT.Snipe.Api
 					{
 						return false;
 					}
-					
+
 					foreach (var table in _tables)
 					{
 						if (table == null)
@@ -124,7 +144,7 @@ namespace MiniIT.Snipe.Api
 						if (table.LoadingFailed)
 							return true;
 					}
-					
+
 					return false;
 				}
 			}

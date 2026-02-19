@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using MiniIT.Threading;
@@ -13,7 +13,7 @@ namespace MiniIT.Snipe.Api
 		protected CancellationTokenSource _waitingTableCancellation;
 		private Queue<QueuedMessage> _waitingTableMessages;
 
-		public AbstractSnipeApiModuleManagerWithTable(SnipeCommunicator communicator,
+		public AbstractSnipeApiModuleManagerWithTable(ISnipeCommunicator communicator,
 			AbstractSnipeApiService.RequestFactoryMethod requestFactory,
 			ISnipeTable table)
 			: base(communicator, requestFactory)

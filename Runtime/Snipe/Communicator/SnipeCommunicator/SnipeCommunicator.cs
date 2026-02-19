@@ -1,15 +1,16 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
+using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.Threading;
 using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
-	public sealed partial class SnipeCommunicator : IDisposable
+	public sealed partial class SnipeCommunicator : ISnipeCommunicator
 	{
-		public readonly int InstanceId = new System.Random().Next();
+		public int InstanceId { get; } = new System.Random().Next();
 
 		private const int RETRY_INIT_CLIENT_DELAY = 500; // ms
 		private const int RETRY_INIT_CLIENT_MIN_DELAY = 500; // ms
@@ -20,7 +21,7 @@ namespace MiniIT.Snipe
 
 		public bool AllowRequestsToWaitForLogin { get; set; } = true;
 
-		public int RestoreConnectionAttempts = 3;
+		public int RestoreConnectionAttempts { get; set; } = 3;
 		private int _restoreConnectionAttempt;
 
 		private List<AbstractCommunicatorRequest> _requests;
@@ -52,28 +53,50 @@ namespace MiniIT.Snipe
 
 		private CancellationTokenSource _delayedInitCancellation;
 
-		private SnipeConfig _config;
-		private readonly SnipeAnalyticsTracker _analytics;
+		private SnipeOptions _options;
+		private readonly IAnalyticsContext _analytics;
 		private readonly IMainThreadRunner _mainThreadRunner;
+		private readonly ISnipeServices _services;
 		private readonly RoomStateObserver _roomStateObserver;
 		private readonly ILogger _logger;
 
-		public SnipeCommunicator(SnipeAnalyticsTracker analytics)
+		public SnipeCommunicator(SnipeOptions options, IAnalyticsContext analytics, ISnipeServices services)
 		{
-			_analytics = analytics;
+			if (services == null)
+			{
+				throw new ArgumentNullException(nameof(services));
+			}
 
-			_mainThreadRunner = SnipeServices.Instance.MainThreadRunner;
-			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(SnipeCommunicator));
+			_options = options;
+			_analytics = analytics;
+			_services = services;
+
+			_mainThreadRunner = services.MainThreadRunner;
+			_logger = services.LoggerFactory.CreateLogger(nameof(SnipeCommunicator));
 			_logger.BeginScope($"{InstanceId}");
 
 			_roomStateObserver = new RoomStateObserver(this);
 
 			_logger.LogInformation($"PACKAGE VERSION: {PackageInfo.VERSION_NAME}");
+			_logger.LogTrace("+++ TEST TRACE");
+			_logger.LogError("+++ TEST ERROR");
+			_logger.LogInformation("+++ TEST INFO");
+			DelayedLog().Forget();
 		}
 
-		public void Initialize(SnipeConfig config)
+		private async UniTask DelayedLog()
 		{
-			_config = config;
+			await UniTask.Delay(3000);
+			_logger.LogTrace("+++ +++ delayed TEST TRACE");
+			_logger.LogError("+++ +++ delayed TEST ERROR");
+			_logger.LogInformation("+++ +++ delayed TEST INFO");
+		}
+
+		public ISnipeServices Services => _services;
+
+		public void Reconfigure(SnipeOptions options)
+		{
+			_options = options;
 		}
 
 		/// <summary>
@@ -81,7 +104,7 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public void Start()
 		{
-			if (!SnipeServices.Instance.InternetReachabilityProvider.IsInternetAvailable)
+			if (!_services.InternetReachability.IsInternetAvailable)
 			{
 				_logger.LogInformation("Internet is not available");
 				ConnectionDisrupted?.Invoke();
@@ -113,7 +136,7 @@ namespace MiniIT.Snipe
 			{
 				if (_client == null)
 				{
-					_client = new SnipeClient(_config);
+					_client = new SnipeClient(_options, _services);
 					_client.ConnectionOpened += OnClientConnectionOpened;
 					_client.ConnectionClosed += OnClientConnectionClosed;
 					_client.ConnectionDisrupted += OnClientConnectionDisrupted;
@@ -158,7 +181,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		internal int SendRequest(string messageType, IDictionary<string, object> data)
+		public int SendRequest(string messageType, IDictionary<string, object> data)
 		{
 			int id = _client?.SendRequest(messageType, data) ?? 0;
 
@@ -172,7 +195,7 @@ namespace MiniIT.Snipe
 
 		private void OnClientConnectionOpened(TransportInfo transportInfo)
 		{
-			_logger.LogTrace("Client connection opened");
+			_logger.LogDebug("Client connection opened");
 
 			_restoreConnectionAttempt = 0;
 			_disconnecting = false;

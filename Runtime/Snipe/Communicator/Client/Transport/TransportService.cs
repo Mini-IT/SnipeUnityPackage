@@ -14,8 +14,8 @@ namespace MiniIT.Snipe
 			public Func<bool> TryAdvanceUrl;
 		}
 
-		private readonly SnipeConfig _config;
-		private readonly SnipeAnalyticsTracker _analytics;
+		private readonly SnipeOptions _options;
+		private readonly IAnalyticsContext _analytics;
 		private readonly TransportFactory _transportFactory;
 		private readonly List<TransportEntry> _transportEntries = new List<TransportEntry>(3);
 		private int _currentTransportIndex;
@@ -36,11 +36,16 @@ namespace MiniIT.Snipe
 		public event Action UdpConnectionFailed;
 		public event Action<IDictionary<string, object>> MessageReceived;
 
-		internal TransportService(SnipeConfig config, SnipeAnalyticsTracker analytics)
+		internal TransportService(SnipeOptions options, IAnalyticsContext analytics, ISnipeServices services)
 		{
-			_config = config;
+			if (services == null)
+			{
+				throw new ArgumentNullException(nameof(services));
+			}
+
+			_options = options;
 			_analytics = analytics;
-			_transportFactory = new TransportFactory(config, analytics);
+			_transportFactory = new TransportFactory(options, analytics, services);
 		}
 
 		public Transport GetCurrentTransport() => _currentTransport;
@@ -56,38 +61,38 @@ namespace MiniIT.Snipe
 			}
 
 #if !UNITY_WEBGL
-			if (_config.CheckUdpAvailable())
+			if (_options.CheckUdpAvailable())
 			{
 				_transportEntries.Add(new TransportEntry
 				{
 					Factory = () => _transportFactory.CreateKcpTransport(OnTransportOpened, OnTransportClosed, OnMessageReceived),
 					ResolveEndpoint = () =>
 					{
-						var address = _config.GetUdpAddress();
+						var address = _options.GetUdpAddress();
 						return address == null ? (null, 0) : (address.Host, address.Port);
 					},
-					TryAdvanceUrl = () => _config.NextUdpUrl()
+					TryAdvanceUrl = () => _options.NextUdpUrl()
 				});
 			}
 #endif
 
-			if (_config.CheckWebSocketAvailable())
+			if (_options.CheckWebSocketAvailable())
 			{
 				_transportEntries.Add(new TransportEntry
 				{
 					Factory = () => _transportFactory.CreateWebSocketTransport(OnTransportOpened, OnTransportClosed, OnMessageReceived),
-					ResolveEndpoint = () => (_config.GetWebSocketUrl(), 0),
-					TryAdvanceUrl = () => _config.NextWebSocketUrl()
+					ResolveEndpoint = () => (_options.GetWebSocketUrl(), 0),
+					TryAdvanceUrl = () => _options.NextWebSocketUrl()
 				});
 			}
 
-			if (_config.CheckHttpAvailable())
+			if (_options.CheckHttpAvailable())
 			{
 				_transportEntries.Add(new TransportEntry
 				{
 					Factory = () => _transportFactory.CreateHttpTransport(OnTransportOpened, OnTransportClosed, OnMessageReceived),
-					ResolveEndpoint = () => (_config.GetHttpAddress(), 0),
-					TryAdvanceUrl = () => _config.NextHttpUrl()
+					ResolveEndpoint = () => (_options.GetHttpAddress(), 0),
+					TryAdvanceUrl = () => _options.NextHttpUrl()
 				});
 			}
 		}

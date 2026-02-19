@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
+using MiniIT.Snipe;
 
 using GraphUpdatedDelegate = System.Action<System.Collections.Generic.Dictionary<int, MiniIT.Snipe.Api.LogicGraph>>;
 
@@ -21,13 +22,19 @@ namespace MiniIT.Snipe.Api
 		private readonly LogicGraphParser _graphParser;
 		private readonly ILogger _logger;
 
-		public GraphLogicManager(SnipeCommunicator communicator,
+		public GraphLogicManager(ISnipeCommunicator communicator,
 			AbstractSnipeApiService.RequestFactoryMethod requestFactory,
-			ISnipeTable<SnipeTableGraphsItem> table)
+			ISnipeTable<SnipeTableGraphsItem> table,
+			ISnipeServices services)
 			: base(communicator, requestFactory, table)
 		{
+			if (services == null)
+			{
+				throw new ArgumentNullException(nameof(services));
+			}
+
 			_graphParser = new LogicGraphParser(table);
-			_logger = SnipeServices.Instance.LogService.GetLogger<GraphLogicManager>();
+			_logger = services.LoggerFactory.CreateLogger<GraphLogicManager>();
 		}
 
 		~GraphLogicManager()

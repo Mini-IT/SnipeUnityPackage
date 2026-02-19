@@ -6,43 +6,50 @@ using MiniIT.Threading;
 
 namespace MiniIT.Snipe
 {
-	public enum TransportProtocol
+	public struct TransportOptions
 	{
-		Undefined,
-		Kcp,
-		WebSocket,
-		Http,
-	}
-
-	public struct TransportInfo
-	{
-		public TransportProtocol Protocol;
-		public string ClientImplementation;
+		public SnipeOptions SnipeOptions;
+		public IAnalyticsContext AnalyticsContext;
+		public ISnipeServices SnipeServices;
+		public Action<Transport> ConnectionOpenedHandler;
+		public Action<Transport> ConnectionClosedHandler;
+		public Action<IDictionary<string, object>> MessageReceivedHandler;
 	}
 
 	public abstract class Transport : IDisposable
 	{
-		public Action<Transport> ConnectionOpenedHandler;
-		public Action<Transport> ConnectionClosedHandler;
-		public Action<IDictionary<string, object>> MessageReceivedHandler;
-
 		public virtual bool Started { get; } = false;
 		public virtual bool Connected { get; } = false;
 		public virtual bool ConnectionEstablished { get; } = false;
 
 		public TransportInfo Info { get; protected set; }
 
-		protected readonly SnipeConfig _config;
-		protected readonly SnipeAnalyticsTracker _analytics;
+		protected readonly SnipeOptions _snipeOptions;
+		protected readonly IAnalyticsContext _analytics;
 		protected readonly ILogger _logger;
+		protected readonly ISnipeServices _services;
+
+		protected Action<Transport> _connectionOpenedHandler;
+		protected Action<Transport> _connectionClosedHandler;
+		protected Action<IDictionary<string, object>> _messageReceivedHandler;
 
 		protected bool _disposed = false;
 
-		internal Transport(SnipeConfig config, SnipeAnalyticsTracker analytics)
+		internal Transport(TransportOptions options)
 		{
-			_config = config;
-			_analytics = analytics;
-			_logger = SnipeServices.Instance.LogService.GetLogger(GetType().Name);
+			if (options.SnipeServices == null)
+			{
+				throw new ArgumentNullException(nameof(options.SnipeServices));
+			}
+
+			_snipeOptions = options.SnipeOptions;
+			_analytics = options.AnalyticsContext;
+			_services = options.SnipeServices;
+			_logger = _services.LoggerFactory.CreateLogger(GetType().Name);
+
+			_connectionOpenedHandler = options.ConnectionOpenedHandler;
+			_connectionClosedHandler = options.ConnectionClosedHandler;
+			_messageReceivedHandler = options.MessageReceivedHandler;
 		}
 
 		public abstract void Connect(string endpoint, ushort port = 0);
@@ -67,9 +74,9 @@ namespace MiniIT.Snipe
 
 			// Remove connection events handlers before calling Disconnect()
 			// to prevent attempts to start next transport on disconnection
-			ConnectionOpenedHandler = null;
-			ConnectionClosedHandler = null;
-			MessageReceivedHandler = null;
+			_connectionOpenedHandler = null;
+			_connectionClosedHandler = null;
+			_messageReceivedHandler = null;
 
 			Disconnect();
 

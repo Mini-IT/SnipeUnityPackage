@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
+using MiniIT.Snipe;
 
 namespace MiniIT.Snipe.Api
 {
@@ -20,8 +21,13 @@ namespace MiniIT.Snipe.Api
 		public int timeleft = -1; // seconds left. (-1) means that the node does not have a timer
 		public bool isTimeout { get; private set; }
 
-		public LogicNode(IDictionary<string, object> data, ISnipeTable<SnipeTableLogicItem> logicTable)
+		public LogicNode(IDictionary<string, object> data, ISnipeTable<SnipeTableLogicItem> logicTable, ISnipeServices services)
 		{
+			if (services == null)
+			{
+				throw new ArgumentNullException(nameof(services));
+			}
+
 			id = data.SafeGetValue<int>("id");
 
 			foreach (var tableTree in logicTable.Values)
@@ -44,7 +50,7 @@ namespace MiniIT.Snipe.Api
 
 			if (node == null)
 			{
-				var logger = SnipeServices.Instance.LogService.GetLogger(nameof(LogicNode));
+				var logger = services.LoggerFactory.CreateLogger(nameof(LogicNode));
 				logger.LogError($"Table node not found. id = {id}");
 				return;
 			}

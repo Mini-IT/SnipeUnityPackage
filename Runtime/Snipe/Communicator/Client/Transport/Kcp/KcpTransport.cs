@@ -26,8 +26,7 @@ namespace MiniIT.Snipe
 		private readonly ITicker _updateTicker;
 		private Task _networkLoop;
 
-		internal KcpTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
-			: base(config, analytics)
+		internal KcpTransport(TransportOptions options) : base(options)
 		{
 			Info = new TransportInfo()
 			{
@@ -35,7 +34,7 @@ namespace MiniIT.Snipe
 				ClientImplementation = "kcp"
 			};
 
-			_updateTicker = SnipeServices.Instance.Ticker;
+			_updateTicker = _services.Ticker;
 		}
 
 		public override void Connect(string endpoint, ushort port = 0)
@@ -43,7 +42,7 @@ namespace MiniIT.Snipe
 			if (string.IsNullOrEmpty(endpoint) || port == 0)
 			{
 				_logger.LogWarning("Kcp Connect - invalid host or port");
-				ConnectionClosedHandler?.Invoke(this);
+				_connectionClosedHandler?.Invoke(this);
 				return;
 			}
 
@@ -54,7 +53,7 @@ namespace MiniIT.Snipe
 
 				_connectionEstablished = false;
 
-				_kcpConnection = new KcpConnection
+				_kcpConnection = new KcpConnection(_services)
 				{
 					OnAuthenticated = OnClientConnected,
 					OnData = OnClientDataReceived,
@@ -116,7 +115,7 @@ namespace MiniIT.Snipe
 
 			_logger.LogTrace("OnUdpClientConnected");
 
-			ConnectionOpenedHandler?.Invoke(this);
+			_connectionOpenedHandler?.Invoke(this);
 		}
 
 		private void OnClientDisconnected()
@@ -126,7 +125,7 @@ namespace MiniIT.Snipe
 			StopNetworkLoop();
 			_kcpConnection = null;
 
-			ConnectionClosedHandler?.Invoke(this);
+			_connectionClosedHandler?.Invoke(this);
 		}
 
 		private void OnClientDataReceived(ArraySegment<byte> buffer, KcpChannel channel, bool compressed)
@@ -176,7 +175,7 @@ namespace MiniIT.Snipe
 
 			if (message != null)
 			{
-				MessageReceivedHandler?.Invoke(message);
+				_messageReceivedHandler?.Invoke(message);
 			}
 		}
 
@@ -282,7 +281,7 @@ namespace MiniIT.Snipe
 
 			Span<byte> msgData = _messageSerializer.Serialize(offset, message);
 
-			if (_config.CompressionEnabled && msgData.Length >= _config.MinMessageBytesToCompress) // compression needed
+			if (_snipeOptions.CompressionEnabled && msgData.Length >= _snipeOptions.MinMessageBytesToCompress) // compression needed
 			{
 				_logger.LogTrace("compress message");
 				// _logger.LogTrace("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Logging;
@@ -14,7 +14,12 @@ namespace MiniIT.Snipe.Unity
 
         public override void Fetch(bool _, Action<string> callback = null)
         {
-	        var sharedPrefs = SnipeServices.Instance.SharedPrefs;
+	        if (Services == null)
+	        {
+		        throw new InvalidOperationException("Services not initialized.");
+	        }
+
+	        var sharedPrefs = Services.SharedPrefs;
 
             if (string.IsNullOrEmpty(Value))
             {
@@ -36,15 +41,17 @@ namespace MiniIT.Snipe.Unity
 
 	public class DeviceIdFetcher : AuthIdFetcher
 	{
-		private readonly Microsoft.Extensions.Logging.ILogger _logger;
-
-		public DeviceIdFetcher()
-		{
-			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(DeviceIdFetcher));
-		}
+		private Microsoft.Extensions.Logging.ILogger _logger;
 
 		public override void Fetch(bool _, Action<string> callback = null)
 		{
+			if (Services == null)
+			{
+				throw new InvalidOperationException("Services not initialized.");
+			}
+
+			_logger ??= Services.LoggerFactory.CreateLogger(nameof(DeviceIdFetcher));
+
 			if (string.IsNullOrEmpty(Value))
 			{
 				if (SystemInfo.unsupportedIdentifier != SystemInfo.deviceUniqueIdentifier)

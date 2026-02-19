@@ -17,6 +17,12 @@ namespace MiniIT.Snipe.Tables
 	{
 		public IReadOnlyList<BuiltInTablesListItem> Items => _items;
 		private List<BuiltInTablesListItem> _items;
+		private readonly ILogger _logger;
+
+		public BuiltInTablesListService(ILogger logger)
+		{
+			_logger = logger ?? throw new System.ArgumentNullException(nameof(logger));
+		}
 
 		public async UniTask InitializeAsync(CancellationToken cancellationToken = default)
 		{
@@ -29,8 +35,7 @@ namespace MiniIT.Snipe.Tables
 			{
 				version = 0;
 
-				var logger = SnipeServices.Instance.LogService.GetLogger(nameof(BuiltInTablesListService));
-				logger.LogError($"Not initialized. Call {nameof(InitializeAsync)} first");
+				_logger.LogError($"Not initialized. Call {nameof(InitializeAsync)} first");
 
 				return false;
 			}
@@ -55,7 +60,7 @@ namespace MiniIT.Snipe.Tables
 			string json = await StreamingAssetsReader.ReadTextAsync("snipe_tables.json", cancellationToken);
 			if (string.IsNullOrEmpty(json))
 			{
-				SnipeServices.Instance.LogService.GetLogger(nameof(BuiltInTablesListService)).LogError("ReadBuiltInTablesVersions failed to read snipe_tables.json");
+				_logger.LogError("ReadBuiltInTablesVersions failed to read snipe_tables.json");
 				return result;
 			}
 

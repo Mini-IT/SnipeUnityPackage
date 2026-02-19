@@ -1,46 +1,54 @@
 // ReSharper disable SuspiciousTypeConversion.Global
 
 using System;
+using Microsoft.Extensions.Logging;
 using MiniIT.Http;
-using MiniIT.Snipe.Logging;
+using MiniIT.Snipe.Debugging;
 using MiniIT.Storage;
 using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
-	public class SnipeServiceLocator : ISnipeServiceLocator
+	public class SnipeServiceLocator : ISnipeServices, IDisposable
 	{
 		public ISharedPrefs SharedPrefs { get; }
-		public ILogService LogService { get; }
+		public ILoggerFactory LoggerFactory { get; }
 		public ISnipeAnalyticsService Analytics { get; }
 		public IMainThreadRunner MainThreadRunner { get; }
 		public IApplicationInfo ApplicationInfo { get; }
 		public IStopwatchFactory FuzzyStopwatchFactory { get; }
 		public IHttpClientFactory HttpClientFactory { get; }
-		public IInternetReachabilityProvider InternetReachabilityProvider { get; }
+		public IInternetReachability InternetReachability { get; }
 		public ITicker Ticker { get; }
 
-		public SnipeServiceLocator(ISnipeServiceLocatorFactory factory)
+		public SnipeServiceLocator(ISnipeInfrastructureProvider provider)
 		{
-			SharedPrefs = factory.CreateSharedPrefs();
-			LogService = factory.CreateLogService();
-			Analytics = factory.CreateAnalyticsService();
-			MainThreadRunner = factory.CreateMainThreadRunner();
-			FuzzyStopwatchFactory = factory.CreateFuzzyStopwatchFactory();
-			HttpClientFactory = factory.CreateHttpClientFactory();
-			ApplicationInfo = factory.CreateApplicationInfo();
-			InternetReachabilityProvider = factory.CreateInternetReachabilityProvider();
-			Ticker = factory.CreateTicker();
+			SharedPrefs = provider.GetSharedPrefs();
+			LoggerFactory = provider.GetLoggerFactory();
+			MainThreadRunner = provider.GetMainThreadRunner();
+
+			Func<ISnipeErrorsTracker> errorsTrackerGetter = null;
+			if (provider is ISnipeErrorsTrackerProvider errorsTrackerProvider)
+			{
+				errorsTrackerGetter = () => errorsTrackerProvider.ErrorsTracker;
+			}
+			Analytics = new SnipeAnalyticsService(MainThreadRunner, errorsTrackerGetter);
+
+			FuzzyStopwatchFactory = provider.GetFuzzyStopwatchFactory();
+			HttpClientFactory = provider.GetHttpClientFactory();
+			ApplicationInfo = provider.GetApplicationInfo();
+			InternetReachability = provider.GetInternetReachability();
+			Ticker = provider.GetTicker();
 		}
 
 		public void Dispose()
 		{
 			(SharedPrefs as IDisposable)?.Dispose();
-			(LogService as IDisposable)?.Dispose();
+			LoggerFactory?.Dispose();
 			(Analytics as IDisposable)?.Dispose();
 			(MainThreadRunner as IDisposable)?.Dispose();
 			(ApplicationInfo as IDisposable)?.Dispose();
-			(InternetReachabilityProvider as IDisposable)?.Dispose();
+			(InternetReachability as IDisposable)?.Dispose();
 			(Ticker as IDisposable)?.Dispose();
 		}
 	}

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using MiniIT.Storage;
@@ -7,8 +7,8 @@ namespace MiniIT.Snipe
 {
 	public class AuthBinding<TFetcher> : AuthBinding where TFetcher : AuthIdFetcher, new()
 	{
-		public AuthBinding(string providerId)
-			: base(providerId, new TFetcher())
+		public AuthBinding(string providerId, ISnipeServices services)
+			: base(providerId, new TFetcher(), services)
 		{
 		}
 	}
@@ -23,6 +23,7 @@ namespace MiniIT.Snipe
 		public int ContextId => _contextId;
 
 		public bool UseContextIdPrefix { get; protected set; } = true;
+		public bool AvailableForRegistration { get; protected set; } = false;
 
 		public string BindDonePrefsKey => SnipePrefs.GetAuthBindDone(_contextId) + ProviderId;
 
@@ -38,22 +39,30 @@ namespace MiniIT.Snipe
 
 		private int _contextId;
 		private Func<string> _getClientKeyMethod;
-		protected SnipeCommunicator _communicator;
+		protected ISnipeCommunicator _communicator;
 		protected AuthSubsystem _authSubsystem;
 		private readonly ISharedPrefs _sharedPrefs;
 		protected readonly ILogger _logger;
+		protected readonly ISnipeServices Services;
 
-		public AuthBinding(string providerId, AuthIdFetcher fetcher)
+		public AuthBinding(string providerId, AuthIdFetcher fetcher, ISnipeServices services)
 		{
-			_sharedPrefs = SnipeServices.Instance.SharedPrefs;
-			_logger = SnipeServices.Instance.LogService.GetLogger(GetType().Name);
+			if (services == null)
+			{
+				throw new ArgumentNullException(nameof(services));
+			}
+
+			Services = services;
+			_sharedPrefs = services.SharedPrefs;
+			_logger = services.LoggerFactory.CreateLogger(GetType().Name);
 
 			ProviderId = providerId;
 			Fetcher = fetcher;
+			Fetcher?.SetServices(services);
 		}
 
 		public void Initialize(int contextId,
-			SnipeCommunicator communicator,
+			ISnipeCommunicator communicator,
 			AuthSubsystem authSubsystem,
 			Func<string> getClientKeyMethod)
 		{
@@ -138,7 +147,7 @@ namespace MiniIT.Snipe
 			FillExtraParameters(data);
 
 			_logger.LogTrace($"({ProviderId}) send user.bind " + JsonUtility.ToJson(data));
-			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_BIND, data)
+			new UnauthorizedRequest(_communicator, Services, SnipeMessageTypes.AUTH_BIND, data)
 				.Request(OnBindResponse);
 		}
 
@@ -199,7 +208,7 @@ namespace MiniIT.Snipe
 
 			FillExtraParameters(data);
 
-			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_RESET, data)
+			new UnauthorizedRequest(_communicator, Services, SnipeMessageTypes.AUTH_RESET, data)
 				.Request((errorCode, responseData) =>
 				{
 					string authLogin = null;
@@ -249,7 +258,7 @@ namespace MiniIT.Snipe
 				data["userID"] = loginID;
 			}
 
-			new UnauthorizedRequest(_communicator, SnipeMessageTypes.AUTH_EXISTS, data)
+			new UnauthorizedRequest(_communicator, Services, SnipeMessageTypes.AUTH_EXISTS, data)
 				.Request((errorCode, responseData) => OnCheckAuthExistsResponse(errorCode, responseData, callback));
 		}
 

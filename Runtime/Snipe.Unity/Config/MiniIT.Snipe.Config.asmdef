@@ -1,6 +1,7 @@
 {
     "name": "MiniIT.Snipe.Config",
     "references": [
+        "MiniIT.Snipe.Abstractions",
         "MiniIT.Snipe.Services",
         "MiniIT.Snipe.SharedPrefs",
         "MiniIT.Snipe.Logging",

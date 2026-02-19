@@ -18,9 +18,14 @@ namespace MiniIT.Snipe
 
 		private readonly ILogger _logger;
 
-		public UdpSocketWrapper()
+		public UdpSocketWrapper(ISnipeServices services)
 		{
-			_logger = SnipeServices.Instance.LogService.GetLogger(nameof(UdpSocketWrapper));
+			if (services == null)
+			{
+				throw new ArgumentNullException(nameof(services));
+			}
+
+			_logger = services.LoggerFactory.CreateLogger(nameof(UdpSocketWrapper));
 		}
 
 		public void Connect(string host, ushort port)

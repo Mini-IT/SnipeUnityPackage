@@ -62,8 +62,7 @@ namespace MiniIT.Snipe
 		private CancellationTokenSource _checkConnectionCancellation;
 		private CancellationTokenSource _loginTimeoutCancellation;
 
-		internal WebSocketTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
-			: base(config, analytics)
+		internal WebSocketTransport(TransportOptions options) : base(options)
 		{
 		}
 
@@ -72,13 +71,13 @@ namespace MiniIT.Snipe
 			if (string.IsNullOrEmpty(url))
 			{
 				_logger.LogWarning("WebSocket Connect - URL is empty");
-				ConnectionClosedHandler?.Invoke(this);
+				_connectionClosedHandler?.Invoke(this);
 				return;
 			}
 
 			_logger.LogTrace("WebSocket Connect to " + url);
 
-			_webSocket = new WebSocketFactory(_config).CreateWebSocket();
+			_webSocket = new WebSocketFactory(_snipeOptions, _services).CreateWebSocket();
 
 			Info = new TransportInfo()
 			{
@@ -152,7 +151,7 @@ namespace MiniIT.Snipe
 
 			_logger.LogTrace("OnWebSocketConnected");
 
-			ConnectionOpenedHandler?.Invoke(this);
+			_connectionOpenedHandler?.Invoke(this);
 		}
 
 		private void OnWebSocketClosed()
@@ -167,7 +166,7 @@ namespace MiniIT.Snipe
 			_loggedIn = false;
 
 			Disconnect();
-			ConnectionClosedHandler?.Invoke(this);
+			_connectionClosedHandler?.Invoke(this);
 		}
 
 		public override void SendMessage(IDictionary<string, object> message)
@@ -268,7 +267,7 @@ namespace MiniIT.Snipe
 
 			var msgData = _messageSerializer.Serialize(message);
 
-			if (_config.CompressionEnabled && msgData.Length >= _config.MinMessageBytesToCompress) // compression needed
+			if (_snipeOptions.CompressionEnabled && msgData.Length >= _snipeOptions.MinMessageBytesToCompress) // compression needed
 			{
 				_logger.LogTrace("compress message");
 				//_logger.LogTrace("Uncompressed: " + BitConverter.ToString(msg_data.Array, msg_data.Offset, msg_data.Count));
@@ -325,7 +324,7 @@ namespace MiniIT.Snipe
 				}
 			}
 
-			MessageReceivedHandler?.Invoke(message);
+			_messageReceivedHandler?.Invoke(message);
 
 			if (_heartbeatEnabled)
 			{
@@ -547,11 +546,12 @@ namespace MiniIT.Snipe
 							pinging = false;
 							forcePing = false;
 							pingStopwatch.Stop();
-							_analytics.PingTime = pong ? pingStopwatch.Elapsed : TimeSpan.Zero;
+							var pingTime = pong ? pingStopwatch.Elapsed : TimeSpan.Zero;
+							_analytics.PingTime = pingTime;
 
 							if (pong)
 							{
-								_logger.LogTrace($"Heartbeat pong {_analytics.PingTime.TotalMilliseconds} ms");
+								_logger.LogTrace($"Heartbeat pong {pingTime.TotalMilliseconds} ms");
 								if (BadConnection)
 								{
 									BadConnection = false;

@@ -10,13 +10,12 @@ namespace MiniIT.Snipe
 		public BadgesManager BadgesManager { get; }
 		public CalendarManager CalendarManager { get; }
 		public CalendarV2Manager CalendarV2Manager { get; }
-		public ProfileManager ProfileManager { get; }
 
 		private readonly AbstractSnipeApiService _api;
 
-		public SnipeApiContext(int id, SnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter,
+		public SnipeApiContext(int id, SnipeOptions options, ISnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter,
 			ISnipeApiContextItemsFactory itemsFactory, ISnipeTablesProvider tablesProvider)
-			: base(id, communicator, auth, logReporter)
+			: base(id, options, communicator, auth, logReporter)
 		{
 			_api = itemsFactory.CreateSnipeApiService(communicator, auth);
 			var tables = tablesProvider.GetSnipeTables();
@@ -30,7 +29,7 @@ namespace MiniIT.Snipe
 			var graphsTable = tables.GetTable<SnipeTableGraphsItem>();
 			if (graphsTable != null)
 			{
-				GraphManager = new GraphLogicManager(Communicator, CreateRequest, graphsTable);
+				GraphManager = new GraphLogicManager(Communicator, CreateRequest, graphsTable, Communicator.Services);
 			}
 
 			var badgesTable = tables.GetTable<SnipeTableBadgesItem>();
@@ -58,7 +57,6 @@ namespace MiniIT.Snipe
 				}
 			}
 
-			ProfileManager = new ProfileManager(this, SnipeServices.Instance.SharedPrefs);
 		}
 
 		public AbstractSnipeApiService GetSnipeApiService() => _api;
@@ -74,7 +72,6 @@ namespace MiniIT.Snipe
 			CalendarManager?.Dispose();
 			BadgesManager?.Dispose();
 			CalendarV2Manager?.Dispose();
-			ProfileManager?.Dispose();
 
 			if (_api is IDisposable disposableApi)
 			{

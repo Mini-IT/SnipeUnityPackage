@@ -15,7 +15,7 @@ namespace MiniIT.Snipe.Api
 		protected AbstractCommunicatorRequest CreateRequest(string messageType, IDictionary<string, object> data = null)
 			=> _snipeApiService.CreateRequest(messageType, data);
 
-		protected void SubscribeOnMessageReceived(SnipeCommunicator.MessageReceivedHandler handler)
+		protected void SubscribeOnMessageReceived(MessageReceivedHandler handler)
 			=> _snipeApiService.SubscribeOnMessageReceived(handler);
 	}
 }

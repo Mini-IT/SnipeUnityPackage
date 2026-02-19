@@ -1,53 +1,51 @@
 using System;
 using MiniIT.Snipe.Configuration;
 using MiniIT.Snipe.Unity;
+using MiniIT.Snipe;
 
 namespace MiniIT.Snipe.Api
 {
 	public abstract class AbstractSnipeApiContextFactory : ISnipeContextFactory, ISnipeApiContextItemsFactory
 	{
-		private readonly SnipeConfigBuilder _configBuilder;
+		private readonly SnipeOptionsBuilder _optionsBuilder;
 		private readonly ISnipeTablesProvider _tablesProvider;
+		private readonly ISnipeServices _services;
+		public TablesOptions TablesOptions { get; } = new TablesOptions();
 
-		protected AbstractSnipeApiContextFactory(ISnipeTablesProvider tablesProvider, SnipeConfigBuilder configBuilder)
+		protected AbstractSnipeApiContextFactory(
+			ISnipeTablesProvider tablesProvider,
+			SnipeOptionsBuilder optionsBuilder,
+			ISnipeServices services)
 		{
 			_tablesProvider = tablesProvider;
-			_configBuilder = configBuilder;
+			_optionsBuilder = optionsBuilder;
+			_services = services;
 		}
 
 		public SnipeContext CreateContext(int id)
 		{
-			if (!SnipeServices.IsInitialized)
-			{
-				SnipeServices.Initialize(new UnitySnipeServicesFactory());
-			}
+			var options = _optionsBuilder.Build(id, _services);
 
-			var config = _configBuilder.Build(id);
-
-			var analytics = SnipeServices.Instance.Analytics.GetTracker(id);
-			var communicator = new SnipeCommunicator(analytics);
-			var auth = new UnityAuthSubsystem(id, communicator, analytics);
+			var analytics = (_services.Analytics as IAnalyticsTrackerProvider)?.GetTracker(id);
+			var communicator = new SnipeCommunicator(options, analytics, _services);
+			var auth = new UnityAuthSubsystem(id, options, communicator, analytics, _services);
 			var logReporter = new LogReporter();
 
-			communicator.Initialize(config);
-			auth.Initialize(config);
-
-			var context = new SnipeApiContext(id, communicator, auth, logReporter, this, _tablesProvider);
-			context.Initialize(config);
+			var context = new SnipeApiContext(id, options, communicator, auth, logReporter, this, _tablesProvider);
 			return context;
 		}
 
 		public void Reconfigure(SnipeContext context)
 		{
 			int id = context.Id;
-			var config = _configBuilder.Build(id);
+			var options = _optionsBuilder.Build(id, _services);
 
-			context.Communicator.Initialize(config);
-			context.Auth.Initialize(config);
-			context.Initialize(config);
+			context.Communicator.Reconfigure(options);
+			context.Auth.Reconfigure(options);
+			context.Reconfigure(options);
 		}
 
 		public abstract TimeSpan GetServerTimeZoneOffset();
-		public abstract AbstractSnipeApiService CreateSnipeApiService(SnipeCommunicator communicator, AuthSubsystem auth);
+		public abstract AbstractSnipeApiService CreateSnipeApiService(ISnipeCommunicator communicator, AuthSubsystem auth);
 	}
 }

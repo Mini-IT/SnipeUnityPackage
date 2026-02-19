@@ -9,10 +9,13 @@
         "MiniIT.Snipe.Core",
         "MiniIT.Snipe.Context",
         "MiniIT.Snipe.MessagePack",
+		"MiniIT.Snipe.Options",
         "MiniIT.Snipe.Services",
         "MiniIT.Snipe.Unity",
 		"MiniIT.Storage.SharedPrefs",
-        "UniTask"
+        "UniTask",
+        "MiniIT.Snipe.Abstractions",
+        "MiniIT.Snipe.Nulls"
     ],
     "includePlatforms": [
         "Editor"

@@ -63,16 +63,15 @@ namespace MiniIT.Snipe
 
 		private readonly AlterSemaphore _sendSemaphore = new AlterSemaphore(1, 1);
 
-		internal HttpTransport(SnipeConfig config, SnipeAnalyticsTracker analytics)
-			: base(config, analytics)
+		internal HttpTransport(TransportOptions options) : base(options)
 		{
-			SnipeServices.Instance.MainThreadRunner.RunInMainThread(() =>
+			_services.MainThreadRunner.RunInMainThread(() =>
 			{
-				_persistentClientId = SnipeServices.Instance.SharedPrefs.GetString(PREFS_PERSISTENT_CLIENT_ID);
+				_persistentClientId = _services.SharedPrefs.GetString(PREFS_PERSISTENT_CLIENT_ID);
 				if (string.IsNullOrEmpty(_persistentClientId))
 				{
 					_persistentClientId = Guid.NewGuid().ToString();
-					SnipeServices.Instance.SharedPrefs.SetString(PREFS_PERSISTENT_CLIENT_ID, _persistentClientId);
+					_services.SharedPrefs.SetString(PREFS_PERSISTENT_CLIENT_ID, _persistentClientId);
 				}
 			});
 		}
@@ -92,7 +91,7 @@ namespace MiniIT.Snipe
 				{
 					_started = false;
 					_logger.LogWarning("Http Connect - URL is empty");
-					ConnectionClosedHandler?.Invoke(this);
+					_connectionClosedHandler?.Invoke(this);
 					return;
 				}
 
@@ -101,7 +100,7 @@ namespace MiniIT.Snipe
 
 				if (_client == null)
 				{
-					_client = SnipeServices.Instance.HttpClientFactory.CreateHttpClient();
+					_client = _services.HttpClientFactory.CreateHttpClient();
 					//_client.SetPersistentClientId(_persistentClientId);
 				}
 				else
@@ -139,7 +138,7 @@ namespace MiniIT.Snipe
 
 			_client?.Reset();
 
-			ConnectionClosedHandler?.Invoke(this);
+			_connectionClosedHandler?.Invoke(this);
 
 			// It's important to keep the value during ConnectionClosedHandler invocation
 			_connectionEstablished = false;
@@ -265,7 +264,7 @@ namespace MiniIT.Snipe
 				ExtractAuthToken(message);
 			}
 
-			MessageReceivedHandler?.Invoke(message);
+			_messageReceivedHandler?.Invoke(message);
 		}
 
 		private void ExtractAuthToken(IDictionary<string, object> message)
@@ -398,7 +397,7 @@ namespace MiniIT.Snipe
 
 		private TimeSpan GetCurrentHeartbeatInterval()
 		{
-			return IntensiveHeartbeat ? _heartbeatIntensiveInterval : _config.HttpHeartbeatInterval;
+			return IntensiveHeartbeat ? _heartbeatIntensiveInterval : _snipeOptions.HttpHeartbeatInterval;
 		}
 
 		private void StartHeartbeat()
@@ -544,7 +543,7 @@ namespace MiniIT.Snipe
 
 			_logger.LogTrace("OnClientConnected");
 
-			ConnectionOpenedHandler?.Invoke(this);
+			_connectionOpenedHandler?.Invoke(this);
 
 			UpdateHeartbeat();
 		}

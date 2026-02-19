@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -29,7 +29,7 @@ namespace MiniIT.Snipe.Api
 		private readonly Stopwatch _refTime = Stopwatch.StartNew();
 		private UniTimer _secondsTimer;
 
-		public LogicManager(SnipeCommunicator communicator,
+		public LogicManager(ISnipeCommunicator communicator,
 			AbstractSnipeApiService.RequestFactoryMethod requestFactory,
 			ISnipeTable<SnipeTableLogicItem> logicTable)
 			: base(communicator, requestFactory, logicTable)
@@ -205,7 +205,7 @@ namespace MiniIT.Snipe.Api
 					if (o is IDictionary<string, object> so &&
 					    so.TryGetValue("node", out object n) && n is IDictionary<string, object> node)
 					{
-						logicNodes.Add(new LogicNode(node, _logicTable));
+						logicNodes.Add(new LogicNode(node, _logicTable, _snipeCommunicator.Services));
 					}
 				}
 			}

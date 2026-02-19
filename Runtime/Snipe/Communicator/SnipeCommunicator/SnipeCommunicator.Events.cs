@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using MiniIT.Utils;
@@ -7,8 +7,6 @@ namespace MiniIT.Snipe
 {
 	public partial class SnipeCommunicator
 	{
-		public delegate void MessageReceivedHandler(string messageType, string errorCode, IDictionary<string, object> data, int requestId);
-
 		/// <summary>
 		/// Connection successfully establisched
 		/// </summary>

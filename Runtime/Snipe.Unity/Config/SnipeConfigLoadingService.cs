@@ -22,14 +22,17 @@ namespace MiniIT.Snipe
 
 		private SnipeConfigLoader _loader;
 		private readonly string _projectID;
+		private readonly ISnipeServices _services;
 
 		private readonly object _statisticsLock = new object();
 		private bool _statisticsSent = false;
 		private CancellationTokenSource _loadingCancellation;
 
-		public SnipeConfigLoadingService(string projectID)
+		public SnipeConfigLoadingService(string projectID, ISnipeServices services)
 		{
 			_projectID = projectID;
+			_services = services ?? throw new ArgumentNullException(nameof(services));
+			Statistics.PackageVersionName = PackageInfo.VERSION_NAME;
 		}
 
 		public void Dispose()
@@ -68,26 +71,14 @@ namespace MiniIT.Snipe
 			}
 
 			_loadingCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-			var loadingToken = _loadingCancellation.Token;
 
 			if (_loader == null)
 			{
-				bool cancelled = await UniTask.WaitUntil(() => SnipeServices.IsInitialized, cancellationToken: loadingToken)
-					.SuppressCancellationThrow();
-
-				if (cancelled || loadingToken.IsCancellationRequested)
-				{
-					lock (_statisticsLock)
-					{
-						Statistics.SetState(SnipeConfigLoadingStatistics.LoadingState.Cancelled);
-					}
-
-					TrackStats();
-
-					return _config;
-				}
-
-				_loader ??= new SnipeConfigLoader(_projectID, SnipeServices.Instance.ApplicationInfo);
+				_loader = new SnipeConfigLoader(
+					_projectID,
+					_services.ApplicationInfo,
+					_services.LoggerFactory.CreateLogger(nameof(SnipeConfigLoader)),
+					_services.HttpClientFactory);
 			}
 
 			lock (_statisticsLock)
@@ -132,7 +123,7 @@ namespace MiniIT.Snipe
 
 			_statisticsSent = true;
 
-			if (SnipeServices.Instance.Analytics.GetTracker() is ISnipeConfigLoadingAnalyticsTracker tracker)
+			if ((_services.Analytics as IAnalyticsTrackerProvider)?.GetTracker() is ISnipeConfigLoadingAnalyticsTracker tracker)
 			{
 				tracker.TrackSnipeConfigLoadingStats(Statistics);
 			}

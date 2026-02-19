@@ -2,10 +2,12 @@
     "name": "MiniIT.Snipe.Communicator",
     "rootNamespace": "MiniIT.Snipe",
     "references": [
+        "MiniIT.Snipe.Abstractions",
         "MiniIT.Snipe.PackageInfo",
         "MiniIT.Snipe.Core",
         "MiniIT.Snipe.MessagePack",
         "MiniIT.Snipe.Logging",
+        "MiniIT.Snipe.Options",
         "MiniIT.Snipe.Services",
         "MiniIT.Storage.SharedPrefs",
         "MiniIT.HttpClient.Abstraction",

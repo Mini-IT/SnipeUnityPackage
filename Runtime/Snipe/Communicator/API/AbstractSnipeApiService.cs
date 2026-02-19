@@ -12,11 +12,11 @@ namespace MiniIT.Snipe.Api
 	{
 		public delegate AbstractCommunicatorRequest RequestFactoryMethod(string messageType, IDictionary<string, object> data = null);
 
-		protected readonly SnipeCommunicator _communicator;
+		protected readonly ISnipeCommunicator _communicator;
 		private readonly RequestFactoryMethod _requestFactory;
 		private readonly List<SnipeApiModule> _modules;
 
-		protected internal AbstractSnipeApiService(SnipeCommunicator communicator, AuthSubsystem auth)
+		protected internal AbstractSnipeApiService(ISnipeCommunicator communicator, AuthSubsystem auth)
 		{
 			_communicator = communicator;
 
@@ -24,9 +24,9 @@ namespace MiniIT.Snipe.Api
 			{
 				if (communicator.BatchMode && !communicator.LoggedIn)
 				{
-					return new UnauthorizedRequest(communicator, messageType, data);
+					return new UnauthorizedRequest(communicator, communicator.Services, messageType, data);
 				}
-				return new SnipeCommunicatorRequest(communicator, auth, messageType, data);
+				return new SnipeCommunicatorRequest(communicator, communicator.Services, auth, messageType, data);
 			};
 
 			_modules = new List<SnipeApiModule>();
@@ -39,7 +39,7 @@ namespace MiniIT.Snipe.Api
 			return _requestFactory.Invoke(messageType, data);
 		}
 
-		public void SubscribeOnMessageReceived(SnipeCommunicator.MessageReceivedHandler handler)
+		public void SubscribeOnMessageReceived(MessageReceivedHandler handler)
 		{
 			_communicator.MessageReceived -= handler;
 			_communicator.MessageReceived += handler;

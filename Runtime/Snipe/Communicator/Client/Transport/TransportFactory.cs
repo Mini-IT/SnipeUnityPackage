@@ -6,52 +6,66 @@ namespace MiniIT.Snipe
 {
 	internal sealed class TransportFactory
 	{
-		private readonly SnipeConfig _config;
-		private readonly SnipeAnalyticsTracker _analytics;
+		private readonly SnipeOptions _options;
+		private readonly IAnalyticsContext _analytics;
+		private readonly ISnipeServices _services;
 
-		internal TransportFactory(SnipeConfig config, SnipeAnalyticsTracker analytics)
+		internal TransportFactory(SnipeOptions options, IAnalyticsContext analytics, ISnipeServices services)
 		{
-			_config = config;
+			if (services == null)
+			{
+				throw new ArgumentNullException(nameof(services));
+			}
+
+			_options = options;
 			_analytics = analytics;
+			_services = services;
 		}
 
 		internal KcpTransport CreateKcpTransport(Action<Transport> onConnectionOpened, Action<Transport> onConnectionClosed,
 			Action<IDictionary<string, object>> onMessageReceived)
 		{
-			var transport = new KcpTransport(_config, _analytics);
-
-			transport.ConnectionOpenedHandler = (t) =>
+			return new KcpTransport(new TransportOptions()
 			{
-				_analytics.UdpConnectionTime = StopwatchUtil.GetElapsedTime(Stopwatch.GetTimestamp());
-				onConnectionOpened(t);
-			};
-
-			transport.ConnectionClosedHandler = onConnectionClosed;
-			transport.MessageReceivedHandler = onMessageReceived;
-
-			return transport;
+				SnipeOptions = _options,
+				AnalyticsContext = _analytics,
+				SnipeServices = _services,
+				ConnectionOpenedHandler = (t) =>
+				{
+					_analytics.UdpConnectionTime = StopwatchUtil.GetElapsedTime(Stopwatch.GetTimestamp());
+					onConnectionOpened(t);
+				},
+				ConnectionClosedHandler = onConnectionClosed,
+				MessageReceivedHandler = onMessageReceived
+			});
 		}
 
 		internal WebSocketTransport CreateWebSocketTransport(Action<Transport> onConnectionOpened, Action<Transport> onConnectionClosed,
 			Action<IDictionary<string, object>> onMessageReceived)
 		{
-			return new WebSocketTransport(_config, _analytics)
+			return new WebSocketTransport(new TransportOptions()
 			{
+				SnipeOptions = _options,
+				AnalyticsContext = _analytics,
+				SnipeServices = _services,
 				ConnectionOpenedHandler = onConnectionOpened,
 				ConnectionClosedHandler = onConnectionClosed,
 				MessageReceivedHandler = onMessageReceived
-			};
+			});
 		}
 
 		internal HttpTransport CreateHttpTransport(Action<Transport> onConnectionOpened, Action<Transport> onConnectionClosed,
 			Action<IDictionary<string, object>> onMessageReceived)
 		{
-			return new HttpTransport(_config, _analytics)
+			return new HttpTransport(new TransportOptions()
 			{
+				SnipeOptions = _options,
+				AnalyticsContext = _analytics,
+				SnipeServices = _services,
 				ConnectionOpenedHandler = onConnectionOpened,
 				ConnectionClosedHandler = onConnectionClosed,
 				MessageReceivedHandler = onMessageReceived
-			};
+			});
 		}
 	}
 }

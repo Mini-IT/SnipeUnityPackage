@@ -21,29 +21,30 @@ namespace MiniIT.Snipe
 		public string ProjectName { get; private set; }
 		public bool IsDev { get; private set; }
 
-		public SnipeCommunicator Communicator { get; }
+		public ISnipeCommunicator Communicator { get; }
 		public AuthSubsystem Auth { get; }
 		public LogReporter LogReporter { get; }
 
 		/// <summary>
 		/// Protected constructor. Use <see cref="SnipeManager"/> to get an instance
 		/// </summary>
-		protected SnipeContext(int id, SnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter)
+		protected SnipeContext(int id, SnipeOptions options, ISnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter)
 		{
 			Id = id;
 			Communicator = communicator;
 			Auth = auth;
 			LogReporter = logReporter;
 
+			Reconfigure(options);
 			UnityTerminator.AddTarget(this);
 		}
 
-		internal void Initialize(SnipeConfig config)
+		internal void Reconfigure(SnipeOptions options)
 		{
-			ProjectName = config.ProjectName;
-			IsDev = config.Project.Mode == SnipeProjectMode.Dev;
+			ProjectName = options.ProjectName;
+			IsDev = options.Project.Mode == SnipeProjectMode.Dev;
 
-			LogReporter.Initialize(this, config);
+			LogReporter.Initialize(this, options);
 		}
 
 		// public void Reset()
@@ -78,9 +79,9 @@ namespace MiniIT.Snipe
 		{
 			if (Communicator.BatchMode && !Communicator.LoggedIn)
 			{
-				return new UnauthorizedRequest(Communicator, messageType, data);
+				return new UnauthorizedRequest(Communicator, Communicator.Services, messageType, data);
 			}
-			return new SnipeCommunicatorRequest(Communicator, Auth, messageType, data);
+			return new SnipeCommunicatorRequest(Communicator, Communicator.Services, Auth, messageType, data);
 		}
 	}
 }

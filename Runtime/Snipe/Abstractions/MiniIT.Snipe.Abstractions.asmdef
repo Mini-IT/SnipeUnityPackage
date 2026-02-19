@@ -1,0 +1,19 @@
+{
+    "name": "MiniIT.Snipe.Abstractions",
+    "rootNamespace": "MiniIT.Snipe",
+    "references": [
+        "MiniIT.Storage.SharedPrefs",
+        "MiniIT.Snipe.Logging",
+        "MiniIT.HttpClient.Abstraction",
+        "MiniIT.Framework.Utilities"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}
