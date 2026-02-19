@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace MiniIT.Snipe.Unity
 {
-	public class UnityInternetReachabilityProvider : IInternetReachabilityProvider
+	public class UnityInternetReachability : IInternetReachability
 	{
 		public bool IsInternetAvailable => Application.internetReachability != NetworkReachability.NotReachable;
 	}

@@ -29,7 +29,7 @@ namespace MiniIT.Snipe
 		private readonly BuiltInTablesListService _builtInTablesListService;
 		private readonly TablesOptions _tablesOptions;
 		private readonly IAnalyticsContext _analytics;
-		private readonly IInternetReachabilityProvider _internetReachabilityProvider;
+		private readonly IInternetReachability _internetReachability;
 		private readonly ILogger _logger;
 		private readonly ISnipeServices _services;
 
@@ -42,7 +42,7 @@ namespace MiniIT.Snipe
 			_tablesOptions = tablesOptions ?? throw new ArgumentNullException(nameof(tablesOptions));
 			StreamingAssetsReader.Initialize();
 			_analytics = (_services.Analytics as IAnalyticsTrackerProvider)?.GetTracker();
-			_internetReachabilityProvider = _services.InternetReachabilityProvider;
+			_internetReachability = _services.InternetReachability;
 			_builtInTablesListService = new BuiltInTablesListService(_services.LoggerFactory.CreateLogger(nameof(BuiltInTablesListService)));
 			_versionsLoader = new TablesVersionsLoader(_builtInTablesListService, _tablesOptions, _analytics, _services.LoggerFactory.CreateLogger(nameof(TablesVersionsLoader)));
 			_logger = _services.LoggerFactory.CreateLogger(nameof(TablesLoader));
@@ -102,7 +102,7 @@ namespace MiniIT.Snipe
 
 				bool fallbackEnabled = _tablesOptions.Versioning != TablesOptions.VersionsResolution.ForceExternal;
 				bool loadExternal = _tablesOptions.Versioning != TablesOptions.VersionsResolution.ForceBuiltIn
-				                    && _internetReachabilityProvider.IsInternetAvailable;
+				                    && _internetReachability.IsInternetAvailable;
 
 				if (fallbackEnabled)
 				{

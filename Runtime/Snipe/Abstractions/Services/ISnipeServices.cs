@@ -14,7 +14,7 @@ namespace MiniIT.Snipe
 		IApplicationInfo ApplicationInfo { get; }
 		IStopwatchFactory FuzzyStopwatchFactory { get; }
 		IHttpClientFactory HttpClientFactory { get; }
-		IInternetReachabilityProvider InternetReachabilityProvider { get; }
+		IInternetReachability InternetReachability { get; }
 		ITicker Ticker { get; }
 	}
 }

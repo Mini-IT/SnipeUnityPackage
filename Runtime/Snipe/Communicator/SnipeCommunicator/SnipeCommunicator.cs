@@ -104,7 +104,7 @@ namespace MiniIT.Snipe
 		/// </summary>
 		public void Start()
 		{
-			if (!_services.InternetReachabilityProvider.IsInternetAvailable)
+			if (!_services.InternetReachability.IsInternetAvailable)
 			{
 				_logger.LogInformation("Internet is not available");
 				ConnectionDisrupted?.Invoke();

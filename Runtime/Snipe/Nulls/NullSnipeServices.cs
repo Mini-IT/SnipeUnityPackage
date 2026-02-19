@@ -17,7 +17,7 @@ namespace MiniIT.Snipe
 		public IApplicationInfo ApplicationInfo { get; }
 		public IStopwatchFactory FuzzyStopwatchFactory { get; }
 		public IHttpClientFactory HttpClientFactory { get; }
-		public IInternetReachabilityProvider InternetReachabilityProvider { get; }
+		public IInternetReachability InternetReachability { get; }
 		public ITicker Ticker { get; }
 
 		public NullSnipeServices()
@@ -28,7 +28,7 @@ namespace MiniIT.Snipe
 				new NullApplicationInfo(),
 				new NullStopwatchFactory(),
 				new NullHttpClientFactory(),
-				new NullInternetReachabilityProvider(),
+				new NullInternetReachability(),
 				new NullTicker())
 		{
 		}
@@ -41,7 +41,7 @@ namespace MiniIT.Snipe
 			IApplicationInfo applicationInfo,
 			IStopwatchFactory fuzzyStopwatchFactory,
 			IHttpClientFactory httpClientFactory,
-			IInternetReachabilityProvider internetReachabilityProvider,
+			IInternetReachability internetReachability,
 			ITicker ticker)
 		{
 			SharedPrefs = sharedPrefs ?? throw new ArgumentNullException(nameof(sharedPrefs));
@@ -51,7 +51,7 @@ namespace MiniIT.Snipe
 			ApplicationInfo = applicationInfo ?? throw new ArgumentNullException(nameof(applicationInfo));
 			FuzzyStopwatchFactory = fuzzyStopwatchFactory ?? throw new ArgumentNullException(nameof(fuzzyStopwatchFactory));
 			HttpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
-			InternetReachabilityProvider = internetReachabilityProvider ?? throw new ArgumentNullException(nameof(internetReachabilityProvider));
+			InternetReachability = internetReachability ?? throw new ArgumentNullException(nameof(internetReachability));
 			Ticker = ticker ?? throw new ArgumentNullException(nameof(ticker));
 		}
 	}
@@ -92,7 +92,7 @@ namespace MiniIT.Snipe
 		public void Stop() { }
 	}
 
-	public sealed class NullInternetReachabilityProvider : IInternetReachabilityProvider
+	public sealed class NullInternetReachability : IInternetReachability
 	{
 		public bool IsInternetAvailable => false;
 	}

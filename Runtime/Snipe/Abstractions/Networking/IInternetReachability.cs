@@ -1,6 +1,6 @@
 namespace MiniIT.Snipe
 {
-	public interface IInternetReachabilityProvider
+	public interface IInternetReachability
 	{
 		bool IsInternetAvailable { get; }
 	}

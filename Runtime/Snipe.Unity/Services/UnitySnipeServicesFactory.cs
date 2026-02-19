@@ -7,15 +7,15 @@ using MiniIT.Utils;
 
 namespace MiniIT.Snipe.Unity
 {
-	public class UnitySnipeServicesFactory : ISnipeServiceLocatorFactory, ISnipeErrorsTrackerProvider
+	public class UnitySnipeServicesFactory : ISnipeInfrastructureProvider, ISnipeErrorsTrackerProvider
 	{
 		public static ISnipeErrorsTracker DebugErrorsTracker { get; set; } = null;
 
 		ISnipeErrorsTracker ISnipeErrorsTrackerProvider.ErrorsTracker => DebugErrorsTracker;
 
-		public virtual ISharedPrefs CreateSharedPrefs() => SharedPrefs.Instance;
+		public virtual ISharedPrefs GetSharedPrefs() => SharedPrefs.Instance;
 
-		public virtual ILoggerFactory CreateLoggerFactory() => LoggerFactory.Create(builder =>
+		public virtual ILoggerFactory GetLoggerFactory() => LoggerFactory.Create(builder =>
 		{
 			builder.SetMinimumLevel(LogLevel.Trace);
 			builder.AddUnityLogger(options =>
@@ -25,11 +25,11 @@ namespace MiniIT.Snipe.Unity
 			});
 		});
 
-		public virtual IMainThreadRunner CreateMainThreadRunner() => new MainThreadRunner();
-		public virtual IApplicationInfo CreateApplicationInfo() => new UnityApplicationInfo();
-		public virtual IStopwatchFactory CreateFuzzyStopwatchFactory() => new FuzzyStopwatchFactory();
-		public virtual IHttpClientFactory CreateHttpClientFactory() => new DefaultHttpClientFactory();
-		public virtual IInternetReachabilityProvider CreateInternetReachabilityProvider() => new UnityInternetReachabilityProvider();
-		public ITicker CreateTicker() => new UnityUpdateTicker();
+		public virtual IMainThreadRunner GetMainThreadRunner() => new MainThreadRunner();
+		public virtual IApplicationInfo GetApplicationInfo() => new UnityApplicationInfo();
+		public virtual IStopwatchFactory GetFuzzyStopwatchFactory() => new FuzzyStopwatchFactory();
+		public virtual IHttpClientFactory GetHttpClientFactory() => new DefaultHttpClientFactory();
+		public virtual IInternetReachability GetInternetReachability() => new UnityInternetReachability();
+		public ITicker GetTicker() => new UnityUpdateTicker();
 	}
 }

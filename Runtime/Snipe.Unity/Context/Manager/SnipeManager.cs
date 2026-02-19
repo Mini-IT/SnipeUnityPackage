@@ -25,7 +25,7 @@ namespace MiniIT.Snipe
 			_services = services ?? throw new ArgumentNullException(nameof(services));
 		}
 
-		public SnipeManager(ISnipeServiceLocatorFactory servicesFactory)
+		public SnipeManager(ISnipeInfrastructureProvider servicesFactory)
 		{
 			if (servicesFactory == null)
 			{

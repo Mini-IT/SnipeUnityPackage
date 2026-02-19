@@ -18,27 +18,27 @@ namespace MiniIT.Snipe
 		public IApplicationInfo ApplicationInfo { get; }
 		public IStopwatchFactory FuzzyStopwatchFactory { get; }
 		public IHttpClientFactory HttpClientFactory { get; }
-		public IInternetReachabilityProvider InternetReachabilityProvider { get; }
+		public IInternetReachability InternetReachability { get; }
 		public ITicker Ticker { get; }
 
-		public SnipeServiceLocator(ISnipeServiceLocatorFactory factory)
+		public SnipeServiceLocator(ISnipeInfrastructureProvider provider)
 		{
-			SharedPrefs = factory.CreateSharedPrefs();
-			LoggerFactory = factory.CreateLoggerFactory();
-			MainThreadRunner = factory.CreateMainThreadRunner();
+			SharedPrefs = provider.GetSharedPrefs();
+			LoggerFactory = provider.GetLoggerFactory();
+			MainThreadRunner = provider.GetMainThreadRunner();
 
 			Func<ISnipeErrorsTracker> errorsTrackerGetter = null;
-			if (factory is ISnipeErrorsTrackerProvider errorsTrackerProvider)
+			if (provider is ISnipeErrorsTrackerProvider errorsTrackerProvider)
 			{
 				errorsTrackerGetter = () => errorsTrackerProvider.ErrorsTracker;
 			}
 			Analytics = new SnipeAnalyticsService(MainThreadRunner, errorsTrackerGetter);
 
-			FuzzyStopwatchFactory = factory.CreateFuzzyStopwatchFactory();
-			HttpClientFactory = factory.CreateHttpClientFactory();
-			ApplicationInfo = factory.CreateApplicationInfo();
-			InternetReachabilityProvider = factory.CreateInternetReachabilityProvider();
-			Ticker = factory.CreateTicker();
+			FuzzyStopwatchFactory = provider.GetFuzzyStopwatchFactory();
+			HttpClientFactory = provider.GetHttpClientFactory();
+			ApplicationInfo = provider.GetApplicationInfo();
+			InternetReachability = provider.GetInternetReachability();
+			Ticker = provider.GetTicker();
 		}
 
 		public void Dispose()
@@ -48,7 +48,7 @@ namespace MiniIT.Snipe
 			(Analytics as IDisposable)?.Dispose();
 			(MainThreadRunner as IDisposable)?.Dispose();
 			(ApplicationInfo as IDisposable)?.Dispose();
-			(InternetReachabilityProvider as IDisposable)?.Dispose();
+			(InternetReachability as IDisposable)?.Dispose();
 			(Ticker as IDisposable)?.Dispose();
 		}
 	}
