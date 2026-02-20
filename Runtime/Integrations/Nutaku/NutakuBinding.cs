@@ -2,8 +2,8 @@ namespace MiniIT.Snipe.Unity
 {
 	public sealed class NutakuBinding : AuthBinding<NutakuIdFetcher>
 	{
-		public NutakuBinding()
-			: base("nuta")
+		public NutakuBinding(ISnipeServices services)
+			: base("nuta", services)
 		{
 			AvailableForRegistration = true;
 			UseContextIdPrefix = false;
