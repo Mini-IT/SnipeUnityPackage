@@ -21,7 +21,6 @@ namespace MiniIT.Snipe.Unity
 			builder.AddUnityLogger(options =>
 			{
 				options.MinimumLogLevelProvider = new TraceMinimumLogLevelProvider();
-				options.StackTraceMapper = new ScriptOnlyStackTraceMapper();
 			});
 		});
 
