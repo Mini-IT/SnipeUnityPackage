@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using fastJSON;
+using MiniIT.Utils;
 
 namespace MiniIT.Snipe.Configuration
 {
@@ -276,7 +277,7 @@ namespace MiniIT.Snipe.Configuration
 				ParseWebSocketUrls(_data.ServerWebSocketUrls, wssUrl);
 			}
 
-			if (data.TryGetValue("snipeDev", out bool dev))
+			if (DictionaryUtility.TryGetValue(data, "snipeDev", out bool dev))
 			{
 				_data.ProjectInfo.Mode = dev ? SnipeProjectMode.Dev : SnipeProjectMode.Live;
 			}
