@@ -72,14 +72,11 @@ namespace MiniIT.Snipe
 
 			_loadingCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
-			if (_loader == null)
-			{
-				_loader = new SnipeConfigLoader(
-					_projectID,
-					_services.ApplicationInfo,
-					_services.LoggerFactory.CreateLogger(nameof(SnipeConfigLoader)),
-					_services.HttpClientFactory);
-			}
+			_loader ??= new SnipeConfigLoader(
+				_projectID,
+				_services.ApplicationInfo,
+				_services.LoggerFactory.CreateLogger(nameof(SnipeConfigLoader)),
+				_services.HttpClientFactory);
 
 			lock (_statisticsLock)
 			{

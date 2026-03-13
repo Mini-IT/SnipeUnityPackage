@@ -98,7 +98,7 @@ namespace MiniIT.Http
 			}
 			catch (OperationCanceledException)
 			{
-				return new SystemHttpClientResponse(HttpStatusCode.RequestTimeout, "RequestTimeout");
+				return new SystemHttpClientResponse(HttpStatusCode.RequestTimeout, "RequestTimeout or cancelled");
 			}
 			catch (Exception e)
 			{

@@ -45,12 +45,12 @@ namespace MiniIT.Snipe
 
 				if (!response.IsSuccess)
 				{
-					_logger.LogTrace($"loader failed. Status Code: {response.ResponseCode}; Error Message: '{response.Error}'");
+					_logger.LogTrace("loader failed. Status Code: {code}; Error Message: '{error}'", response.ResponseCode, response.Error);
 					return null;
 				}
 
 				string responseMessage = await response.GetStringContentAsync();
-				_logger.LogTrace($"loader response: {responseMessage}");
+				_logger.LogTrace("loader response: {msg}", responseMessage);
 
 				var fullResponse = (Dictionary<string, object>)JSON.Parse(responseMessage);
 				if (fullResponse != null)
@@ -81,7 +81,7 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception e)
 			{
-				_logger.LogTrace($"loader failed: {LogUtil.GetReducedException(e)}");
+				_logger.LogTrace("loader failed: {e}", LogUtil.GetReducedException(e));
 			}
 			finally
 			{
