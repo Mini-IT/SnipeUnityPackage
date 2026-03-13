@@ -86,8 +86,6 @@ namespace MiniIT.Http
 
 		private async UniTask<IHttpClientResponse> Send(HttpRequestMessage request, TimeSpan timeout)
 		{
-			await UniTask.SwitchToThreadPool();
-
 			try
 			{
 				using var cts = new CancellationTokenSource(timeout);
