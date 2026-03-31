@@ -20,9 +20,10 @@ namespace MiniIT
 		private const int MIN_BYTES_TO_FLUSH = 4096;
 
 		private static readonly AlterSemaphore s_semaphore;
+		private static readonly Queue<string> s_filePathsToSend = new ();
+		private static readonly string s_cacheDirectory;
 
 		private static string s_filePath;
-		private static Queue<string> s_filePathsToSend = new ();
 		private static FileStream s_file;
 		private static int s_bytesWritten;
 		private SnipeContext _snipeContext;
@@ -33,6 +34,7 @@ namespace MiniIT
 		{
 			s_semaphore = new AlterSemaphore(1, 1);
 			Application.logMessageReceivedThreaded += OnLogMessageReceived;
+			s_cacheDirectory = Application.temporaryCachePath;
 			CreateNewFile();
 		}
 
@@ -56,12 +58,11 @@ namespace MiniIT
 				}
 
 				// Check if there is a directory for logs
-				string cacheDirectory = Application.temporaryCachePath;
-				if (!Directory.Exists(cacheDirectory))
+				if (!Directory.Exists(s_cacheDirectory))
 				{
 					try
 					{
-						Directory.CreateDirectory(cacheDirectory);
+						Directory.CreateDirectory(s_cacheDirectory);
 					}
 					catch (Exception ex)
 					{
@@ -73,7 +74,7 @@ namespace MiniIT
 				}
 
 				long ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-				s_filePath = Path.Combine(cacheDirectory, $"log{ts}.txt");
+				s_filePath = Path.Combine(s_cacheDirectory, $"log{ts}.txt");
 
 				try
 				{
@@ -131,7 +132,11 @@ namespace MiniIT
 				await s_semaphore.WaitAsync();
 				semaphoreOccupied = true;
 
-				s_filePathsToSend.Enqueue(s_filePath);
+				if (!string.IsNullOrEmpty(s_filePath))
+				{
+					s_filePathsToSend.Enqueue(s_filePath);
+				}
+
 				CreateNewFile();
 			}
 			catch (Exception ex)
@@ -150,6 +155,11 @@ namespace MiniIT
 			bool success = false;
 			while (s_filePathsToSend.TryDequeue(out string filepath))
 			{
+				if (string.IsNullOrEmpty(filepath))
+				{
+					continue;
+				}
+
 				success = false;
 				StreamReader file = null;
 
