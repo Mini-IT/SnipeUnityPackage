@@ -31,6 +31,12 @@ namespace MiniIT.Snipe.Unity
 
 		private async void WaitForInitialization(Action<string> callback)
 		{
+			if (_cts == null)
+			{
+				// Instance is disposed
+				return;
+			}
+
 			string userId = GetFacebookUserId();
 
 			var cancellationToken = _cts.Token;
