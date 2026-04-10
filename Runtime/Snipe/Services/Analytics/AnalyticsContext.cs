@@ -215,7 +215,7 @@ namespace MiniIT.Snipe
 
 		public void TrackErrorCodeNotOk(string messageType, string errorCode, IDictionary<string, object> data)
 		{
-			var analyticsTracker = _externalTracker ?? new NullAnalyticsTracker();
+			var analyticsTracker = _externalTracker ??= new NullAnalyticsTracker();
 			if (!analyticsTracker.IsInitialized || !analyticsTracker.CheckErrorCodeTracking(messageType, errorCode))
 			{
 				return;
