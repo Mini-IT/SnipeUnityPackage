@@ -74,7 +74,7 @@ namespace MiniIT.Snipe
 		{
 			bool ready = _externalTracker != null && _externalTracker.IsInitialized && IsEnabled;
 
-			if (ready)
+			if (ready && _externalTracker is not NullAnalyticsTracker)
 			{
 				lock (_userIdLock)
 				{
