@@ -5,8 +5,6 @@ namespace MiniIT.Snipe
 {
 	public sealed class NullAnalyticsTracker : ISnipeCommunicatorAnalyticsTracker
 	{
-		public static readonly NullAnalyticsTracker Instance = new NullAnalyticsTracker();
-
 		public bool IsInitialized => true;
 
 		public NullAnalyticsTracker() {}

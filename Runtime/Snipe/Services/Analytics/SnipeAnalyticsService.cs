@@ -9,7 +9,7 @@ namespace MiniIT.Snipe
 	{
 		public bool Enabled { get; set; } = true;
 
-		private ISnipeCommunicatorAnalyticsTracker _externalTracker = NullAnalyticsTracker.Instance;
+		private ISnipeCommunicatorAnalyticsTracker _externalTracker;
 		private readonly Func<ISnipeErrorsTracker> _errorsTrackerGetter;
 		private readonly IMainThreadRunner _mainThreadRunner;
 
@@ -42,7 +42,7 @@ namespace MiniIT.Snipe
 
 		public void SetTracker(ISnipeCommunicatorAnalyticsTracker externalTracker)
 		{
-			_externalTracker = externalTracker ?? NullAnalyticsTracker.Instance;
+			_externalTracker = externalTracker;
 
 			lock (_trackersLock)
 			{
@@ -53,7 +53,7 @@ namespace MiniIT.Snipe
 
 				foreach (var tracker in _trackers.Values)
 				{
-					tracker?.SetExternalTracker(_externalTracker);
+					tracker?.SetExternalTracker(externalTracker);
 				}
 			}
 		}

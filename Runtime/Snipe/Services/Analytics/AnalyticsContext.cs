@@ -74,7 +74,7 @@ namespace MiniIT.Snipe
 		{
 			bool ready = _externalTracker != null && _externalTracker.IsInitialized && IsEnabled;
 
-			if (ready && _externalTracker is not NullAnalyticsTracker)
+			if (ready)
 			{
 				lock (_userIdLock)
 				{
@@ -215,7 +215,8 @@ namespace MiniIT.Snipe
 
 		public void TrackErrorCodeNotOk(string messageType, string errorCode, IDictionary<string, object> data)
 		{
-			if (!CheckReady() || !_externalTracker.CheckErrorCodeTracking(messageType, errorCode))
+			var analyticsTracker = _externalTracker ?? new NullAnalyticsTracker();
+			if (!analyticsTracker.IsInitialized || !analyticsTracker.CheckErrorCodeTracking(messageType, errorCode))
 			{
 				return;
 			}
