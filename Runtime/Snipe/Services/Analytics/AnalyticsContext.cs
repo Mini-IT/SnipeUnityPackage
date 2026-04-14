@@ -40,10 +40,14 @@ namespace MiniIT.Snipe
 		#endregion
 
 		private ISnipeCommunicatorAnalyticsTracker _externalTracker;
+		private ISnipeCommunicatorAnalyticsTracker Tracker => _externalTracker ??= new NullAnalyticsTracker();
 		private readonly Func<ISnipeErrorsTracker> _errorsTrackerGetter;
 
 		private string _userId = null;
 		private string _debugId = null;
+		private ISnipeCommunicatorAnalyticsTracker _identityTracker = null;
+		private string _appliedUserId = null;
+		private string _appliedDebugId = null;
 		private readonly object _userIdLock = new object();
 		private readonly int _contextId;
 		private readonly SnipeAnalyticsService _analyticsService;
@@ -64,38 +68,42 @@ namespace MiniIT.Snipe
 		internal void SetExternalTracker(ISnipeCommunicatorAnalyticsTracker externalTracker)
 		{
 			_externalTracker = externalTracker;
-			if (_externalTracker != null)
-			{
-				CheckReady();
-			}
+			CheckReady();
 		}
 
 		private bool CheckReady()
 		{
-			bool ready = _externalTracker != null && _externalTracker.IsInitialized && IsEnabled;
+			var tracker = Tracker;
+			bool ready = tracker.IsInitialized && IsEnabled;
 
 			if (ready)
 			{
-				lock (_userIdLock)
-				{
-					if (!string.IsNullOrEmpty(_userId))
-					{
-						if (_contextId == 0) // Default context only
-						{
-							_externalTracker.SetUserId(_userId);
-						}
-						_userId = null;
-					}
-
-					if (!string.IsNullOrEmpty(_debugId))
-					{
-						string prefix = (_contextId == 0) ? "" : $"{_contextId} ";
-						_externalTracker.SetUserProperty(prefix + "debugID", _debugId);
-						_debugId = null;
-					}
-				}
+				ApplyUserIdentity(tracker);
 			}
 			return ready;
+		}
+
+		private void ApplyUserIdentity(ISnipeCommunicatorAnalyticsTracker tracker)
+		{
+			lock (_userIdLock)
+			{
+				bool trackerChanged = _identityTracker != tracker;
+
+				if (_contextId == 0 && !string.IsNullOrEmpty(_userId) && (trackerChanged || _appliedUserId != _userId)) // Default context only
+				{
+					tracker.SetUserId(_userId);
+					_appliedUserId = _userId;
+				}
+
+				if (!string.IsNullOrEmpty(_debugId) && (trackerChanged || _appliedDebugId != _debugId))
+				{
+					string prefix = (_contextId == 0) ? "" : $"{_contextId} ";
+					tracker.SetUserProperty(prefix + "debugID", _debugId);
+					_appliedDebugId = _debugId;
+				}
+
+				_identityTracker = tracker;
+			}
 		}
 
 		#region Analytics methods
@@ -116,7 +124,7 @@ namespace MiniIT.Snipe
 		{
 			if (CheckReady())
 			{
-				_externalTracker.SetUserProperty(name, value);
+				Tracker.SetUserProperty(name, value);
 			}
 		}
 
@@ -124,7 +132,7 @@ namespace MiniIT.Snipe
 		{
 			if (CheckReady())
 			{
-				_externalTracker.SetUserProperty(name, value);
+				Tracker.SetUserProperty(name, value);
 			}
 		}
 
@@ -132,7 +140,7 @@ namespace MiniIT.Snipe
 		{
 			if (CheckReady())
 			{
-				_externalTracker.SetUserProperty(name, value);
+				Tracker.SetUserProperty(name, value);
 			}
 		}
 
@@ -140,7 +148,7 @@ namespace MiniIT.Snipe
 		{
 			if (CheckReady())
 			{
-				_externalTracker.SetUserProperty(name, value);
+				Tracker.SetUserProperty(name, value);
 			}
 		}
 
@@ -148,7 +156,7 @@ namespace MiniIT.Snipe
 		{
 			if (CheckReady())
 			{
-				_externalTracker.SetUserProperty(name, value);
+				Tracker.SetUserProperty(name, value);
 			}
 		}
 
@@ -156,7 +164,7 @@ namespace MiniIT.Snipe
 		{
 			if (CheckReady())
 			{
-				_externalTracker.SetUserProperty(name, value);
+				Tracker.SetUserProperty(name, value);
 			}
 		}
 
@@ -164,7 +172,7 @@ namespace MiniIT.Snipe
 		{
 			if (CheckReady())
 			{
-				_externalTracker.SetUserProperty(name, value);
+				Tracker.SetUserProperty(name, value);
 			}
 		}
 
@@ -185,7 +193,8 @@ namespace MiniIT.Snipe
 					properties["server_reaction"] = ServerReaction.TotalMilliseconds;
 
 				// Some trackers (for example Amplitude) may crash if used not in the main Unity thread.
-				RunOnMainThread(() => _externalTracker.TrackEvent(EVENT_NAME, properties));
+				var tracker = Tracker;
+				RunOnMainThread(() => tracker.TrackEvent(EVENT_NAME, properties));
 			}
 		}
 
@@ -215,11 +224,6 @@ namespace MiniIT.Snipe
 
 		public void TrackErrorCodeNotOk(string messageType, string errorCode, IDictionary<string, object> data)
 		{
-			if (!CheckReady() || !_externalTracker.CheckErrorCodeTracking(messageType, errorCode))
-			{
-				return;
-			}
-
 			var properties = new Dictionary<string, object>(5)
 			{
 				["message_type"] = messageType,
@@ -227,7 +231,10 @@ namespace MiniIT.Snipe
 				["data"] = data != null ? fastJSON.JSON.ToJSON(data) : null,
 			};
 
-			TrackEvent(EVENT_ERROR_CODE_NOT_OK, properties);
+			if (CheckReady() && Tracker.CheckErrorCodeTracking(messageType, errorCode))
+			{
+				TrackEvent(EVENT_ERROR_CODE_NOT_OK, properties);
+			}
 
 			var tracker = _errorsTrackerGetter?.Invoke();
 			tracker?.TrackNotOk(properties);
@@ -246,14 +253,15 @@ namespace MiniIT.Snipe
 				properties["sinpe_context"] = _contextId;
 			}
 
-			RunOnMainThread(() => _externalTracker.TrackError(name, exception, properties));
+			var tracker = Tracker;
+			RunOnMainThread(() => tracker.TrackError(name, exception, properties));
 		}
 
 		public void TrackABEnter(string name, string variant)
 		{
 			if (CheckReady())
 			{
-				_externalTracker.TrackABEnter(name, variant);
+				Tracker.TrackABEnter(name, variant);
 			}
 		}
 
@@ -268,7 +276,7 @@ namespace MiniIT.Snipe
 
 		public void TrackSnipeConfigLoadingStats(SnipeConfigLoadingStatistics statistics)
 		{
-			if (_externalTracker is not ISnipeConfigLoadingAnalyticsTracker tracker)
+			if (!CheckReady() || Tracker is not ISnipeConfigLoadingAnalyticsTracker tracker)
 			{
 				return;
 			}
