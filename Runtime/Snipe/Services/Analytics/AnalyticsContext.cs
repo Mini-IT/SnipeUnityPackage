@@ -44,8 +44,9 @@ namespace MiniIT.Snipe
 
 		private string _userId = null;
 		private string _debugId = null;
-
 		private bool _sendUserIdentity;
+
+		private readonly object _userIdLock = new object();
 		private readonly int _contextId;
 		private readonly SnipeAnalyticsService _analyticsService;
 		private readonly IMainThreadRunner _mainThreadRunner;
@@ -71,7 +72,9 @@ namespace MiniIT.Snipe
 
 		private bool CheckReady()
 		{
-			if (!IsTrackerReady())
+			bool isTrackerReady = _externalTracker != null && _externalTracker.IsInitialized;
+
+			if (!isTrackerReady)
 			{
 				return false;
 			}
@@ -80,15 +83,16 @@ namespace MiniIT.Snipe
 			return true;
 		}
 
-		private bool IsTrackerReady() => _externalTracker != null && _externalTracker.IsInitialized && IsEnabled;
-
 		private void ApplyPendingUserData()
 		{
-			if (_sendUserIdentity)
+			lock (_userIdLock)
 			{
-				_sendUserIdentity  = false;
-				ApplyPendingUserId();
-				ApplyPendingDebugId();
+				if (_sendUserIdentity)
+				{
+					_sendUserIdentity  = false;
+					ApplyPendingUserId();
+					ApplyPendingDebugId();
+				}
 			}
 		}
 
@@ -233,8 +237,7 @@ namespace MiniIT.Snipe
 
 		public void TrackErrorCodeNotOk(string messageType, string errorCode, IDictionary<string, object> data)
 		{
-			var analyticsTracker = _externalTracker ??= new NullAnalyticsTracker();
-			if (!analyticsTracker.IsInitialized || !analyticsTracker.CheckErrorCodeTracking(messageType, errorCode))
+			if (!_externalTracker.IsInitialized || !_externalTracker.CheckErrorCodeTracking(messageType, errorCode))
 			{
 				return;
 			}
