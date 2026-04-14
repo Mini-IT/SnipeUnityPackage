@@ -46,6 +46,11 @@ namespace MiniIT.Snipe
 			AuthSubsystem authSubsystem,
 			SnipeConfig config)
 		{
+			if (_communicator != null)
+			{
+				_communicator.ConnectionDisrupted -= OnConnectionDisrupted;
+			}
+
 			_communicator = communicator;
 			_authSubsystem = authSubsystem;
 			_config = config;
@@ -55,6 +60,12 @@ namespace MiniIT.Snipe
 
 			ProviderId = provider_id;
 			Fetcher = fetcher;
+
+			if (_communicator != null)
+			{
+				_communicator.ConnectionDisrupted -= OnConnectionDisrupted;
+				_communicator.ConnectionDisrupted += OnConnectionDisrupted;
+			}
 		}
 
 		public void Start()
@@ -271,6 +282,17 @@ namespace MiniIT.Snipe
 				_bindResultCallback.Invoke(this, error_code);
 				_bindResultCallback = null;
 			}
+		}
+
+		private void OnConnectionDisrupted()
+		{
+			if (!_started || IsBindDone)
+			{
+				return;
+			}
+
+			_logger.LogTrace($"({ProviderId}) OnConnectionDisrupted - reset start state");
+			_started = false;
 		}
 
 		private void SetBindDoneFlag(bool value)
