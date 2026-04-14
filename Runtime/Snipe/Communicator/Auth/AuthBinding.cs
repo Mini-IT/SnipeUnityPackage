@@ -66,10 +66,21 @@ namespace MiniIT.Snipe
 			AuthSubsystem authSubsystem,
 			Func<string> getClientKeyMethod)
 		{
+			if (_communicator != null)
+			{
+				_communicator.ConnectionDisrupted -= OnConnectionDisrupted;
+			}
+
 			_contextId = contextId;
 			_communicator = communicator;
 			_authSubsystem = authSubsystem;
 			_getClientKeyMethod = getClientKeyMethod;
+
+			if (_communicator != null)
+			{
+				_communicator.ConnectionDisrupted -= OnConnectionDisrupted;
+				_communicator.ConnectionDisrupted += OnConnectionDisrupted;
+			}
 		}
 
 		public void Start()
@@ -319,6 +330,17 @@ namespace MiniIT.Snipe
 			}
 		}
 
+		private void OnConnectionDisrupted()
+		{
+			if (!_started || IsBindDone)
+			{
+				return;
+			}
+
+			_logger.LogTrace($"({ProviderId}) OnConnectionDisrupted - reset start state");
+			_started = false;
+		}
+
 		private void SetBindDoneFlag(bool value)
 		{
 			if (value == IsBindDone)
@@ -346,6 +368,11 @@ namespace MiniIT.Snipe
 
 		public void Dispose()
 		{
+			if (_communicator != null)
+			{
+				_communicator.ConnectionDisrupted -= OnConnectionDisrupted;
+			}
+
 			Fetcher?.Dispose();
 			DisposeCallback();
 		}
