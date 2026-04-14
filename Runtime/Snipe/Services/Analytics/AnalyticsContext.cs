@@ -44,7 +44,8 @@ namespace MiniIT.Snipe
 
 		private string _userId = null;
 		private string _debugId = null;
-		private readonly object _userIdLock = new object();
+
+		private bool _sendUserIdentity;
 		private readonly int _contextId;
 		private readonly SnipeAnalyticsService _analyticsService;
 		private readonly IMainThreadRunner _mainThreadRunner;
@@ -64,6 +65,7 @@ namespace MiniIT.Snipe
 		internal void SetExternalTracker(ISnipeCommunicatorAnalyticsTracker externalTracker)
 		{
 			_externalTracker = externalTracker ?? new NullAnalyticsTracker();
+			_sendUserIdentity = true;
 			CheckReady();
 		}
 
@@ -82,8 +84,9 @@ namespace MiniIT.Snipe
 
 		private void ApplyPendingUserData()
 		{
-			lock (_userIdLock)
+			if (_sendUserIdentity)
 			{
+				_sendUserIdentity  = false;
 				ApplyPendingUserId();
 				ApplyPendingDebugId();
 			}
@@ -100,8 +103,6 @@ namespace MiniIT.Snipe
 			{
 				_externalTracker.SetUserId(_userId);
 			}
-
-			_userId = null;
 		}
 
 		private void ApplyPendingDebugId()
@@ -113,7 +114,6 @@ namespace MiniIT.Snipe
 
 			string prefix = (_contextId == 0) ? "" : $"{_contextId} ";
 			_externalTracker.SetUserProperty(prefix + "debugID", _debugId);
-			_debugId = null;
 		}
 
 		#region Analytics methods
