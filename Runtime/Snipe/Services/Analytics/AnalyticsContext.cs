@@ -63,39 +63,57 @@ namespace MiniIT.Snipe
 
 		internal void SetExternalTracker(ISnipeCommunicatorAnalyticsTracker externalTracker)
 		{
-			_externalTracker = externalTracker;
-			if (_externalTracker != null)
-			{
-				CheckReady();
-			}
+			_externalTracker = externalTracker ?? new NullAnalyticsTracker();
+			CheckReady();
 		}
 
 		private bool CheckReady()
 		{
-			bool ready = _externalTracker != null && _externalTracker.IsInitialized && IsEnabled;
-
-			if (ready)
+			if (!IsTrackerReady())
 			{
-				lock (_userIdLock)
-				{
-					if (!string.IsNullOrEmpty(_userId))
-					{
-						if (_contextId == 0) // Default context only
-						{
-							_externalTracker.SetUserId(_userId);
-						}
-						_userId = null;
-					}
-
-					if (!string.IsNullOrEmpty(_debugId))
-					{
-						string prefix = (_contextId == 0) ? "" : $"{_contextId} ";
-						_externalTracker.SetUserProperty(prefix + "debugID", _debugId);
-						_debugId = null;
-					}
-				}
+				return false;
 			}
-			return ready;
+
+			ApplyPendingUserData();
+			return true;
+		}
+
+		private bool IsTrackerReady() => _externalTracker != null && _externalTracker.IsInitialized && IsEnabled;
+
+		private void ApplyPendingUserData()
+		{
+			lock (_userIdLock)
+			{
+				ApplyPendingUserId();
+				ApplyPendingDebugId();
+			}
+		}
+
+		private void ApplyPendingUserId()
+		{
+			if (string.IsNullOrEmpty(_userId))
+			{
+				return;
+			}
+
+			if (_contextId == 0) // Default context only
+			{
+				_externalTracker.SetUserId(_userId);
+			}
+
+			_userId = null;
+		}
+
+		private void ApplyPendingDebugId()
+		{
+			if (string.IsNullOrEmpty(_debugId))
+			{
+				return;
+			}
+
+			string prefix = (_contextId == 0) ? "" : $"{_contextId} ";
+			_externalTracker.SetUserProperty(prefix + "debugID", _debugId);
+			_debugId = null;
 		}
 
 		#region Analytics methods
