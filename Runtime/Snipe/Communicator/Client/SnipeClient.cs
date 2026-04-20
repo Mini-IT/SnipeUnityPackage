@@ -150,7 +150,7 @@ namespace MiniIT.Snipe
 				message.Add("data", data);
 			}
 
-			return SendRequest(message);
+			return InternalSendRequest(messageType, message);
 		}
 
 		public int SendRequest(IDictionary<string, object> message)
@@ -159,6 +159,19 @@ namespace MiniIT.Snipe
 			{
 				return 0;
 			}
+
+			return InternalSendRequest(null, message);
+		}
+
+		private int InternalSendRequest(string messageType, IDictionary<string, object> message)
+		{
+#if SNIPE_PROFILEMENAGER
+			messageType ??= message.SafeGetString("t");
+			if (IsProfileManagerForbiddenRequest(messageType))
+			{
+				TrackProfileManagerForbiddenRequest(messageType);
+			}
+#endif
 
 			int requestId = ++_requestId;
 			message["id"] = requestId;
@@ -334,6 +347,35 @@ namespace MiniIT.Snipe
 				DoSendBatch(messages);
 			}
 		}
+
+#if SNIPE_PROFILEMENAGER
+		private void TrackProfileManagerForbiddenRequest(string messageType)
+		{
+			_logger.LogError("SNIPE_PROFILEMENAGER: request type '{0}' is forbidden while Profile Manager is used. Request will still be sent.", messageType);
+
+			var properties = new Dictionary<string, object>(1)
+			{
+				["message_type"] = messageType,
+			};
+
+			_analytics?.TrackError("SNIPE_PROFILEMENAGER forbidden request", null, properties);
+		}
+
+		private static bool IsProfileManagerForbiddenRequest(string messageType)
+		{
+			switch (messageType)
+			{
+				case "attr.set":
+				case "attr.setMulti":
+				case "attr.inc":
+				case "attr.dec":
+					return true;
+				default:
+					return false;
+			}
+		}
+
+#endif
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static void EnsureMessageData(ref IDictionary<string, object> data, IDictionary<string, object> message)

@@ -38,7 +38,12 @@
             "name": "com.tivadar.best.websockets",
             "expression": "3.0.0",
             "define": "BEST_WEBSOCKET"
-        }
+        },
+		{
+			"name": "com.miniit.snipe.profilemanager",
+			"expression": "0.0.1",
+			"define": "SNIPE_PROFILEMENAGER"
+		}
     ],
     "noEngineReferences": true
 }
