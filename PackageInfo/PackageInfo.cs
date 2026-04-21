@@ -5,4 +5,4 @@ namespace MiniIT.Snipe
 		public static string VERSION_CODE = "7.7.4";
 		public static string VERSION_NAME = "7.7.4-dev";
 	}
-dev
+}
