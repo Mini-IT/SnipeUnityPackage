@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace MiniIT.Snipe.Unity
 {
-#if UNITY_WEBGL
+#if STEAM || UNITY_WEBGL
 
     public class DeviceIdFetcher : AuthIdFetcher
     {
