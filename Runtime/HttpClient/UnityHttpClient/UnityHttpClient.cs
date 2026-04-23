@@ -28,12 +28,16 @@ namespace MiniIT.Http
 
 		public async UniTask<IHttpClientResponse> Get(Uri uri)
 		{
+			await UniTask.SwitchToMainThread();
+
 			var request = UnityWebRequest.Get(uri);
 			return await SendRequestAsync(request);
 		}
 
 		public async UniTask<IHttpClientResponse> Get(Uri uri, TimeSpan timeout)
 		{
+			await UniTask.SwitchToMainThread();
+
 			var request = UnityWebRequest.Get(uri);
 			request.timeout = (int)timeout.TotalSeconds;
 			return await SendRequestAsync(request);
@@ -41,6 +45,8 @@ namespace MiniIT.Http
 
 		public async UniTask<IHttpClientResponse> PostJson(Uri uri, string content, TimeSpan timeout)
 		{
+			await UniTask.SwitchToMainThread();
+
 			var request = UnityWebRequest.Post(uri, content, "application/json");
 			FillHeaders(request);
 
@@ -55,6 +61,8 @@ namespace MiniIT.Http
 
 		public async UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content, TimeSpan timeout)
 		{
+			await UniTask.SwitchToMainThread();
+
 			var form = new WWWForm();
 			form.AddBinaryData(name, content);
 
