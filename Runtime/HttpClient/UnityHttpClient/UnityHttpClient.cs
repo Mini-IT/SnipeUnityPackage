@@ -1,5 +1,6 @@
 
 using System;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -39,8 +40,7 @@ namespace MiniIT.Http
 			await UniTask.SwitchToMainThread();
 
 			var request = UnityWebRequest.Get(uri);
-			request.timeout = (int)timeout.TotalSeconds;
-			return await SendRequestAsync(request);
+			return await SendRequestAsync(request, timeout);
 		}
 
 		public async UniTask<IHttpClientResponse> PostJson(Uri uri, string content, TimeSpan timeout)
@@ -50,13 +50,7 @@ namespace MiniIT.Http
 			var request = UnityWebRequest.Post(uri, content, "application/json");
 			FillHeaders(request);
 
-			int timeoutSeconds = (int)timeout.TotalSeconds;
-			if (timeoutSeconds > 0)
-			{
-				request.timeout = timeoutSeconds;
-			}
-
-			return await SendRequestAsync(request);
+			return await SendRequestAsync(request, timeout);
 		}
 
 		public async UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content, TimeSpan timeout)
@@ -69,13 +63,7 @@ namespace MiniIT.Http
 			var request = UnityWebRequest.Post(uri, form);
 			FillHeaders(request);
 
-			int timeoutSeconds = (int)timeout.TotalSeconds;
-			if (timeoutSeconds > 0)
-			{
-				request.timeout = timeoutSeconds;
-			}
-
-			return await SendRequestAsync(request);
+			return await SendRequestAsync(request, timeout);
 		}
 
 		private void FillHeaders(UnityWebRequest request)
@@ -94,8 +82,40 @@ namespace MiniIT.Http
 		private async UniTask<IHttpClientResponse> SendRequestAsync(UnityWebRequest request)
 		{
 			request.downloadHandler = new DownloadHandlerBuffer();
-			await request.SendWebRequest().ToUniTask();
-			return new UnityHttpClientResponse(request);
+			try
+			{
+				await request.SendWebRequest().ToUniTask();
+				return new UnityHttpClientResponse(request);
+			}
+			finally
+			{
+				request.Dispose();
+			}
+		}
+
+		private async UniTask<IHttpClientResponse> SendRequestAsync(UnityWebRequest request, TimeSpan timeout)
+		{
+			if (timeout == TimeSpan.Zero)
+			{
+				return await SendRequestAsync(request);
+			}
+
+			request.downloadHandler = new DownloadHandlerBuffer();
+			using var cts = new CancellationTokenSource(timeout);
+			try
+			{
+				await request.SendWebRequest().ToUniTask(cancellationToken: cts.Token);
+				return new UnityHttpClientResponse(request);
+			}
+			catch (OperationCanceledException)
+			{
+				request.Abort();
+				return UnityHttpClientResponse.CreateTimeout();
+			}
+			finally
+			{
+				request.Dispose();
+			}
 		}
 	}
 }
