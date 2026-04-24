@@ -13,11 +13,11 @@ namespace MiniIT.Snipe
 		}
 	}
 
+	public delegate void BindResultCallback(AuthBinding binding, string errorCode);
+	public delegate void CheckAuthExistsCallback(AuthBinding binding, bool exists, bool isMe, string username = null);
+
 	public class AuthBinding : IDisposable
 	{
-		public delegate void BindResultCallback(AuthBinding binding, string errorCode);
-		public delegate void CheckAuthExistsCallback(AuthBinding binding, bool exists, bool isMe, string username = null);
-
 		public string ProviderId { get; }
 		public AuthIdFetcher Fetcher { get; }
 		public int ContextId => _contextId;
@@ -43,7 +43,7 @@ namespace MiniIT.Snipe
 		protected AuthSubsystem _authSubsystem;
 		private readonly ISharedPrefs _sharedPrefs;
 		protected readonly ILogger _logger;
-		protected readonly ISnipeServices Services;
+		protected readonly ISnipeServices _services;
 
 		public AuthBinding(string providerId, AuthIdFetcher fetcher, ISnipeServices services)
 		{
@@ -52,7 +52,7 @@ namespace MiniIT.Snipe
 				throw new ArgumentNullException(nameof(services));
 			}
 
-			Services = services;
+			_services = services;
 			_sharedPrefs = services.SharedPrefs;
 			_logger = services.LoggerFactory.CreateLogger(GetType().Name);
 
@@ -158,7 +158,7 @@ namespace MiniIT.Snipe
 			FillExtraParameters(data);
 
 			_logger.LogTrace($"({ProviderId}) send user.bind " + JsonUtility.ToJson(data));
-			new UnauthorizedRequest(_communicator, Services, SnipeMessageTypes.AUTH_BIND, data)
+			new UnauthorizedRequest(_communicator, _services, SnipeMessageTypes.AUTH_BIND, data)
 				.Request(OnBindResponse);
 		}
 
@@ -219,7 +219,7 @@ namespace MiniIT.Snipe
 
 			FillExtraParameters(data);
 
-			new UnauthorizedRequest(_communicator, Services, SnipeMessageTypes.AUTH_RESET, data)
+			new UnauthorizedRequest(_communicator, _services, SnipeMessageTypes.AUTH_RESET, data)
 				.Request((errorCode, responseData) =>
 				{
 					string authLogin = null;
@@ -269,7 +269,7 @@ namespace MiniIT.Snipe
 				data["userID"] = loginID;
 			}
 
-			new UnauthorizedRequest(_communicator, Services, SnipeMessageTypes.AUTH_EXISTS, data)
+			new UnauthorizedRequest(_communicator, _services, SnipeMessageTypes.AUTH_EXISTS, data)
 				.Request((errorCode, responseData) => OnCheckAuthExistsResponse(errorCode, responseData, callback));
 		}
 
@@ -376,5 +376,7 @@ namespace MiniIT.Snipe
 			Fetcher?.Dispose();
 			DisposeCallback();
 		}
+
+		internal AuthSubsystem GetAuthSubsystem() => _authSubsystem;
 	}
 }

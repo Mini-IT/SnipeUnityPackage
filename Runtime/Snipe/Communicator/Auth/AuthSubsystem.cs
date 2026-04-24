@@ -480,6 +480,26 @@ namespace MiniIT.Snipe
 			});
 		}
 
+		public void ConnectAndRelogin(AuthBinding dvidBinding, IConnectableAuthBinding connectable)
+		{
+			dvidBinding.Fetcher.Fetch(false, _ =>
+			{
+				connectable.Connect(dvidBinding, (_, errorCode) =>
+				{
+					if (errorCode != SnipeErrorCodes.OK)
+					{
+						_logger.LogError($"Auth connect error: {errorCode}");
+						return;
+					}
+
+					_bindingManager.ClearAllBindings();
+					_credentialStore.ClearAuthData();
+					UserID = 0;
+					ReloginReconnect().Forget();
+				});
+			});
+		}
+
 		private async UniTaskVoid ReloginReconnect()
 		{
 			_communicator.Disconnect();
