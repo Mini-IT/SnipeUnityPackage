@@ -33,7 +33,10 @@ namespace MiniIT.Snipe
 				{
 					context = new AnalyticsContext(this, contextId, _errorsTrackerGetter, _mainThreadRunner);
 					_trackers[contextId] = context;
-					context.SetExternalTracker(_externalTracker);
+					if (_externalTracker != null)
+					{
+						context.SetExternalTracker(_externalTracker);
+					}
 				}
 			}
 			return context;
