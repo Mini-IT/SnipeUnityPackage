@@ -272,7 +272,11 @@ namespace MiniIT.Snipe.Configuration
 				_data.ServerHttpUrls.Add(httpUrl.Trim());
 			}
 
-			if (data.TryGetValue("snipeWssUrl", out object wssUrl))
+			if (data.TryGetValue("snipeWssUrls", out object wssUrls))
+			{
+				ParseWebSocketUrls(_data.ServerWebSocketUrls, wssUrls);
+			}
+			else if (data.TryGetValue("snipeWssUrl", out object wssUrl))
 			{
 				ParseWebSocketUrls(_data.ServerWebSocketUrls, wssUrl);
 			}
