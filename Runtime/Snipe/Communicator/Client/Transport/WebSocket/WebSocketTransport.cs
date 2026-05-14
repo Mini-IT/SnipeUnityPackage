@@ -209,7 +209,7 @@ namespace MiniIT.Snipe
 				_webSocket?.SendRequest(data);
 			}
 
-			if (_sendQueue != null && _sendQueue.IsEmpty && !message.SafeGetString("t").StartsWith("payment/"))
+			if (_sendQueue != null && _sendQueue.IsEmpty && ShouldStartCheckConnection(message))
 			{
 				StartCheckConnection();
 			}
@@ -239,6 +239,29 @@ namespace MiniIT.Snipe
 			}
 
 			_webSocket?.SendRequest(request);
+
+			if (_sendQueue != null && _sendQueue.IsEmpty && ShouldStartCheckConnection(messages))
+			{
+				StartCheckConnection();
+			}
+		}
+
+		private static bool ShouldStartCheckConnection(IDictionary<string, object> message)
+		{
+			return !message.SafeGetString("t").StartsWith("payment/");
+		}
+
+		private static bool ShouldStartCheckConnection(IList<IDictionary<string, object>> messages)
+		{
+			for (int i = 0; i < messages.Count; i++)
+			{
+				if (ShouldStartCheckConnection(messages[i]))
+				{
+					return true;
+				}
+			}
+
+			return false;
 		}
 
 		// [Testable]
