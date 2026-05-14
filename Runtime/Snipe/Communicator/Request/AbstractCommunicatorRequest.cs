@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.Threading;
 
@@ -21,7 +22,7 @@ namespace MiniIT.Snipe
 		private readonly ISnipeServices _services;
 		protected ResponseHandler _callback;
 
-		protected int _requestId { get; private set; }
+		private int _requestId;
 		private int _retriesLeft = RETRIES_COUNT;
 
 		private bool _sent = false;
@@ -132,13 +133,13 @@ namespace MiniIT.Snipe
 		{
 			_requestId = 0;
 
-			bool check_duplication = false;
+			bool checkDuplication = false;
 
 			foreach (SnipeRequestDescriptor descriptor in _communicator.MergeableRequestTypes)
 			{
-				string mergeble_type = descriptor?.MessageType;
+				string mergebleType = descriptor?.MessageType;
 
-				if (mergeble_type != null && string.Equals(mergeble_type, MessageType, StringComparison.Ordinal))
+				if (mergebleType != null && string.Equals(mergebleType, MessageType, StringComparison.Ordinal))
 				{
 					bool matched = true;
 
@@ -156,13 +157,13 @@ namespace MiniIT.Snipe
 
 					if (matched)
 					{
-						check_duplication = true;
+						checkDuplication = true;
 						break;
 					}
 				}
 			}
 
-			if (check_duplication)
+			if (checkDuplication)
 			{
 				for (int i = 0; i < _communicator.Requests.Count; i++)
 				{
@@ -207,7 +208,7 @@ namespace MiniIT.Snipe
 			if (!_waitingForResponse)
 			{
 				// keep this instance for a while to prevent duplicate requests
-				DelayedDispose();
+				DelayedDispose().Forget();
 			}
 		}
 
@@ -242,25 +243,25 @@ namespace MiniIT.Snipe
 			_communicator.ConnectionEstablished += OnCommunicatorReady;
 		}
 
-		protected virtual void OnMessageReceived(string message_type, string error_code, IDictionary<string, object> response_data, int request_id)
+		protected virtual void OnMessageReceived(string messageType, string errorCode, IDictionary<string, object> responseData, int requestID)
 		{
 			if (_communicator == null)
 				return;
 
-			if ((request_id == 0 || request_id == _requestId) && message_type == MessageType)
+			if ((requestID == 0 || requestID == _requestId) && messageType == MessageType)
 			{
-				if (error_code == SnipeErrorCodes.SERVICE_OFFLINE && _retriesLeft > 0)
+				if (errorCode == SnipeErrorCodes.SERVICE_OFFLINE && _retriesLeft > 0)
 				{
 					_retriesLeft--;
-					DelayedRetryRequest();
+					DelayedRetryRequest().Forget();
 					return;
 				}
 
-				InvokeCallback(error_code, response_data);
+				InvokeCallback(errorCode, responseData);
 			}
 		}
 
-		protected void InvokeCallback(string error_code, IDictionary<string, object> response_data)
+		protected void InvokeCallback(string errorCode, IDictionary<string, object> responseData)
 		{
 			var callback = _callback;
 
@@ -270,7 +271,7 @@ namespace MiniIT.Snipe
 			{
 				try
 				{
-					callback.Invoke(error_code, response_data);
+					callback.Invoke(errorCode, responseData);
 				}
 				catch (Exception e)
 				{
@@ -279,7 +280,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async void DelayedRetryRequest()
+		private async UniTaskVoid DelayedRetryRequest()
 		{
 			await AlterTask.Delay(RETRY_DELAY_MS);
 
@@ -289,7 +290,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async void DelayedDispose()
+		private async UniTaskVoid DelayedDispose()
 		{
 			await AlterTask.Yield();
 			Dispose();
@@ -333,6 +334,8 @@ namespace MiniIT.Snipe
 			_logger ??= _services.LoggerFactory.CreateLogger(nameof(AbstractCommunicatorRequest));
 			return _logger;
 		}
+
+		protected int GetRequestId() => _requestId;
 
 		private static bool CheckDataIsFullyContained(IDictionary<string, object> container, IDictionary<string, object> data)
 		{

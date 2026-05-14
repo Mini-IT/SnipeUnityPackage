@@ -84,21 +84,21 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		protected override void OnMessageReceived(string message_type, string error_code, IDictionary<string, object> response_data, int request_id)
+		protected override void OnMessageReceived(string messageType, string errorCode, IDictionary<string, object> responseData, int requestID)
 		{
 			if (_communicator == null)
 				return;
 
 			if (WaitingForRoomJoined && _communicator.RoomJoined == true)
 			{
-				GetLogger().LogTrace($"OnMessageReceived - Room joined. Send {MessageType}, id = {_requestId}");
+				GetLogger().LogTrace($"OnMessageReceived - Room joined. Send {MessageType}, id = {GetRequestId()}");
 
 				WaitingForRoomJoined = false;
 				DoSendRequest();
 				return;
 			}
 
-			base.OnMessageReceived(message_type, error_code, response_data, request_id);
+			base.OnMessageReceived(messageType, errorCode, responseData, requestID);
 		}
 
 		public override void Dispose()
