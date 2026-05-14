@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace MiniIT.Snipe
 {
@@ -13,6 +14,7 @@ namespace MiniIT.Snipe
 		/// </summary>
 		/// <param name="message">The message to estimate</param>
 		/// <returns><c>true</c> if the message is small enough</returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		internal static bool EstimateSizeSmall(IDictionary<string, object> message)
 		{
 			if (message == null || message.Count > 30)
