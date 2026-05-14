@@ -516,65 +516,7 @@ namespace MiniIT.Snipe
 
 		private static bool CanAutoBatch(IDictionary<string, object> message)
 		{
-			if (message == null)
-			{
-				return false;
-			}
-
-			// Empirically check if the message is not too large
-
-			if (message.Count > 30)
-			{
-				return false;
-			}
-
-			int count = 0;
-			int stringLength = 0;
-			return EstimateMessageSizeSmall(message, ref count, ref stringLength);
-		}
-
-		private static bool EstimateMessageSizeSmall(IDictionary<string, object> message, ref int count, ref int stringLength)
-		{
-			const int MAX_ITEMS_COUNT = 50;
-			const int MAX_STR_LENGTH = 2048;
-
-			foreach (var kvp in message)
-			{
-				count++;
-				stringLength += kvp.Key.Length;
-
-				if (count > MAX_ITEMS_COUNT || stringLength > MAX_STR_LENGTH)
-				{
-					return false;
-				}
-
-				if (kvp.Value is IList list)
-				{
-					count += list.Count;
-				}
-				else if (kvp.Value is IDictionary<string, object> dict)
-				{
-					if (!EstimateMessageSizeSmall(dict, ref count, ref stringLength))
-					{
-						return false;
-					}
-				}
-				else if (kvp.Value is string str)
-				{
-					stringLength += str.Length;
-				}
-				else
-				{
-					stringLength += 3;
-				}
-
-				if (count > MAX_ITEMS_COUNT || stringLength > MAX_STR_LENGTH)
-				{
-					return false;
-				}
-			}
-
-			return true;
+			return message != null && SnipeRequestMessageSizeEsimator.EstimateSizeSmall(message);
 		}
 	}
 }
