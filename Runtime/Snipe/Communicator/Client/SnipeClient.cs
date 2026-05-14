@@ -210,10 +210,14 @@ namespace MiniIT.Snipe
 			_transportService.SendMessage(message);
 
 			_serverReactionStartTimestamp = Stopwatch.GetTimestamp();
+			TrackResponse(message);
+			return true;
+		}
 
+		private void TrackResponse(IDictionary<string, object> message)
+		{
 			int id = message.SafeGetValue<int>("id");
 			_responseMonitor.Add(id, message.SafeGetString("t"));
-			return true;
 		}
 
 		private bool SendBatchNow(List<IDictionary<string, object>> messages)
@@ -225,9 +229,15 @@ namespace MiniIT.Snipe
 
 			_logger.LogTrace("SendBatch - {0} items", messages.Count);
 
-			// Batched requests are not registered in ResponseMonitor here, so missing per-item
-			// responses may skip response-timeout analytics.
 			_transportService.SendBatch(messages);
+
+			_serverReactionStartTimestamp = Stopwatch.GetTimestamp();
+
+			for (int i = 0; i < messages.Count; i++)
+			{
+				TrackResponse(messages[i]);
+			}
+
 			return true;
 		}
 
