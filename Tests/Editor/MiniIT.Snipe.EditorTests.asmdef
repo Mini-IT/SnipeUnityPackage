@@ -13,9 +13,9 @@
         "MiniIT.Snipe.Services",
         "MiniIT.Snipe.Unity",
 		"MiniIT.Storage.SharedPrefs",
-        "UniTask",
         "MiniIT.Snipe.Abstractions",
-        "MiniIT.Snipe.Nulls"
+        "MiniIT.Snipe.Nulls",
+        "UniTask"
     ],
     "includePlatforms": [
         "Editor"
