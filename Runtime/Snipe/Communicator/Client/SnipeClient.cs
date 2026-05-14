@@ -227,6 +227,8 @@ namespace MiniIT.Snipe
 
 			_logger.LogTrace("SendBatch - {0} items", messages.Count);
 
+			// Batched requests are not registered in ResponseMonitor here, so missing per-item
+			// responses may skip response-timeout analytics.
 			_transportService.SendBatch(messages);
 			return true;
 		}
