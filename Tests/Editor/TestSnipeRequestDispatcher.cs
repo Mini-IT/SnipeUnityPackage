@@ -60,7 +60,7 @@ namespace MiniIT.Snipe.Tests.Editor
 				fixture.Dispatcher.Send(fixture.CreateMessage(i), true);
 			}
 
-			fixture.Dispatcher.Send(fixture.CreateMessage(10, SnipeClient.DEFAULT_AUTO_BATCH_MAX_MESSAGE_BYTES + 1), true);
+			fixture.Dispatcher.Send(fixture.CreateLargeMessage(10), true);
 			fixture.Dispatcher.Send(fixture.CreateMessage(11), true);
 
 			yield return fixture.WaitForDelayCall();
@@ -173,20 +173,22 @@ namespace MiniIT.Snipe.Tests.Editor
 					Delay);
 			}
 
-			public IDictionary<string, object> CreateMessage(int id, int payloadSize = 0)
+			public IDictionary<string, object> CreateMessage(int id)
 			{
-				var message = new Dictionary<string, object>()
+				return new Dictionary<string, object>()
 				{
 					["t"] = "test",
 					["id"] = id,
 				};
+			}
 
-				if (payloadSize > 0)
+			public IDictionary<string, object> CreateLargeMessage(int id)
+			{
+				var message = CreateMessage(id);
+
+				for (int i = 0; i < 31; i++)
 				{
-					message["data"] = new Dictionary<string, object>()
-					{
-						["payload"] = new string('x', payloadSize),
-					};
+					message["extra" + i] = i;
 				}
 
 				return message;

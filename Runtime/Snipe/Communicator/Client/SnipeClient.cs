@@ -12,7 +12,6 @@ namespace MiniIT.Snipe
 		public const int DEFAULT_REQUESTS_PER_SECOND_LIMIT = 5;
 		public const int RATE_LIMIT_RETRY_DELAY_MS = 1000;
 		public const int MAX_RATE_LIMIT_RETRY_DELAY_MS = 10000;
-		public const int DEFAULT_AUTO_BATCH_MAX_MESSAGE_BYTES = 4096;
 
 		public delegate void MessageReceivedHandler(string messageType, string errorCode, IDictionary<string, object> data, int requestID);
 
@@ -173,14 +172,14 @@ namespace MiniIT.Snipe
 
 			if (!_loggedIn && _batchBuffer.IsEmpty)
 			{
-				SnipeRequestMessageData.Ensure(ref data, message);
+				SnipeRequestMessageDataHelper.Ensure(ref data, message);
 				data["ckey"] = _options.ClientKey;
 				message["data"] = data;
 			}
 
 			if (_options.DebugId != null)
 			{
-				SnipeRequestMessageData.Ensure(ref data, message);
+				SnipeRequestMessageDataHelper.Ensure(ref data, message);
 				data["debugID"] = _options.DebugId;
 			}
 

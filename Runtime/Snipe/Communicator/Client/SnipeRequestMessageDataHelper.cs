@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 
 namespace MiniIT.Snipe
 {
-	internal static class SnipeRequestMessageData
+	internal static class SnipeRequestMessageDataHelper
 	{
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static void Ensure(ref IDictionary<string, object> data, IDictionary<string, object> message)
