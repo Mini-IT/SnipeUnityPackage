@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
@@ -547,23 +548,24 @@ namespace MiniIT.Snipe
 					return false;
 				}
 
-				if (kvp.Value is IDictionary<string, object> dict)
+				if (kvp.Value is IList list)
+				{
+					count += list.Count;
+				}
+				else if (kvp.Value is IDictionary<string, object> dict)
 				{
 					if (!EstimateMessageSizeSmall(dict, ref count, ref stringLength))
 					{
 						return false;
 					}
 				}
+				else if (kvp.Value is string str)
+				{
+					stringLength += str.Length;
+				}
 				else
 				{
-					if (kvp.Value is string str)
-					{
-						stringLength += str.Length;
-					}
-					else
-					{
-						stringLength += 3;
-					}
+					stringLength += 3;
 				}
 
 				if (count > MAX_ITEMS_COUNT || stringLength > MAX_STR_LENGTH)
