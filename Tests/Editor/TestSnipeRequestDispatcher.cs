@@ -93,6 +93,48 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[UnityTest]
+		public IEnumerator RateLimit_BackoffIsClientWide()
+		{
+			var fixture = new DispatcherFixture();
+
+			fixture.Dispatcher.Send(fixture.CreateMessage(1), true);
+			fixture.Dispatcher.Send(fixture.CreateMessage(2), true);
+
+			Assert.IsTrue(fixture.Dispatcher.TryHandleRateLimit(1));
+			yield return fixture.WaitForDelayCalls(1);
+
+			Assert.IsTrue(fixture.Dispatcher.TryHandleRateLimit(2));
+			yield return fixture.WaitForDelayCalls(2);
+
+			Assert.AreEqual(SnipeClient.RATE_LIMIT_RETRY_DELAY_MS, fixture.DelayCalls[0]);
+			Assert.AreEqual(SnipeClient.RATE_LIMIT_RETRY_DELAY_MS, fixture.DelayCalls[1]);
+
+			fixture.Dispatcher.Clear();
+		}
+
+		[UnityTest]
+		public IEnumerator RateLimit_BackoffAdvancesAfterCooldown()
+		{
+			var fixture = new DispatcherFixture();
+			var message = fixture.CreateMessage(1);
+
+			fixture.Dispatcher.Send(message, true);
+
+			Assert.IsTrue(fixture.Dispatcher.TryHandleRateLimit(1));
+			yield return fixture.WaitForDelayCalls(1);
+			fixture.CompleteNextDelay();
+			yield return null;
+
+			Assert.IsTrue(fixture.Dispatcher.TryHandleRateLimit(1));
+			yield return fixture.WaitForDelayCalls(2);
+
+			Assert.AreEqual(SnipeClient.RATE_LIMIT_RETRY_DELAY_MS, fixture.DelayCalls[0]);
+			Assert.AreEqual(SnipeClient.RATE_LIMIT_RETRY_DELAY_MS * 2, fixture.DelayCalls[1]);
+
+			fixture.Dispatcher.Clear();
+		}
+
+		[UnityTest]
 		public IEnumerator Clear_CancelsQueuedRequests()
 		{
 			var fixture = new DispatcherFixture();
@@ -159,9 +201,14 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			public IEnumerator WaitForDelayCall()
 			{
+				return WaitForDelayCalls(1);
+			}
+
+			public IEnumerator WaitForDelayCalls(int count)
+			{
 				for (int i = 0; i < 10; i++)
 				{
-					if (DelayCalls.Count > 0)
+					if (DelayCalls.Count >= count)
 					{
 						yield break;
 					}

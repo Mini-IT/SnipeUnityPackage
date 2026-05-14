@@ -26,7 +26,6 @@ namespace MiniIT.Snipe
 			public int RequestId;
 			public IDictionary<string, object> Message;
 			public long SentTimestamp;
-			public int NextRetryDelayMs = SnipeClient.RATE_LIMIT_RETRY_DELAY_MS;
 			public bool RetryScheduled;
 		}
 
@@ -46,6 +45,9 @@ namespace MiniIT.Snipe
 		private bool _drainStarted;
 		private long _sendWindowStartTimestamp;
 		private int _requestsSentInWindow;
+		private int _rateLimitRetryDelayMs = SnipeClient.RATE_LIMIT_RETRY_DELAY_MS;
+		private int _rateLimitRetryCooldownId;
+		private bool _rateLimitRetryCooldownActive;
 
 		internal SnipeRequestDispatcher(
 			Func<IDictionary<string, object>, bool> sendRequest,
@@ -130,6 +132,7 @@ namespace MiniIT.Snipe
 		{
 			SentRequest request;
 			int delayMs;
+			int cooldownId;
 			CancellationToken cancellation;
 
 			lock (_lock)
@@ -147,13 +150,20 @@ namespace MiniIT.Snipe
 				}
 
 				request.RetryScheduled = true;
-				delayMs = request.NextRetryDelayMs;
-				request.NextRetryDelayMs = Math.Min(delayMs * 2, SnipeClient.MAX_RATE_LIMIT_RETRY_DELAY_MS);
+
+				if (!_rateLimitRetryCooldownActive)
+				{
+					_rateLimitRetryCooldownActive = true;
+					_rateLimitRetryCooldownId++;
+				}
+
+				delayMs = _rateLimitRetryDelayMs;
+				cooldownId = _rateLimitRetryCooldownId;
 				_cancellation ??= new CancellationTokenSource();
 				cancellation = _cancellation.Token;
 			}
 
-			RetryRateLimitedRequest(request, delayMs, cancellation).Forget();
+			RetryRateLimitedRequest(request, delayMs, cooldownId, cancellation).Forget();
 			return true;
 		}
 
@@ -166,7 +176,10 @@ namespace MiniIT.Snipe
 
 			lock (_lock)
 			{
-				_sentRequests.Remove(requestId);
+				if (_sentRequests.Remove(requestId))
+				{
+					ResetRateLimitRetryDelay();
+				}
 			}
 		}
 
@@ -181,6 +194,7 @@ namespace MiniIT.Snipe
 				_drainStarted = false;
 				_sendWindowStartTimestamp = 0;
 				_requestsSentInWindow = 0;
+				ResetRateLimitRetryDelay();
 			}
 		}
 
@@ -452,7 +466,25 @@ namespace MiniIT.Snipe
 			_expiredSentRequestIds.Clear();
 		}
 
-		private async UniTask RetryRateLimitedRequest(SentRequest request, int delayMs, CancellationToken cancellation)
+		private void ResetRateLimitRetryDelay()
+		{
+			_rateLimitRetryDelayMs = SnipeClient.RATE_LIMIT_RETRY_DELAY_MS;
+			_rateLimitRetryCooldownActive = false;
+		}
+
+		private void ReleaseRateLimitRetryCooldown(int cooldownId)
+		{
+			lock (_lock)
+			{
+				if (_rateLimitRetryCooldownActive && _rateLimitRetryCooldownId == cooldownId)
+				{
+					_rateLimitRetryCooldownActive = false;
+					_rateLimitRetryDelayMs = Math.Min(_rateLimitRetryDelayMs * 2, SnipeClient.MAX_RATE_LIMIT_RETRY_DELAY_MS);
+				}
+			}
+		}
+
+		private async UniTask RetryRateLimitedRequest(SentRequest request, int delayMs, int cooldownId, CancellationToken cancellation)
 		{
 			try
 			{
@@ -462,6 +494,8 @@ namespace MiniIT.Snipe
 			{
 				return;
 			}
+
+			ReleaseRateLimitRetryCooldown(cooldownId);
 
 			if (cancellation.IsCancellationRequested || !_connected())
 			{
@@ -486,6 +520,12 @@ namespace MiniIT.Snipe
 				return false;
 			}
 
+			if (message.Count > 30)
+			{
+				return false;
+			}
+
+			// Too heavy!!!!!!!!
 			string json = JsonUtility.ToJson(message);
 			return json != null && json.Length <= SnipeClient.DEFAULT_AUTO_BATCH_MAX_MESSAGE_BYTES;
 		}
