@@ -51,6 +51,57 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[UnityTest]
+		public IEnumerator QueuedSmallRequests_BatchConsumesRequestSlots()
+		{
+			var fixture = new DispatcherFixture();
+
+			for (int i = 0; i < SnipeClient.DEFAULT_REQUESTS_PER_SECOND_LIMIT; i++)
+			{
+				fixture.Dispatcher.Send(fixture.CreateMessage(i), true);
+			}
+
+			for (int i = 0; i < SnipeClient.DEFAULT_REQUESTS_PER_SECOND_LIMIT + 1; i++)
+			{
+				fixture.Dispatcher.Send(fixture.CreateMessage(10 + i), true);
+			}
+
+			yield return fixture.WaitForDelayCall();
+			fixture.CompleteNextDelay();
+			yield return fixture.WaitForDelayCalls(2);
+
+			Assert.AreEqual(1, fixture.Batches.Count);
+			Assert.AreEqual(SnipeClient.DEFAULT_REQUESTS_PER_SECOND_LIMIT, fixture.Batches[0].Count);
+			Assert.AreEqual(SnipeClient.DEFAULT_REQUESTS_PER_SECOND_LIMIT, fixture.Sent.Count);
+
+			fixture.Dispatcher.Clear();
+		}
+
+		[UnityTest]
+		public IEnumerator SendBatch_WaitsForEnoughRequestSlots()
+		{
+			var fixture = new DispatcherFixture();
+
+			for (int i = 0; i < SnipeClient.DEFAULT_REQUESTS_PER_SECOND_LIMIT - 1; i++)
+			{
+				fixture.Dispatcher.Send(fixture.CreateMessage(i), true);
+			}
+
+			fixture.Dispatcher.SendBatch(fixture.CreateBatch(10, 2));
+
+			yield return fixture.WaitForDelayCall();
+
+			Assert.AreEqual(0, fixture.Batches.Count);
+
+			fixture.CompleteNextDelay();
+			yield return null;
+
+			Assert.AreEqual(1, fixture.Batches.Count);
+			Assert.AreEqual(2, fixture.Batches[0].Count);
+
+			fixture.Dispatcher.Clear();
+		}
+
+		[UnityTest]
 		public IEnumerator QueuedLargeRequest_IsNotAutoBatched()
 		{
 			var fixture = new DispatcherFixture();
@@ -192,6 +243,18 @@ namespace MiniIT.Snipe.Tests.Editor
 				}
 
 				return message;
+			}
+
+			public List<IDictionary<string, object>> CreateBatch(int startId, int count)
+			{
+				var batch = new List<IDictionary<string, object>>(count);
+
+				for (int i = 0; i < count; i++)
+				{
+					batch.Add(CreateMessage(startId + i));
+				}
+
+				return batch;
 			}
 
 			public void CompleteNextDelay()
