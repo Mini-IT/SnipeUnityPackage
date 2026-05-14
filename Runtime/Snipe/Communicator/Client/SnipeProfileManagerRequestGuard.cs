@@ -31,6 +31,7 @@ namespace MiniIT.Snipe
 				case "attr.inc":
 				case "attr.dec":
 					return true;
+
 				default:
 					return false;
 			}
