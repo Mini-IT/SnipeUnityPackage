@@ -389,9 +389,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			var response = string.IsNullOrEmpty(responseMessage) ?
-				new Dictionary<string, object>() :
-				JsonUtility.ParseDictionary(responseMessage);
+			var response = ParseRateLimitResponse(responseMessage);
 
 			if (string.IsNullOrEmpty(response.SafeGetString("errorCode")))
 			{
@@ -402,6 +400,24 @@ namespace MiniIT.Snipe
 			response["id"] = requestId;
 
 			InternalProcessMessage(requestType, response);
+		}
+
+		private Dictionary<string, object> ParseRateLimitResponse(string responseMessage)
+		{
+			if (string.IsNullOrEmpty(responseMessage))
+			{
+				return new Dictionary<string, object>();
+			}
+
+			try
+			{
+				return JsonUtility.ParseDictionary(responseMessage);
+			}
+			catch (Exception e)
+			{
+				_logger.LogTrace("Failed to parse rate limit response: {0}", e.Message);
+				return new Dictionary<string, object>();
+			}
 		}
 
 		private void DoSendBatch(IList<IDictionary<string, object>> messages)
