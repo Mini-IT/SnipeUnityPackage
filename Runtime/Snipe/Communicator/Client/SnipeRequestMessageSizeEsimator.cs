@@ -5,14 +5,17 @@ namespace MiniIT.Snipe
 {
 	internal static class SnipeRequestMessageSizeEsimator
 	{
+		private const int MAX_ITEMS_COUNT = 50;
+		private const int MAX_STR_LENGTH = 2048;
+
 		/// <summary>
-		/// // Empirically estimates if the message is not too large
+		/// Empirically estimates if the message is not too large
 		/// </summary>
 		/// <param name="message">The message to estimate</param>
 		/// <returns><c>true</c> if the message is small enough</returns>
 		internal static bool EstimateSizeSmall(IDictionary<string, object> message)
 		{
-			if (message.Count > 30)
+			if (message == null || message.Count > 30)
 			{
 				return false;
 			}
@@ -29,6 +32,11 @@ namespace MiniIT.Snipe
 				count++;
 				stringLength += kvp.Key.Length;
 
+				if (count > MAX_ITEMS_COUNT || stringLength > MAX_STR_LENGTH)
+				{
+					return false;
+				}
+
 				if (!EstimateMessageItemSizeSmall(kvp.Value, ref count, ref stringLength))
 				{
 					return false;
@@ -40,9 +48,6 @@ namespace MiniIT.Snipe
 
 		private static bool EstimateMessageItemSizeSmall(object value, ref int count, ref int stringLength)
 		{
-			const int MAX_ITEMS_COUNT = 50;
-			const int MAX_STR_LENGTH = 2048;
-
 			if (count > MAX_ITEMS_COUNT || stringLength > MAX_STR_LENGTH)
 			{
 				return false;
@@ -53,7 +58,10 @@ namespace MiniIT.Snipe
 				count += list.Count;
 				foreach (var item in list)
 				{
-					EstimateMessageItemSizeSmall(item, ref count, ref stringLength);
+					if (!EstimateMessageItemSizeSmall(item, ref count, ref stringLength))
+					{
+						return false;
+					}
 				}
 			}
 			else if (value is IDictionary<string, object> dict)
