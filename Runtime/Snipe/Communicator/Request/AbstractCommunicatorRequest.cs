@@ -264,6 +264,7 @@ namespace MiniIT.Snipe
 		protected void InvokeCallback(string errorCode, IDictionary<string, object> responseData)
 		{
 			var callback = _callback;
+			responseData ??= EMPTY_DATA;
 
 			Dispose();
 
