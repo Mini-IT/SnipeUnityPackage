@@ -285,6 +285,7 @@ namespace MiniIT.Snipe
 
 			if (ackID > 0)
 			{
+				// Backend supports delayed and batched ACKs, so route them through the dispatcher.
 				SendRequest("ack.ack", new Dictionary<string, object>() { ["ackID"] = ackID });
 			}
 		}
