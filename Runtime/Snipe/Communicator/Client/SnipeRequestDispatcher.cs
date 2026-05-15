@@ -221,6 +221,9 @@ namespace MiniIT.Snipe
 		{
 			bool sendNow = false;
 			bool startDrain = false;
+			bool logRateLimitReached = false;
+			bool logQueueingStarted = false;
+			int queuedSendCount = 0;
 
 			lock (_lock)
 			{
@@ -234,9 +237,22 @@ namespace MiniIT.Snipe
 				}
 				else
 				{
+					logRateLimitReached = requestCount > availableRequestSlots;
+					logQueueingStarted = _pendingSends.Count == 0;
 					_pendingSends.Enqueue(pendingSend);
+					queuedSendCount = _pendingSends.Count;
 					startDrain = true;
 				}
+			}
+
+			if (logQueueingStarted)
+			{
+				_logger.LogDebug("Started queueing requests. Limit reached: {0}", _requestsPerSecondLimit);
+			}
+
+			if (logRateLimitReached)
+			{
+				_logger.LogDebug("Requests queued: {0}", queuedSendCount);
 			}
 
 			if (startDrain)
@@ -318,6 +334,7 @@ namespace MiniIT.Snipe
 			finally
 			{
 				bool startDrain = false;
+				bool logQueueingEnded = false;
 
 				lock (_lock)
 				{
@@ -327,6 +344,15 @@ namespace MiniIT.Snipe
 					{
 						startDrain = true;
 					}
+					else if (!cancellation.IsCancellationRequested)
+					{
+						logQueueingEnded = true;
+					}
+				}
+
+				if (logQueueingEnded)
+				{
+					_logger.LogDebug("Ended queueing requests");
 				}
 
 				if (startDrain)
