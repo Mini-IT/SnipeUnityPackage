@@ -6,7 +6,7 @@ namespace MiniIT.Snipe
 {
 	internal static class SnipeRequestMessageSizeEsimator
 	{
-		private const int MAX_ITEMS_COUNT = 50;
+		private const int MAX_ITEMS_COUNT = 30;
 		private const int MAX_STR_LENGTH = 2048;
 
 		/// <summary>
@@ -17,7 +17,7 @@ namespace MiniIT.Snipe
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		internal static bool EstimateSizeSmall(IDictionary<string, object> message)
 		{
-			if (message == null || message.Count > 30)
+			if (message == null || message.Count > MAX_ITEMS_COUNT)
 			{
 				return false;
 			}
