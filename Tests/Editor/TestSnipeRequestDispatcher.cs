@@ -69,7 +69,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[UnityTest]
-		public IEnumerator QueuedSmallRequests_BatchConsumesRequestSlots()
+		public IEnumerator QueuedSmallRequests_BatchConsumesOneRequestSlot()
 		{
 			var fixture = new DispatcherFixture();
 
@@ -85,17 +85,18 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			yield return fixture.WaitForDelayCall();
 			fixture.CompleteNextDelay();
-			yield return fixture.WaitForDelayCalls(2);
+			yield return null;
 
 			Assert.AreEqual(1, fixture.Batches.Count);
-			Assert.AreEqual(fixture.RequestsPerSecondLimit, fixture.Batches[0].Count);
-			Assert.AreEqual(fixture.RequestsPerSecondLimit, fixture.Sent.Count);
+			Assert.AreEqual(SnipeClient.MAX_BATCH_SIZE, fixture.Batches[0].Count);
+			Assert.AreEqual(fixture.RequestsPerSecondLimit + 1, fixture.Sent.Count);
+			Assert.AreEqual(1, fixture.DelayCalls.Count);
 
 			fixture.Dispatcher.Clear();
 		}
 
-		[UnityTest]
-		public IEnumerator SendBatch_WaitsForEnoughRequestSlots()
+		[Test]
+		public void SendBatch_UsesOneRequestSlot()
 		{
 			var fixture = new DispatcherFixture();
 
@@ -106,15 +107,23 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			fixture.Dispatcher.SendBatch(fixture.CreateBatch(10, 2));
 
-			yield return fixture.WaitForDelayCall();
-
-			Assert.AreEqual(0, fixture.Batches.Count);
-
-			fixture.CompleteNextDelay();
-			yield return null;
-
 			Assert.AreEqual(1, fixture.Batches.Count);
 			Assert.AreEqual(2, fixture.Batches[0].Count);
+			Assert.AreEqual(0, fixture.DelayCalls.Count);
+
+			fixture.Dispatcher.Clear();
+		}
+
+		[Test]
+		public void SendBatch_DoesNotClampBatchSizeToRequestLimit()
+		{
+			var fixture = new DispatcherFixture(3);
+
+			fixture.Dispatcher.SendBatch(fixture.CreateBatch(10, SnipeClient.MAX_BATCH_SIZE));
+
+			Assert.AreEqual(1, fixture.Batches.Count);
+			Assert.AreEqual(SnipeClient.MAX_BATCH_SIZE, fixture.Batches[0].Count);
+			Assert.AreEqual(0, fixture.DelayCalls.Count);
 
 			fixture.Dispatcher.Clear();
 		}

@@ -126,7 +126,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			int maxBatchSize = Math.Min(SnipeClient.MAX_BATCH_SIZE, _requestsPerSecondLimit);
+			int maxBatchSize = SnipeClient.MAX_BATCH_SIZE;
 
 			if (messages.Count > maxBatchSize)
 			{
@@ -228,16 +228,15 @@ namespace MiniIT.Snipe
 			lock (_lock)
 			{
 				int availableRequestSlots = GetAvailableRequestSlots(out _);
-				int requestCount = GetRequestCount(pendingSend);
 
-				if (_pendingSends.Count == 0 && requestCount <= availableRequestSlots)
+				if (_pendingSends.Count == 0 && availableRequestSlots > 0)
 				{
-					ReserveRequestSlots(requestCount);
+					ReserveRequestSlot();
 					sendNow = true;
 				}
 				else
 				{
-					logRateLimitReached = requestCount > availableRequestSlots;
+					logRateLimitReached = availableRequestSlots == 0;
 					logQueueingStarted = _pendingSends.Count == 0;
 					_pendingSends.Enqueue(pendingSend);
 					queuedSendCount = _pendingSends.Count;
@@ -305,12 +304,8 @@ namespace MiniIT.Snipe
 
 						if (availableRequestSlots > 0)
 						{
-							pendingSend = DequeuePendingSend(availableRequestSlots);
-
-							if (pendingSend != null)
-							{
-								ReserveRequestSlots(GetRequestCount(pendingSend));
-							}
+							pendingSend = DequeuePendingSend();
+							ReserveRequestSlot();
 						}
 					}
 
@@ -362,14 +357,9 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private PendingSend DequeuePendingSend(int maxRequestCount)
+		private PendingSend DequeuePendingSend()
 		{
 			var pendingSend = _pendingSends.Peek();
-
-			if (GetRequestCount(pendingSend) > maxRequestCount)
-			{
-				return null;
-			}
 
 			_pendingSends.Dequeue();
 
@@ -380,9 +370,7 @@ namespace MiniIT.Snipe
 
 			List<IDictionary<string, object>> batch = null;
 
-			int batchLimit = Math.Min(SnipeClient.MAX_BATCH_SIZE, maxRequestCount);
-
-			while (_pendingSends.Count > 0 && (batch?.Count ?? 1) < batchLimit)
+			while (_pendingSends.Count > 0 && (batch?.Count ?? 1) < SnipeClient.MAX_BATCH_SIZE)
 			{
 				var nextSend = _pendingSends.Peek();
 
@@ -448,9 +436,9 @@ namespace MiniIT.Snipe
 			return Math.Max(0, _requestsPerSecondLimit - _requestsSentInWindow);
 		}
 
-		private void ReserveRequestSlots(int requestCount)
+		private void ReserveRequestSlot()
 		{
-			_requestsSentInWindow += Math.Max(1, requestCount);
+			_requestsSentInWindow++;
 		}
 
 		private void TrackSentRequests(List<IDictionary<string, object>> messages)
@@ -573,11 +561,6 @@ namespace MiniIT.Snipe
 		private static bool CanAutoBatch(IDictionary<string, object> message)
 		{
 			return message != null && SnipeRequestMessageSizeEsimator.EstimateSizeSmall(message);
-		}
-
-		private static int GetRequestCount(PendingSend pendingSend)
-		{
-			return pendingSend.Batch?.Count ?? 1;
 		}
 
 		private void SendBatchChunks(List<IDictionary<string, object>> messages, int maxBatchSize)
