@@ -9,7 +9,6 @@ namespace MiniIT.Snipe
 	{
 		public const int SNIPE_VERSION = 6;
 		public const int MAX_BATCH_SIZE = 5;
-		public const int DEFAULT_REQUESTS_PER_SECOND_LIMIT = 5;
 		public const int RATE_LIMIT_RETRY_DELAY_MS = 1000;
 		public const int MAX_RATE_LIMIT_RETRY_DELAY_MS = 10000;
 
@@ -72,7 +71,7 @@ namespace MiniIT.Snipe
 			_logger = services.LoggerFactory.CreateLogger(nameof(SnipeClient));
 			_transportService = new TransportService(options, _analytics, services);
 			_batchBuffer = new SnipeRequestBatchBuffer();
-			_dispatcher = new SnipeRequestDispatcher(SendRequestNow, SendBatchNow, () => Connected, _logger);
+			_dispatcher = new SnipeRequestDispatcher(SendRequestNow, SendBatchNow, () => Connected, _logger, _options.RequestsPerSecondLimit);
 
 			_transportService.ConnectionOpened += OnTransportConnectionOpened;
 			_transportService.ConnectionClosed += OnTransportConnectionClosed;

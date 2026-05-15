@@ -40,6 +40,36 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[Test]
+		public void TestRequestsPerSecondLimit_Default()
+		{
+			Assert.AreEqual(SnipeOptions.DEFAULT_REQUESTS_PER_SECOND_LIMIT, new SnipeContextOptions().RequestsPerSecondLimit);
+		}
+
+		[Test]
+		public void TestRequestsPerSecondLimit_CustomContextOption()
+		{
+			var builder = new SnipeOptionsBuilder();
+			builder.SetContextOptions(new SnipeContextOptions()
+			{
+				RequestsPerSecondLimit = 9,
+			});
+
+			Assert.AreEqual(9, builder.BuildContextOptions().RequestsPerSecondLimit);
+		}
+
+		[Test]
+		public void TestRequestsPerSecondLimit_ConfigParse()
+		{
+			var builder = new SnipeOptionsBuilder();
+			builder.Initialize(new SnipeProjectInfo(), new Dictionary<string, object>()
+			{
+				["snipeRequestsPerSecondLimit"] = 7,
+			});
+
+			Assert.AreEqual(7, builder.BuildContextOptions().RequestsPerSecondLimit);
+		}
+
+		[Test]
 		public void TestParseWebSocketUrls_WithEmptyUrls()
 		{
 			List<string> outputList = new List<string>();

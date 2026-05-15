@@ -40,6 +40,7 @@ namespace MiniIT.Snipe
 		private readonly Func<long> _getTimestamp;
 		private readonly Func<int, CancellationToken, UniTask> _delay;
 		private readonly long _timestampFrequency;
+		private readonly int _requestsPerSecondLimit;
 		private readonly ILogger _logger;
 
 		private CancellationTokenSource _cancellation;
@@ -54,8 +55,9 @@ namespace MiniIT.Snipe
 			Func<IDictionary<string, object>, bool> sendRequest,
 			Func<List<IDictionary<string, object>>, bool> sendBatch,
 			Func<bool> connected,
-			ILogger logger)
-			: this(sendRequest, sendBatch, connected, logger, Stopwatch.GetTimestamp, Stopwatch.Frequency, (t, c) => AlterTask.Delay(t, c).AsUniTask())
+			ILogger logger,
+			int requestsPerSecondLimit)
+			: this(sendRequest, sendBatch, connected, logger, Stopwatch.GetTimestamp, Stopwatch.Frequency, (t, c) => AlterTask.Delay(t, c).AsUniTask(), requestsPerSecondLimit)
 		{
 		}
 
@@ -65,8 +67,9 @@ namespace MiniIT.Snipe
 			Func<bool> connected,
 			Func<long> getTimestamp,
 			long timestampFrequency,
-			Func<int, CancellationToken, UniTask> delay)
-			: this(sendRequest, sendBatch, connected, EmptyLogger.Instance, getTimestamp, timestampFrequency, delay)
+			Func<int, CancellationToken, UniTask> delay,
+			int requestsPerSecondLimit)
+			: this(sendRequest, sendBatch, connected, EmptyLogger.Instance, getTimestamp, timestampFrequency, delay, requestsPerSecondLimit)
 		{
 		}
 
@@ -77,7 +80,8 @@ namespace MiniIT.Snipe
 			ILogger logger,
 			Func<long> getTimestamp,
 			long timestampFrequency,
-			Func<int, CancellationToken, UniTask> delay)
+			Func<int, CancellationToken, UniTask> delay,
+			int requestsPerSecondLimit)
 		{
 			_sendRequest = sendRequest ?? throw new ArgumentNullException(nameof(sendRequest));
 			_sendBatch = sendBatch ?? throw new ArgumentNullException(nameof(sendBatch));
@@ -86,6 +90,7 @@ namespace MiniIT.Snipe
 			_getTimestamp = getTimestamp ?? throw new ArgumentNullException(nameof(getTimestamp));
 			_timestampFrequency = timestampFrequency;
 			_delay = delay ?? throw new ArgumentNullException(nameof(delay));
+			_requestsPerSecondLimit = requestsPerSecondLimit > 0 ? requestsPerSecondLimit : SnipeOptions.DEFAULT_REQUESTS_PER_SECOND_LIMIT;
 		}
 
 		private sealed class EmptyLogger : ILogger
@@ -121,7 +126,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			int maxBatchSize = Math.Max(1, Math.Min(SnipeClient.MAX_BATCH_SIZE, SnipeClient.DEFAULT_REQUESTS_PER_SECOND_LIMIT));
+			int maxBatchSize = Math.Min(SnipeClient.MAX_BATCH_SIZE, _requestsPerSecondLimit);
 
 			if (messages.Count > maxBatchSize)
 			{
@@ -414,7 +419,7 @@ namespace MiniIT.Snipe
 			}
 
 			delayMs = Math.Max(1, RATE_LIMIT_INTERVAL_MS - (int)elapsedMs);
-			return Math.Max(0, SnipeClient.DEFAULT_REQUESTS_PER_SECOND_LIMIT - _requestsSentInWindow);
+			return Math.Max(0, _requestsPerSecondLimit - _requestsSentInWindow);
 		}
 
 		private void ReserveRequestSlots(int requestCount)

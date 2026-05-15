@@ -14,14 +14,32 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			var fixture = new DispatcherFixture();
 
-			for (int i = 0; i < SnipeClient.DEFAULT_REQUESTS_PER_SECOND_LIMIT + 1; i++)
+			for (int i = 0; i < fixture.RequestsPerSecondLimit + 1; i++)
 			{
 				fixture.Dispatcher.Send(fixture.CreateMessage(i), true);
 			}
 
 			yield return fixture.WaitForDelayCall();
 
-			Assert.AreEqual(SnipeClient.DEFAULT_REQUESTS_PER_SECOND_LIMIT, fixture.Sent.Count);
+			Assert.AreEqual(fixture.RequestsPerSecondLimit, fixture.Sent.Count);
+			Assert.AreEqual(1, fixture.DelayCalls.Count);
+
+			fixture.Dispatcher.Clear();
+		}
+
+		[UnityTest]
+		public IEnumerator Send_UsesConfiguredRequestsPerSecondLimit()
+		{
+			var fixture = new DispatcherFixture(3);
+
+			for (int i = 0; i < fixture.RequestsPerSecondLimit + 1; i++)
+			{
+				fixture.Dispatcher.Send(fixture.CreateMessage(i), true);
+			}
+
+			yield return fixture.WaitForDelayCall();
+
+			Assert.AreEqual(fixture.RequestsPerSecondLimit, fixture.Sent.Count);
 			Assert.AreEqual(1, fixture.DelayCalls.Count);
 
 			fixture.Dispatcher.Clear();
@@ -32,7 +50,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			var fixture = new DispatcherFixture();
 
-			for (int i = 0; i < SnipeClient.DEFAULT_REQUESTS_PER_SECOND_LIMIT; i++)
+			for (int i = 0; i < fixture.RequestsPerSecondLimit; i++)
 			{
 				fixture.Dispatcher.Send(fixture.CreateMessage(i), true);
 			}
@@ -55,12 +73,12 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			var fixture = new DispatcherFixture();
 
-			for (int i = 0; i < SnipeClient.DEFAULT_REQUESTS_PER_SECOND_LIMIT; i++)
+			for (int i = 0; i < fixture.RequestsPerSecondLimit; i++)
 			{
 				fixture.Dispatcher.Send(fixture.CreateMessage(i), true);
 			}
 
-			for (int i = 0; i < SnipeClient.DEFAULT_REQUESTS_PER_SECOND_LIMIT + 1; i++)
+			for (int i = 0; i < fixture.RequestsPerSecondLimit + 1; i++)
 			{
 				fixture.Dispatcher.Send(fixture.CreateMessage(10 + i), true);
 			}
@@ -70,8 +88,8 @@ namespace MiniIT.Snipe.Tests.Editor
 			yield return fixture.WaitForDelayCalls(2);
 
 			Assert.AreEqual(1, fixture.Batches.Count);
-			Assert.AreEqual(SnipeClient.DEFAULT_REQUESTS_PER_SECOND_LIMIT, fixture.Batches[0].Count);
-			Assert.AreEqual(SnipeClient.DEFAULT_REQUESTS_PER_SECOND_LIMIT, fixture.Sent.Count);
+			Assert.AreEqual(fixture.RequestsPerSecondLimit, fixture.Batches[0].Count);
+			Assert.AreEqual(fixture.RequestsPerSecondLimit, fixture.Sent.Count);
 
 			fixture.Dispatcher.Clear();
 		}
@@ -81,7 +99,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			var fixture = new DispatcherFixture();
 
-			for (int i = 0; i < SnipeClient.DEFAULT_REQUESTS_PER_SECOND_LIMIT - 1; i++)
+			for (int i = 0; i < fixture.RequestsPerSecondLimit - 1; i++)
 			{
 				fixture.Dispatcher.Send(fixture.CreateMessage(i), true);
 			}
@@ -106,7 +124,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			var fixture = new DispatcherFixture();
 
-			for (int i = 0; i < SnipeClient.DEFAULT_REQUESTS_PER_SECOND_LIMIT; i++)
+			for (int i = 0; i < fixture.RequestsPerSecondLimit; i++)
 			{
 				fixture.Dispatcher.Send(fixture.CreateMessage(i), true);
 			}
@@ -119,7 +137,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			yield return null;
 
 			Assert.AreEqual(0, fixture.Batches.Count);
-			Assert.AreEqual(SnipeClient.DEFAULT_REQUESTS_PER_SECOND_LIMIT + 2, fixture.Sent.Count);
+			Assert.AreEqual(fixture.RequestsPerSecondLimit + 2, fixture.Sent.Count);
 
 			fixture.Dispatcher.Clear();
 		}
@@ -190,7 +208,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			var fixture = new DispatcherFixture();
 
-			for (int i = 0; i < SnipeClient.DEFAULT_REQUESTS_PER_SECOND_LIMIT + 1; i++)
+			for (int i = 0; i < fixture.RequestsPerSecondLimit + 1; i++)
 			{
 				fixture.Dispatcher.Send(fixture.CreateMessage(i), true);
 			}
@@ -199,7 +217,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			fixture.Dispatcher.Clear();
 			yield return null;
 
-			Assert.AreEqual(SnipeClient.DEFAULT_REQUESTS_PER_SECOND_LIMIT, fixture.Sent.Count);
+			Assert.AreEqual(fixture.RequestsPerSecondLimit, fixture.Sent.Count);
 		}
 
 		private sealed class DispatcherFixture
@@ -212,16 +230,19 @@ namespace MiniIT.Snipe.Tests.Editor
 			private long _timestamp = 1;
 
 			public SnipeRequestDispatcher Dispatcher { get; }
+			public int RequestsPerSecondLimit { get; }
 
-			public DispatcherFixture()
+			public DispatcherFixture(int requestsPerSecondLimit = SnipeOptions.DEFAULT_REQUESTS_PER_SECOND_LIMIT)
 			{
+				RequestsPerSecondLimit = requestsPerSecondLimit;
 				Dispatcher = new SnipeRequestDispatcher(
 					Send,
 					SendBatch,
 					() => true,
 					() => _timestamp,
 					1000,
-					Delay);
+					Delay,
+					requestsPerSecondLimit);
 			}
 
 			public IDictionary<string, object> CreateMessage(int id)

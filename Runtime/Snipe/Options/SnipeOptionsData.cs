@@ -43,6 +43,7 @@ namespace MiniIT.Snipe.Configuration
 		/// If the value is less than 1 second then heartbeat is turned off.
 		/// </summary>
 		public TimeSpan HttpHeartbeatInterval = TimeSpan.FromMinutes(1);
+		public int RequestsPerSecondLimit = SnipeOptions.DEFAULT_REQUESTS_PER_SECOND_LIMIT;
 
 		public bool CompressionEnabled  = true;
 		public int MinMessageBytesToCompress = 13 * 1024;
@@ -62,6 +63,7 @@ namespace MiniIT.Snipe.Configuration
 				ServerUdpUrls = CloneUdpAddresses(ServerUdpUrls),
 				ServerHttpUrls = new List<string>(ServerHttpUrls),
 				HttpHeartbeatInterval = HttpHeartbeatInterval,
+				RequestsPerSecondLimit = RequestsPerSecondLimit,
 				CompressionEnabled = CompressionEnabled,
 				MinMessageBytesToCompress = MinMessageBytesToCompress,
 				LoginParameters = LoginParameters != null ? new Dictionary<string, object>(LoginParameters) : null,
