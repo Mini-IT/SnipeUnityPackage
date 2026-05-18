@@ -92,7 +92,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		[UnityTest]
 		public IEnumerator QueuedSmallRequests_BatchConsumesOneRequestSlot()
 		{
-			var fixture = new DispatcherFixture();
+			var fixture = new DispatcherFixture(SnipeClient.MAX_BATCH_SIZE);
 
 			for (int i = 0; i < fixture.RequestsPerSecondLimit; i++)
 			{
