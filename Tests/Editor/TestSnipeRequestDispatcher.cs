@@ -234,6 +234,33 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[UnityTest]
+		public IEnumerator RateLimit_RetriesRateLimitedBatchItemsIndividually()
+		{
+			var fixture = new DispatcherFixture(4);
+			var batch = fixture.CreateBatch(1, 4);
+
+			fixture.Dispatcher.SendBatch(batch);
+			fixture.Dispatcher.RemoveSent(1);
+			fixture.Dispatcher.RemoveSent(2);
+
+			Assert.IsTrue(fixture.Dispatcher.TryHandleRateLimit(3));
+			Assert.IsTrue(fixture.Dispatcher.TryHandleRateLimit(4));
+
+			yield return fixture.WaitForDelayCalls(2);
+			fixture.CompleteNextDelay();
+			yield return null;
+			fixture.CompleteNextDelay();
+			yield return null;
+
+			Assert.AreEqual(1, fixture.Batches.Count);
+			Assert.AreEqual(2, fixture.Sent.Count);
+			Assert.AreSame(batch[2], fixture.Sent[0]);
+			Assert.AreSame(batch[3], fixture.Sent[1]);
+
+			fixture.Dispatcher.Clear();
+		}
+
+		[UnityTest]
 		public IEnumerator RateLimitRetry_AddsJitterDelay()
 		{
 			var fixture = new DispatcherFixture(1, 37);
