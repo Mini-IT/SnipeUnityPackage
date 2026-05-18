@@ -219,6 +219,20 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[UnityTest]
+		public IEnumerator RateLimit_RetriesAfterLongClientPause()
+		{
+			var fixture = new DispatcherFixture();
+
+			fixture.Dispatcher.Send(fixture.CreateMessage(1), true);
+			fixture.AdvanceTime(31000);
+
+			Assert.IsTrue(fixture.Dispatcher.TryHandleRateLimit(1));
+			yield return fixture.WaitForDelayCall();
+
+			fixture.Dispatcher.Clear();
+		}
+
+		[UnityTest]
 		public IEnumerator RateLimit_BackoffIsClientWide()
 		{
 			var fixture = new DispatcherFixture();
@@ -353,6 +367,11 @@ namespace MiniIT.Snipe.Tests.Editor
 				var delay = _pendingDelays.Dequeue();
 				_timestamp += delay.DelayMs;
 				delay.Complete();
+			}
+
+			public void AdvanceTime(int delayMs)
+			{
+				_timestamp += delayMs;
 			}
 
 			public IEnumerator WaitForDelayCall()

@@ -12,7 +12,7 @@ namespace MiniIT.Snipe
 	internal sealed class SnipeRequestDispatcher : IDisposable
 	{
 		private const int RATE_LIMIT_INTERVAL_MS = 1000;
-		private const int SENT_REQUEST_TTL_MS = 30000;
+		private const int MAX_SENT_REQUESTS_COUNT = 512;
 
 		private sealed class PendingSend
 		{
@@ -25,14 +25,14 @@ namespace MiniIT.Snipe
 		{
 			public int RequestId;
 			public IDictionary<string, object> Message;
-			public long SentTimestamp;
 			public bool RetryScheduled;
+			public LinkedListNode<int> Node;
 		}
 
 		private readonly object _lock = new object();
 		private readonly Queue<PendingSend> _pendingSends = new Queue<PendingSend>();
 		private readonly Dictionary<int, SentRequest> _sentRequests = new Dictionary<int, SentRequest>();
-		private readonly List<int> _expiredSentRequestIds = new List<int>();
+		private readonly LinkedList<int> _sentRequestIds = new LinkedList<int>();
 		private readonly Func<IDictionary<string, object>, bool> _sendRequest;
 		private readonly Func<List<IDictionary<string, object>>, bool> _sendBatch;
 		private readonly Func<bool> _connected;
@@ -179,8 +179,6 @@ namespace MiniIT.Snipe
 
 			lock (_lock)
 			{
-				RemoveExpiredSentRequests(_getTimestamp());
-
 				if (!_sentRequests.TryGetValue(requestId, out request))
 				{
 					return false;
@@ -218,8 +216,10 @@ namespace MiniIT.Snipe
 
 			lock (_lock)
 			{
-				if (_sentRequests.Remove(requestId))
+				if (_sentRequests.TryGetValue(requestId, out var request))
 				{
+					_sentRequests.Remove(requestId);
+					_sentRequestIds.Remove(request.Node);
 					ResetRateLimitRetryDelay();
 				}
 			}
@@ -232,7 +232,7 @@ namespace MiniIT.Snipe
 				CancellationTokenHelper.CancelAndDispose(ref _cancellation);
 				_pendingSends.Clear();
 				_sentRequests.Clear();
-				_expiredSentRequestIds.Clear();
+				_sentRequestIds.Clear();
 				_drainStarted = false;
 				_sendWindowStartTimestamp = 0;
 				_requestsSentInWindow = 0;
@@ -534,52 +534,43 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			long now = _getTimestamp();
-
 			lock (_lock)
 			{
-				RemoveExpiredSentRequests(now);
-
 				if (_sentRequests.TryGetValue(requestId, out var request))
 				{
 					request.RetryScheduled = false;
-					request.SentTimestamp = now;
+					request.Message = message;
+					RefreshSentRequest(request);
 				}
 				else
 				{
-					_sentRequests[requestId] = new SentRequest()
+					var request = new SentRequest()
 					{
 						RequestId = requestId,
 						Message = message,
-						SentTimestamp = now,
 					};
+
+					request.Node = _sentRequestIds.AddLast(requestId);
+					_sentRequests[requestId] = request;
+					TrimSentRequests();
 				}
 			}
 		}
 
-		private void RemoveExpiredSentRequests(long now)
+		private void RefreshSentRequest(SentRequest request)
 		{
-			if (_sentRequests.Count == 0)
+			_sentRequestIds.Remove(request.Node);
+			request.Node = _sentRequestIds.AddLast(request.RequestId);
+		}
+
+		private void TrimSentRequests()
+		{
+			while (_sentRequests.Count > MAX_SENT_REQUESTS_COUNT)
 			{
-				return;
+				int requestId = _sentRequestIds.First.Value;
+				_sentRequestIds.RemoveFirst();
+				_sentRequests.Remove(requestId);
 			}
-
-			foreach (var pair in _sentRequests)
-			{
-				double elapsedMs = (now - pair.Value.SentTimestamp) * 1000d / _timestampFrequency;
-
-				if (elapsedMs >= SENT_REQUEST_TTL_MS)
-				{
-					_expiredSentRequestIds.Add(pair.Key);
-				}
-			}
-
-			for (int i = 0; i < _expiredSentRequestIds.Count; i++)
-			{
-				_sentRequests.Remove(_expiredSentRequestIds[i]);
-			}
-
-			_expiredSentRequestIds.Clear();
 		}
 
 		private void ResetRateLimitRetryDelay()
