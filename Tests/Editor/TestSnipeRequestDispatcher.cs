@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
@@ -41,6 +42,26 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			Assert.AreEqual(fixture.RequestsPerSecondLimit, fixture.Sent.Count);
 			Assert.AreEqual(1, fixture.DelayCalls.Count);
+
+			fixture.Dispatcher.Clear();
+		}
+
+		[Test]
+		public void Send_UsesCurrentRequestsPerSecondLimit()
+		{
+			int requestsPerSecondLimit = 3;
+			var fixture = new DispatcherFixture(() => requestsPerSecondLimit);
+
+			for (int i = 0; i < requestsPerSecondLimit; i++)
+			{
+				fixture.Dispatcher.Send(fixture.CreateMessage(i), true);
+			}
+
+			requestsPerSecondLimit = 5;
+			fixture.Dispatcher.Send(fixture.CreateMessage(10), true);
+
+			Assert.AreEqual(4, fixture.Sent.Count);
+			Assert.AreEqual(0, fixture.DelayCalls.Count);
 
 			fixture.Dispatcher.Clear();
 		}
@@ -242,6 +263,16 @@ namespace MiniIT.Snipe.Tests.Editor
 			public int RequestsPerSecondLimit { get; }
 
 			public DispatcherFixture(int requestsPerSecondLimit = SnipeOptions.DEFAULT_REQUESTS_PER_SECOND_LIMIT)
+				: this(() => requestsPerSecondLimit, requestsPerSecondLimit)
+			{
+			}
+
+			public DispatcherFixture(Func<int> getRequestsPerSecondLimit)
+				: this(getRequestsPerSecondLimit, getRequestsPerSecondLimit())
+			{
+			}
+
+			private DispatcherFixture(Func<int> getRequestsPerSecondLimit, int requestsPerSecondLimit)
 			{
 				RequestsPerSecondLimit = requestsPerSecondLimit;
 				Dispatcher = new SnipeRequestDispatcher(
@@ -251,7 +282,7 @@ namespace MiniIT.Snipe.Tests.Editor
 					() => _timestamp,
 					1000,
 					Delay,
-					requestsPerSecondLimit);
+					getRequestsPerSecondLimit);
 			}
 
 			public IDictionary<string, object> CreateMessage(int id)

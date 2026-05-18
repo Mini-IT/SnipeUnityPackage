@@ -10,7 +10,7 @@ namespace MiniIT.Snipe
 {
 	public class SnipeOptions
 	{
-		public const int DEFAULT_REQUESTS_PER_SECOND_LIMIT = 5;
+		public const int DEFAULT_REQUESTS_PER_SECOND_LIMIT = 10;
 
 		public int ContextId { get; }
 
