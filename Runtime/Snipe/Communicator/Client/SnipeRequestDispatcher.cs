@@ -13,6 +13,11 @@ namespace MiniIT.Snipe
 	{
 		private const int RATE_LIMIT_INTERVAL_MS = 1000;
 		private const int MAX_SENT_REQUESTS_COUNT = 512;
+		private const int MAX_JITTER_DELAY_MS = 1000;
+		private const int JITTER_PERCENT = 25;
+
+		private static readonly object s_jitterLock = new object();
+		private static readonly Random s_jitterRandom = new Random();
 
 		private sealed class PendingSend
 		{
@@ -39,6 +44,7 @@ namespace MiniIT.Snipe
 		private readonly Func<long> _getTimestamp;
 		private readonly Func<int, CancellationToken, UniTask> _delay;
 		private readonly Func<int> _getRequestsPerSecondLimit;
+		private readonly Func<int, int> _getJitterDelayMs;
 		private readonly long _timestampFrequency;
 		private readonly IAnalyticsContext _analytics;
 		private readonly ILogger _logger;
@@ -69,7 +75,7 @@ namespace MiniIT.Snipe
 			IAnalyticsContext analytics,
 			ILogger logger,
 			Func<int> getRequestsPerSecondLimit)
-			: this(sendRequest, sendBatch, connected, analytics, logger, Stopwatch.GetTimestamp, Stopwatch.Frequency, (t, c) => AlterTask.Delay(t, c).AsUniTask(), getRequestsPerSecondLimit)
+			: this(sendRequest, sendBatch, connected, analytics, logger, Stopwatch.GetTimestamp, Stopwatch.Frequency, (t, c) => AlterTask.Delay(t, c).AsUniTask(), getRequestsPerSecondLimit, GetRandomJitterDelayMs)
 		{
 		}
 
@@ -82,7 +88,7 @@ namespace MiniIT.Snipe
 			long timestampFrequency,
 			Func<int, CancellationToken, UniTask> delay,
 			int requestsPerSecondLimit)
-			: this(sendRequest, sendBatch, connected, analytics, getTimestamp, timestampFrequency, delay, () => requestsPerSecondLimit)
+			: this(sendRequest, sendBatch, connected, analytics, getTimestamp, timestampFrequency, delay, () => requestsPerSecondLimit, NoJitterDelay)
 		{
 		}
 
@@ -95,7 +101,21 @@ namespace MiniIT.Snipe
 			long timestampFrequency,
 			Func<int, CancellationToken, UniTask> delay,
 			Func<int> getRequestsPerSecondLimit)
-			: this(sendRequest, sendBatch, connected, analytics, EmptyLogger.Instance, getTimestamp, timestampFrequency, delay, getRequestsPerSecondLimit)
+			: this(sendRequest, sendBatch, connected, analytics, getTimestamp, timestampFrequency, delay, getRequestsPerSecondLimit, NoJitterDelay)
+		{
+		}
+
+		internal SnipeRequestDispatcher(
+			Func<IDictionary<string, object>, bool> sendRequest,
+			Func<List<IDictionary<string, object>>, bool> sendBatch,
+			Func<bool> connected,
+			IAnalyticsContext analytics,
+			Func<long> getTimestamp,
+			long timestampFrequency,
+			Func<int, CancellationToken, UniTask> delay,
+			Func<int> getRequestsPerSecondLimit,
+			Func<int, int> getJitterDelayMs)
+			: this(sendRequest, sendBatch, connected, analytics, EmptyLogger.Instance, getTimestamp, timestampFrequency, delay, getRequestsPerSecondLimit, getJitterDelayMs)
 		{
 		}
 
@@ -108,7 +128,8 @@ namespace MiniIT.Snipe
 			Func<long> getTimestamp,
 			long timestampFrequency,
 			Func<int, CancellationToken, UniTask> delay,
-			Func<int> getRequestsPerSecondLimit)
+			Func<int> getRequestsPerSecondLimit,
+			Func<int, int> getJitterDelayMs)
 		{
 			_sendRequest = sendRequest ?? throw new ArgumentNullException(nameof(sendRequest));
 			_sendBatch = sendBatch ?? throw new ArgumentNullException(nameof(sendBatch));
@@ -119,6 +140,7 @@ namespace MiniIT.Snipe
 			_timestampFrequency = timestampFrequency;
 			_delay = delay ?? throw new ArgumentNullException(nameof(delay));
 			_getRequestsPerSecondLimit = getRequestsPerSecondLimit ?? throw new ArgumentNullException(nameof(getRequestsPerSecondLimit));
+			_getJitterDelayMs = getJitterDelayMs ?? throw new ArgumentNullException(nameof(getJitterDelayMs));
 		}
 
 		private sealed class EmptyLogger : ILogger
@@ -347,7 +369,7 @@ namespace MiniIT.Snipe
 
 					if (pendingSend == null)
 					{
-						await _delay(delayMs, cancellation);
+						await _delay(AddJitter(delayMs), cancellation);
 						continue;
 					}
 
@@ -544,14 +566,14 @@ namespace MiniIT.Snipe
 				}
 				else
 				{
-					var request = new SentRequest()
+					var sentRequest = new SentRequest()
 					{
 						RequestId = requestId,
 						Message = message,
 					};
 
-					request.Node = _sentRequestIds.AddLast(requestId);
-					_sentRequests[requestId] = request;
+					sentRequest.Node = _sentRequestIds.AddLast(requestId);
+					_sentRequests[requestId] = sentRequest;
 					TrimSentRequests();
 				}
 			}
@@ -595,7 +617,7 @@ namespace MiniIT.Snipe
 		{
 			try
 			{
-				await _delay(delayMs, cancellation);
+				await _delay(AddJitter(delayMs), cancellation);
 			}
 			catch (OperationCanceledException)
 			{
@@ -623,6 +645,31 @@ namespace MiniIT.Snipe
 		private static bool CanAutoBatch(IDictionary<string, object> message)
 		{
 			return message != null && SnipeRequestMessageSizeEsimator.EstimateSizeSmall(message);
+		}
+
+		private int AddJitter(int delayMs)
+		{
+			return delayMs + Math.Max(0, _getJitterDelayMs(delayMs));
+		}
+
+		private static int NoJitterDelay(int delayMs)
+		{
+			return 0;
+		}
+
+		private static int GetRandomJitterDelayMs(int delayMs)
+		{
+			if (delayMs <= 0)
+			{
+				return 0;
+			}
+
+			int maxJitterMs = Math.Min(MAX_JITTER_DELAY_MS, Math.Max(1, delayMs * JITTER_PERCENT / 100));
+
+			lock (s_jitterLock)
+			{
+				return s_jitterRandom.Next(maxJitterMs + 1);
+			}
 		}
 
 		private static int GetRequestCount(PendingSend pendingSend)

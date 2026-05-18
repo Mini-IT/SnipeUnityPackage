@@ -140,6 +140,21 @@ namespace MiniIT.Snipe.Tests.Editor
 			fixture.Dispatcher.Clear();
 		}
 
+		[UnityTest]
+		public IEnumerator ThrottleWait_AddsJitterDelay()
+		{
+			var fixture = new DispatcherFixture(1, 37);
+
+			fixture.Dispatcher.Send(fixture.CreateMessage(1), true);
+			fixture.Dispatcher.Send(fixture.CreateMessage(2), true);
+
+			yield return fixture.WaitForDelayCall();
+
+			Assert.AreEqual(1037, fixture.DelayCalls[0]);
+
+			fixture.Dispatcher.Clear();
+		}
+
 		[Test]
 		public void Send_ReleasesRequestSlotWhenSendFails()
 		{
@@ -214,6 +229,21 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			Assert.AreEqual(2, fixture.Sent.Count);
 			Assert.AreSame(message, fixture.Sent[1]);
+
+			fixture.Dispatcher.Clear();
+		}
+
+		[UnityTest]
+		public IEnumerator RateLimitRetry_AddsJitterDelay()
+		{
+			var fixture = new DispatcherFixture(1, 37);
+
+			fixture.Dispatcher.Send(fixture.CreateMessage(1), true);
+			Assert.IsTrue(fixture.Dispatcher.TryHandleRateLimit(1));
+
+			yield return fixture.WaitForDelayCall();
+
+			Assert.AreEqual(SnipeClient.RATE_LIMIT_RETRY_DELAY_MS + 37, fixture.DelayCalls[0]);
 
 			fixture.Dispatcher.Clear();
 		}
@@ -310,12 +340,22 @@ namespace MiniIT.Snipe.Tests.Editor
 			{
 			}
 
+			public DispatcherFixture(int requestsPerSecondLimit, int jitterDelayMs)
+				: this(() => requestsPerSecondLimit, requestsPerSecondLimit, _ => jitterDelayMs)
+			{
+			}
+
 			public DispatcherFixture(Func<int> getRequestsPerSecondLimit)
 				: this(getRequestsPerSecondLimit, getRequestsPerSecondLimit())
 			{
 			}
 
 			private DispatcherFixture(Func<int> getRequestsPerSecondLimit, int requestsPerSecondLimit)
+				: this(getRequestsPerSecondLimit, requestsPerSecondLimit, _ => 0)
+			{
+			}
+
+			private DispatcherFixture(Func<int> getRequestsPerSecondLimit, int requestsPerSecondLimit, Func<int, int> getJitterDelayMs)
 			{
 				RequestsPerSecondLimit = requestsPerSecondLimit;
 				Dispatcher = new SnipeRequestDispatcher(
@@ -326,7 +366,8 @@ namespace MiniIT.Snipe.Tests.Editor
 					() => _timestamp,
 					1000,
 					Delay,
-					getRequestsPerSecondLimit);
+					getRequestsPerSecondLimit,
+					getJitterDelayMs);
 			}
 
 			public IDictionary<string, object> CreateMessage(int id)
