@@ -40,6 +40,7 @@ namespace MiniIT.Snipe
 		private readonly Func<int, CancellationToken, UniTask> _delay;
 		private readonly Func<int> _getRequestsPerSecondLimit;
 		private readonly long _timestampFrequency;
+		private readonly IAnalyticsContext _analytics;
 		private readonly ILogger _logger;
 
 		private CancellationTokenSource _cancellation;
@@ -54,9 +55,10 @@ namespace MiniIT.Snipe
 			Func<IDictionary<string, object>, bool> sendRequest,
 			Func<List<IDictionary<string, object>>, bool> sendBatch,
 			Func<bool> connected,
+			IAnalyticsContext analytics,
 			ILogger logger,
 			int requestsPerSecondLimit)
-			: this(sendRequest, sendBatch, connected, logger, () => requestsPerSecondLimit)
+			: this(sendRequest, sendBatch, connected, analytics, logger, () => requestsPerSecondLimit)
 		{
 		}
 
@@ -64,9 +66,10 @@ namespace MiniIT.Snipe
 			Func<IDictionary<string, object>, bool> sendRequest,
 			Func<List<IDictionary<string, object>>, bool> sendBatch,
 			Func<bool> connected,
+			IAnalyticsContext analytics,
 			ILogger logger,
 			Func<int> getRequestsPerSecondLimit)
-			: this(sendRequest, sendBatch, connected, logger, Stopwatch.GetTimestamp, Stopwatch.Frequency, (t, c) => AlterTask.Delay(t, c).AsUniTask(), getRequestsPerSecondLimit)
+			: this(sendRequest, sendBatch, connected, analytics, logger, Stopwatch.GetTimestamp, Stopwatch.Frequency, (t, c) => AlterTask.Delay(t, c).AsUniTask(), getRequestsPerSecondLimit)
 		{
 		}
 
@@ -74,11 +77,12 @@ namespace MiniIT.Snipe
 			Func<IDictionary<string, object>, bool> sendRequest,
 			Func<List<IDictionary<string, object>>, bool> sendBatch,
 			Func<bool> connected,
+			IAnalyticsContext analytics,
 			Func<long> getTimestamp,
 			long timestampFrequency,
 			Func<int, CancellationToken, UniTask> delay,
 			int requestsPerSecondLimit)
-			: this(sendRequest, sendBatch, connected, getTimestamp, timestampFrequency, delay, () => requestsPerSecondLimit)
+			: this(sendRequest, sendBatch, connected, analytics, getTimestamp, timestampFrequency, delay, () => requestsPerSecondLimit)
 		{
 		}
 
@@ -86,11 +90,12 @@ namespace MiniIT.Snipe
 			Func<IDictionary<string, object>, bool> sendRequest,
 			Func<List<IDictionary<string, object>>, bool> sendBatch,
 			Func<bool> connected,
+			IAnalyticsContext analytics,
 			Func<long> getTimestamp,
 			long timestampFrequency,
 			Func<int, CancellationToken, UniTask> delay,
 			Func<int> getRequestsPerSecondLimit)
-			: this(sendRequest, sendBatch, connected, EmptyLogger.Instance, getTimestamp, timestampFrequency, delay, getRequestsPerSecondLimit)
+			: this(sendRequest, sendBatch, connected, analytics, EmptyLogger.Instance, getTimestamp, timestampFrequency, delay, getRequestsPerSecondLimit)
 		{
 		}
 
@@ -98,6 +103,7 @@ namespace MiniIT.Snipe
 			Func<IDictionary<string, object>, bool> sendRequest,
 			Func<List<IDictionary<string, object>>, bool> sendBatch,
 			Func<bool> connected,
+			IAnalyticsContext analytics,
 			ILogger logger,
 			Func<long> getTimestamp,
 			long timestampFrequency,
@@ -107,6 +113,7 @@ namespace MiniIT.Snipe
 			_sendRequest = sendRequest ?? throw new ArgumentNullException(nameof(sendRequest));
 			_sendBatch = sendBatch ?? throw new ArgumentNullException(nameof(sendBatch));
 			_connected = connected ?? throw new ArgumentNullException(nameof(connected));
+			_analytics = analytics ?? throw new ArgumentNullException(nameof(analytics));
 			_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 			_getTimestamp = getTimestamp ?? throw new ArgumentNullException(nameof(getTimestamp));
 			_timestampFrequency = timestampFrequency;
@@ -269,6 +276,7 @@ namespace MiniIT.Snipe
 			if (logQueueingStarted)
 			{
 				_logger.LogDebug("Started queueing requests. Limit reached: {0}", requestsPerSecondLimit);
+				_analytics.TrackEvent("Requests rate limit reached", "requestsPerSecondLimit", requestsPerSecondLimit);
 			}
 
 			if (logRateLimitReached)

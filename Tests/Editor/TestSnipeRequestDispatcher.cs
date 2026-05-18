@@ -279,6 +279,7 @@ namespace MiniIT.Snipe.Tests.Editor
 					Send,
 					SendBatch,
 					() => true,
+					NullAnalyticsContext.Instance,
 					() => _timestamp,
 					1000,
 					Delay,
