@@ -140,6 +140,42 @@ namespace MiniIT.Snipe.Tests.Editor
 			fixture.Dispatcher.Clear();
 		}
 
+		[Test]
+		public void Send_ReleasesRequestSlotWhenSendFails()
+		{
+			var fixture = new DispatcherFixture(1);
+
+			fixture.FailSend = true;
+			fixture.Dispatcher.Send(fixture.CreateMessage(1), true);
+
+			fixture.FailSend = false;
+			fixture.Dispatcher.Send(fixture.CreateMessage(2), true);
+
+			Assert.AreEqual(1, fixture.Sent.Count);
+			Assert.AreEqual(2, fixture.Sent[0]["id"]);
+			Assert.AreEqual(0, fixture.DelayCalls.Count);
+
+			fixture.Dispatcher.Clear();
+		}
+
+		[Test]
+		public void SendBatch_ReleasesRequestSlotsWhenSendFails()
+		{
+			var fixture = new DispatcherFixture(2);
+
+			fixture.FailBatch = true;
+			fixture.Dispatcher.SendBatch(fixture.CreateBatch(1, 2));
+
+			fixture.FailBatch = false;
+			fixture.Dispatcher.Send(fixture.CreateMessage(3), true);
+
+			Assert.AreEqual(1, fixture.Sent.Count);
+			Assert.AreEqual(3, fixture.Sent[0]["id"]);
+			Assert.AreEqual(0, fixture.DelayCalls.Count);
+
+			fixture.Dispatcher.Clear();
+		}
+
 		[UnityTest]
 		public IEnumerator QueuedLargeRequest_IsNotAutoBatched()
 		{
@@ -252,6 +288,8 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			public SnipeRequestDispatcher Dispatcher { get; }
 			public int RequestsPerSecondLimit { get; }
+			public bool FailSend { get; set; }
+			public bool FailBatch { get; set; }
 
 			public DispatcherFixture(int requestsPerSecondLimit = SnipeOptions.DEFAULT_REQUESTS_PER_SECOND_LIMIT)
 				: this(() => requestsPerSecondLimit, requestsPerSecondLimit)
@@ -339,12 +377,22 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			private bool Send(IDictionary<string, object> message)
 			{
+				if (FailSend)
+				{
+					return false;
+				}
+
 				Sent.Add(message);
 				return true;
 			}
 
 			private bool SendBatch(List<IDictionary<string, object>> messages)
 			{
+				if (FailBatch)
+				{
+					return false;
+				}
+
 				Batches.Add(messages);
 				return true;
 			}

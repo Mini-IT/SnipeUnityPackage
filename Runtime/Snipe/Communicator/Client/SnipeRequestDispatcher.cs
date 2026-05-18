@@ -443,16 +443,30 @@ namespace MiniIT.Snipe
 
 		private void SendNow(PendingSend pendingSend)
 		{
+			bool sent = false;
+
 			if (pendingSend.Batch != null)
 			{
-				if (_sendBatch(pendingSend.Batch))
+				sent = _sendBatch(pendingSend.Batch);
+
+				if (sent)
 				{
 					TrackSentRequests(pendingSend.Batch);
 				}
 			}
-			else if (_sendRequest(pendingSend.Message))
+			else
 			{
-				TrackSentRequest(pendingSend.Message);
+				sent = _sendRequest(pendingSend.Message);
+
+				if (sent)
+				{
+					TrackSentRequest(pendingSend.Message);
+				}
+			}
+
+			if (!sent)
+			{
+				ReleaseRequestSlots(GetRequestCount(pendingSend));
 			}
 		}
 
@@ -482,6 +496,14 @@ namespace MiniIT.Snipe
 		private void ReserveRequestSlots(int requestCount)
 		{
 			_requestsSentInWindow += Math.Max(1, requestCount);
+		}
+
+		private void ReleaseRequestSlots(int requestCount)
+		{
+			lock (_lock)
+			{
+				_requestsSentInWindow = Math.Max(0, _requestsSentInWindow - Math.Max(1, requestCount));
+			}
 		}
 
 		private int GetRequestsPerSecondLimit()
