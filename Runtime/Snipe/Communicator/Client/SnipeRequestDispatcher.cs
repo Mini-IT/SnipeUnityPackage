@@ -358,7 +358,7 @@ namespace MiniIT.Snipe
 
 						if (availableRequestSlots > 0)
 						{
-							pendingSend = DequeuePendingSend(availableRequestSlots);
+							pendingSend = DequeuePendingSend(availableRequestSlots, requestsPerSecondLimit);
 
 							if (pendingSend != null)
 							{
@@ -415,12 +415,17 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private PendingSend DequeuePendingSend(int maxRequestCount)
+		private PendingSend DequeuePendingSend(int maxRequestCount, int maxWindowRequestCount)
 		{
 			var pendingSend = _pendingSends.Peek();
 
 			if (GetRequestCount(pendingSend) > maxRequestCount)
 			{
+				if (pendingSend.Batch != null && pendingSend.Batch.Count > maxWindowRequestCount)
+				{
+					return SplitPendingBatch(pendingSend, maxRequestCount);
+				}
+
 				return null;
 			}
 
@@ -456,6 +461,31 @@ namespace MiniIT.Snipe
 			{
 				return pendingSend;
 			}
+
+			return new PendingSend()
+			{
+				Batch = batch,
+			};
+		}
+
+		private static PendingSend SplitPendingBatch(PendingSend pendingSend, int count)
+		{
+			var batch = new List<IDictionary<string, object>>(count);
+			var remainder = new List<IDictionary<string, object>>(pendingSend.Batch.Count - count);
+
+			for (int i = 0; i < pendingSend.Batch.Count; i++)
+			{
+				if (i < count)
+				{
+					batch.Add(pendingSend.Batch[i]);
+				}
+				else
+				{
+					remainder.Add(pendingSend.Batch[i]);
+				}
+			}
+
+			pendingSend.Batch = remainder;
 
 			return new PendingSend()
 			{

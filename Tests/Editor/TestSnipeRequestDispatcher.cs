@@ -141,6 +141,37 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[UnityTest]
+		public IEnumerator QueuedBatch_SplitsWhenCurrentLimitDrops()
+		{
+			int requestsPerSecondLimit = SnipeClient.MAX_BATCH_SIZE;
+			var fixture = new DispatcherFixture(() => requestsPerSecondLimit);
+
+			for (int i = 0; i < SnipeClient.MAX_BATCH_SIZE; i++)
+			{
+				fixture.Dispatcher.Send(fixture.CreateMessage(i), true);
+			}
+
+			fixture.Dispatcher.SendBatch(fixture.CreateBatch(10, SnipeClient.MAX_BATCH_SIZE));
+			yield return fixture.WaitForDelayCall();
+
+			requestsPerSecondLimit = 3;
+			fixture.CompleteNextDelay();
+			yield return null;
+
+			Assert.AreEqual(1, fixture.Batches.Count);
+			Assert.AreEqual(3, fixture.Batches[0].Count);
+
+			yield return fixture.WaitForDelayCalls(2);
+			fixture.CompleteNextDelay();
+			yield return null;
+
+			Assert.AreEqual(2, fixture.Batches.Count);
+			Assert.AreEqual(2, fixture.Batches[1].Count);
+
+			fixture.Dispatcher.Clear();
+		}
+
+		[UnityTest]
 		public IEnumerator ThrottleWait_AddsJitterDelay()
 		{
 			var fixture = new DispatcherFixture(1, 37);
