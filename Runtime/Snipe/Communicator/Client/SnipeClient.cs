@@ -74,8 +74,15 @@ namespace MiniIT.Snipe
 			_transportService = new TransportService(options, _analytics, services);
 			_batchBuffer = new SnipeRequestBatchBuffer();
 
-			var dispatcherLogger = services.LoggerFactory.CreateLogger(nameof(SnipeRequestDispatcher));
-			_dispatcher = new SnipeRequestDispatcher(SendRequestNow, SendBatchNow, () => Connected, _analytics, dispatcherLogger, GetRequestsPerSecondLimit);
+			_dispatcher = new SnipeRequestDispatcher(new SnipeRequestDispatcherOptions()
+			{
+				SendRequest = SendRequestNow,
+				SendBatch = SendBatchNow,
+				Connected = () => Connected,
+				Analytics = _analytics,
+				Logger = services.LoggerFactory.CreateLogger(nameof(SnipeRequestDispatcher)),
+				GetRequestsPerSecondLimit = GetRequestsPerSecondLimit,
+			});
 
 			_transportService.ConnectionOpened += OnTransportConnectionOpened;
 			_transportService.ConnectionClosed += OnTransportConnectionClosed;

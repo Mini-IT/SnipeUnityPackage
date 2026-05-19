@@ -9,6 +9,20 @@ using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
+	internal struct SnipeRequestDispatcherOptions
+	{
+		public Func<IDictionary<string, object>, bool> SendRequest;
+		public Func<List<IDictionary<string, object>>, bool> SendBatch;
+		public Func<bool> Connected;
+		public Func<long> GetTimestamp;
+		public Func<int, CancellationToken, UniTask> Delay;
+		public Func<int> GetRequestsPerSecondLimit;
+		public Func<int, int> GetJitterDelayMs;
+		public long TimestampFrequency;
+		public IAnalyticsContext Analytics;
+		public ILogger Logger;
+	}
+
 	internal sealed class SnipeRequestDispatcher : IDisposable
 	{
 		private const int RATE_LIMIT_INTERVAL_MS = 1000;
@@ -32,6 +46,16 @@ namespace MiniIT.Snipe
 			public bool RetryScheduled;
 			public bool RateLimited;
 			public LinkedListNode<int> Node;
+		}
+
+		private sealed class EmptyLogger : ILogger
+		{
+			public static EmptyLogger Instance => s_instance ??= new EmptyLogger();
+			private static EmptyLogger s_instance;
+
+			public IDisposable BeginScope<TState>(TState state) => null;
+			public bool IsEnabled(LogLevel logLevel) => false;
+			public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter) { }
 		}
 
 		private readonly object _lock = new object();
@@ -58,100 +82,28 @@ namespace MiniIT.Snipe
 		private int _rateLimitedRequestCount;
 		private bool _rateLimitRetryCooldownActive;
 
-		internal SnipeRequestDispatcher(
-			Func<IDictionary<string, object>, bool> sendRequest,
-			Func<List<IDictionary<string, object>>, bool> sendBatch,
-			Func<bool> connected,
-			IAnalyticsContext analytics,
-			ILogger logger,
-			int requestsPerSecondLimit)
-			: this(sendRequest, sendBatch, connected, analytics, logger, () => requestsPerSecondLimit)
+		internal SnipeRequestDispatcher(SnipeRequestDispatcherOptions options)
 		{
+			_sendRequest = options.SendRequest ?? throw new ArgumentNullException(nameof(options.SendRequest));
+			_sendBatch = options.SendBatch ?? throw new ArgumentNullException(nameof(options.SendBatch));
+			_connected = options.Connected ?? throw new ArgumentNullException(nameof(options.Connected));
+			_analytics = options.Analytics ?? throw new ArgumentNullException(nameof(options.Analytics));
+			_logger = options.Logger ?? EmptyLogger.Instance;
+			_getTimestamp = options.GetTimestamp ?? Stopwatch.GetTimestamp;
+			_timestampFrequency = options.TimestampFrequency > 0 ? options.TimestampFrequency : Stopwatch.Frequency;
+			_delay = options.Delay ?? DefaultDelay;
+			_getRequestsPerSecondLimit = options.GetRequestsPerSecondLimit ?? GetDefaultRequestsPerSecondLimit;
+			_getJitterDelayMs = options.GetJitterDelayMs ?? GetRandomJitterDelayMs;
 		}
 
-		internal SnipeRequestDispatcher(
-			Func<IDictionary<string, object>, bool> sendRequest,
-			Func<List<IDictionary<string, object>>, bool> sendBatch,
-			Func<bool> connected,
-			IAnalyticsContext analytics,
-			ILogger logger,
-			Func<int> getRequestsPerSecondLimit)
-			: this(sendRequest, sendBatch, connected, analytics, logger, Stopwatch.GetTimestamp, Stopwatch.Frequency, (t, c) => AlterTask.Delay(t, c).AsUniTask(), getRequestsPerSecondLimit, GetRandomJitterDelayMs)
+		private static UniTask DefaultDelay(int delayMs, CancellationToken cancellation)
 		{
+			return AlterTask.Delay(delayMs, cancellation).AsUniTask();
 		}
 
-		internal SnipeRequestDispatcher(
-			Func<IDictionary<string, object>, bool> sendRequest,
-			Func<List<IDictionary<string, object>>, bool> sendBatch,
-			Func<bool> connected,
-			IAnalyticsContext analytics,
-			Func<long> getTimestamp,
-			long timestampFrequency,
-			Func<int, CancellationToken, UniTask> delay,
-			int requestsPerSecondLimit)
-			: this(sendRequest, sendBatch, connected, analytics, getTimestamp, timestampFrequency, delay, () => requestsPerSecondLimit, NoJitterDelay)
+		private static int GetDefaultRequestsPerSecondLimit()
 		{
-		}
-
-		internal SnipeRequestDispatcher(
-			Func<IDictionary<string, object>, bool> sendRequest,
-			Func<List<IDictionary<string, object>>, bool> sendBatch,
-			Func<bool> connected,
-			IAnalyticsContext analytics,
-			Func<long> getTimestamp,
-			long timestampFrequency,
-			Func<int, CancellationToken, UniTask> delay,
-			Func<int> getRequestsPerSecondLimit)
-			: this(sendRequest, sendBatch, connected, analytics, getTimestamp, timestampFrequency, delay, getRequestsPerSecondLimit, NoJitterDelay)
-		{
-		}
-
-		internal SnipeRequestDispatcher(
-			Func<IDictionary<string, object>, bool> sendRequest,
-			Func<List<IDictionary<string, object>>, bool> sendBatch,
-			Func<bool> connected,
-			IAnalyticsContext analytics,
-			Func<long> getTimestamp,
-			long timestampFrequency,
-			Func<int, CancellationToken, UniTask> delay,
-			Func<int> getRequestsPerSecondLimit,
-			Func<int, int> getJitterDelayMs)
-			: this(sendRequest, sendBatch, connected, analytics, EmptyLogger.Instance, getTimestamp, timestampFrequency, delay, getRequestsPerSecondLimit, getJitterDelayMs)
-		{
-		}
-
-		internal SnipeRequestDispatcher(
-			Func<IDictionary<string, object>, bool> sendRequest,
-			Func<List<IDictionary<string, object>>, bool> sendBatch,
-			Func<bool> connected,
-			IAnalyticsContext analytics,
-			ILogger logger,
-			Func<long> getTimestamp,
-			long timestampFrequency,
-			Func<int, CancellationToken, UniTask> delay,
-			Func<int> getRequestsPerSecondLimit,
-			Func<int, int> getJitterDelayMs)
-		{
-			_sendRequest = sendRequest ?? throw new ArgumentNullException(nameof(sendRequest));
-			_sendBatch = sendBatch ?? throw new ArgumentNullException(nameof(sendBatch));
-			_connected = connected ?? throw new ArgumentNullException(nameof(connected));
-			_analytics = analytics ?? throw new ArgumentNullException(nameof(analytics));
-			_logger = logger ?? throw new ArgumentNullException(nameof(logger));
-			_getTimestamp = getTimestamp ?? throw new ArgumentNullException(nameof(getTimestamp));
-			_timestampFrequency = timestampFrequency;
-			_delay = delay ?? throw new ArgumentNullException(nameof(delay));
-			_getRequestsPerSecondLimit = getRequestsPerSecondLimit ?? throw new ArgumentNullException(nameof(getRequestsPerSecondLimit));
-			_getJitterDelayMs = getJitterDelayMs ?? throw new ArgumentNullException(nameof(getJitterDelayMs));
-		}
-
-		private sealed class EmptyLogger : ILogger
-		{
-			public static EmptyLogger Instance => s_instance ??= new EmptyLogger();
-			private static EmptyLogger s_instance;
-
-			public IDisposable BeginScope<TState>(TState state) => null;
-			public bool IsEnabled(LogLevel logLevel) => false;
-			public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter) { }
+			return SnipeOptions.DEFAULT_REQUESTS_PER_SECOND_LIMIT;
 		}
 
 		public void Send(IDictionary<string, object> message, bool autoBatchAllowed)

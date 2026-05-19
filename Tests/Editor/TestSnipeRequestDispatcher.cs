@@ -495,16 +495,18 @@ namespace MiniIT.Snipe.Tests.Editor
 			private DispatcherFixture(Func<int> getRequestsPerSecondLimit, int requestsPerSecondLimit, Func<int, int> getJitterDelayMs)
 			{
 				RequestsPerSecondLimit = requestsPerSecondLimit;
-				Dispatcher = new SnipeRequestDispatcher(
-					Send,
-					SendBatch,
-					() => true,
-					NullAnalyticsContext.Instance,
-					() => _timestamp,
-					1000,
-					Delay,
-					getRequestsPerSecondLimit,
-					getJitterDelayMs);
+				Dispatcher = new SnipeRequestDispatcher(new SnipeRequestDispatcherOptions()
+				{
+					SendRequest = Send,
+					SendBatch = SendBatch,
+					Connected = () => true,
+					Analytics = NullAnalyticsContext.Instance,
+					GetTimestamp = () => _timestamp,
+					TimestampFrequency = 1000,
+					Delay = Delay,
+					GetRequestsPerSecondLimit = getRequestsPerSecondLimit,
+					GetJitterDelayMs = getJitterDelayMs,
+				});
 			}
 
 			public IDictionary<string, object> CreateMessage(int id)
