@@ -116,7 +116,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[UnityTest]
-		public IEnumerator SendBatch_WaitsForEnoughRequestSlots()
+		public IEnumerator SendBatch_SplitsWhenOnlyPartialSlotsAvailable()
 		{
 			var fixture = new DispatcherFixture();
 
@@ -129,13 +129,14 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			yield return fixture.WaitForDelayCall();
 
-			Assert.AreEqual(0, fixture.Batches.Count);
+			Assert.AreEqual(1, fixture.Batches.Count);
+			Assert.AreEqual(1, fixture.Batches[0].Count);
 
 			fixture.CompleteNextDelay();
 			yield return null;
 
-			Assert.AreEqual(1, fixture.Batches.Count);
-			Assert.AreEqual(2, fixture.Batches[0].Count);
+			Assert.AreEqual(2, fixture.Batches.Count);
+			Assert.AreEqual(1, fixture.Batches[1].Count);
 
 			fixture.Dispatcher.Clear();
 		}
@@ -186,6 +187,21 @@ namespace MiniIT.Snipe.Tests.Editor
 			fixture.Dispatcher.Clear();
 		}
 
+		[UnityTest]
+		public IEnumerator ThrottleWait_AppliesNegativeJitterDelay()
+		{
+			var fixture = new DispatcherFixture(1, -37);
+
+			fixture.Dispatcher.Send(fixture.CreateMessage(1), true);
+			fixture.Dispatcher.Send(fixture.CreateMessage(2), true);
+
+			yield return fixture.WaitForDelayCall();
+
+			Assert.AreEqual(963, fixture.DelayCalls[0]);
+
+			fixture.Dispatcher.Clear();
+		}
+
 		[Test]
 		public void Send_ReleasesRequestSlotWhenSendFails()
 		{
@@ -205,6 +221,24 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[Test]
+		public void Send_ReleasesRequestSlotWhenSendThrows()
+		{
+			var fixture = new DispatcherFixture(1);
+
+			fixture.ThrowSend = true;
+			fixture.Dispatcher.Send(fixture.CreateMessage(1), true);
+
+			fixture.ThrowSend = false;
+			fixture.Dispatcher.Send(fixture.CreateMessage(2), true);
+
+			Assert.AreEqual(1, fixture.Sent.Count);
+			Assert.AreEqual(2, fixture.Sent[0]["id"]);
+			Assert.AreEqual(0, fixture.DelayCalls.Count);
+
+			fixture.Dispatcher.Clear();
+		}
+
+		[Test]
 		public void SendBatch_ReleasesRequestSlotsWhenSendFails()
 		{
 			var fixture = new DispatcherFixture(2);
@@ -213,6 +247,24 @@ namespace MiniIT.Snipe.Tests.Editor
 			fixture.Dispatcher.SendBatch(fixture.CreateBatch(1, 2));
 
 			fixture.FailBatch = false;
+			fixture.Dispatcher.Send(fixture.CreateMessage(3), true);
+
+			Assert.AreEqual(1, fixture.Sent.Count);
+			Assert.AreEqual(3, fixture.Sent[0]["id"]);
+			Assert.AreEqual(0, fixture.DelayCalls.Count);
+
+			fixture.Dispatcher.Clear();
+		}
+
+		[Test]
+		public void SendBatch_ReleasesRequestSlotsWhenSendThrows()
+		{
+			var fixture = new DispatcherFixture(2);
+
+			fixture.ThrowBatch = true;
+			fixture.Dispatcher.SendBatch(fixture.CreateBatch(1, 2));
+
+			fixture.ThrowBatch = false;
 			fixture.Dispatcher.Send(fixture.CreateMessage(3), true);
 
 			Assert.AreEqual(1, fixture.Sent.Count);
@@ -363,6 +415,31 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[UnityTest]
+		public IEnumerator RateLimit_BackoffSurvivesUnrelatedSuccess()
+		{
+			var fixture = new DispatcherFixture();
+
+			fixture.Dispatcher.Send(fixture.CreateMessage(1), true);
+			fixture.Dispatcher.Send(fixture.CreateMessage(2), true);
+			fixture.Dispatcher.Send(fixture.CreateMessage(3), true);
+
+			Assert.IsTrue(fixture.Dispatcher.TryHandleRateLimit(1));
+			yield return fixture.WaitForDelayCalls(1);
+			fixture.CompleteNextDelay();
+			yield return null;
+
+			fixture.Dispatcher.RemoveSent(2);
+
+			Assert.IsTrue(fixture.Dispatcher.TryHandleRateLimit(3));
+			yield return fixture.WaitForDelayCalls(2);
+
+			Assert.AreEqual(SnipeClient.RATE_LIMIT_RETRY_DELAY_MS, fixture.DelayCalls[0]);
+			Assert.AreEqual(SnipeClient.RATE_LIMIT_RETRY_DELAY_MS * 2, fixture.DelayCalls[1]);
+
+			fixture.Dispatcher.Clear();
+		}
+
+		[UnityTest]
 		public IEnumerator Clear_CancelsQueuedRequests()
 		{
 			var fixture = new DispatcherFixture();
@@ -392,6 +469,8 @@ namespace MiniIT.Snipe.Tests.Editor
 			public int RequestsPerSecondLimit { get; }
 			public bool FailSend { get; set; }
 			public bool FailBatch { get; set; }
+			public bool ThrowSend { get; set; }
+			public bool ThrowBatch { get; set; }
 
 			public DispatcherFixture(int requestsPerSecondLimit = SnipeOptions.DEFAULT_REQUESTS_PER_SECOND_LIMIT)
 				: this(() => requestsPerSecondLimit, requestsPerSecondLimit)
@@ -495,6 +574,11 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			private bool Send(IDictionary<string, object> message)
 			{
+				if (ThrowSend)
+				{
+					throw new InvalidOperationException("Send failed");
+				}
+
 				if (FailSend)
 				{
 					return false;
@@ -506,6 +590,11 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			private bool SendBatch(List<IDictionary<string, object>> messages)
 			{
+				if (ThrowBatch)
+				{
+					throw new InvalidOperationException("Batch send failed");
+				}
+
 				if (FailBatch)
 				{
 					return false;

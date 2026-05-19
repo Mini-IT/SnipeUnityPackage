@@ -13,7 +13,6 @@ namespace MiniIT.Snipe
 	{
 		private const int RATE_LIMIT_INTERVAL_MS = 1000;
 		private const int MAX_SENT_REQUESTS_COUNT = 512;
-		private const int MAX_JITTER_DELAY_MS = 1000;
 		private const int JITTER_PERCENT = 25;
 
 		private static readonly object s_jitterLock = new object();
@@ -31,6 +30,7 @@ namespace MiniIT.Snipe
 			public int RequestId;
 			public IDictionary<string, object> Message;
 			public bool RetryScheduled;
+			public bool RateLimited;
 			public LinkedListNode<int> Node;
 		}
 
@@ -55,6 +55,7 @@ namespace MiniIT.Snipe
 		private int _requestsSentInWindow;
 		private int _rateLimitRetryDelayMs = SnipeClient.RATE_LIMIT_RETRY_DELAY_MS;
 		private int _rateLimitRetryCooldownId;
+		private int _rateLimitedRequestCount;
 		private bool _rateLimitRetryCooldownActive;
 
 		internal SnipeRequestDispatcher(
@@ -212,6 +213,11 @@ namespace MiniIT.Snipe
 				}
 
 				request.RetryScheduled = true;
+				if (!request.RateLimited)
+				{
+					request.RateLimited = true;
+					_rateLimitedRequestCount++;
+				}
 
 				if (!_rateLimitRetryCooldownActive)
 				{
@@ -242,7 +248,7 @@ namespace MiniIT.Snipe
 				{
 					_sentRequests.Remove(requestId);
 					_sentRequestIds.Remove(request.Node);
-					ResetRateLimitRetryDelay();
+					OnSentRequestRemoved(requestId, request, false);
 				}
 			}
 		}
@@ -258,6 +264,7 @@ namespace MiniIT.Snipe
 				_drainStarted = false;
 				_sendWindowStartTimestamp = 0;
 				_requestsSentInWindow = 0;
+				_rateLimitedRequestCount = 0;
 				ResetRateLimitRetryDelay();
 			}
 		}
@@ -358,7 +365,7 @@ namespace MiniIT.Snipe
 
 						if (availableRequestSlots > 0)
 						{
-							pendingSend = DequeuePendingSend(availableRequestSlots, requestsPerSecondLimit);
+							pendingSend = DequeuePendingSend(availableRequestSlots);
 
 							if (pendingSend != null)
 							{
@@ -415,13 +422,13 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private PendingSend DequeuePendingSend(int maxRequestCount, int maxWindowRequestCount)
+		private PendingSend DequeuePendingSend(int maxRequestCount)
 		{
 			var pendingSend = _pendingSends.Peek();
 
 			if (GetRequestCount(pendingSend) > maxRequestCount)
 			{
-				if (pendingSend.Batch != null && pendingSend.Batch.Count > maxWindowRequestCount)
+				if (pendingSend.Batch != null)
 				{
 					return SplitPendingBatch(pendingSend, maxRequestCount);
 				}
@@ -497,23 +504,30 @@ namespace MiniIT.Snipe
 		{
 			bool sent = false;
 
-			if (pendingSend.Batch != null)
+			try
 			{
-				sent = _sendBatch(pendingSend.Batch);
-
-				if (sent)
+				if (pendingSend.Batch != null)
 				{
-					TrackSentRequests(pendingSend.Batch);
+					sent = _sendBatch(pendingSend.Batch);
+
+					if (sent)
+					{
+						TrackSentRequests(pendingSend.Batch);
+					}
+				}
+				else
+				{
+					sent = _sendRequest(pendingSend.Message);
+
+					if (sent)
+					{
+						TrackSentRequest(pendingSend.Message);
+					}
 				}
 			}
-			else
+			catch (Exception e)
 			{
-				sent = _sendRequest(pendingSend.Message);
-
-				if (sent)
-				{
-					TrackSentRequest(pendingSend.Message);
-				}
+				_logger.LogError(e, "Send request failed");
 			}
 
 			if (!sent)
@@ -621,7 +635,35 @@ namespace MiniIT.Snipe
 			{
 				int requestId = _sentRequestIds.First.Value;
 				_sentRequestIds.RemoveFirst();
-				_sentRequests.Remove(requestId);
+
+				if (_sentRequests.TryGetValue(requestId, out var request))
+				{
+					_sentRequests.Remove(requestId);
+					OnSentRequestRemoved(requestId, request, true);
+				}
+			}
+		}
+
+		private void OnSentRequestRemoved(int requestId, SentRequest request, bool evicted)
+		{
+			if (request.RateLimited && _rateLimitedRequestCount > 0)
+			{
+				_rateLimitedRequestCount--;
+			}
+
+			if (evicted)
+			{
+				_analytics.TrackEvent("Sent request tracking evicted", new Dictionary<string, object>()
+				{
+					["request_id"] = requestId,
+					["rate_limited"] = request.RateLimited,
+					["retry_scheduled"] = request.RetryScheduled,
+				});
+			}
+
+			if (_rateLimitedRequestCount == 0)
+			{
+				ResetRateLimitRetryDelay();
 			}
 		}
 
@@ -679,7 +721,7 @@ namespace MiniIT.Snipe
 
 		private int AddJitter(int delayMs)
 		{
-			return delayMs + Math.Max(0, _getJitterDelayMs(delayMs));
+			return Math.Max(1, delayMs + _getJitterDelayMs(delayMs));
 		}
 
 		private static int NoJitterDelay(int delayMs)
@@ -694,11 +736,11 @@ namespace MiniIT.Snipe
 				return 0;
 			}
 
-			int maxJitterMs = Math.Min(MAX_JITTER_DELAY_MS, Math.Max(1, delayMs * JITTER_PERCENT / 100));
+			int maxJitterMs = Math.Max(1, delayMs * JITTER_PERCENT / 100);
 
 			lock (s_jitterLock)
 			{
-				return s_jitterRandom.Next(maxJitterMs + 1);
+				return s_jitterRandom.Next(-maxJitterMs, maxJitterMs + 1);
 			}
 		}
 
