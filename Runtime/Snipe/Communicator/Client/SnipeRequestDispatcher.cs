@@ -485,6 +485,47 @@ namespace MiniIT.Snipe
 			if (!sent)
 			{
 				ReleaseRequestSlots(GetRequestCount(pendingSend));
+				HandleSendFailure(pendingSend);
+			}
+		}
+
+		private void HandleSendFailure(PendingSend pendingSend)
+		{
+			if (pendingSend.Batch != null)
+			{
+				for (int i = 0; i < pendingSend.Batch.Count; i++)
+				{
+					HandleSendFailure(pendingSend.Batch[i]);
+				}
+			}
+			else
+			{
+				HandleSendFailure(pendingSend.Message);
+			}
+		}
+
+		private void HandleSendFailure(IDictionary<string, object> message)
+		{
+			if (message == null)
+			{
+				return;
+			}
+
+			int requestId = message.SafeGetValue<int>("id");
+			bool retryRateLimitedRequest = false;
+
+			lock (_lock)
+			{
+				if (_sentRequests.TryGetValue(requestId, out var request) && request.RetryScheduled)
+				{
+					request.RetryScheduled = false;
+					retryRateLimitedRequest = request.RateLimited;
+				}
+			}
+
+			if (retryRateLimitedRequest && _connected())
+			{
+				TryHandleRateLimit(requestId);
 			}
 		}
 
@@ -585,8 +626,15 @@ namespace MiniIT.Snipe
 		{
 			while (_sentRequests.Count > MAX_SENT_REQUESTS_COUNT)
 			{
-				int requestId = _sentRequestIds.First.Value;
-				_sentRequestIds.RemoveFirst();
+				var node = GetEvictableSentRequestNode();
+
+				if (node == null)
+				{
+					return;
+				}
+
+				int requestId = node.Value;
+				_sentRequestIds.Remove(node);
 
 				if (_sentRequests.TryGetValue(requestId, out var request))
 				{
@@ -594,6 +642,25 @@ namespace MiniIT.Snipe
 					OnSentRequestRemoved(requestId, request, true);
 				}
 			}
+		}
+
+		private LinkedListNode<int> GetEvictableSentRequestNode()
+		{
+			var node = _sentRequestIds.First;
+
+			while (node != null)
+			{
+				var next = node.Next;
+
+				if (!_sentRequests.TryGetValue(node.Value, out var request) || !request.RetryScheduled)
+				{
+					return node;
+				}
+
+				node = next;
+			}
+
+			return null;
 		}
 
 		private void OnSentRequestRemoved(int requestId, SentRequest request, bool evicted)
@@ -652,6 +719,7 @@ namespace MiniIT.Snipe
 
 			if (cancellation.IsCancellationRequested || !_connected())
 			{
+				ClearRetryScheduled(request);
 				return;
 			}
 
@@ -664,6 +732,17 @@ namespace MiniIT.Snipe
 			}
 
 			Send(request.Message, false);
+		}
+
+		private void ClearRetryScheduled(SentRequest request)
+		{
+			lock (_lock)
+			{
+				if (_sentRequests.TryGetValue(request.RequestId, out var current) && object.ReferenceEquals(current, request))
+				{
+					request.RetryScheduled = false;
+				}
+			}
 		}
 
 		private static bool CanAutoBatch(IDictionary<string, object> message)

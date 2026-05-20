@@ -317,6 +317,58 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[UnityTest]
+		public IEnumerator RateLimit_RetrySendFailureSchedulesNextRetry()
+		{
+			var fixture = new DispatcherFixture();
+			var message = fixture.CreateMessage(1);
+
+			fixture.Dispatcher.Send(message, true);
+			Assert.IsTrue(fixture.Dispatcher.TryHandleRateLimit(1));
+
+			yield return fixture.WaitForDelayCall();
+
+			fixture.FailSend = true;
+			fixture.CompleteNextDelay();
+
+			yield return fixture.WaitForDelayCalls(2);
+
+			fixture.FailSend = false;
+			fixture.CompleteNextDelay();
+			yield return null;
+
+			Assert.AreEqual(2, fixture.Sent.Count);
+			Assert.AreSame(message, fixture.Sent[1]);
+			Assert.AreEqual(SnipeClient.RATE_LIMIT_RETRY_DELAY_MS * 2, fixture.DelayCalls[1]);
+
+			fixture.Dispatcher.Clear();
+		}
+
+		[UnityTest]
+		public IEnumerator RateLimit_RetryScheduledRequestSurvivesSentRequestEviction()
+		{
+			var fixture = new DispatcherFixture(600);
+			var message = fixture.CreateMessage(1);
+
+			fixture.Dispatcher.Send(message, true);
+			Assert.IsTrue(fixture.Dispatcher.TryHandleRateLimit(1));
+
+			yield return fixture.WaitForDelayCall();
+
+			for (int i = 2; i <= 513; i++)
+			{
+				fixture.Dispatcher.Send(fixture.CreateMessage(i), true);
+			}
+
+			fixture.CompleteNextDelay();
+			yield return null;
+
+			Assert.AreEqual(514, fixture.Sent.Count);
+			Assert.AreSame(message, fixture.Sent[513]);
+
+			fixture.Dispatcher.Clear();
+		}
+
+		[UnityTest]
 		public IEnumerator RateLimit_RetriesRateLimitedBatchItemsIndividually()
 		{
 			var fixture = new DispatcherFixture(4);
