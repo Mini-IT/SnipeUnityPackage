@@ -11,7 +11,7 @@ namespace MiniIT.Snipe
 		public const int SNIPE_VERSION = 6;
 		public const int MAX_BATCH_SIZE = 5;
 		public const int UNAUTHORIZED_REQUESTS_PER_SECOND_LIMIT = 5;
-		public const int MAX_PENDING_REQUESTS_COUNT = 50;
+		public const int MAX_PENDING_REQUESTS_COUNT = 100;
 		public const int MIN_RATE_LIMIT_RETRY_DELAY_MS = 1000;
 		public const int MAX_RATE_LIMIT_RETRY_DELAY_MS = 10000;
 
