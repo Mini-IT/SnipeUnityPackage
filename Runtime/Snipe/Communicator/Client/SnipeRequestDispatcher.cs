@@ -26,111 +26,10 @@ namespace MiniIT.Snipe
 
 	internal sealed class SnipeRequestDispatcher : IDisposable
 	{
-		private const int RATE_LIMIT_INTERVAL_MS = 1000;
 		private const int JITTER_PERCENT = 25;
 
 		private static readonly object s_jitterLock = new object();
 		private static readonly Random s_jitterRandom = new Random();
-
-		private sealed class PendingSend
-		{
-			public IDictionary<string, object> Message;
-			public List<IDictionary<string, object>> Batch;
-			public bool AutoBatchAllowed;
-
-			public int RequestCount => Batch?.Count ?? 1;
-			public bool IsBatch => Batch != null;
-			public bool CanJoinAutoBatch => Batch == null && AutoBatchAllowed && SnipeRequestDispatcher.CanAutoBatch(Message);
-
-			public static PendingSend CreateMessage(IDictionary<string, object> message, bool autoBatchAllowed)
-			{
-				return new PendingSend()
-				{
-					Message = message,
-					AutoBatchAllowed = autoBatchAllowed,
-				};
-			}
-
-			public static PendingSend CreateBatch(List<IDictionary<string, object>> batch)
-			{
-				return new PendingSend()
-				{
-					Batch = batch,
-				};
-			}
-
-			public PendingSend SplitBatch(int count)
-			{
-				var batch = new List<IDictionary<string, object>>(count);
-				var remainder = new List<IDictionary<string, object>>(Batch.Count - count);
-
-				for (int i = 0; i < Batch.Count; i++)
-				{
-					if (i < count)
-					{
-						batch.Add(Batch[i]);
-					}
-					else
-					{
-						remainder.Add(Batch[i]);
-					}
-				}
-
-				Batch = remainder;
-
-				return CreateBatch(batch);
-			}
-
-			public bool TrySend(Func<IDictionary<string, object>, bool> sendRequest, Func<List<IDictionary<string, object>>, bool> sendBatch)
-			{
-				return IsBatch ? sendBatch(Batch) : sendRequest(Message);
-			}
-
-			public void TrackSent(SnipeRequestDispatcher dispatcher)
-			{
-				if (IsBatch)
-				{
-					for (int i = 0; i < Batch.Count; i++)
-					{
-						dispatcher.TrackSentRequest(Batch[i]);
-					}
-				}
-				else
-				{
-					dispatcher.TrackSentRequest(Message);
-				}
-			}
-
-			public void HandleSendFailure(SnipeRequestDispatcher dispatcher)
-			{
-				if (IsBatch)
-				{
-					for (int i = 0; i < Batch.Count; i++)
-					{
-						dispatcher.HandleSendFailure(Batch[i]);
-					}
-				}
-				else
-				{
-					dispatcher.HandleSendFailure(Message);
-				}
-			}
-
-			public void AddDroppedRequests(ref List<IDictionary<string, object>> droppedRequests)
-			{
-				if (IsBatch)
-				{
-					for (int i = 0; i < Batch.Count; i++)
-					{
-						AddDroppedRequest(ref droppedRequests, Batch[i]);
-					}
-				}
-				else
-				{
-					AddDroppedRequest(ref droppedRequests, Message);
-				}
-			}
-		}
 
 		private sealed class EmptyLogger : ILogger
 		{
@@ -145,30 +44,26 @@ namespace MiniIT.Snipe
 		private readonly object _lock = new object();
 		// Clear and SendNow share this gate; generation handles reentrant clears.
 		private readonly object _sendGate = new object();
-		private readonly Queue<PendingSend> _pendingSends = new Queue<PendingSend>();
-		private readonly List<PendingSend> _reservedSends = new List<PendingSend>();
+		private readonly SnipePendingSendQueue _pendingQueue = new SnipePendingSendQueue();
+		private readonly List<SnipePendingSend> _reservedSends = new List<SnipePendingSend>();
 		private readonly SnipeSentRequestTracker _sentRequestTracker;
+		private readonly SnipeRequestRateWindow _rateWindow;
 		private readonly Func<IDictionary<string, object>, bool> _sendRequest;
 		private readonly Func<List<IDictionary<string, object>>, bool> _sendBatch;
 		private readonly Func<bool> _connected;
 		private readonly Action<List<IDictionary<string, object>>> _onPendingQueueOverflow;
-		private readonly Func<long> _getTimestamp;
 		private readonly Func<int, CancellationToken, UniTask> _delay;
 		private readonly Func<int> _getRequestsPerSecondLimit;
 		private readonly Func<int, int> _getJitterDelayMs;
-		private readonly long _timestampFrequency;
 		private readonly IAnalyticsContext _analytics;
 		private readonly ILogger _logger;
 
 		private CancellationTokenSource _cancellation;
-		private int _pendingRequestCount;
 		private bool _drainStarted;
 		// Keeps newer requests behind a queued item already dequeued by the drain task.
 		private bool _queuedSendInProgress;
 		// Invalidates delayed drain/retry continuations after Clear().
 		private int _sendGeneration;
-		private long _sendWindowStartTimestamp;
-		private int _requestsSentInWindow;
 
 		internal SnipeRequestDispatcher(SnipeRequestDispatcherOptions options)
 		{
@@ -179,8 +74,7 @@ namespace MiniIT.Snipe
 			_analytics = options.Analytics ?? throw new ArgumentNullException(nameof(options.Analytics));
 			_sentRequestTracker = new SnipeSentRequestTracker(_analytics);
 			_logger = options.Logger ?? EmptyLogger.Instance;
-			_getTimestamp = options.GetTimestamp ?? Stopwatch.GetTimestamp;
-			_timestampFrequency = options.TimestampFrequency > 0 ? options.TimestampFrequency : Stopwatch.Frequency;
+			_rateWindow = new SnipeRequestRateWindow(options.GetTimestamp ?? Stopwatch.GetTimestamp, options.TimestampFrequency > 0 ? options.TimestampFrequency : Stopwatch.Frequency);
 			_delay = options.Delay ?? DefaultDelay;
 			_getRequestsPerSecondLimit = options.GetRequestsPerSecondLimit ?? GetDefaultRequestsPerSecondLimit;
 			_getJitterDelayMs = options.GetJitterDelayMs ?? GetRandomJitterDelayMs;
@@ -217,7 +111,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			Send(PendingSend.CreateBatch(messages), sendGeneration);
+			Send(SnipePendingSend.CreateBatch(messages), sendGeneration);
 		}
 
 		public bool TryHandleRateLimit(int requestId)
@@ -267,7 +161,7 @@ namespace MiniIT.Snipe
 			return DropAll(null);
 		}
 
-		private List<IDictionary<string, object>> DropAll(PendingSend extraPendingSend)
+		private List<IDictionary<string, object>> DropAll(SnipePendingSend extraPendingSend)
 		{
 			lock (_sendGate)
 			{
@@ -283,7 +177,7 @@ namespace MiniIT.Snipe
 			DropAll();
 		}
 
-		private void Send(PendingSend pendingSend, int sendGeneration)
+		private void Send(SnipePendingSend pendingSend, int sendGeneration)
 		{
 			bool sendNow = false;
 			bool startDrain = false;
@@ -301,9 +195,9 @@ namespace MiniIT.Snipe
 					return;
 				}
 
-				int availableRequestSlots = GetAvailableRequestSlots(requestsPerSecondLimit, out _);
+				int availableRequestSlots = _rateWindow.GetAvailableSlots(requestsPerSecondLimit, out _);
 				int requestCount = pendingSend.RequestCount;
-				bool queueWasEmpty = _pendingSends.Count == 0;
+				bool queueWasEmpty = _pendingQueue.IsEmpty;
 				bool limitReached = requestCount > availableRequestSlots;
 
 				if (queueWasEmpty && !_queuedSendInProgress && !limitReached)
@@ -316,16 +210,13 @@ namespace MiniIT.Snipe
 				{
 					logRateLimitReached = limitReached;
 					logQueueingStarted = queueWasEmpty && limitReached;
-					pendingRequestCount = _pendingRequestCount + requestCount;
 
-					if (pendingRequestCount > SnipeClient.MAX_PENDING_REQUESTS_COUNT)
+					if (!_pendingQueue.TryEnqueue(pendingSend, SnipeClient.MAX_PENDING_REQUESTS_COUNT, out pendingRequestCount, out queuedSendCount))
 					{
 						pendingQueueOverflow = true;
 					}
 					else
 					{
-						EnqueuePendingSend(pendingSend, requestCount);
-						queuedSendCount = _pendingSends.Count;
 						startDrain = true;
 					}
 				}
@@ -367,7 +258,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			Send(PendingSend.CreateMessage(message, autoBatchAllowed), sendGeneration);
+			Send(SnipePendingSend.CreateMessage(message, autoBatchAllowed), sendGeneration);
 		}
 
 		private void StartDrainQueuedRequests()
@@ -397,7 +288,7 @@ namespace MiniIT.Snipe
 			{
 				while (!cancellation.IsCancellationRequested)
 				{
-					PendingSend pendingSend = null;
+					SnipePendingSend pendingSend = null;
 					int delayMs;
 					bool queuedSendInProgress = false;
 
@@ -408,18 +299,18 @@ namespace MiniIT.Snipe
 							return;
 						}
 
-						if (_pendingSends.Count == 0)
+						if (_pendingQueue.IsEmpty)
 						{
 							return;
 						}
 
 						int requestsPerSecondLimit = GetRequestsPerSecondLimit();
-						int availableRequestSlots = GetAvailableRequestSlots(requestsPerSecondLimit, out delayMs);
+						int availableRequestSlots = _rateWindow.GetAvailableSlots(requestsPerSecondLimit, out delayMs);
 
 						if (availableRequestSlots > 0)
 						{
 							// Dequeue may split a batch or auto-batch small requests, but preserves queue order.
-							pendingSend = DequeuePendingSend(availableRequestSlots);
+							pendingSend = _pendingQueue.Dequeue(availableRequestSlots);
 
 							if (pendingSend != null)
 							{
@@ -468,7 +359,7 @@ namespace MiniIT.Snipe
 					{
 						_drainStarted = false;
 
-						if (!cancellation.IsCancellationRequested && _pendingSends.Count > 0)
+						if (!cancellation.IsCancellationRequested && !_pendingQueue.IsEmpty)
 						{
 							startDrain = true;
 						}
@@ -502,61 +393,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private PendingSend DequeuePendingSend(int maxRequestCount)
-		{
-			var pendingSend = _pendingSends.Peek();
-
-			if (pendingSend.RequestCount > maxRequestCount)
-			{
-				if (pendingSend.IsBatch)
-				{
-					var splitBatch = pendingSend.SplitBatch(maxRequestCount);
-					RemovePendingRequests(maxRequestCount);
-					return splitBatch;
-				}
-
-				return null;
-			}
-
-			_pendingSends.Dequeue();
-			RemovePendingRequests(pendingSend.RequestCount);
-
-			if (!pendingSend.CanJoinAutoBatch)
-			{
-				return pendingSend;
-			}
-
-			List<IDictionary<string, object>> batch = null;
-
-			int batchLimit = Math.Min(SnipeClient.MAX_BATCH_SIZE, maxRequestCount);
-
-			while (_pendingSends.Count > 0 && (batch?.Count ?? 1) < batchLimit)
-			{
-				var nextSend = _pendingSends.Peek();
-
-				if (!nextSend.CanJoinAutoBatch)
-				{
-					break;
-				}
-
-				_pendingSends.Dequeue();
-				RemovePendingRequests(nextSend.RequestCount);
-				batch ??= new List<IDictionary<string, object>>(SnipeClient.MAX_BATCH_SIZE)
-				{
-					pendingSend.Message,
-				};
-				batch.Add(nextSend.Message);
-			}
-
-			if (batch == null)
-			{
-				return pendingSend;
-			}
-
-			return PendingSend.CreateBatch(batch);
-		}
-
-		private void SendNow(PendingSend pendingSend, int sendGeneration)
+		private void SendNow(SnipePendingSend pendingSend, int sendGeneration)
 		{
 			bool sent = false;
 			bool staleSend = false;
@@ -580,7 +417,7 @@ namespace MiniIT.Snipe
 							{
 								if (IsCurrentSendGeneration(sendGeneration))
 								{
-									pendingSend.TrackSent(this);
+									TrackSent(pendingSend);
 								}
 								else
 								{
@@ -605,7 +442,37 @@ namespace MiniIT.Snipe
 
 			if (!staleSend && !sent && ReleaseFailedSend(pendingSend, sendGeneration))
 			{
-				pendingSend.HandleSendFailure(this);
+				HandleSendFailure(pendingSend);
+			}
+		}
+
+		private void TrackSent(SnipePendingSend pendingSend)
+		{
+			if (pendingSend.IsBatch)
+			{
+				for (int i = 0; i < pendingSend.Batch.Count; i++)
+				{
+					TrackSentRequest(pendingSend.Batch[i]);
+				}
+			}
+			else
+			{
+				TrackSentRequest(pendingSend.Message);
+			}
+		}
+
+		private void HandleSendFailure(SnipePendingSend pendingSend)
+		{
+			if (pendingSend.IsBatch)
+			{
+				for (int i = 0; i < pendingSend.Batch.Count; i++)
+				{
+					HandleSendFailure(pendingSend.Batch[i]);
+				}
+			}
+			else
+			{
+				HandleSendFailure(pendingSend.Message);
 			}
 		}
 
@@ -630,36 +497,13 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private int GetAvailableRequestSlots(int requestsPerSecondLimit, out int delayMs)
+		private void ReserveSend(SnipePendingSend pendingSend)
 		{
-			long now = _getTimestamp();
-
-			if (_sendWindowStartTimestamp == 0)
-			{
-				_sendWindowStartTimestamp = now;
-				_requestsSentInWindow = 0;
-			}
-
-			double elapsedMs = (now - _sendWindowStartTimestamp) * 1000d / _timestampFrequency;
-
-			if (elapsedMs >= RATE_LIMIT_INTERVAL_MS)
-			{
-				_sendWindowStartTimestamp = now;
-				_requestsSentInWindow = 0;
-				elapsedMs = 0;
-			}
-
-			delayMs = Math.Max(1, RATE_LIMIT_INTERVAL_MS - (int)elapsedMs);
-			return Math.Max(0, requestsPerSecondLimit - _requestsSentInWindow);
-		}
-
-		private void ReserveSend(PendingSend pendingSend)
-		{
-			_requestsSentInWindow += Math.Max(1, pendingSend.RequestCount);
+			_rateWindow.Reserve(pendingSend.RequestCount);
 			_reservedSends.Add(pendingSend);
 		}
 
-		private void ReleaseReservedSend(PendingSend pendingSend, int sendGeneration)
+		private void ReleaseReservedSend(SnipePendingSend pendingSend, int sendGeneration)
 		{
 			lock (_lock)
 			{
@@ -670,7 +514,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private bool ReleaseFailedSend(PendingSend pendingSend, int sendGeneration)
+		private bool ReleaseFailedSend(SnipePendingSend pendingSend, int sendGeneration)
 		{
 			lock (_lock)
 			{
@@ -679,7 +523,7 @@ namespace MiniIT.Snipe
 					return false;
 				}
 
-				_requestsSentInWindow = Math.Max(0, _requestsSentInWindow - Math.Max(1, pendingSend.RequestCount));
+				_rateWindow.Release(pendingSend.RequestCount);
 				_reservedSends.Remove(pendingSend);
 				return true;
 			}
@@ -768,11 +612,6 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private static bool CanAutoBatch(IDictionary<string, object> message)
-		{
-			return message != null && SnipeRequestMessageSizeEsimator.EstimateSizeSmall(message);
-		}
-
 		private int AddThrottleJitter(int delayMs)
 		{
 			return Math.Max(1, delayMs + _getJitterDelayMs(delayMs));
@@ -810,39 +649,27 @@ namespace MiniIT.Snipe
 					chunk.Add(messages[index++]);
 				}
 
-				Send(PendingSend.CreateBatch(chunk), sendGeneration);
+				Send(SnipePendingSend.CreateBatch(chunk), sendGeneration);
 			}
 		}
 
-		private void EnqueuePendingSend(PendingSend pendingSend, int requestCount)
-		{
-			_pendingSends.Enqueue(pendingSend);
-			_pendingRequestCount += requestCount;
-		}
-
-		private void RemovePendingRequests(int requestCount)
-		{
-			_pendingRequestCount = Math.Max(0, _pendingRequestCount - requestCount);
-		}
-
-		private List<IDictionary<string, object>> DropAllLocked(PendingSend extraPendingSend)
+		private List<IDictionary<string, object>> DropAllLocked(SnipePendingSend extraPendingSend)
 		{
 			var droppedRequests = CollectDroppedRequests(extraPendingSend);
 
 			_sendGeneration++;
 			CancellationTokenHelper.CancelAndDispose(ref _cancellation);
-			_pendingRequestCount = 0;
+			_pendingQueue.Clear();
 			_sentRequestTracker.Clear();
 			_reservedSends.Clear();
 			_drainStarted = false;
 			_queuedSendInProgress = false;
-			_sendWindowStartTimestamp = 0;
-			_requestsSentInWindow = 0;
+			_rateWindow.Clear();
 
 			return droppedRequests;
 		}
 
-		private List<IDictionary<string, object>> CollectDroppedRequests(PendingSend extraPendingSend)
+		private List<IDictionary<string, object>> CollectDroppedRequests(SnipePendingSend extraPendingSend)
 		{
 			List<IDictionary<string, object>> droppedRequests = null;
 
@@ -855,15 +682,12 @@ namespace MiniIT.Snipe
 
 			_sentRequestTracker.AddDroppedRequests(ref droppedRequests);
 
-			while (_pendingSends.Count > 0)
-			{
-				AddDroppedRequests(ref droppedRequests, _pendingSends.Dequeue());
-			}
+			_pendingQueue.AddDroppedRequests(ref droppedRequests);
 
 			return droppedRequests;
 		}
 
-		private static void AddDroppedRequests(ref List<IDictionary<string, object>> droppedRequests, PendingSend pendingSend)
+		private static void AddDroppedRequests(ref List<IDictionary<string, object>> droppedRequests, SnipePendingSend pendingSend)
 		{
 			if (pendingSend == null)
 			{
@@ -871,29 +695,6 @@ namespace MiniIT.Snipe
 			}
 
 			pendingSend.AddDroppedRequests(ref droppedRequests);
-		}
-
-		private static void AddDroppedRequest(ref List<IDictionary<string, object>> droppedRequests, IDictionary<string, object> message)
-		{
-			if (message == null)
-			{
-				return;
-			}
-
-			int requestId = message.SafeGetValue<int>("id");
-			if (requestId != 0 && droppedRequests != null)
-			{
-				for (int i = 0; i < droppedRequests.Count; i++)
-				{
-					if (droppedRequests[i].SafeGetValue<int>("id") == requestId)
-					{
-						return;
-					}
-				}
-			}
-
-			droppedRequests ??= new List<IDictionary<string, object>>();
-			droppedRequests.Add(message);
 		}
 
 		private void HandlePendingQueueOverflow(int pendingRequestCount, List<IDictionary<string, object>> droppedRequests)
