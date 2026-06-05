@@ -702,6 +702,9 @@ namespace MiniIT.Snipe
 				}
 				else
 				{
+					// Some wrappers invoke Ping callback synchronously; close after leaving _lock.
+					bool disconnectDetected = false;
+
 					lock (_lock)
 					{
 						pinging = true;
@@ -717,9 +720,14 @@ namespace MiniIT.Snipe
 							else
 							{
 								_logger.LogTrace("CheckConnectionTask - pong NOT received");
-								OnDisconnectDetected();
+								disconnectDetected = true;
 							}
 						});
+					}
+
+					if (disconnectDetected)
+					{
+						OnDisconnectDetected();
 					}
 				}
 			}
