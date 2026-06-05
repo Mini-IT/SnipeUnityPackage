@@ -53,6 +53,7 @@ namespace MiniIT.Snipe
 			public IList<IDictionary<string, object>> Batch;
 		}
 
+		// One queue preserves request order when dispatcher mixes single sends and batches.
 		private ConcurrentQueue<QueuedSend> _sendQueue;
 
 		private readonly AlterSemaphore _sendSignal = new AlterSemaphore(0, int.MaxValue);
@@ -416,9 +417,9 @@ namespace MiniIT.Snipe
 				}
 
 				CancellationTokenHelper.Dispose(ref _sendLoopCancellation, false);
+				// Keep queue detach under the same lock as EnqueueSend to avoid losing a concurrent send.
+				_sendQueue = null;
 			}
-
-			_sendQueue = null;
 		}
 
 		private async UniTaskVoid SendLoop(CancellationToken cancellation)

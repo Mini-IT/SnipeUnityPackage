@@ -143,6 +143,7 @@ namespace MiniIT.Snipe
 
 		private int GetRequestsPerSecondLimit()
 		{
+			// Login and handshake requests use a smaller fixed limit until server auth succeeds.
 			return LoggedIn ? _options.RequestsPerSecondLimit : UNAUTHORIZED_REQUESTS_PER_SECOND_LIMIT;
 		}
 
@@ -296,6 +297,7 @@ namespace MiniIT.Snipe
 				_logger.LogDebug("[{0}] ProcessMessage - {1} - {2} {3} {4}", ConnectionId, requestID, messageType, errorCode, dataJson);
 			}
 
+			// Retryable rate-limit responses are internal; final success/error is still delivered normally.
 			bool retryRateLimitedRequest = errorCode == SnipeErrorCodes.RATE_LIMIT &&
 				requestID > 0 &&
 				_dispatcher.TryHandleRateLimit(requestID);

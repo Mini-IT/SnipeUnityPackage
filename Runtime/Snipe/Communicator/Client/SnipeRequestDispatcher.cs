@@ -170,6 +170,7 @@ namespace MiniIT.Snipe
 
 				if (!_rateLimitRetryCooldownActive)
 				{
+					// All requests hit by one throttling wave share one backoff step.
 					_rateLimitRetryCooldownActive = true;
 					_rateLimitRetryCooldownId++;
 				}
@@ -252,6 +253,7 @@ namespace MiniIT.Snipe
 
 				if (queueWasEmpty && !_queuedSendInProgress && !limitReached)
 				{
+					// Reserve before leaving the lock so concurrent callers cannot overshoot the window.
 					ReserveRequestSlots(requestCount);
 					sendNow = true;
 				}
@@ -351,6 +353,7 @@ namespace MiniIT.Snipe
 
 						if (availableRequestSlots > 0)
 						{
+							// Dequeue may split a batch or auto-batch small requests, but preserves queue order.
 							pendingSend = DequeuePendingSend(availableRequestSlots);
 
 							if (pendingSend != null)
@@ -521,6 +524,7 @@ namespace MiniIT.Snipe
 			{
 				lock (_sendGate)
 				{
+					// Clear waits on this gate, so a request cannot be tracked after its session was reset.
 					if (!IsCurrentSendGeneration(sendGeneration))
 					{
 						staleSend = true;
@@ -700,6 +704,7 @@ namespace MiniIT.Snipe
 			{
 				if (_sentRequests.TryGetValue(requestId, out var request))
 				{
+					// A retry reuses the same id; refresh the message snapshot for the next 429.
 					request.RetryScheduled = false;
 					request.Message = message;
 					RefreshSentRequest(request);
@@ -729,6 +734,7 @@ namespace MiniIT.Snipe
 		{
 			while (_sentRequests.Count > MAX_SENT_REQUESTS_COUNT)
 			{
+				// Never evict scheduled retries; losing them would surface avoidable rate-limit errors.
 				var node = GetEvictableSentRequestNode();
 
 				if (node == null)
@@ -802,6 +808,7 @@ namespace MiniIT.Snipe
 				if (sendGeneration == _sendGeneration && _rateLimitRetryCooldownActive && _rateLimitRetryCooldownId == cooldownId)
 				{
 					_rateLimitRetryCooldownActive = false;
+					// Increase once per cooldown wave, not once per request in that wave.
 					_rateLimitRetryDelayMs = Math.Min(_rateLimitRetryDelayMs * 2, SnipeClient.MAX_RATE_LIMIT_RETRY_DELAY_MS);
 				}
 			}
@@ -832,6 +839,7 @@ namespace MiniIT.Snipe
 				    !_sentRequests.TryGetValue(request.RequestId, out var current) ||
 				    !object.ReferenceEquals(current, request))
 				{
+					// Response, eviction, or reconnect already replaced this retry target.
 					return;
 				}
 			}

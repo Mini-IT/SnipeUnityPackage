@@ -379,6 +379,7 @@ namespace MiniIT.Snipe
 				data.TryGetValue("list", out object listObj) &&
 				listObj is IList messages)
 			{
+				// HTTP returns one 429 for the whole batch; dispatcher needs per-request ids to retry.
 				foreach (var item in messages)
 				{
 					if (item is IDictionary<string, object> message)

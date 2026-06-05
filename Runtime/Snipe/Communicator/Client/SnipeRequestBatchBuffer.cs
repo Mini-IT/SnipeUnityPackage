@@ -84,6 +84,7 @@ namespace MiniIT.Snipe
 		{
 			lock (_lock)
 			{
+				// Connection reset must not leave old request ids waiting for the next session.
 				_requests?.Clear();
 			}
 		}
