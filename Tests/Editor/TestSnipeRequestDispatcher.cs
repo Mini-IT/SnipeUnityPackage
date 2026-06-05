@@ -197,7 +197,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			yield return fixture.WaitForDelayCall();
 
-			Assert.AreEqual(SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS, fixture.DelayCalls[0]);
+			Assert.AreEqual(963, fixture.DelayCalls[0]);
 
 			fixture.Dispatcher.Clear();
 		}

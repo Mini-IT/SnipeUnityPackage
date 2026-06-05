@@ -379,7 +379,7 @@ namespace MiniIT.Snipe
 
 					if (pendingSend == null)
 					{
-						await _delay(AddJitter(delayMs), cancellation);
+						await _delay(AddThrottleJitter(delayMs), cancellation);
 						continue;
 					}
 
@@ -833,7 +833,7 @@ namespace MiniIT.Snipe
 		{
 			try
 			{
-				await _delay(AddJitter(delayMs), cancellation);
+				await _delay(AddRateLimiterJitter(delayMs), cancellation);
 			}
 			catch (OperationCanceledException)
 			{
@@ -880,14 +880,14 @@ namespace MiniIT.Snipe
 			return message != null && SnipeRequestMessageSizeEsimator.EstimateSizeSmall(message);
 		}
 
-		private int AddJitter(int delayMs)
+		private int AddThrottleJitter(int delayMs)
 		{
-			return Math.Max(SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS, delayMs + _getJitterDelayMs(delayMs));
+			return Math.Max(1, delayMs + _getJitterDelayMs(delayMs));
 		}
 
-		private static int NoJitterDelay(int delayMs)
+		private int AddRateLimiterJitter(int delayMs)
 		{
-			return 0;
+			return Math.Max(SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS, delayMs + _getJitterDelayMs(delayMs));
 		}
 
 		private static int GetRandomJitterDelayMs(int delayMs)
