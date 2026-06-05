@@ -204,6 +204,7 @@ namespace MiniIT.Snipe
 		{
 			byte[] data = await SerializeMessage(message);
 
+			// lock - so disconnect cannot dispose socket mid-send
 			lock (_lock)
 			{
 				_webSocket?.SendRequest(data);
@@ -238,7 +239,11 @@ namespace MiniIT.Snipe
 				offset += length;
 			}
 
-			_webSocket?.SendRequest(request);
+			// lock - so disconnect cannot dispose socket mid-send
+			lock (_lock)
+			{
+				_webSocket?.SendRequest(request);
+			}
 
 			if (_sendQueue != null && _sendQueue.IsEmpty && ShouldStartCheckConnection(messages))
 			{

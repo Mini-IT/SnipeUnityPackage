@@ -59,6 +59,8 @@ namespace MiniIT.Snipe
 		}
 
 		private readonly object _lock = new object();
+		// Clear and SendNow share this gate; generation handles reentrant clears.
+		private readonly object _sendGate = new object();
 		private readonly Queue<PendingSend> _pendingSends = new Queue<PendingSend>();
 		private readonly Dictionary<int, SentRequest> _sentRequests = new Dictionary<int, SentRequest>();
 		private readonly LinkedList<int> _sentRequestIds = new LinkedList<int>();
@@ -75,6 +77,10 @@ namespace MiniIT.Snipe
 
 		private CancellationTokenSource _cancellation;
 		private bool _drainStarted;
+		// Keeps newer requests behind a queued item already dequeued by the drain task.
+		private bool _queuedSendInProgress;
+		// Invalidates delayed drain/retry continuations after Clear().
+		private int _sendGeneration;
 		private long _sendWindowStartTimestamp;
 		private int _requestsSentInWindow;
 		private int _rateLimitRetryDelayMs = SnipeClient.RATE_LIMIT_RETRY_DELAY_MS;
@@ -108,18 +114,7 @@ namespace MiniIT.Snipe
 
 		public void Send(IDictionary<string, object> message, bool autoBatchAllowed)
 		{
-			if (message == null)
-			{
-				return;
-			}
-
-			var pendingSend = new PendingSend()
-			{
-				Message = message,
-				AutoBatchAllowed = autoBatchAllowed,
-			};
-
-			Send(pendingSend);
+			Send(message, autoBatchAllowed, GetSendGeneration());
 		}
 
 		public void SendBatch(List<IDictionary<string, object>> messages)
@@ -129,11 +124,12 @@ namespace MiniIT.Snipe
 				return;
 			}
 
+			int sendGeneration = GetSendGeneration();
 			int maxBatchSize = Math.Min(SnipeClient.MAX_BATCH_SIZE, GetRequestsPerSecondLimit());
 
 			if (messages.Count > maxBatchSize)
 			{
-				SendBatchChunks(messages, maxBatchSize);
+				SendBatchChunks(messages, maxBatchSize, sendGeneration);
 				return;
 			}
 
@@ -142,7 +138,7 @@ namespace MiniIT.Snipe
 				Batch = messages,
 			};
 
-			Send(pendingSend);
+			Send(pendingSend, sendGeneration);
 		}
 
 		public bool TryHandleRateLimit(int requestId)
@@ -150,6 +146,7 @@ namespace MiniIT.Snipe
 			SentRequest request;
 			int delayMs;
 			int cooldownId;
+			int sendGeneration;
 			CancellationToken cancellation;
 
 			lock (_lock)
@@ -179,11 +176,12 @@ namespace MiniIT.Snipe
 
 				delayMs = _rateLimitRetryDelayMs;
 				cooldownId = _rateLimitRetryCooldownId;
+				sendGeneration = _sendGeneration;
 				_cancellation ??= new CancellationTokenSource();
 				cancellation = _cancellation.Token;
 			}
 
-			RetryRateLimitedRequest(request, delayMs, cooldownId, cancellation).Forget();
+			RetryRateLimitedRequest(request, delayMs, cooldownId, sendGeneration, cancellation).Forget();
 			return true;
 		}
 
@@ -207,17 +205,22 @@ namespace MiniIT.Snipe
 
 		public void Clear()
 		{
-			lock (_lock)
+			lock (_sendGate)
 			{
-				CancellationTokenHelper.CancelAndDispose(ref _cancellation);
-				_pendingSends.Clear();
-				_sentRequests.Clear();
-				_sentRequestIds.Clear();
-				_drainStarted = false;
-				_sendWindowStartTimestamp = 0;
-				_requestsSentInWindow = 0;
-				_rateLimitedRequestCount = 0;
-				ResetRateLimitRetryDelay();
+				lock (_lock)
+				{
+					_sendGeneration++;
+					CancellationTokenHelper.CancelAndDispose(ref _cancellation);
+					_pendingSends.Clear();
+					_sentRequests.Clear();
+					_sentRequestIds.Clear();
+					_drainStarted = false;
+					_queuedSendInProgress = false;
+					_sendWindowStartTimestamp = 0;
+					_requestsSentInWindow = 0;
+					_rateLimitedRequestCount = 0;
+					ResetRateLimitRetryDelay();
+				}
 			}
 		}
 
@@ -226,7 +229,7 @@ namespace MiniIT.Snipe
 			Clear();
 		}
 
-		private void Send(PendingSend pendingSend)
+		private void Send(PendingSend pendingSend, int sendGeneration)
 		{
 			bool sendNow = false;
 			bool startDrain = false;
@@ -237,18 +240,25 @@ namespace MiniIT.Snipe
 
 			lock (_lock)
 			{
+				if (sendGeneration != _sendGeneration)
+				{
+					return;
+				}
+
 				int availableRequestSlots = GetAvailableRequestSlots(requestsPerSecondLimit, out _);
 				int requestCount = GetRequestCount(pendingSend);
+				bool queueWasEmpty = _pendingSends.Count == 0;
+				bool limitReached = requestCount > availableRequestSlots;
 
-				if (_pendingSends.Count == 0 && requestCount <= availableRequestSlots)
+				if (queueWasEmpty && !_queuedSendInProgress && !limitReached)
 				{
 					ReserveRequestSlots(requestCount);
 					sendNow = true;
 				}
 				else
 				{
-					logRateLimitReached = requestCount > availableRequestSlots;
-					logQueueingStarted = _pendingSends.Count == 0;
+					logRateLimitReached = limitReached;
+					logQueueingStarted = queueWasEmpty && limitReached;
 					_pendingSends.Enqueue(pendingSend);
 					queuedSendCount = _pendingSends.Count;
 					startDrain = true;
@@ -273,13 +283,30 @@ namespace MiniIT.Snipe
 
 			if (sendNow)
 			{
-				SendNow(pendingSend);
+				SendNow(pendingSend, sendGeneration);
 			}
+		}
+
+		private void Send(IDictionary<string, object> message, bool autoBatchAllowed, int sendGeneration)
+		{
+			if (message == null)
+			{
+				return;
+			}
+
+			var pendingSend = new PendingSend()
+			{
+				Message = message,
+				AutoBatchAllowed = autoBatchAllowed,
+			};
+
+			Send(pendingSend, sendGeneration);
 		}
 
 		private void StartDrainQueuedRequests()
 		{
 			CancellationToken cancellation;
+			int sendGeneration;
 
 			lock (_lock)
 			{
@@ -291,12 +318,13 @@ namespace MiniIT.Snipe
 				_drainStarted = true;
 				_cancellation ??= new CancellationTokenSource();
 				cancellation = _cancellation.Token;
+				sendGeneration = _sendGeneration;
 			}
 
-			DrainQueuedRequests(cancellation).Forget();
+			DrainQueuedRequests(sendGeneration, cancellation).Forget();
 		}
 
-		private async UniTask DrainQueuedRequests(CancellationToken cancellation)
+		private async UniTask DrainQueuedRequests(int sendGeneration, CancellationToken cancellation)
 		{
 			try
 			{
@@ -304,9 +332,15 @@ namespace MiniIT.Snipe
 				{
 					PendingSend pendingSend = null;
 					int delayMs;
+					bool queuedSendInProgress = false;
 
 					lock (_lock)
 					{
+						if (sendGeneration != _sendGeneration)
+						{
+							return;
+						}
+
 						if (_pendingSends.Count == 0)
 						{
 							return;
@@ -322,6 +356,8 @@ namespace MiniIT.Snipe
 							if (pendingSend != null)
 							{
 								ReserveRequestSlots(GetRequestCount(pendingSend));
+								_queuedSendInProgress = true;
+								queuedSendInProgress = true;
 							}
 						}
 					}
@@ -332,7 +368,17 @@ namespace MiniIT.Snipe
 						continue;
 					}
 
-					SendNow(pendingSend);
+					try
+					{
+						SendNow(pendingSend, sendGeneration);
+					}
+					finally
+					{
+						if (queuedSendInProgress)
+						{
+							FinishQueuedSend(sendGeneration);
+						}
+					}
 				}
 			}
 			catch (OperationCanceledException)
@@ -350,15 +396,18 @@ namespace MiniIT.Snipe
 
 				lock (_lock)
 				{
-					_drainStarted = false;
+					if (sendGeneration == _sendGeneration)
+					{
+						_drainStarted = false;
 
-					if (!cancellation.IsCancellationRequested && _pendingSends.Count > 0)
-					{
-						startDrain = true;
-					}
-					else if (!cancellation.IsCancellationRequested)
-					{
-						logQueueingEnded = true;
+						if (!cancellation.IsCancellationRequested && _pendingSends.Count > 0)
+						{
+							startDrain = true;
+						}
+						else if (!cancellation.IsCancellationRequested)
+						{
+							logQueueingEnded = true;
+						}
 					}
 				}
 
@@ -370,6 +419,17 @@ namespace MiniIT.Snipe
 				if (startDrain)
 				{
 					StartDrainQueuedRequests();
+				}
+			}
+		}
+
+		private void FinishQueuedSend(int sendGeneration)
+		{
+			lock (_lock)
+			{
+				if (sendGeneration == _sendGeneration)
+				{
+					_queuedSendInProgress = false;
 				}
 			}
 		}
@@ -452,28 +512,50 @@ namespace MiniIT.Snipe
 			};
 		}
 
-		private void SendNow(PendingSend pendingSend)
+		private void SendNow(PendingSend pendingSend, int sendGeneration)
 		{
 			bool sent = false;
+			bool staleSend = false;
 
 			try
 			{
-				if (pendingSend.Batch != null)
+				lock (_sendGate)
 				{
-					sent = _sendBatch(pendingSend.Batch);
-
-					if (sent)
+					if (!IsCurrentSendGeneration(sendGeneration))
 					{
-						TrackSentRequests(pendingSend.Batch);
+						staleSend = true;
 					}
-				}
-				else
-				{
-					sent = _sendRequest(pendingSend.Message);
-
-					if (sent)
+					else if (pendingSend.Batch != null)
 					{
-						TrackSentRequest(pendingSend.Message);
+						sent = _sendBatch(pendingSend.Batch);
+
+						if (sent)
+						{
+							if (IsCurrentSendGeneration(sendGeneration))
+							{
+								TrackSentRequests(pendingSend.Batch);
+							}
+							else
+							{
+								staleSend = true;
+							}
+						}
+					}
+					else
+					{
+						sent = _sendRequest(pendingSend.Message);
+
+						if (sent)
+						{
+							if (IsCurrentSendGeneration(sendGeneration))
+							{
+								TrackSentRequest(pendingSend.Message);
+							}
+							else
+							{
+								staleSend = true;
+							}
+						}
 					}
 				}
 			}
@@ -482,9 +564,8 @@ namespace MiniIT.Snipe
 				_logger.LogError(e, "Send request failed");
 			}
 
-			if (!sent)
+			if (!staleSend && !sent && ReleaseRequestSlots(GetRequestCount(pendingSend), sendGeneration))
 			{
-				ReleaseRequestSlots(GetRequestCount(pendingSend));
 				HandleSendFailure(pendingSend);
 			}
 		}
@@ -557,11 +638,17 @@ namespace MiniIT.Snipe
 			_requestsSentInWindow += Math.Max(1, requestCount);
 		}
 
-		private void ReleaseRequestSlots(int requestCount)
+		private bool ReleaseRequestSlots(int requestCount, int sendGeneration)
 		{
 			lock (_lock)
 			{
+				if (sendGeneration != _sendGeneration)
+				{
+					return false;
+				}
+
 				_requestsSentInWindow = Math.Max(0, _requestsSentInWindow - Math.Max(1, requestCount));
+				return true;
 			}
 		}
 
@@ -569,6 +656,22 @@ namespace MiniIT.Snipe
 		{
 			int requestsPerSecondLimit = _getRequestsPerSecondLimit();
 			return requestsPerSecondLimit > 0 ? requestsPerSecondLimit : SnipeOptions.DEFAULT_REQUESTS_PER_SECOND_LIMIT;
+		}
+
+		private int GetSendGeneration()
+		{
+			lock (_lock)
+			{
+				return _sendGeneration;
+			}
+		}
+
+		private bool IsCurrentSendGeneration(int sendGeneration)
+		{
+			lock (_lock)
+			{
+				return sendGeneration == _sendGeneration;
+			}
 		}
 
 		private void TrackSentRequests(List<IDictionary<string, object>> messages)
@@ -692,11 +795,11 @@ namespace MiniIT.Snipe
 			_rateLimitRetryCooldownActive = false;
 		}
 
-		private void ReleaseRateLimitRetryCooldown(int cooldownId)
+		private void ReleaseRateLimitRetryCooldown(int cooldownId, int sendGeneration)
 		{
 			lock (_lock)
 			{
-				if (_rateLimitRetryCooldownActive && _rateLimitRetryCooldownId == cooldownId)
+				if (sendGeneration == _sendGeneration && _rateLimitRetryCooldownActive && _rateLimitRetryCooldownId == cooldownId)
 				{
 					_rateLimitRetryCooldownActive = false;
 					_rateLimitRetryDelayMs = Math.Min(_rateLimitRetryDelayMs * 2, SnipeClient.MAX_RATE_LIMIT_RETRY_DELAY_MS);
@@ -704,7 +807,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async UniTask RetryRateLimitedRequest(SentRequest request, int delayMs, int cooldownId, CancellationToken cancellation)
+		private async UniTask RetryRateLimitedRequest(SentRequest request, int delayMs, int cooldownId, int sendGeneration, CancellationToken cancellation)
 		{
 			try
 			{
@@ -715,30 +818,34 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			ReleaseRateLimitRetryCooldown(cooldownId);
+			ReleaseRateLimitRetryCooldown(cooldownId, sendGeneration);
 
 			if (cancellation.IsCancellationRequested || !_connected())
 			{
-				ClearRetryScheduled(request);
+				ClearRetryScheduled(request, sendGeneration);
 				return;
 			}
 
 			lock (_lock)
 			{
-				if (!_sentRequests.TryGetValue(request.RequestId, out var current) || !object.ReferenceEquals(current, request))
+				if (sendGeneration != _sendGeneration ||
+				    !_sentRequests.TryGetValue(request.RequestId, out var current) ||
+				    !object.ReferenceEquals(current, request))
 				{
 					return;
 				}
 			}
 
-			Send(request.Message, false);
+			Send(request.Message, false, sendGeneration);
 		}
 
-		private void ClearRetryScheduled(SentRequest request)
+		private void ClearRetryScheduled(SentRequest request, int sendGeneration)
 		{
 			lock (_lock)
 			{
-				if (_sentRequests.TryGetValue(request.RequestId, out var current) && object.ReferenceEquals(current, request))
+				if (sendGeneration == _sendGeneration &&
+				    _sentRequests.TryGetValue(request.RequestId, out var current) &&
+				    object.ReferenceEquals(current, request))
 				{
 					request.RetryScheduled = false;
 				}
@@ -780,7 +887,7 @@ namespace MiniIT.Snipe
 			return pendingSend.Batch?.Count ?? 1;
 		}
 
-		private void SendBatchChunks(List<IDictionary<string, object>> messages, int maxBatchSize)
+		private void SendBatchChunks(List<IDictionary<string, object>> messages, int maxBatchSize, int sendGeneration)
 		{
 			for (int index = 0; index < messages.Count;)
 			{
@@ -792,7 +899,12 @@ namespace MiniIT.Snipe
 					chunk.Add(messages[index++]);
 				}
 
-				SendBatch(chunk);
+				var pendingSend = new PendingSend()
+				{
+					Batch = chunk,
+				};
+
+				Send(pendingSend, sendGeneration);
 			}
 		}
 	}

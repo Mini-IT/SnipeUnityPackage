@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 
 namespace MiniIT.Snipe
@@ -6,44 +5,79 @@ namespace MiniIT.Snipe
 	internal sealed class SnipeRequestBatchBuffer
 	{
 		private readonly object _lock = new object();
-		private ConcurrentQueue<IDictionary<string, object>> _requests;
+		private Queue<IDictionary<string, object>> _requests;
 
-		public bool Enabled => _requests != null;
-		public bool IsEmpty => _requests == null || _requests.IsEmpty;
+		public bool Enabled
+		{
+			get
+			{
+				lock (_lock)
+				{
+					return _requests != null;
+				}
+			}
+		}
+
+		public bool IsEmpty
+		{
+			get
+			{
+				lock (_lock)
+				{
+					return _requests == null || _requests.Count == 0;
+				}
+			}
+		}
 
 		public List<IDictionary<string, object>> SetEnabled(bool value)
 		{
-			if (value == Enabled)
+			lock (_lock)
 			{
-				return null;
-			}
+				if (value == (_requests != null))
+				{
+					return null;
+				}
 
-			if (value)
-			{
-				_requests ??= new ConcurrentQueue<IDictionary<string, object>>();
-				return null;
-			}
+				if (value)
+				{
+					_requests ??= new Queue<IDictionary<string, object>>();
+					return null;
+				}
 
-			var messages = Flush();
-			_requests = null;
-			return messages;
+				// Disable and flush under one lock so a concurrent Add cannot enqueue into an orphaned buffer.
+				var messages = FlushLocked();
+				_requests = null;
+				return messages;
+			}
 		}
 
 		public List<IDictionary<string, object>> Add(IDictionary<string, object> message)
 		{
-			if (_requests == null || message == null)
+			if (message == null)
 			{
 				return null;
 			}
 
-			_requests.Enqueue(message);
-
-			if (_requests.Count >= SnipeClient.MAX_BATCH_SIZE)
+			lock (_lock)
 			{
-				return Flush();
-			}
+				if (_requests == null)
+				{
+					// BatchMode can change between caller check and Add; send this request unbatched.
+					return new List<IDictionary<string, object>>(1)
+					{
+						message,
+					};
+				}
 
-			return null;
+				_requests.Enqueue(message);
+
+				if (_requests.Count >= SnipeClient.MAX_BATCH_SIZE)
+				{
+					return FlushLocked();
+				}
+
+				return null;
+			}
 		}
 
 		public void Clear()
@@ -54,27 +88,18 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private List<IDictionary<string, object>> Flush()
+		private List<IDictionary<string, object>> FlushLocked()
 		{
-			IDictionary<string, object>[] queue;
-
-			lock (_lock)
+			if (_requests == null || _requests.Count == 0)
 			{
-				if (_requests == null || _requests.IsEmpty)
-				{
-					return null;
-				}
-
-				// local copy for thread safety
-				queue = _requests.ToArray();
-				_requests.Clear();
+				return null;
 			}
 
-			var messages = new List<IDictionary<string, object>>(queue.Length);
+			var messages = new List<IDictionary<string, object>>(_requests.Count);
 
-			for (int i = 0; i < queue.Length; i++)
+			while (_requests.Count > 0)
 			{
-				messages.Add(queue[i]);
+				messages.Add(_requests.Dequeue());
 			}
 
 			return messages;
