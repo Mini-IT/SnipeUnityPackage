@@ -197,7 +197,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			yield return fixture.WaitForDelayCall();
 
-			Assert.AreEqual(963, fixture.DelayCalls[0]);
+			Assert.AreEqual(SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS, fixture.DelayCalls[0]);
 
 			fixture.Dispatcher.Clear();
 		}
@@ -338,7 +338,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			Assert.AreEqual(2, fixture.Sent.Count);
 			Assert.AreSame(message, fixture.Sent[1]);
-			Assert.AreEqual(SnipeClient.RATE_LIMIT_RETRY_DELAY_MS * 2, fixture.DelayCalls[1]);
+			Assert.AreEqual(SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS * 2, fixture.DelayCalls[1]);
 
 			fixture.Dispatcher.Clear();
 		}
@@ -405,7 +405,22 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			yield return fixture.WaitForDelayCall();
 
-			Assert.AreEqual(SnipeClient.RATE_LIMIT_RETRY_DELAY_MS + 37, fixture.DelayCalls[0]);
+			Assert.AreEqual(SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS + 37, fixture.DelayCalls[0]);
+
+			fixture.Dispatcher.Clear();
+		}
+
+		[UnityTest]
+		public IEnumerator RateLimitRetry_ClampsNegativeJitterToOneSecond()
+		{
+			var fixture = new DispatcherFixture(1, -500);
+
+			fixture.Dispatcher.Send(fixture.CreateMessage(1), true);
+			Assert.IsTrue(fixture.Dispatcher.TryHandleRateLimit(1));
+
+			yield return fixture.WaitForDelayCall();
+
+			Assert.AreEqual(SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS, fixture.DelayCalls[0]);
 
 			fixture.Dispatcher.Clear();
 		}
@@ -438,8 +453,8 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.IsTrue(fixture.Dispatcher.TryHandleRateLimit(2));
 			yield return fixture.WaitForDelayCalls(2);
 
-			Assert.AreEqual(SnipeClient.RATE_LIMIT_RETRY_DELAY_MS, fixture.DelayCalls[0]);
-			Assert.AreEqual(SnipeClient.RATE_LIMIT_RETRY_DELAY_MS, fixture.DelayCalls[1]);
+			Assert.AreEqual(SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS, fixture.DelayCalls[0]);
+			Assert.AreEqual(SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS, fixture.DelayCalls[1]);
 
 			fixture.Dispatcher.Clear();
 		}
@@ -460,8 +475,8 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.IsTrue(fixture.Dispatcher.TryHandleRateLimit(1));
 			yield return fixture.WaitForDelayCalls(2);
 
-			Assert.AreEqual(SnipeClient.RATE_LIMIT_RETRY_DELAY_MS, fixture.DelayCalls[0]);
-			Assert.AreEqual(SnipeClient.RATE_LIMIT_RETRY_DELAY_MS * 2, fixture.DelayCalls[1]);
+			Assert.AreEqual(SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS, fixture.DelayCalls[0]);
+			Assert.AreEqual(SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS * 2, fixture.DelayCalls[1]);
 
 			fixture.Dispatcher.Clear();
 		}
@@ -485,8 +500,8 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.IsTrue(fixture.Dispatcher.TryHandleRateLimit(3));
 			yield return fixture.WaitForDelayCalls(2);
 
-			Assert.AreEqual(SnipeClient.RATE_LIMIT_RETRY_DELAY_MS, fixture.DelayCalls[0]);
-			Assert.AreEqual(SnipeClient.RATE_LIMIT_RETRY_DELAY_MS * 2, fixture.DelayCalls[1]);
+			Assert.AreEqual(SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS, fixture.DelayCalls[0]);
+			Assert.AreEqual(SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS * 2, fixture.DelayCalls[1]);
 
 			fixture.Dispatcher.Clear();
 		}
@@ -508,6 +523,27 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(fixture.RequestsPerSecondLimit, fixture.Sent.Count);
 		}
 
+		[UnityTest]
+		public IEnumerator PendingQueueOverflow_DisconnectsAndClearsQueue()
+		{
+			var fixture = new DispatcherFixture(1);
+
+			fixture.Dispatcher.Send(fixture.CreateMessage(1), true);
+
+			for (int i = 2; i <= SnipeClient.MAX_PENDING_REQUESTS_COUNT + 2; i++)
+			{
+				fixture.Dispatcher.Send(fixture.CreateMessage(i), true);
+			}
+
+			Assert.AreEqual(1, fixture.DisconnectCalls);
+
+			yield return null;
+
+			Assert.AreEqual(1, fixture.Sent.Count);
+
+			fixture.Dispatcher.Clear();
+		}
+
 		private sealed class DispatcherFixture
 		{
 			public readonly List<IDictionary<string, object>> Sent = new List<IDictionary<string, object>>();
@@ -523,6 +559,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			public bool FailBatch { get; set; }
 			public bool ThrowSend { get; set; }
 			public bool ThrowBatch { get; set; }
+			public int DisconnectCalls { get; private set; }
 
 			public DispatcherFixture(int requestsPerSecondLimit = SnipeOptions.DEFAULT_REQUESTS_PER_SECOND_LIMIT)
 				: this(() => requestsPerSecondLimit, requestsPerSecondLimit)
@@ -551,7 +588,8 @@ namespace MiniIT.Snipe.Tests.Editor
 				{
 					SendRequest = Send,
 					SendBatch = SendBatch,
-					Connected = () => true,
+					IsConnected = () => true,
+					OnPendingQueueOverflow = OnDisconnect,
 					Analytics = NullAnalyticsContext.Instance,
 					GetTimestamp = () => _timestamp,
 					TimestampFrequency = 1000,
@@ -599,6 +637,11 @@ namespace MiniIT.Snipe.Tests.Editor
 				var delay = _pendingDelays.Dequeue();
 				_timestamp += delay.DelayMs;
 				delay.Complete();
+			}
+
+			private void OnDisconnect()
+			{
+				DisconnectCalls++;
 			}
 
 			public void AdvanceTime(int delayMs)

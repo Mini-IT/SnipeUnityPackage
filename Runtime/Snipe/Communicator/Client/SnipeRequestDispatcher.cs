@@ -13,7 +13,8 @@ namespace MiniIT.Snipe
 	{
 		public Func<IDictionary<string, object>, bool> SendRequest;
 		public Func<List<IDictionary<string, object>>, bool> SendBatch;
-		public Func<bool> Connected;
+		public Func<bool> IsConnected;
+		public Action OnPendingQueueOverflow;
 		public Func<long> GetTimestamp;
 		public Func<int, CancellationToken, UniTask> Delay;
 		public Func<int> GetRequestsPerSecondLimit;
@@ -67,6 +68,7 @@ namespace MiniIT.Snipe
 		private readonly Func<IDictionary<string, object>, bool> _sendRequest;
 		private readonly Func<List<IDictionary<string, object>>, bool> _sendBatch;
 		private readonly Func<bool> _connected;
+		private readonly Action _onPendingQueueOverflow;
 		private readonly Func<long> _getTimestamp;
 		private readonly Func<int, CancellationToken, UniTask> _delay;
 		private readonly Func<int> _getRequestsPerSecondLimit;
@@ -76,6 +78,7 @@ namespace MiniIT.Snipe
 		private readonly ILogger _logger;
 
 		private CancellationTokenSource _cancellation;
+		private int _pendingRequestCount;
 		private bool _drainStarted;
 		// Keeps newer requests behind a queued item already dequeued by the drain task.
 		private bool _queuedSendInProgress;
@@ -83,7 +86,7 @@ namespace MiniIT.Snipe
 		private int _sendGeneration;
 		private long _sendWindowStartTimestamp;
 		private int _requestsSentInWindow;
-		private int _rateLimitRetryDelayMs = SnipeClient.RATE_LIMIT_RETRY_DELAY_MS;
+		private int _rateLimitRetryDelayMs = SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS;
 		private int _rateLimitRetryCooldownId;
 		private int _rateLimitedRequestCount;
 		private bool _rateLimitRetryCooldownActive;
@@ -92,7 +95,8 @@ namespace MiniIT.Snipe
 		{
 			_sendRequest = options.SendRequest ?? throw new ArgumentNullException(nameof(options.SendRequest));
 			_sendBatch = options.SendBatch ?? throw new ArgumentNullException(nameof(options.SendBatch));
-			_connected = options.Connected ?? throw new ArgumentNullException(nameof(options.Connected));
+			_connected = options.IsConnected ?? throw new ArgumentNullException(nameof(options.IsConnected));
+			_onPendingQueueOverflow = options.OnPendingQueueOverflow;
 			_analytics = options.Analytics ?? throw new ArgumentNullException(nameof(options.Analytics));
 			_logger = options.Logger ?? EmptyLogger.Instance;
 			_getTimestamp = options.GetTimestamp ?? Stopwatch.GetTimestamp;
@@ -210,17 +214,7 @@ namespace MiniIT.Snipe
 			{
 				lock (_lock)
 				{
-					_sendGeneration++;
-					CancellationTokenHelper.CancelAndDispose(ref _cancellation);
-					_pendingSends.Clear();
-					_sentRequests.Clear();
-					_sentRequestIds.Clear();
-					_drainStarted = false;
-					_queuedSendInProgress = false;
-					_sendWindowStartTimestamp = 0;
-					_requestsSentInWindow = 0;
-					_rateLimitedRequestCount = 0;
-					ResetRateLimitRetryDelay();
+					ClearLocked();
 				}
 			}
 		}
@@ -236,7 +230,9 @@ namespace MiniIT.Snipe
 			bool startDrain = false;
 			bool logRateLimitReached = false;
 			bool logQueueingStarted = false;
+			bool pendingQueueOverflow = false;
 			int queuedSendCount = 0;
+			int pendingRequestCount = 0;
 			int requestsPerSecondLimit = GetRequestsPerSecondLimit();
 
 			lock (_lock)
@@ -261,10 +257,26 @@ namespace MiniIT.Snipe
 				{
 					logRateLimitReached = limitReached;
 					logQueueingStarted = queueWasEmpty && limitReached;
-					_pendingSends.Enqueue(pendingSend);
-					queuedSendCount = _pendingSends.Count;
-					startDrain = true;
+					pendingRequestCount = _pendingRequestCount + requestCount;
+
+					if (pendingRequestCount > SnipeClient.MAX_PENDING_REQUESTS_COUNT)
+					{
+						pendingQueueOverflow = true;
+						ClearLocked();
+					}
+					else
+					{
+						EnqueuePendingSend(pendingSend, requestCount);
+						queuedSendCount = _pendingSends.Count;
+						startDrain = true;
+					}
 				}
+			}
+
+			if (pendingQueueOverflow)
+			{
+				HandlePendingQueueOverflow(pendingRequestCount);
+				return;
 			}
 
 			if (logQueueingStarted)
@@ -452,6 +464,7 @@ namespace MiniIT.Snipe
 			}
 
 			_pendingSends.Dequeue();
+			RemovePendingRequests(GetRequestCount(pendingSend));
 
 			if (pendingSend.Batch != null || !pendingSend.AutoBatchAllowed || !CanAutoBatch(pendingSend.Message))
 			{
@@ -472,6 +485,7 @@ namespace MiniIT.Snipe
 				}
 
 				_pendingSends.Dequeue();
+				RemovePendingRequests(GetRequestCount(nextSend));
 				batch ??= new List<IDictionary<string, object>>(SnipeClient.MAX_BATCH_SIZE)
 				{
 					pendingSend.Message,
@@ -490,7 +504,7 @@ namespace MiniIT.Snipe
 			};
 		}
 
-		private static PendingSend SplitPendingBatch(PendingSend pendingSend, int count)
+		private PendingSend SplitPendingBatch(PendingSend pendingSend, int count)
 		{
 			var batch = new List<IDictionary<string, object>>(count);
 			var remainder = new List<IDictionary<string, object>>(pendingSend.Batch.Count - count);
@@ -508,6 +522,7 @@ namespace MiniIT.Snipe
 			}
 
 			pendingSend.Batch = remainder;
+			RemovePendingRequests(count);
 
 			return new PendingSend()
 			{
@@ -797,7 +812,7 @@ namespace MiniIT.Snipe
 
 		private void ResetRateLimitRetryDelay()
 		{
-			_rateLimitRetryDelayMs = SnipeClient.RATE_LIMIT_RETRY_DELAY_MS;
+			_rateLimitRetryDelayMs = SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS;
 			_rateLimitRetryCooldownActive = false;
 		}
 
@@ -867,7 +882,7 @@ namespace MiniIT.Snipe
 
 		private int AddJitter(int delayMs)
 		{
-			return Math.Max(1, delayMs + _getJitterDelayMs(delayMs));
+			return Math.Max(SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS, delayMs + _getJitterDelayMs(delayMs));
 		}
 
 		private static int NoJitterDelay(int delayMs)
@@ -913,6 +928,50 @@ namespace MiniIT.Snipe
 				};
 
 				Send(pendingSend, sendGeneration);
+			}
+		}
+
+		private void EnqueuePendingSend(PendingSend pendingSend, int requestCount)
+		{
+			_pendingSends.Enqueue(pendingSend);
+			_pendingRequestCount += requestCount;
+		}
+
+		private void RemovePendingRequests(int requestCount)
+		{
+			_pendingRequestCount = Math.Max(0, _pendingRequestCount - requestCount);
+		}
+
+		private void ClearLocked()
+		{
+			_sendGeneration++;
+			CancellationTokenHelper.CancelAndDispose(ref _cancellation);
+			_pendingSends.Clear();
+			_pendingRequestCount = 0;
+			_sentRequests.Clear();
+			_sentRequestIds.Clear();
+			_drainStarted = false;
+			_queuedSendInProgress = false;
+			_sendWindowStartTimestamp = 0;
+			_requestsSentInWindow = 0;
+			_rateLimitedRequestCount = 0;
+			ResetRateLimitRetryDelay();
+		}
+
+		private void HandlePendingQueueOverflow(int pendingRequestCount)
+		{
+			try
+			{
+				_logger.LogError("Pending request limit exceeded: {0}/{1}. Disconnecting.", pendingRequestCount, SnipeClient.MAX_PENDING_REQUESTS_COUNT);
+				_analytics.TrackEvent("Pending request limit exceeded", new Dictionary<string, object>()
+				{
+					["pending_request_count"] = pendingRequestCount,
+					["max_pending_request_count"] = SnipeClient.MAX_PENDING_REQUESTS_COUNT,
+				});
+			}
+			finally
+			{
+				_onPendingQueueOverflow?.Invoke();
 			}
 		}
 	}

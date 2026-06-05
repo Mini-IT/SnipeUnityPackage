@@ -11,7 +11,8 @@ namespace MiniIT.Snipe
 		public const int SNIPE_VERSION = 6;
 		public const int MAX_BATCH_SIZE = 5;
 		public const int UNAUTHORIZED_REQUESTS_PER_SECOND_LIMIT = 5;
-		public const int RATE_LIMIT_RETRY_DELAY_MS = 1000;
+		public const int MAX_PENDING_REQUESTS_COUNT = 50;
+		public const int MIN_RATE_LIMIT_RETRY_DELAY_MS = 1000;
 		public const int MAX_RATE_LIMIT_RETRY_DELAY_MS = 10000;
 
 		public delegate void MessageReceivedHandler(string messageType, string errorCode, IDictionary<string, object> data, int requestID);
@@ -78,7 +79,8 @@ namespace MiniIT.Snipe
 			{
 				SendRequest = SendRequestNow,
 				SendBatch = SendBatchNow,
-				Connected = () => Connected,
+				IsConnected = () => Connected,
+				OnPendingQueueOverflow = Disconnect,
 				Analytics = _analytics,
 				Logger = services.LoggerFactory.CreateLogger(nameof(SnipeRequestDispatcher)),
 				GetRequestsPerSecondLimit = GetRequestsPerSecondLimit,
