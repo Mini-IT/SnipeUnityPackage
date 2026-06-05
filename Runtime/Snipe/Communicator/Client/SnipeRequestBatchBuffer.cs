@@ -80,12 +80,12 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		public void Clear()
+		public List<IDictionary<string, object>> Clear()
 		{
 			lock (_lock)
 			{
 				// Connection reset must not leave old request ids waiting for the next session.
-				_requests?.Clear();
+				return FlushLocked();
 			}
 		}
 

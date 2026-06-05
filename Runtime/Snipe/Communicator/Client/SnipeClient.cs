@@ -80,7 +80,7 @@ namespace MiniIT.Snipe
 				SendRequest = SendRequestNow,
 				SendBatch = SendBatchNow,
 				IsConnected = () => Connected,
-				OnPendingQueueOverflow = Disconnect,
+				OnPendingQueueOverflow = HandlePendingQueueOverflow,
 				Analytics = _analytics,
 				Logger = services.LoggerFactory.CreateLogger(nameof(SnipeRequestDispatcher)),
 				GetRequestsPerSecondLimit = GetRequestsPerSecondLimit,
@@ -109,13 +109,15 @@ namespace MiniIT.Snipe
 
 		private void OnTransportConnectionClosed(TransportInfo transportInfo)
 		{
-			ClearConnectionInfo();
+			var droppedRequests = ClearConnectionInfo();
+			HandleDroppedRequests(droppedRequests);
 			ConnectionClosed?.Invoke(transportInfo);
 		}
 
 		private void OnTransportConnectionDisrupted(Transport transport)
 		{
-			ClearConnectionInfo();
+			var droppedRequests = ClearConnectionInfo();
+			HandleDroppedRequests(droppedRequests);
 			ConnectionDisrupted?.Invoke();
 		}
 
@@ -126,21 +128,32 @@ namespace MiniIT.Snipe
 
 		private void Disconnect(bool raiseEvent)
 		{
-			ClearConnectionInfo();
+			var droppedRequests = ClearConnectionInfo();
 			_transportService.StopCurrentTransport();
+			HandleDroppedRequests(droppedRequests);
 			if (raiseEvent)
 			{
 				_transportService.RaiseConnectionClosedEvent();
 			}
 		}
 
-		private void ClearConnectionInfo()
+		private void HandlePendingQueueOverflow(List<IDictionary<string, object>> overflowDroppedRequests)
+		{
+			var droppedRequests = ClearConnectionInfo();
+			AddDroppedRequests(ref droppedRequests, overflowDroppedRequests);
+			_transportService.StopCurrentTransport();
+			HandleDroppedRequests(droppedRequests);
+			_transportService.RaiseConnectionClosedEvent();
+		}
+
+		private List<IDictionary<string, object>> ClearConnectionInfo()
 		{
 			_loggedIn = false;
 			ConnectionId = "";
 			_responseMonitor.Stop();
-			_batchBuffer.Clear();
-			_dispatcher.Clear();
+			var droppedRequests = _batchBuffer.Clear();
+			AddDroppedRequests(ref droppedRequests, _dispatcher.DropAll());
+			return droppedRequests;
 		}
 
 		private int GetRequestsPerSecondLimit()
@@ -357,6 +370,46 @@ namespace MiniIT.Snipe
 			else
 			{
 				_logger.LogDebug("[{0}] ProcessMessage - no MessageReceived listeners", ConnectionId);
+			}
+		}
+
+		private void HandleDroppedRequests(List<IDictionary<string, object>> messages)
+		{
+			if (messages == null || messages.Count == 0)
+			{
+				return;
+			}
+
+			for (int i = 0; i < messages.Count; i++)
+			{
+				var message = messages[i];
+				if (message == null)
+				{
+					continue;
+				}
+
+				int requestId = message.SafeGetValue<int>("id");
+				if (requestId == 0)
+				{
+					continue;
+				}
+
+				InvokeMessageReceived(message.SafeGetString("t"), SnipeErrorCodes.NOT_READY, requestId, null);
+			}
+		}
+
+		private static void AddDroppedRequests(ref List<IDictionary<string, object>> droppedRequests, List<IDictionary<string, object>> messages)
+		{
+			if (messages == null || messages.Count == 0)
+			{
+				return;
+			}
+
+			droppedRequests ??= new List<IDictionary<string, object>>(messages.Count);
+
+			for (int i = 0; i < messages.Count; i++)
+			{
+				droppedRequests.Add(messages[i]);
 			}
 		}
 

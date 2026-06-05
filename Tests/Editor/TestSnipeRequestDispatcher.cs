@@ -25,7 +25,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(fixture.RequestsPerSecondLimit, fixture.Sent.Count);
 			Assert.AreEqual(1, fixture.DelayCalls.Count);
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		[UnityTest]
@@ -43,7 +43,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(fixture.RequestsPerSecondLimit, fixture.Sent.Count);
 			Assert.AreEqual(1, fixture.DelayCalls.Count);
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		[Test]
@@ -63,7 +63,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(4, fixture.Sent.Count);
 			Assert.AreEqual(0, fixture.DelayCalls.Count);
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		[UnityTest]
@@ -86,7 +86,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(1, fixture.Batches.Count);
 			Assert.AreEqual(2, fixture.Batches[0].Count);
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		[UnityTest]
@@ -112,7 +112,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(fixture.RequestsPerSecondLimit, fixture.Batches[0].Count);
 			Assert.AreEqual(fixture.RequestsPerSecondLimit, fixture.Sent.Count);
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		[UnityTest]
@@ -138,7 +138,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(2, fixture.Batches.Count);
 			Assert.AreEqual(1, fixture.Batches[1].Count);
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		[UnityTest]
@@ -169,7 +169,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(2, fixture.Batches.Count);
 			Assert.AreEqual(2, fixture.Batches[1].Count);
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		[UnityTest]
@@ -184,7 +184,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			Assert.AreEqual(1037, fixture.DelayCalls[0]);
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		[UnityTest]
@@ -199,7 +199,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			Assert.AreEqual(963, fixture.DelayCalls[0]);
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		[Test]
@@ -217,7 +217,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(2, fixture.Sent[0]["id"]);
 			Assert.AreEqual(0, fixture.DelayCalls.Count);
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		[Test]
@@ -235,7 +235,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(2, fixture.Sent[0]["id"]);
 			Assert.AreEqual(0, fixture.DelayCalls.Count);
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		[Test]
@@ -253,7 +253,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(3, fixture.Sent[0]["id"]);
 			Assert.AreEqual(0, fixture.DelayCalls.Count);
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		[Test]
@@ -271,7 +271,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(3, fixture.Sent[0]["id"]);
 			Assert.AreEqual(0, fixture.DelayCalls.Count);
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		[UnityTest]
@@ -294,7 +294,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(0, fixture.Batches.Count);
 			Assert.AreEqual(fixture.RequestsPerSecondLimit + 2, fixture.Sent.Count);
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		[UnityTest]
@@ -313,7 +313,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(2, fixture.Sent.Count);
 			Assert.AreSame(message, fixture.Sent[1]);
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		[UnityTest]
@@ -340,7 +340,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreSame(message, fixture.Sent[1]);
 			Assert.AreEqual(SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS * 2, fixture.DelayCalls[1]);
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		[UnityTest]
@@ -365,7 +365,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(514, fixture.Sent.Count);
 			Assert.AreSame(message, fixture.Sent[513]);
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		[UnityTest]
@@ -392,7 +392,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreSame(batch[2], fixture.Sent[0]);
 			Assert.AreSame(batch[3], fixture.Sent[1]);
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		[UnityTest]
@@ -407,7 +407,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			Assert.AreEqual(SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS + 37, fixture.DelayCalls[0]);
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		[UnityTest]
@@ -422,7 +422,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			Assert.AreEqual(SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS, fixture.DelayCalls[0]);
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		[UnityTest]
@@ -436,7 +436,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.IsTrue(fixture.Dispatcher.TryHandleRateLimit(1));
 			yield return fixture.WaitForDelayCall();
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		[UnityTest]
@@ -456,7 +456,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS, fixture.DelayCalls[0]);
 			Assert.AreEqual(SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS, fixture.DelayCalls[1]);
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		[UnityTest]
@@ -478,7 +478,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS, fixture.DelayCalls[0]);
 			Assert.AreEqual(SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS * 2, fixture.DelayCalls[1]);
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		[UnityTest]
@@ -503,7 +503,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS, fixture.DelayCalls[0]);
 			Assert.AreEqual(SnipeClient.MIN_RATE_LIMIT_RETRY_DELAY_MS * 2, fixture.DelayCalls[1]);
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		[UnityTest]
@@ -517,7 +517,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			}
 
 			yield return fixture.WaitForDelayCall();
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 			yield return null;
 
 			Assert.AreEqual(fixture.RequestsPerSecondLimit, fixture.Sent.Count);
@@ -541,7 +541,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			Assert.AreEqual(1, fixture.Sent.Count);
 
-			fixture.Dispatcher.Clear();
+			fixture.Dispatcher.DropAll();
 		}
 
 		private sealed class DispatcherFixture
@@ -639,7 +639,7 @@ namespace MiniIT.Snipe.Tests.Editor
 				delay.Complete();
 			}
 
-			private void OnDisconnect()
+			private void OnDisconnect(List<IDictionary<string, object>> droppedRequests)
 			{
 				DisconnectCalls++;
 			}
