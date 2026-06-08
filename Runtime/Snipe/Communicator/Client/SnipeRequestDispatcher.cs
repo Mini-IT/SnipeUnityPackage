@@ -82,13 +82,7 @@ namespace MiniIT.Snipe
 
 		private static UniTask DefaultDelay(int delayMs, CancellationToken cancellation)
 		{
-			var task = AlterTask.Delay(delayMs, cancellation);
-#if UNITY_WEBGL
-			return task;
-#else
-			return task.AsUniTask();
-#endif
-
+			return UniTask.Delay(delayMs, cancellationToken: cancellation);
 		}
 
 		private static int GetDefaultRequestsPerSecondLimit()
