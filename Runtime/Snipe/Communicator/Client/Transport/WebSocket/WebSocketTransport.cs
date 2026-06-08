@@ -47,8 +47,14 @@ namespace MiniIT.Snipe
 		private WebSocketWrapper _webSocket = null;
 		private readonly object _lock = new object();
 
-		private ConcurrentQueue<IDictionary<string, object>> _sendMessages;
-		private ConcurrentQueue<IList<IDictionary<string, object>>> _batchMessages;
+		private struct QueuedSend
+		{
+			public IDictionary<string, object> Message;
+			public IList<IDictionary<string, object>> Batch;
+		}
+
+		// One queue preserves request order when dispatcher mixes single sends and batches.
+		private ConcurrentQueue<QueuedSend> _sendQueue;
 
 		private readonly AlterSemaphore _sendSignal = new AlterSemaphore(0, int.MaxValue);
 		private CancellationTokenSource _sendLoopCancellation;
@@ -171,23 +177,22 @@ namespace MiniIT.Snipe
 
 		public override void SendMessage(IDictionary<string, object> message)
 		{
-			if (_sendMessages == null)
-			{
-				StartSendLoop();
-			}
-
-			_sendMessages!.Enqueue(message);
-			_sendSignal.Release();
+			EnqueueSend(new QueuedSend() { Message = message });
 		}
 
 		public override void SendBatch(IList<IDictionary<string, object>> messages)
 		{
+			EnqueueSend(new QueuedSend() { Batch = messages });
+		}
+
+		private void EnqueueSend(QueuedSend send)
+		{
 			lock (_lock)
 			{
-				_batchMessages ??= new ConcurrentQueue<IList<IDictionary<string, object>>>();
-				_batchMessages.Enqueue(messages);
+				_sendQueue ??= new ConcurrentQueue<QueuedSend>();
+				_sendQueue.Enqueue(send);
 
-				if (_sendMessages == null)
+				if (_sendLoopCancellation == null)
 				{
 					StartSendLoop();
 				}
@@ -200,12 +205,13 @@ namespace MiniIT.Snipe
 		{
 			byte[] data = await SerializeMessage(message);
 
+			// lock - so disconnect cannot dispose socket mid-send
 			lock (_lock)
 			{
 				_webSocket?.SendRequest(data);
 			}
 
-			if (_sendMessages != null && _sendMessages.IsEmpty && !message.SafeGetString("t").StartsWith("payment/"))
+			if (_sendQueue != null && _sendQueue.IsEmpty && ShouldStartCheckConnection(message))
 			{
 				StartCheckConnection();
 			}
@@ -234,7 +240,34 @@ namespace MiniIT.Snipe
 				offset += length;
 			}
 
-			_webSocket?.SendRequest(request);
+			// lock - so disconnect cannot dispose socket mid-send
+			lock (_lock)
+			{
+				_webSocket?.SendRequest(request);
+			}
+
+			if (_sendQueue != null && _sendQueue.IsEmpty && ShouldStartCheckConnection(messages))
+			{
+				StartCheckConnection();
+			}
+		}
+
+		private static bool ShouldStartCheckConnection(IDictionary<string, object> message)
+		{
+			return !message.SafeGetString("t").StartsWith("payment/");
+		}
+
+		private static bool ShouldStartCheckConnection(IList<IDictionary<string, object>> messages)
+		{
+			for (int i = 0; i < messages.Count; i++)
+			{
+				if (ShouldStartCheckConnection(messages[i]))
+				{
+					return true;
+				}
+			}
+
+			return false;
 		}
 
 		// [Testable]
@@ -360,14 +393,7 @@ namespace MiniIT.Snipe
 					return;
 				}
 
-#if NET5_0_OR_GREATER
-				if (_sendMessages == null)
-					_sendMessages = new ConcurrentQueue<IDictionary<string, object>>();
-				else
-					_sendMessages.Clear();
-#else
-				_sendMessages = new ConcurrentQueue<IDictionary<string, object>>();
-#endif
+				_sendQueue ??= new ConcurrentQueue<QueuedSend>();
 
 				CancellationTokenHelper.CancelAndDispose(ref _sendLoopCancellation);
 				_sendLoopCancellation = new CancellationTokenSource();
@@ -391,10 +417,9 @@ namespace MiniIT.Snipe
 				}
 
 				CancellationTokenHelper.Dispose(ref _sendLoopCancellation, false);
+				// Keep queue detach under the same lock as EnqueueSend to avoid losing a concurrent send.
+				_sendQueue = null;
 			}
-
-			_sendMessages = null;
-			_batchMessages = null;
 		}
 
 		private async UniTaskVoid SendLoop(CancellationToken cancellation)
@@ -412,17 +437,16 @@ namespace MiniIT.Snipe
 					}
 
 					// Process all queued items (may be more than one)
-					// Process batch messages first
-					while (_batchMessages != null && !_batchMessages.IsEmpty && _batchMessages.TryDequeue(out var messages) &&
-					       messages != null && messages.Count > 0)
+					while (_sendQueue != null && !_sendQueue.IsEmpty && _sendQueue.TryDequeue(out var send))
 					{
-						await DoSendBatch(messages);
-					}
-
-					// Process single messages
-					while (_sendMessages != null && !_sendMessages.IsEmpty && _sendMessages.TryDequeue(out var message) && message != null)
-					{
-						await DoSendRequest(message);
+						if (send.Batch != null && send.Batch.Count > 0)
+						{
+							await DoSendBatch(send.Batch);
+						}
+						else if (send.Message != null)
+						{
+							await DoSendRequest(send.Message);
+						}
 					}
 				}
 				catch (OperationCanceledException)
@@ -678,6 +702,9 @@ namespace MiniIT.Snipe
 				}
 				else
 				{
+					// Some wrappers invoke Ping callback synchronously; close after leaving _lock.
+					bool disconnectDetected = false;
+
 					lock (_lock)
 					{
 						pinging = true;
@@ -693,9 +720,14 @@ namespace MiniIT.Snipe
 							else
 							{
 								_logger.LogTrace("CheckConnectionTask - pong NOT received");
-								OnDisconnectDetected();
+								disconnectDetected = true;
 							}
 						});
+					}
+
+					if (disconnectDetected)
+					{
+						OnDisconnectDetected();
 					}
 				}
 			}

@@ -10,6 +10,8 @@ namespace MiniIT.Snipe
 {
 	public class SnipeOptions
 	{
+		public const int DEFAULT_REQUESTS_PER_SECOND_LIMIT = 10;
+
 		public int ContextId { get; }
 
 		public SnipeProjectInfo Project => _data.ProjectInfo;
@@ -32,6 +34,7 @@ namespace MiniIT.Snipe
 		/// If the value is less than 1 second then heartbeat is turned off.
 		/// </summary>
 		public TimeSpan HttpHeartbeatInterval => _data.HttpHeartbeatInterval;
+		public int RequestsPerSecondLimit => NormalizeRequestsPerSecondLimit(_data.RequestsPerSecondLimit);
 
 		public bool CompressionEnabled => _data.CompressionEnabled;
 		public int MinMessageBytesToCompress => _data.MinMessageBytesToCompress;
@@ -271,6 +274,10 @@ namespace MiniIT.Snipe
 		{
 			return PREFS_PREFIX + (ContextId != 0 ? ContextId.ToString() : "") + value;
 		}
+
+		internal static int NormalizeRequestsPerSecondLimit(int value)
+		{
+			return value > 0 ? value : DEFAULT_REQUESTS_PER_SECOND_LIMIT;
+		}
 	}
 }
-

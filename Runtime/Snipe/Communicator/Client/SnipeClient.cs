@@ -1,10 +1,8 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
-using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
@@ -12,6 +10,10 @@ namespace MiniIT.Snipe
 	{
 		public const int SNIPE_VERSION = 6;
 		public const int MAX_BATCH_SIZE = 5;
+		public const int UNAUTHORIZED_REQUESTS_PER_SECOND_LIMIT = 5;
+		public const int MAX_PENDING_REQUESTS_COUNT = 100;
+		public const int MIN_RATE_LIMIT_RETRY_DELAY_MS = 1000;
+		public const int MAX_RATE_LIMIT_RETRY_DELAY_MS = 10000;
 
 		public delegate void MessageReceivedHandler(string messageType, string errorCode, IDictionary<string, object> data, int requestID);
 
@@ -36,7 +38,7 @@ namespace MiniIT.Snipe
 
 		public bool BatchMode
 		{
-			get => _batchedRequests != null;
+			get => _batchBuffer.Enabled;
 			set
 			{
 				if (value == BatchMode)
@@ -44,28 +46,19 @@ namespace MiniIT.Snipe
 					return;
 				}
 
-				if (value)
-				{
-					_batchedRequests ??= new ConcurrentQueue<IDictionary<string, object>>();
-				}
-				else
-				{
-					FlushBatchedRequests();
-					_batchedRequests = null;
-				}
+				SendBatchedRequests(_batchBuffer.SetEnabled(value));
 
-				_logger.LogTrace($"BatchMode = {value}");
+				_logger.LogDebug($"BatchMode = {value}");
 			}
 		}
-
-		private ConcurrentQueue<IDictionary<string, object>> _batchedRequests;
-		private readonly object _batchLock = new object();
 
 		private int _requestId = 0;
 
 		private readonly SnipeOptions _options;
 		private readonly IAnalyticsContext _analytics;
 		private readonly ResponseMonitor _responseMonitor;
+		private readonly SnipeRequestBatchBuffer _batchBuffer;
+		private readonly SnipeRequestDispatcher _dispatcher;
 		private readonly ILogger _logger;
 
 		internal SnipeClient(SnipeOptions options, ISnipeServices services)
@@ -80,6 +73,18 @@ namespace MiniIT.Snipe
 			_responseMonitor = new ResponseMonitor(_analytics, services);
 			_logger = services.LoggerFactory.CreateLogger(nameof(SnipeClient));
 			_transportService = new TransportService(options, _analytics, services);
+			_batchBuffer = new SnipeRequestBatchBuffer();
+
+			_dispatcher = new SnipeRequestDispatcher(new SnipeRequestDispatcherOptions()
+			{
+				SendRequest = SendRequestNow,
+				SendBatch = SendBatchNow,
+				IsConnected = () => Connected,
+				OnPendingQueueOverflow = HandlePendingQueueOverflow,
+				Analytics = _analytics,
+				Logger = services.LoggerFactory.CreateLogger(nameof(SnipeRequestDispatcher)),
+				GetRequestsPerSecondLimit = GetRequestsPerSecondLimit,
+			});
 
 			_transportService.ConnectionOpened += OnTransportConnectionOpened;
 			_transportService.ConnectionClosed += OnTransportConnectionClosed;
@@ -104,13 +109,15 @@ namespace MiniIT.Snipe
 
 		private void OnTransportConnectionClosed(TransportInfo transportInfo)
 		{
-			ClearConnectionInfo();
+			var droppedRequests = ClearConnectionInfo();
+			HandleDroppedRequests(droppedRequests);
 			ConnectionClosed?.Invoke(transportInfo);
 		}
 
 		private void OnTransportConnectionDisrupted(Transport transport)
 		{
-			ClearConnectionInfo();
+			var droppedRequests = ClearConnectionInfo();
+			HandleDroppedRequests(droppedRequests);
 			ConnectionDisrupted?.Invoke();
 		}
 
@@ -121,19 +128,38 @@ namespace MiniIT.Snipe
 
 		private void Disconnect(bool raiseEvent)
 		{
-			ClearConnectionInfo();
+			var droppedRequests = ClearConnectionInfo();
 			_transportService.StopCurrentTransport();
+			HandleDroppedRequests(droppedRequests);
 			if (raiseEvent)
 			{
 				_transportService.RaiseConnectionClosedEvent();
 			}
 		}
 
-		private void ClearConnectionInfo()
+		private void HandlePendingQueueOverflow(List<IDictionary<string, object>> overflowDroppedRequests)
+		{
+			var droppedRequests = ClearConnectionInfo();
+			AddDroppedRequests(ref droppedRequests, overflowDroppedRequests);
+			_transportService.StopCurrentTransport();
+			HandleDroppedRequests(droppedRequests);
+			_transportService.RaiseConnectionClosedEvent();
+		}
+
+		private List<IDictionary<string, object>> ClearConnectionInfo()
 		{
 			_loggedIn = false;
 			ConnectionId = "";
 			_responseMonitor.Stop();
+			var droppedRequests = _batchBuffer.Clear();
+			AddDroppedRequests(ref droppedRequests, _dispatcher.DropAll());
+			return droppedRequests;
+		}
+
+		private int GetRequestsPerSecondLimit()
+		{
+			// Login and handshake requests use a smaller fixed limit until server auth succeeds.
+			return LoggedIn ? _options.RequestsPerSecondLimit : UNAUTHORIZED_REQUESTS_PER_SECOND_LIMIT;
 		}
 
 		public int SendRequest(string messageType, IDictionary<string, object> data)
@@ -167,10 +193,7 @@ namespace MiniIT.Snipe
 		{
 #if SNIPE_PROFILEMENAGER
 			messageType ??= message.SafeGetString("t");
-			if (IsProfileManagerForbiddenRequest(messageType))
-			{
-				TrackProfileManagerForbiddenRequest(messageType);
-			}
+			SnipeProfileManagerRequestGuard.TrackForbiddenRequest(messageType, _analytics, _logger);
 #endif
 
 			int requestId = ++_requestId;
@@ -178,64 +201,89 @@ namespace MiniIT.Snipe
 
 			IDictionary<string, object> data = null;
 
-			if (!_loggedIn && (_batchedRequests == null || _batchedRequests.IsEmpty))
+			if (!_loggedIn && _batchBuffer.IsEmpty)
 			{
-				EnsureMessageData(ref data, message);
+				SnipeRequestMessageDataHelper.Ensure(ref data, message);
 				data["ckey"] = _options.ClientKey;
 				message["data"] = data;
 			}
 
 			if (_options.DebugId != null)
 			{
-				EnsureMessageData(ref data, message);
+				SnipeRequestMessageDataHelper.Ensure(ref data, message);
 				data["debugID"] = _options.DebugId;
+			}
+
+			if (_logger.IsEnabled(LogLevel.Debug))
+			{
+				_logger.LogDebug("Request registered: {0}", JsonUtility.ToJson(message));
 			}
 
 			if (BatchMode)
 			{
-				_batchedRequests!.Enqueue(message);
-
-				if (_batchedRequests.Count >= MAX_BATCH_SIZE)
-				{
-					FlushBatchedRequests();
-				}
+				SendBatchedRequests(_batchBuffer.Add(message));
 			}
 			else
 			{
-				DoSendRequest(message);
+				_dispatcher.Send(message, true);
 			}
 
 			return requestId;
 		}
 
-		private void DoSendRequest(IDictionary<string, object> message)
+		private bool SendRequestNow(IDictionary<string, object> message)
 		{
 			if (!Connected || message == null)
 			{
-				return;
+				return false;
 			}
 
-			if (_logger.IsEnabled(LogLevel.Trace))
+			if (_logger.IsEnabled(LogLevel.Debug))
 			{
-				_logger.LogTrace("SendRequest - {0}", JsonUtility.ToJson(message));
+				LogShortMessageInfo("SendRequest", message);
 			}
 
 			_transportService.SendMessage(message);
 
 			_serverReactionStartTimestamp = Stopwatch.GetTimestamp();
+			TrackResponse(message);
+			return true;
+		}
 
+		private void TrackResponse(IDictionary<string, object> message)
+		{
 			int id = message.SafeGetValue<int>("id");
 			_responseMonitor.Add(id, message.SafeGetString("t"));
 		}
 
-		private void DoSendBatch(List<IDictionary<string, object>> messages)
+		private bool SendBatchNow(List<IDictionary<string, object>> messages)
 		{
 			if (!Connected || messages == null || messages.Count == 0)
-				return;
+			{
+				return false;
+			}
 
-			_logger.LogTrace("DoSendBatch - {0} items", messages.Count);
+			if (_logger.IsEnabled(LogLevel.Debug))
+			{
+				var msgs = new string[messages.Count];
+				for (int i = 0; i < messages.Count; i++)
+				{
+					var m = messages[i];
+					msgs[i] = "(" + m.SafeGetString("id") + " - " + m.SafeGetString("t") + ")";
+				}
+				_logger.LogDebug("SendBatch - {0} items: {1}", messages.Count, string.Join(", ", msgs));
+			}
 
 			_transportService.SendBatch(messages);
+
+			_serverReactionStartTimestamp = Stopwatch.GetTimestamp();
+
+			for (int i = 0; i < messages.Count; i++)
+			{
+				TrackResponse(messages[i]);
+			}
+
+			return true;
 		}
 
 		private void ProcessMessage(IDictionary<string, object> message)
@@ -258,21 +306,32 @@ namespace MiniIT.Snipe
 
 			_responseMonitor.Remove(requestID, messageType);
 
-			if (_logger.IsEnabled(LogLevel.Trace))
+			if (_logger.IsEnabled(LogLevel.Debug))
 			{
 				string dataJson = responseData != null ? JsonUtility.ToJson(responseData) : null;
-				_logger.LogTrace("[{0}] ProcessMessage - {1} - {2} {3} {4}", ConnectionId, requestID, messageType, errorCode, dataJson);
+				_logger.LogDebug("[{0}] ProcessMessage - {1} - {2} {3} {4}", ConnectionId, requestID, messageType, errorCode, dataJson);
 			}
 
-			if (!_loggedIn && messageType == SnipeMessageTypes.USER_LOGIN)
+			// Retryable rate-limit responses are internal; final success/error is still delivered normally.
+			bool retryRateLimitedRequest = errorCode == SnipeErrorCodes.RATE_LIMIT &&
+				requestID > 0 &&
+				_dispatcher.TryHandleRateLimit(requestID);
+
+			if (!retryRateLimitedRequest)
 			{
-				ProcessLoginResponse(errorCode, responseData);
-			}
+				_dispatcher.RemoveSent(requestID);
 
-			InvokeMessageReceived(messageType, errorCode, requestID, responseData);
+				if (!_loggedIn && messageType == SnipeMessageTypes.USER_LOGIN)
+				{
+					ProcessLoginResponse(errorCode, responseData);
+				}
+
+				InvokeMessageReceived(messageType, errorCode, requestID, responseData);
+			}
 
 			if (ackID > 0)
 			{
+				// Backend supports delayed and batched ACKs, so route them through the dispatcher.
 				SendRequest("ack.ack", new Dictionary<string, object>() { ["ackID"] = ackID });
 			}
 		}
@@ -281,7 +340,7 @@ namespace MiniIT.Snipe
 		{
 			if (errorCode == SnipeErrorCodes.OK || errorCode == SnipeErrorCodes.ALREADY_LOGGED_IN)
 			{
-				_logger.LogTrace("[{0}] ProcessMessage - Login Succeeded", ConnectionId);
+				_logger.LogDebug("[{0}] ProcessMessage - Login Succeeded", ConnectionId);
 
 				_loggedIn = true;
 				_transportService.SetLoggedIn();
@@ -297,7 +356,7 @@ namespace MiniIT.Snipe
 			}
 			else
 			{
-				_logger.LogTrace("[{0}] ProcessMessage - Login Failed", ConnectionId);
+				_logger.LogDebug("[{0}] ProcessMessage - Login Failed", ConnectionId);
 			}
 		}
 
@@ -305,99 +364,90 @@ namespace MiniIT.Snipe
 		{
 			if (MessageReceived != null)
 			{
-				MessageReceived?.Invoke(messageType, errorCode, new Dictionary<string, object>(responseData), requestId);
+				var data = responseData != null ? new Dictionary<string, object>(responseData) : new Dictionary<string, object>(0);
+				MessageReceived?.Invoke(messageType, errorCode, data, requestId);
 			}
 			else
 			{
-				_logger.LogTrace("[{0}] ProcessMessage - no MessageReceived listeners", ConnectionId);
+				_logger.LogDebug("[{0}] ProcessMessage - no MessageReceived listeners", ConnectionId);
 			}
 		}
 
-		private void FlushBatchedRequests()
+		private void HandleDroppedRequests(List<IDictionary<string, object>> messages)
 		{
-			ReadOnlySpan<IDictionary<string, object>> queue;
-
-			lock (_batchLock)
-			{
-				if (_batchedRequests == null || _batchedRequests.IsEmpty)
-				{
-					return;
-				}
-
-				// local copy for thread safety
-				queue = _batchedRequests.ToArray();
-				_batchedRequests.Clear();
-			}
-
-			if (queue.Length == 1)
-			{
-				DoSendRequest(queue[0]);
-			}
-			else
-			{
-				var messages = new List<IDictionary<string, object>>(queue.Length);
-
-				for (int i = 0; i < queue.Length; i++)
-				{
-					var message = queue[i];
-					messages.Add(message);
-					_logger.LogTrace("Request batched - {0}", JsonUtility.ToJson(message));
-				}
-
-				DoSendBatch(messages);
-			}
-		}
-
-#if SNIPE_PROFILEMENAGER
-		private void TrackProfileManagerForbiddenRequest(string messageType)
-		{
-			_logger.LogError("SNIPE_PROFILEMENAGER: request type '{0}' is forbidden while Profile Manager is used. Request will still be sent.", messageType);
-
-			var properties = new Dictionary<string, object>(1)
-			{
-				["message_type"] = messageType,
-			};
-
-			_analytics?.TrackError("SNIPE_PROFILEMENAGER forbidden request", null, properties);
-		}
-
-		private static bool IsProfileManagerForbiddenRequest(string messageType)
-		{
-			switch (messageType)
-			{
-				case "attr.set":
-				case "attr.setMulti":
-				case "attr.inc":
-				case "attr.dec":
-					return true;
-				default:
-					return false;
-			}
-		}
-
-#endif
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static void EnsureMessageData(ref IDictionary<string, object> data, IDictionary<string, object> message)
-		{
-			if (data != null)
+			if (messages == null || messages.Count == 0)
 			{
 				return;
 			}
 
-			if (message.TryGetValue("data", out var dataObj))
+			for (int i = 0; i < messages.Count; i++)
 			{
-				data = dataObj as Dictionary<string, object> ?? new Dictionary<string, object>();
+				var message = messages[i];
+				if (message == null)
+				{
+					continue;
+				}
+
+				int requestId = message.SafeGetValue<int>("id");
+				if (requestId == 0)
+				{
+					continue;
+				}
+
+				InvokeMessageReceived(message.SafeGetString("t"), SnipeErrorCodes.NOT_READY, requestId, null);
+			}
+		}
+
+		private static void AddDroppedRequests(ref List<IDictionary<string, object>> droppedRequests, List<IDictionary<string, object>> messages)
+		{
+			if (messages == null || messages.Count == 0)
+			{
+				return;
+			}
+
+			droppedRequests ??= new List<IDictionary<string, object>>(messages.Count);
+
+			for (int i = 0; i < messages.Count; i++)
+			{
+				droppedRequests.Add(messages[i]);
+			}
+		}
+
+		private void SendBatchedRequests(List<IDictionary<string, object>> messages)
+		{
+			if (messages == null || messages.Count == 0)
+			{
+				return;
+			}
+
+			if (messages.Count == 1)
+			{
+				_dispatcher.Send(messages[0], false);
 			}
 			else
 			{
-				data = new Dictionary<string, object>();
+				if (_logger.IsEnabled(LogLevel.Debug))
+				{
+					for (int i = 0; i < messages.Count; i++)
+					{
+						LogShortMessageInfo("Request batched", messages[i]);
+					}
+				}
+
+				_dispatcher.SendBatch(messages);
 			}
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private void LogShortMessageInfo(string prefix, IDictionary<string, object> message)
+		{
+			_logger.LogDebug("{0} - {1} - {2}", prefix, message.SafeGetString("id"), message.SafeGetString("t"));
 		}
 
 		public void Dispose()
 		{
 			Disconnect(false);
+			_dispatcher.Dispose();
 			_responseMonitor.Dispose();
 			_transportService.Dispose();
 		}

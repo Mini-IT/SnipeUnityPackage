@@ -31,6 +31,7 @@ namespace MiniIT.Snipe.Configuration
 				ServerUdpUrls = CloneUdpAddresses(_data.ServerUdpUrls),
 				ServerHttpUrls = new List<string>(_data.ServerHttpUrls),
 				HttpHeartbeatInterval = _data.HttpHeartbeatInterval,
+				RequestsPerSecondLimit = _data.RequestsPerSecondLimit,
 				CompressionEnabled = _data.CompressionEnabled,
 				MinMessageBytesToCompress = _data.MinMessageBytesToCompress,
 				LoginParameters = _data.LoginParameters != null ? new Dictionary<string, object>(_data.LoginParameters) : null,
@@ -79,6 +80,12 @@ namespace MiniIT.Snipe.Configuration
 		public SnipeOptionsBuilder SetHeartbeatInterval(TimeSpan heartbeatInterval)
 		{
 			_data.HttpHeartbeatInterval = heartbeatInterval;
+			return this;
+		}
+
+		public SnipeOptionsBuilder SetRequestsPerSecondLimit(int requestsPerSecondLimit)
+		{
+			_data.RequestsPerSecondLimit = SnipeOptions.NormalizeRequestsPerSecondLimit(requestsPerSecondLimit);
 			return this;
 		}
 
@@ -141,6 +148,7 @@ namespace MiniIT.Snipe.Configuration
 			SetServerUdpUrls(options.ServerUdpUrls != null ? CloneUdpAddresses(options.ServerUdpUrls) : null);
 			SetServerHttpUrls(options.ServerHttpUrls != null ? new List<string>(options.ServerHttpUrls) : null);
 			SetHeartbeatInterval(options.HttpHeartbeatInterval);
+			SetRequestsPerSecondLimit(options.RequestsPerSecondLimit);
 			SetCompressionEnabled(options.CompressionEnabled);
 			SetMinMessageBytesToCompress(options.MinMessageBytesToCompress);
 			SetLoginParameters(options.LoginParameters != null ? new Dictionary<string, object>(options.LoginParameters) : null);
@@ -182,6 +190,7 @@ namespace MiniIT.Snipe.Configuration
 			ParseNew(data);
 			ParseLogReporterSection(data);
 			ParseCompressionSection(data);
+			ParseRequestsPerSecondLimit(data);
 		}
 
 		/// <summary>
@@ -288,6 +297,16 @@ namespace MiniIT.Snipe.Configuration
 
 			ParseLogReporterSection(data);
 			ParseCompressionSection(data);
+			ParseRequestsPerSecondLimit(data);
+		}
+
+		private void ParseRequestsPerSecondLimit(IDictionary<string, object> data)
+		{
+			if (data.TryGetValue("snipeRequestsPerSecondLimit", out int value) ||
+			    data.TryGetValue("snipe_requests_per_second_limit", out value))
+			{
+				SetRequestsPerSecondLimit(value);
+			}
 		}
 
 		// [Testable]

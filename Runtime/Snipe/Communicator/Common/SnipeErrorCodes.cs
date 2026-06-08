@@ -1,4 +1,3 @@
-using MiniIT;
 
 namespace MiniIT.Snipe
 {
@@ -9,6 +8,8 @@ namespace MiniIT.Snipe
 		public const string USER_NOT_FOUND = "userNotFound";
 		public const string ALREADY_IN_ROOM = "alreadyInRoom";
 		public const string ALREADY_LOGGED_IN = "alreadyLoggedIn";
+
+		public const string RATE_LIMIT = "rateLimit"; // Too many requests per second
 
 		// Auth
 		public const string NOT_INITIALIZED = "notInitialized";

@@ -290,6 +290,7 @@ namespace MiniIT.Snipe
 			string json = JsonUtility.ToJson(message);
 
 			string responseMessage = null;
+			bool rateLimitResponse = false;
 
 			bool semaphoreOccupied = false;
 			IHttpClientResponse response = null;
@@ -326,7 +327,13 @@ namespace MiniIT.Snipe
 					responseMessage = await response.GetStringContentAsync();
 					_logger.LogTrace(responseMessage);
 				}
-				else if (response.ResponseCode != 429) // HttpStatusCode.TooManyRequests
+				else if (response.ResponseCode == 429) // HttpStatusCode.TooManyRequests
+				{
+					responseMessage = await response.GetStringContentAsync();
+					rateLimitResponse = true;
+					_logger.LogTrace(responseMessage);
+				}
+				else
 				{
 					Disconnect();
 				}
@@ -343,7 +350,11 @@ namespace MiniIT.Snipe
 
 			try
 			{
-				if (!string.IsNullOrEmpty(responseMessage))
+				if (rateLimitResponse)
+				{
+					ProcessRateLimitMessage(requestType, requestId, message, responseMessage);
+				}
+				else if (!string.IsNullOrEmpty(responseMessage))
 				{
 					ProcessMessage(responseMessage);
 				}
@@ -354,6 +365,59 @@ namespace MiniIT.Snipe
 				{
 					_sendSemaphore.Release();
 				}
+			}
+		}
+
+		private void ProcessRateLimitMessage(string requestType, int requestId, IDictionary<string, object> requestMessage, string responseMessage)
+		{
+			RefreshSessionAliveTimestamp();
+
+			if (requestType == "server.batch" &&
+				requestMessage != null &&
+				requestMessage.TryGetValue("data", out object dataObj) &&
+				dataObj is IDictionary<string, object> data &&
+				data.TryGetValue("list", out object listObj) &&
+				listObj is IList messages)
+			{
+				// HTTP returns one 429 for the whole batch; dispatcher needs per-request ids to retry.
+				foreach (var item in messages)
+				{
+					if (item is IDictionary<string, object> message)
+					{
+						ProcessRateLimitMessage(message.SafeGetString("t"), message.SafeGetValue<int>("id"), message, responseMessage);
+					}
+				}
+				return;
+			}
+
+			var response = ParseRateLimitResponse(responseMessage);
+
+			if (string.IsNullOrEmpty(response.SafeGetString("errorCode")))
+			{
+				response["errorCode"] = SnipeErrorCodes.RATE_LIMIT;
+			}
+
+			response["t"] = requestType;
+			response["id"] = requestId;
+
+			InternalProcessMessage(requestType, response);
+		}
+
+		private Dictionary<string, object> ParseRateLimitResponse(string responseMessage)
+		{
+			if (string.IsNullOrEmpty(responseMessage))
+			{
+				return new Dictionary<string, object>();
+			}
+
+			try
+			{
+				return JsonUtility.ParseDictionary(responseMessage);
+			}
+			catch (Exception e)
+			{
+				_logger.LogTrace("Failed to parse rate limit response: {0}", e.Message);
+				return new Dictionary<string, object>();
 			}
 		}
 
