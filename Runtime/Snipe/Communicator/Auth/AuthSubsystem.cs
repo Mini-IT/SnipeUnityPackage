@@ -59,6 +59,7 @@ namespace MiniIT.Snipe
 		protected int _loginAttempt;
 		private bool _registering = false;
 		private bool _reloginning = false;
+		private bool _loginInProgress = false;
 
 		private readonly int _contextId;
 		protected SnipeOptions _options;
@@ -103,12 +104,34 @@ namespace MiniIT.Snipe
 		public void Authorize()
 		{
 			if (_communicator == null
-				|| !_communicator.Connected
-				|| _communicator.LoggedIn)
+				|| !_communicator.Connected)
 			{
 				return;
 			}
 
+			if (_communicator.LoggedIn)
+			{
+				return;
+			}
+
+			if (_loginInProgress)
+			{
+				_logger.LogInformation($"({_communicator.InstanceId}) Login is already in progress. Manual {nameof(Authorize)}() call is ignored.");
+				return;
+			}
+
+			StartAuthorize();
+		}
+
+		private void StartAuthorize()
+		{
+			_loginInProgress = true;
+
+			AuthorizeInternal();
+		}
+
+		private void AuthorizeInternal()
+		{
 			_logger.LogTrace($"({_communicator.InstanceId}) Authorize");
 
 			if (_bindingManager.BindingCount == 0)
@@ -128,22 +151,25 @@ namespace MiniIT.Snipe
 			await AlterTask.Delay(1000 * _loginAttempt);
 
 			if (!_communicator.Connected)
+			{
 				return;
+			}
 
-			Authorize();
+			AuthorizeInternal();
 		}
 
 		protected void OnConnectionEstablished()
 		{
 			JustRegistered = false;
 			_loginAttempt = 0;
+			_loginInProgress = false;
 
 			_communicator.MessageReceived -= OnMessageReceived;
 			_communicator.MessageReceived += OnMessageReceived;
 
 			if (AutoLogin)
 			{
-				Authorize();
+				StartAuthorize();
 				return;
 			}
 
@@ -195,6 +221,7 @@ namespace MiniIT.Snipe
 
 		private void Disconnect()
 		{
+			_loginInProgress = false;
 			_communicator.MessageReceived -= OnMessageReceived;
 			_communicator.Disconnect();
 		}
@@ -211,6 +238,7 @@ namespace MiniIT.Snipe
 
 			AutoLogin = true;
 			_loginAttempt = 0;
+			_loginInProgress = false;
 
 			_communicator.MessageReceived -= OnMessageReceived;
 
@@ -337,6 +365,7 @@ namespace MiniIT.Snipe
 
 					if (errorCode != SnipeErrorCodes.OK)
 					{
+						_loginInProgress = false;
 						return;
 					}
 
