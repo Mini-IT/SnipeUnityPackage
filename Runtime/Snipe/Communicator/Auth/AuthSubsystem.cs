@@ -402,7 +402,7 @@ namespace MiniIT.Snipe
 		private void RunAuthRequest(Action action)
 		{
 			// Remove old batched requests. Otherwise they will not get renewed
-			_communicator.DisposeRequests();
+			DisposeRequestsWithoutCallback();
 
 			bool batchMode = _communicator.BatchMode;
 			_communicator.BatchMode = true;
@@ -411,6 +411,24 @@ namespace MiniIT.Snipe
 			LoginRequested?.Invoke();
 
 			_communicator.BatchMode = batchMode;
+		}
+
+		private void DisposeRequestsWithoutCallback()
+		{
+			var requests = _communicator.Requests;
+			if (requests.Count == 0)
+			{
+				return;
+			}
+
+			var tempRequests = new AbstractCommunicatorRequest[requests.Count];
+			requests.CopyTo(tempRequests);
+			requests.Clear();
+
+			for (int i = 0; i < tempRequests.Length; i++)
+			{
+				tempRequests[i]?.Dispose();
+			}
 		}
 
 		private void SetAuthData(string uid, string password)

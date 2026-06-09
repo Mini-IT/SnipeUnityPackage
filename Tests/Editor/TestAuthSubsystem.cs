@@ -50,6 +50,29 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN, fixture.Communicator.SentRequests[0].MessageType);
 		}
 
+		[Test]
+		public void DisposeRequests_PendingRequest_InvokesCallbackWithNotReadyOnce()
+		{
+			var fixture = CreateFixture(true);
+			fixture.Communicator.LoggedIn = true;
+
+			int callbackCount = 0;
+			string callbackErrorCode = null;
+			var request = new SnipeCommunicatorRequest(fixture.Communicator, fixture.Communicator.Services, fixture.Auth, SnipeMessageTypes.AUTH_RESTORE);
+			request.Request((errorCode, _) =>
+			{
+				callbackCount++;
+				callbackErrorCode = errorCode;
+			});
+
+			fixture.Communicator.DisposeRequests();
+			fixture.Communicator.DisposeRequests();
+
+			Assert.AreEqual(1, callbackCount);
+			Assert.AreEqual(SnipeErrorCodes.NOT_READY, callbackErrorCode);
+			Assert.AreEqual(0, fixture.Communicator.Requests.Count);
+		}
+
 		private static Fixture CreateFixture(bool connected)
 		{
 			var services = new NullSnipeServices();
@@ -91,10 +114,10 @@ namespace MiniIT.Snipe.Tests.Editor
 			{
 			}
 
-			protected override async UniTaskVoid RegisterAndLogin()
+			protected override UniTaskVoid RegisterAndLogin()
 			{
 				RequestRegisterAndLogin(new Dictionary<string, Dictionary<string, object>>());
-				await UniTask.Yield();
+				return default;
 			}
 		}
 
@@ -150,7 +173,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 				for (int i = 0; i < requests.Length; i++)
 				{
-					requests[i]?.Dispose();
+					requests[i]?.DisposeWithCallback();
 				}
 			}
 

@@ -1,17 +1,19 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using MiniIT.MessagePack;
 using MiniIT.Snipe.Configuration;
 using MiniIT.Snipe;
+using UnityEngine.TestTools;
 
 namespace MiniIT.Snipe.Tests.Editor
 {
 	public class TestMessageSerializer
 	{
-		[Test]
-		public void TestWSMessageSerializerMultithread()
+		[UnityTest]
+		public IEnumerator TestWSMessageSerializerMultithread()
 		{
 			const int THREADS_COUNT = 40;
 			List<IDictionary<string, object>> data = new List<IDictionary<string, object>>(THREADS_COUNT);
@@ -29,8 +31,9 @@ namespace MiniIT.Snipe.Tests.Editor
 			}
 
 			// Unique WebSocketTransport instances
-			List<byte[]> result = Task.Run(async () => await TestWSMessageSerializerAsync(data, snipeOptions, services)).GetAwaiter()
-				.GetResult();
+			Task<List<byte[]>> resultTask = TestWSMessageSerializerAsync(data, snipeOptions, services);
+			yield return WaitForTask(resultTask);
+			List<byte[]> result = resultTask.Result;
 
 			Assert.AreEqual(serialized.Count, result.Count);
 			for (int i = 0; i < data.Count; i++)
@@ -44,12 +47,17 @@ namespace MiniIT.Snipe.Tests.Editor
 				SnipeOptions = snipeOptions,
 				SnipeServices = services,
 			});
-			result = Task.Run(async () => await TestWSMessageSerializerAsync(data, transport)).GetAwaiter().GetResult();
+			resultTask = TestWSMessageSerializerAsync(data, transport);
+			yield return WaitForTask(resultTask);
+			result = resultTask.Result;
+
 			Assert.AreEqual(serialized.Count, result.Count);
 			for (int i = 0; i < data.Count; i++)
 			{
 				Assert.AreEqual(serialized[i], result[i]);
 			}
+
+			transport.Dispose();
 		}
 
 		private async Task<List<byte[]>> TestWSMessageSerializerAsync(List<IDictionary<string, object>> data, SnipeOptions snipeOptions, ISnipeServices services)
@@ -59,7 +67,14 @@ namespace MiniIT.Snipe.Tests.Editor
 				SnipeOptions = snipeOptions,
 				SnipeServices = services,
 			});
-			return await TestWSMessageSerializerAsync(data, transport);
+			try
+			{
+				return await TestWSMessageSerializerAsync(data, transport);
+			}
+			finally
+			{
+				transport.Dispose();
+			}
 		}
 
 		private async Task<List<byte[]>> TestWSMessageSerializerAsync(List<IDictionary<string, object>> data,
@@ -82,6 +97,35 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			await Task.WhenAll(tasks);
 			return result;
+		}
+
+		private IEnumerator WaitForTask(Task task)
+		{
+			const int MAX_WAIT_FRAMES = 600;
+			for (int i = 0; i < MAX_WAIT_FRAMES; i++)
+			{
+				if (task.IsCompleted)
+				{
+					break;
+				}
+
+				yield return null;
+			}
+
+			if (!task.IsCompleted)
+			{
+				Assert.Fail("Task did not complete");
+			}
+
+			if (task.IsCanceled)
+			{
+				Assert.Fail("Task was canceled");
+			}
+
+			if (task.IsFaulted)
+			{
+				throw task.Exception.InnerException ?? task.Exception;
+			}
 		}
 
 		private IDictionary<string, object> GenerateRandomSnipeObject()

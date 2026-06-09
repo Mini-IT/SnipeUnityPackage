@@ -281,6 +281,17 @@ namespace MiniIT.Snipe
 			}
 		}
 
+		internal void DisposeWithCallback()
+		{
+			if (_callback != null)
+			{
+				InvokeCallback(SnipeErrorCodes.NOT_READY, EMPTY_DATA);
+				return;
+			}
+
+			Dispose();
+		}
+
 		private async UniTaskVoid DelayedRetryRequest()
 		{
 			await AlterTask.Delay(RETRY_DELAY_MS);

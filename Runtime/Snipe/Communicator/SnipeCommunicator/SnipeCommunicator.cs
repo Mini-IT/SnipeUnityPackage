@@ -222,10 +222,9 @@ namespace MiniIT.Snipe
 		{
 			_logger.LogTrace($"({InstanceId}) [{_client?.ConnectionId}] Client connection disrupted");
 
-			DisposeRequests();
-
 			_mainThreadRunner.RunInMainThread(() =>
 			{
+				DisposeRequests();
 				ConnectionDisrupted?.Invoke();
 			});
 		}
@@ -371,7 +370,7 @@ namespace MiniIT.Snipe
 				_requests = null;
 				foreach (var request in tempRequests)
 				{
-					request?.Dispose();
+					request?.DisposeWithCallback();
 				}
 			}
 		}
