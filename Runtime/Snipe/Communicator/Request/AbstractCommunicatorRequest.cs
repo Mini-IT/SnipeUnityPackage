@@ -225,7 +225,7 @@ namespace MiniIT.Snipe
 
 		protected void OnConnectionDisrupted()
 		{
-			if (_requestId != 0) // if the request is considered sent but not responsed yet
+			if (_requestId != 0 || _callback != null) // if the request is considered sent but not responsed yet or waits for a response
 			{
 				GetLogger().LogTrace($"Disposing request {_requestId} {MessageType}");
 				InvokeCallback(SnipeErrorCodes.NOT_READY, EMPTY_DATA);

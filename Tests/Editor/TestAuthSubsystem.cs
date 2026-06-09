@@ -73,6 +73,71 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreEqual(0, fixture.Communicator.Requests.Count);
 		}
 
+		[Test]
+		public void DisposeRequests_RequestWaitingForLogin_InvokesCallbackWithNotReadyOnce()
+		{
+			var fixture = CreateFixture(true);
+
+			int callbackCount = 0;
+			string callbackErrorCode = null;
+			var request = new SnipeCommunicatorRequest(fixture.Communicator, fixture.Communicator.Services, fixture.Auth, SnipeMessageTypes.AUTH_RESTORE);
+			request.Request((errorCode, _) =>
+			{
+				callbackCount++;
+				callbackErrorCode = errorCode;
+			});
+
+			fixture.Communicator.DisposeRequests();
+			fixture.Communicator.DisposeRequests();
+
+			Assert.AreEqual(1, callbackCount);
+			Assert.AreEqual(SnipeErrorCodes.NOT_READY, callbackErrorCode);
+			Assert.AreEqual(0, fixture.Communicator.Requests.Count);
+		}
+
+		[Test]
+		public void ConnectionDisrupted_RequestWaitingForLogin_InvokesCallbackWithNotReadyOnce()
+		{
+			var fixture = CreateFixture(true);
+
+			int callbackCount = 0;
+			string callbackErrorCode = null;
+			var request = new SnipeCommunicatorRequest(fixture.Communicator, fixture.Communicator.Services, fixture.Auth, SnipeMessageTypes.AUTH_RESTORE);
+			request.Request((errorCode, _) =>
+			{
+				callbackCount++;
+				callbackErrorCode = errorCode;
+			});
+
+			fixture.Communicator.RaiseConnectionDisrupted();
+			fixture.Communicator.RaiseConnectionDisrupted();
+
+			Assert.AreEqual(1, callbackCount);
+			Assert.AreEqual(SnipeErrorCodes.NOT_READY, callbackErrorCode);
+			Assert.AreEqual(0, fixture.Communicator.Requests.Count);
+		}
+
+		[Test]
+		public void Authorize_RequestWaitingForLogin_InvokesCallbackWithNotReadyOnce()
+		{
+			var fixture = CreateFixture(true);
+			fixture.Auth.AutoLogin = false;
+
+			int callbackCount = 0;
+			string callbackErrorCode = null;
+			var request = new SnipeCommunicatorRequest(fixture.Communicator, fixture.Communicator.Services, fixture.Auth, SnipeMessageTypes.AUTH_RESTORE);
+			request.Request((errorCode, _) =>
+			{
+				callbackCount++;
+				callbackErrorCode = errorCode;
+			});
+
+			fixture.Auth.Authorize();
+
+			Assert.AreEqual(1, callbackCount);
+			Assert.AreEqual(SnipeErrorCodes.NOT_READY, callbackErrorCode);
+		}
+
 		private static Fixture CreateFixture(bool connected)
 		{
 			var services = new NullSnipeServices();

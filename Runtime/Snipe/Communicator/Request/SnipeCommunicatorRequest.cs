@@ -67,6 +67,8 @@ namespace MiniIT.Snipe
 
 		protected override void OnWillReconnect()
 		{
+			SubscribeDisconnectionEvents();
+
 			_communicator.ConnectionEstablished -= OnCommunicatorReady;
 			_authSubsystem.LoginSucceeded -= OnLoginSucceeded;
 			_communicator.MessageReceived -= OnMessageReceived;
