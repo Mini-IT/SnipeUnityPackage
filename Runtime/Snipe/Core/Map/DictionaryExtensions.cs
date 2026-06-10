@@ -8,27 +8,33 @@ namespace MiniIT
 	{
 		public static bool TryGetValue<T>(this IDictionary<string, object> dictionary, string key, out T value)
 		{
-			if (dictionary.TryGetValue(key, out var result))
+			try
 			{
-				try
-				{
-					value = (T)result;
-					return true;
-				}
-				catch (InvalidCastException)
+				if (dictionary.TryGetValue(key, out var result))
 				{
 					try
 					{
-						value = (T)Convert.ChangeType(result, typeof(T), CultureInfo.InvariantCulture);
+						value = (T)result;
 						return true;
 					}
-					catch (Exception)
+					catch (InvalidCastException)
+					{
+						try
+						{
+							value = (T)Convert.ChangeType(result, typeof(T), CultureInfo.InvariantCulture);
+							return true;
+						}
+						catch (Exception)
+						{
+						}
+					}
+					catch (NullReferenceException) // field exists but res is null
 					{
 					}
 				}
-				catch (NullReferenceException) // field exists but res is null
-				{
-				}
+			}
+			catch (KeyNotFoundException)
+			{
 			}
 
 			value = default;
