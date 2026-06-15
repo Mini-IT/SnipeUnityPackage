@@ -112,6 +112,22 @@ namespace MiniIT.Http
 				request.Abort();
 				return UnityHttpClientResponse.CreateTimeout();
 			}
+			catch (UnityWebRequestException)
+			{
+				var response = new UnityHttpClientResponse(request);
+
+				if (request.isDone && request.downloadHandler?.data != null)
+				{
+					string content = await response.GetStringContentAsync();
+					if (!string.IsNullOrEmpty(content) && content.Contains("errorCode"))
+					{
+						response.IsSuccess = true;
+						return response;
+					}
+				}
+
+				return response;
+			}
 			finally
 			{
 				request.Dispose();

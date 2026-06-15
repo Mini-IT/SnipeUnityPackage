@@ -12,7 +12,7 @@ namespace MiniIT.Http
 
 		public long ResponseCode { get; }
 
-		public bool IsSuccess { get; }
+		public bool IsSuccess { get; internal set; }
 		public string Error { get; }
 
 		private readonly byte[] _content;
