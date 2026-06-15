@@ -116,6 +116,7 @@ namespace MiniIT.Http
 			{
 				var response = new UnityHttpClientResponse(request);
 
+				// If a response has a valid content, consider it as ok
 				if (request.isDone && request.downloadHandler?.data != null)
 				{
 					string content = await response.GetStringContentAsync();
