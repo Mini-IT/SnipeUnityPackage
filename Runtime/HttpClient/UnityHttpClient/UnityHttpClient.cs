@@ -9,6 +9,8 @@ namespace MiniIT.Http
 {
 	public class UnityHttpClient : IHttpClient
 	{
+		private const string REQUEST_TIMEOUT_ERROR = "Request timeout";
+
 		private string _authToken;
 		private string _persistentClientId;
 
@@ -112,8 +114,15 @@ namespace MiniIT.Http
 				request.Abort();
 				return UnityHttpClientResponse.CreateTimeout();
 			}
-			catch (UnityWebRequestException)
+			catch (UnityWebRequestException e)
 			{
+				if (string.Equals(request.error, REQUEST_TIMEOUT_ERROR, StringComparison.OrdinalIgnoreCase) ||
+				    string.Equals(e.Message, REQUEST_TIMEOUT_ERROR, StringComparison.OrdinalIgnoreCase))
+				{
+					request.Abort();
+					return UnityHttpClientResponse.CreateTimeout();
+				}
+
 				var response = new UnityHttpClientResponse(request);
 
 				// If a response has a valid content, consider it as ok
