@@ -118,10 +118,45 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[Test]
-		public void Authorize_RequestWaitingForLogin_InvokesCallbackWithNotReadyOnce()
+		public void Authorize_RequestWaitingForLogin_WaitsAndSendsAfterLogin()
 		{
 			var fixture = CreateFixture(true);
 			fixture.Auth.AutoLogin = false;
+			fixture.Communicator.RaiseConnectionEstablished();
+
+			int callbackCount = 0;
+			string callbackErrorCode = null;
+			var request = new SnipeCommunicatorRequest(fixture.Communicator, fixture.Communicator.Services, fixture.Auth, SnipeMessageTypes.AUTH_RESTORE);
+			request.Request((errorCode, _) =>
+			{
+				callbackCount++;
+				callbackErrorCode = errorCode;
+			});
+
+			fixture.Auth.Authorize();
+
+			Assert.AreEqual(0, callbackCount);
+			Assert.IsNull(callbackErrorCode);
+			Assert.AreEqual(1, fixture.Communicator.SentRequests.Count);
+			Assert.AreEqual(SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN, fixture.Communicator.SentRequests[0].MessageType);
+			Assert.IsTrue(fixture.Communicator.Requests.Contains(request));
+			Assert.IsFalse(fixture.Communicator.BatchMode);
+
+			fixture.Communicator.LoggedIn = true;
+			fixture.Communicator.RaiseMessageReceived(SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN, SnipeErrorCodes.OK, CreateRegisterAndLoginResponse(), 1);
+
+			Assert.AreEqual(0, callbackCount);
+			Assert.IsNull(callbackErrorCode);
+			Assert.AreEqual(2, fixture.Communicator.SentRequests.Count);
+			Assert.AreEqual(SnipeMessageTypes.AUTH_RESTORE, fixture.Communicator.SentRequests[1].MessageType);
+		}
+
+		[Test]
+		public void Authorize_BatchModeRequestWaitingForLogin_InvokesCallbackWithNotReadyOnce()
+		{
+			var fixture = CreateFixture(true);
+			fixture.Auth.AutoLogin = false;
+			fixture.Communicator.BatchMode = true;
 
 			int callbackCount = 0;
 			string callbackErrorCode = null;
@@ -136,6 +171,50 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			Assert.AreEqual(1, callbackCount);
 			Assert.AreEqual(SnipeErrorCodes.NOT_READY, callbackErrorCode);
+			Assert.IsFalse(fixture.Communicator.Requests.Contains(request));
+			Assert.AreEqual(1, fixture.Communicator.Requests.Count);
+			Assert.AreEqual(1, fixture.Communicator.SentRequests.Count);
+			Assert.AreEqual(SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN, fixture.Communicator.SentRequests[0].MessageType);
+			Assert.IsFalse(fixture.Communicator.BatchMode);
+		}
+
+		[Test]
+		public void Authorize_AllowRequestsToWaitForLoginFalse_DisposesAllRequests()
+		{
+			var fixture = CreateFixture(true);
+			fixture.Auth.AutoLogin = false;
+			fixture.Communicator.AllowRequestsToWaitForLogin = false;
+			fixture.Communicator.LoggedIn = true;
+
+			int callbackCount = 0;
+			string callbackErrorCode = null;
+			var request = new SnipeCommunicatorRequest(fixture.Communicator, fixture.Communicator.Services, fixture.Auth, SnipeMessageTypes.AUTH_RESTORE);
+			request.Request((errorCode, _) =>
+			{
+				callbackCount++;
+				callbackErrorCode = errorCode;
+			});
+
+			fixture.Communicator.LoggedIn = false;
+			fixture.Auth.Authorize();
+
+			Assert.AreEqual(1, callbackCount);
+			Assert.AreEqual(SnipeErrorCodes.NOT_READY, callbackErrorCode);
+			Assert.AreEqual(1, fixture.Communicator.Requests.Count);
+			Assert.AreEqual(2, fixture.Communicator.SentRequests.Count);
+			Assert.AreEqual(SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN, fixture.Communicator.SentRequests[1].MessageType);
+			Assert.IsFalse(fixture.Communicator.BatchMode);
+		}
+
+		private static IDictionary<string, object> CreateRegisterAndLoginResponse()
+		{
+			return new Dictionary<string, object>()
+			{
+				["id"] = 1,
+				["uid"] = "uid",
+				["password"] = "password",
+				["authsBinded"] = new List<Dictionary<string, object>>(),
+			};
 		}
 
 		private static Fixture CreateFixture(bool connected)

@@ -86,6 +86,12 @@ namespace MiniIT.Snipe
 			}
 		}
 
+		protected override void OnLoginSucceeded(int userId)
+		{
+			_authSubsystem.LoginSucceeded -= OnLoginSucceeded;
+			base.OnLoginSucceeded(userId);
+		}
+
 		protected override void OnMessageReceived(string messageType, string errorCode, IDictionary<string, object> responseData, int requestID)
 		{
 			if (_communicator == null)

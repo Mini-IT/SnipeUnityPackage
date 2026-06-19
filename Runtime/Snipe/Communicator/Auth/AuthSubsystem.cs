@@ -402,15 +402,48 @@ namespace MiniIT.Snipe
 		private void RunAuthRequest(Action action)
 		{
 			// Remove old batched requests. Otherwise they will not get renewed
-			_communicator.DisposeRequests();
+			if (_communicator.AllowRequestsToWaitForLogin)
+			{
+				DisposeBatchModeRequests();
+			}
+			else
+			{
+				_communicator.DisposeRequests();
+			}
 
-			bool batchMode = _communicator.BatchMode;
 			_communicator.BatchMode = true;
 
-			action.Invoke();
-			LoginRequested?.Invoke();
+			try
+			{
+				action.Invoke();
+				LoginRequested?.Invoke();
+			}
+			finally
+			{
+				_communicator.BatchMode = false;
+			}
+		}
 
-			_communicator.BatchMode = batchMode;
+		private void DisposeBatchModeRequests()
+		{
+			while (TryDisposeBatchModeRequest())
+			{
+			}
+		}
+
+		private bool TryDisposeBatchModeRequest()
+		{
+			var requests = _communicator.Requests;
+			for (int i = 0; i < requests.Count; i++)
+			{
+				var request = requests[i];
+				if (request != null && request.CreatedInBatchMode)
+				{
+					request.DisposeWithCallback();
+					return true;
+				}
+			}
+			return false;
 		}
 
 		private void SetAuthData(string uid, string password)

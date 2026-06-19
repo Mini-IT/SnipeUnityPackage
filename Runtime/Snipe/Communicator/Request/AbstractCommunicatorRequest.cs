@@ -15,6 +15,7 @@ namespace MiniIT.Snipe
 
 		public string MessageType { get; private set; }
 		public IDictionary<string, object> Data { get; set; }
+		internal bool CreatedInBatchMode { get; }
 
 		public delegate void ResponseHandler(string errorCode, IDictionary<string, object> data);
 
@@ -41,6 +42,7 @@ namespace MiniIT.Snipe
 			_services = services;
 			MessageType = messageType;
 			Data = data;
+			CreatedInBatchMode = _communicator?.BatchMode == true;
 
 			_communicator?.Requests.Add(this);
 		}
