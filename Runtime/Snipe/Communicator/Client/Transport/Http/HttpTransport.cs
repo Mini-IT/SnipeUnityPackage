@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using MiniIT.Http;
 using MiniIT.Snipe.Logging;
 using MiniIT.Threading;
+using MiniIT.Utils;
 using Cysharp.Threading.Tasks;
 
 namespace MiniIT.Snipe
@@ -19,6 +20,7 @@ namespace MiniIT.Snipe
 
 		private static readonly Dictionary<string, object> s_pingMessage = new () { ["t"] = "server.ping", ["id"] = -1 };
 		private static readonly long s_sessionDurationTicks = 301 * Stopwatch.Frequency;
+		private static readonly TimeSpan s_handshakeTimeout = TimeSpan.FromSeconds(3);
 
 		public override bool Started => _started;
 		public override bool Connected => _connected;
@@ -46,6 +48,7 @@ namespace MiniIT.Snipe
 		private IHttpClient _client;
 		private string _persistentClientId;
 
+		private CancellationTokenSource _sessionCancellation;
 		private CancellationTokenSource _heartbeatCancellation;
 		private bool _heartbeatRunning = false;
 		private bool _intensiveHeartbeat = false;
@@ -97,6 +100,8 @@ namespace MiniIT.Snipe
 
 				_currentUrl = url;
 				_baseUrl = GetBaseUrl(url);
+				CancellationTokenHelper.CancelAndDispose(ref _sessionCancellation);
+				_sessionCancellation = new CancellationTokenSource();
 
 				if (_client == null)
 				{
@@ -115,12 +120,12 @@ namespace MiniIT.Snipe
 				};
 			}
 
-			SendHandshake().Forget();
+			SendHandshake(_sessionCancellation.Token).Forget();
 		}
 
 		public override void Disconnect()
 		{
-			if (!_connected)
+			if (!_started && !_connected)
 			{
 				return;
 			}
@@ -134,6 +139,7 @@ namespace MiniIT.Snipe
 			_started = false;
 			_sessionAliveTillTicks = 0;
 
+			CancellationTokenHelper.CancelAndDispose(ref _sessionCancellation);
 			StopHeartbeat();
 
 			_client?.Reset();
@@ -152,7 +158,7 @@ namespace MiniIT.Snipe
 				return;
 			}
 
-			DoSendRequest(message);
+			DoSendRequest(message, _sessionCancellation?.Token ?? CancellationToken.None);
 		}
 
 		public override void SendBatch(IList<IDictionary<string, object>> messages)
@@ -163,13 +169,14 @@ namespace MiniIT.Snipe
 				return;
 			}
 
+			var cancellation = _sessionCancellation?.Token ?? CancellationToken.None;
 			if (messages.Count == 1)
 			{
-				DoSendRequest(messages[0]);
+				DoSendRequest(messages[0], cancellation);
 				return;
 			}
 
-			DoSendBatch(messages);
+			DoSendBatch(messages, cancellation);
 		}
 
 		private Uri GetBaseUrl(string url)
@@ -283,7 +290,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private async void DoSendRequest(IDictionary<string, object> message)
+		private async void DoSendRequest(IDictionary<string, object> message, CancellationToken cancellation)
 		{
 			string requestType = message.SafeGetString("t");
 			int requestId = message.SafeGetValue<int>("id");
@@ -297,10 +304,10 @@ namespace MiniIT.Snipe
 
 			try
 			{
-				await _sendSemaphore.WaitAsync();
+				await _sendSemaphore.WaitAsync(cancellation);
 
 				// During awaiting the semaphore a disconnect could happen - check it
-				if (!_connected)
+				if (cancellation.IsCancellationRequested || !_connected)
 				{
 					_sendSemaphore.Release();
 					return;
@@ -312,7 +319,12 @@ namespace MiniIT.Snipe
 
 				_logger.LogTrace($"<<< request [id: {requestId}] {requestType} {json}");
 
-				response = await _client.PostJson(uri, json, TimeSpan.FromSeconds(3));
+				response = await _client.PostJson(uri, json, TimeSpan.FromSeconds(3), cancellation);
+
+				if (cancellation.IsCancellationRequested)
+				{
+					return;
+				}
 
 				// response.StatusCode:
 				//   200 - ok
@@ -338,6 +350,9 @@ namespace MiniIT.Snipe
 					Disconnect();
 				}
 			}
+			catch (OperationCanceledException)
+			{
+			}
 			catch (Exception e)
 			{
 				string exceptionMessage = (e.InnerException != null) ? LogUtil.GetReducedException(e) : e.ToString();
@@ -350,6 +365,11 @@ namespace MiniIT.Snipe
 
 			try
 			{
+				if (cancellation.IsCancellationRequested)
+				{
+					return;
+				}
+
 				if (rateLimitResponse)
 				{
 					ProcessRateLimitMessage(requestType, requestId, message, responseMessage);
@@ -421,7 +441,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		private void DoSendBatch(IList<IDictionary<string, object>> messages)
+		private void DoSendBatch(IList<IDictionary<string, object>> messages, CancellationToken cancellation)
 		{
 			var batch = new Dictionary<string, object>()
 			{
@@ -433,7 +453,7 @@ namespace MiniIT.Snipe
 				}
 			};
 
-			DoSendRequest(batch);
+			DoSendRequest(batch, cancellation);
 		}
 
 		#region Heartbeat
@@ -481,11 +501,7 @@ namespace MiniIT.Snipe
 
 		private void StopHeartbeat()
 		{
-			if (_heartbeatCancellation != null)
-			{
-				_heartbeatCancellation.Cancel();
-				_heartbeatCancellation = null;
-			}
+			CancellationTokenHelper.CancelAndDispose(ref _heartbeatCancellation);
 
 			_heartbeatRunning = false;
 		}
@@ -541,19 +557,32 @@ namespace MiniIT.Snipe
 
 		#endregion
 
-		private async UniTaskVoid SendHandshake()
+		private async UniTaskVoid SendHandshake(CancellationToken cancellation)
 		{
-			await UniTask.WaitWhile(() => string.IsNullOrEmpty(_persistentClientId));
+			try
+			{
+				await UniTask.WaitWhile(() => string.IsNullOrEmpty(_persistentClientId), cancellationToken: cancellation);
+			}
+			catch (OperationCanceledException)
+			{
+				return;
+			}
+
+			if (cancellation.IsCancellationRequested)
+			{
+				return;
+			}
+
 			_client.SetPersistentClientId(_persistentClientId);
 
 			bool semaphoreOccupied = false;
 
 			try
 			{
-				await _sendSemaphore.WaitAsync();
+				await _sendSemaphore.WaitAsync(cancellation);
 				semaphoreOccupied = true;
 
-				if (string.IsNullOrEmpty(_currentUrl))
+				if (cancellation.IsCancellationRequested || string.IsNullOrEmpty(_currentUrl))
 				{
 					return;
 				}
@@ -562,8 +591,13 @@ namespace MiniIT.Snipe
 
 				_logger.LogTrace($"<<< request ({uri})");
 
-				using (var response = await _client.Get(uri))
+				using (var response = await _client.Get(uri, s_handshakeTimeout, cancellation))
 				{
+					if (cancellation.IsCancellationRequested)
+					{
+						return;
+					}
+
 					_logger.LogTrace($">>> response {uri} ({response.ResponseCode}) {response.Error}");
 
 					if (response.IsSuccess)
@@ -571,6 +605,10 @@ namespace MiniIT.Snipe
 						ConfirmConnectionEstablished();
 					}
 				}
+			}
+			catch (OperationCanceledException)
+			{
+				return;
 			}
 			catch (Exception e)
 			{
@@ -593,7 +631,7 @@ namespace MiniIT.Snipe
 				}
 			}
 
-			if (!_connected)
+			if (!_connected && !cancellation.IsCancellationRequested && !_disposed)
 			{
 				InternalDisconnect();
 			}
@@ -624,12 +662,22 @@ namespace MiniIT.Snipe
 
 		public override void Dispose()
 		{
+			if (_disposed)
+			{
+				return;
+			}
+
+			CancellationTokenHelper.CancelAndDispose(ref _sessionCancellation);
+			StopHeartbeat();
+
+			base.Dispose();
+
 			if (_client is IDisposable disposableClient)
 			{
 				disposableClient.Dispose();
 			}
 
-			base.Dispose();
+			_client = null;
 		}
 	}
 }

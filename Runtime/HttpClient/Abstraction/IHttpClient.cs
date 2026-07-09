@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 
 namespace MiniIT.Http
@@ -8,9 +9,9 @@ namespace MiniIT.Http
 		void Reset();
 		void SetAuthToken(string token);
 		void SetPersistentClientId(string token);
-		UniTask<IHttpClientResponse> Get(Uri uri);
-		UniTask<IHttpClientResponse> Get(Uri uri, TimeSpan timeout);
-		UniTask<IHttpClientResponse> PostJson(Uri uri, string content, TimeSpan timeout);
-		UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content, TimeSpan timeout);
+		UniTask<IHttpClientResponse> Get(Uri uri, CancellationToken cancellationToken = default);
+		UniTask<IHttpClientResponse> Get(Uri uri, TimeSpan timeout, CancellationToken cancellationToken = default);
+		UniTask<IHttpClientResponse> PostJson(Uri uri, string content, TimeSpan timeout, CancellationToken cancellationToken = default);
+		UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content, TimeSpan timeout, CancellationToken cancellationToken = default);
 	}
 }

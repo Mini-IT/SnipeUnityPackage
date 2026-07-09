@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using MiniIT.Http;
 
@@ -9,10 +10,10 @@ namespace MiniIT.Snipe
 		public void Reset() { }
 		public void SetAuthToken(string token) { }
 		public void SetPersistentClientId(string token) { }
-		public UniTask<IHttpClientResponse> Get(Uri uri) => UniTask.FromResult<IHttpClientResponse>(new NullHttpClientResponse());
-		public UniTask<IHttpClientResponse> Get(Uri uri, TimeSpan timeout) => UniTask.FromResult<IHttpClientResponse>(new NullHttpClientResponse());
-		public UniTask<IHttpClientResponse> PostJson(Uri uri, string content, TimeSpan timeout) => UniTask.FromResult<IHttpClientResponse>(new NullHttpClientResponse());
-		public UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content, TimeSpan timeout) => UniTask.FromResult<IHttpClientResponse>(new NullHttpClientResponse());
+		public UniTask<IHttpClientResponse> Get(Uri uri, CancellationToken cancellationToken = default) => UniTask.FromResult<IHttpClientResponse>(new NullHttpClientResponse());
+		public UniTask<IHttpClientResponse> Get(Uri uri, TimeSpan timeout, CancellationToken cancellationToken = default) => UniTask.FromResult<IHttpClientResponse>(new NullHttpClientResponse());
+		public UniTask<IHttpClientResponse> PostJson(Uri uri, string content, TimeSpan timeout, CancellationToken cancellationToken = default) => UniTask.FromResult<IHttpClientResponse>(new NullHttpClientResponse());
+		public UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content, TimeSpan timeout, CancellationToken cancellationToken = default) => UniTask.FromResult<IHttpClientResponse>(new NullHttpClientResponse());
 	}
 
 	public sealed class NullHttpClientFactory : IHttpClientFactory

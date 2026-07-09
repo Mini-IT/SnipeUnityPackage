@@ -91,7 +91,7 @@ namespace MiniIT.Snipe.Tables
 		{
 			try
 			{
-				using var loadingResult = await httpClient.Get(new Uri(url), TimeSpan.FromSeconds(WEB_REQUEST_TIMEOUT_SECONDS));
+				using var loadingResult = await httpClient.Get(new Uri(url), TimeSpan.FromSeconds(WEB_REQUEST_TIMEOUT_SECONDS), cancellation);
 
 				if (cancellation.IsCancellationRequested)
 				{

@@ -29,35 +29,47 @@ namespace MiniIT.Http
 			_persistentClientId = id;
 		}
 
-		public async UniTask<IHttpClientResponse> Get(Uri uri)
+		public async UniTask<IHttpClientResponse> Get(Uri uri, CancellationToken cancellationToken = default)
 		{
-			await UniTask.SwitchToMainThread();
+			if (!await TrySwitchToMainThread(cancellationToken))
+			{
+				return UnityHttpClientResponse.CreateTimeout();
+			}
 
 			var request = UnityWebRequest.Get(uri);
-			return await SendRequestAsync(request);
+			return await SendRequestAsync(request, cancellationToken);
 		}
 
-		public async UniTask<IHttpClientResponse> Get(Uri uri, TimeSpan timeout)
+		public async UniTask<IHttpClientResponse> Get(Uri uri, TimeSpan timeout, CancellationToken cancellationToken = default)
 		{
-			await UniTask.SwitchToMainThread();
+			if (!await TrySwitchToMainThread(cancellationToken))
+			{
+				return UnityHttpClientResponse.CreateTimeout();
+			}
 
 			var request = UnityWebRequest.Get(uri);
-			return await SendRequestAsync(request, timeout);
+			return await SendRequestAsync(request, timeout, cancellationToken);
 		}
 
-		public async UniTask<IHttpClientResponse> PostJson(Uri uri, string content, TimeSpan timeout)
+		public async UniTask<IHttpClientResponse> PostJson(Uri uri, string content, TimeSpan timeout, CancellationToken cancellationToken = default)
 		{
-			await UniTask.SwitchToMainThread();
+			if (!await TrySwitchToMainThread(cancellationToken))
+			{
+				return UnityHttpClientResponse.CreateTimeout();
+			}
 
 			var request = UnityWebRequest.Post(uri, content, "application/json");
 			FillHeaders(request);
 
-			return await SendRequestAsync(request, timeout);
+			return await SendRequestAsync(request, timeout, cancellationToken);
 		}
 
-		public async UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content, TimeSpan timeout)
+		public async UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content, TimeSpan timeout, CancellationToken cancellationToken = default)
 		{
-			await UniTask.SwitchToMainThread();
+			if (!await TrySwitchToMainThread(cancellationToken))
+			{
+				return UnityHttpClientResponse.CreateTimeout();
+			}
 
 			var form = new WWWForm();
 			form.AddBinaryData(name, content);
@@ -65,7 +77,7 @@ namespace MiniIT.Http
 			var request = UnityWebRequest.Post(uri, form);
 			FillHeaders(request);
 
-			return await SendRequestAsync(request, timeout);
+			return await SendRequestAsync(request, timeout, cancellationToken);
 		}
 
 		private void FillHeaders(UnityWebRequest request)
@@ -81,13 +93,31 @@ namespace MiniIT.Http
 			}
 		}
 
-		private async UniTask<IHttpClientResponse> SendRequestAsync(UnityWebRequest request)
+		private static async UniTask<bool> TrySwitchToMainThread(CancellationToken cancellationToken)
+		{
+			try
+			{
+				await UniTask.SwitchToMainThread(cancellationToken);
+				return true;
+			}
+			catch (OperationCanceledException)
+			{
+				return false;
+			}
+		}
+
+		private async UniTask<IHttpClientResponse> SendRequestAsync(UnityWebRequest request, CancellationToken cancellationToken)
 		{
 			request.downloadHandler = new DownloadHandlerBuffer();
 			try
 			{
-				await request.SendWebRequest().ToUniTask();
+				await request.SendWebRequest().ToUniTask(cancellationToken: cancellationToken, cancelImmediately: true);
 				return new UnityHttpClientResponse(request);
+			}
+			catch (OperationCanceledException)
+			{
+				request.Abort();
+				return UnityHttpClientResponse.CreateTimeout();
 			}
 			finally
 			{
@@ -95,18 +125,19 @@ namespace MiniIT.Http
 			}
 		}
 
-		private async UniTask<IHttpClientResponse> SendRequestAsync(UnityWebRequest request, TimeSpan timeout)
+		private async UniTask<IHttpClientResponse> SendRequestAsync(UnityWebRequest request, TimeSpan timeout, CancellationToken cancellationToken)
 		{
 			if (timeout == TimeSpan.Zero)
 			{
-				return await SendRequestAsync(request);
+				return await SendRequestAsync(request, cancellationToken);
 			}
 
 			request.downloadHandler = new DownloadHandlerBuffer();
-			using var cts = new CancellationTokenSource(timeout);
+			using var timeoutCts = new CancellationTokenSource(timeout);
+			using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken);
 			try
 			{
-				await request.SendWebRequest().ToUniTask(cancellationToken: cts.Token);
+				await request.SendWebRequest().ToUniTask(cancellationToken: linkedCts.Token, cancelImmediately: true);
 				return new UnityHttpClientResponse(request);
 			}
 			catch (OperationCanceledException)
