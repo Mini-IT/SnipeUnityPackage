@@ -3,9 +3,9 @@
     "rootNamespace": "",
     "references": [
         "MiniIT.AlterTask",
+        "MiniIT.Snipe.Abstractions",
         "MiniIT.Snipe.Communicator",
-        "UniTask",
-        "MiniIT.Snipe.Abstractions"
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -3,11 +3,11 @@
     "rootNamespace": "MiniIT.Snipe",
     "references": [
         "MiniIT.AlterTask",
+		"MiniIT.Snipe.Abstractions",
         "MiniIT.Snipe.Communicator",
         "MiniIT.Framework.Social",
 		"UniTask",
-        "fastJSON",
-        "MiniIT.Snipe.Abstractions"
+        "fastJSON"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
