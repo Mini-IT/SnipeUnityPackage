@@ -43,6 +43,12 @@ namespace MiniIT.Snipe.Unity
 			return "Huawei";
 #elif YANDEX
 			return "Yandex";
+#elif CRAZYGAMES
+			return "Crazygames";
+#elif YOUTUBE
+			return "Youtube";
+#elif TIKTOK
+			return "Tiktok";
 //#elif CHINA
 //			return "China";
 #elif STEAM || MINIIT_STEAM || UNITY_STEAM
