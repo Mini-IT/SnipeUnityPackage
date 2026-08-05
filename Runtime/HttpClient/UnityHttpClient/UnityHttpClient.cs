@@ -132,25 +132,19 @@ namespace MiniIT.Http
 				return await SendRequestAsync(request, cancellationToken);
 			}
 
+			request.timeout = Math.Max(1, (int)Math.Ceiling(timeout.TotalSeconds));
 			request.downloadHandler = new DownloadHandlerBuffer();
-			using var timeoutCts = new CancellationTokenSource(timeout);
-			using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken);
 			try
 			{
-				await request.SendWebRequest().ToUniTask(cancellationToken: linkedCts.Token, cancelImmediately: true);
+				// Passing a timeout token to UniTask makes it call UnityWebRequest.Abort().
+				await request.SendWebRequest().ToUniTask();
 				return new UnityHttpClientResponse(request);
-			}
-			catch (OperationCanceledException)
-			{
-				request.Abort();
-				return UnityHttpClientResponse.CreateTimeout();
 			}
 			catch (UnityWebRequestException e)
 			{
 				if (string.Equals(request.error, REQUEST_TIMEOUT_ERROR, StringComparison.OrdinalIgnoreCase) ||
 				    string.Equals(e.Message, REQUEST_TIMEOUT_ERROR, StringComparison.OrdinalIgnoreCase))
 				{
-					request.Abort();
 					return UnityHttpClientResponse.CreateTimeout();
 				}
 
