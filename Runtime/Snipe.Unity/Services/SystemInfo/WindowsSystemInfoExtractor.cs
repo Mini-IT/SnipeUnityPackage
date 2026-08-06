@@ -9,19 +9,19 @@ namespace MiniIT.Snipe
 			var eascdi = new Windows.Security.ExchangeActiveSyncProvisioning.EasClientDeviceInformation();
 
 			string dfv = Windows.System.Profile.AnalyticsInfo.VersionInfo.DeviceFamilyVersion;
-			string osVersion = "0.0";
+			int major = 0;
+			int minor = 0;
 			if (ulong.TryParse(dfv, out ulong v))
 			{
-				var major = (int)((v & 0xFFFF000000000000L) >> 48);
-				var minor = (int)((v & 0x0000FFFF00000000L) >> 32);
-				osVersion = $"{major}.{minor}";
+				major = (int)((v & 0xFFFF000000000000L) >> 48);
+				minor = (int)((v & 0x0000FFFF00000000L) >> 32);
 			}
 
 			return new SystemInformation()
 			{
 				DeviceManufacturer = eascdi.SystemManufacturer,
 				OperatingSystemFamily = eascdi.OperatingSystem,
-				OperatingSystemVersion = osVersion,
+				OperatingSystemVersion = $"{major}.{minor}",
 			};
 		}
 	}
