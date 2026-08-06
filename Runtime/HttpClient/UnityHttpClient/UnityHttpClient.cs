@@ -111,12 +111,12 @@ namespace MiniIT.Http
 			request.downloadHandler = new DownloadHandlerBuffer();
 			try
 			{
-				await request.SendWebRequest().ToUniTask(cancellationToken: cancellationToken, cancelImmediately: true);
+				// UniTask aborts on the player loop, avoiding an Abort/Dispose race on a cancellation callback thread.
+				await request.SendWebRequest().ToUniTask(cancellationToken: cancellationToken);
 				return new UnityHttpClientResponse(request);
 			}
 			catch (OperationCanceledException)
 			{
-				request.Abort();
 				return UnityHttpClientResponse.CreateTimeout();
 			}
 			finally
@@ -133,16 +133,17 @@ namespace MiniIT.Http
 			}
 
 			request.downloadHandler = new DownloadHandlerBuffer();
-			using var timeoutCts = new CancellationTokenSource(timeout);
+			using var timeoutCts = new CancellationTokenSource();
+			using var timeoutCancellation = timeoutCts.CancelAfterSlim(timeout);
 			using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken);
 			try
 			{
-				await request.SendWebRequest().ToUniTask(cancellationToken: linkedCts.Token, cancelImmediately: true);
+				// UniTask aborts on the player loop, avoiding an Abort/Dispose race on a cancellation callback thread.
+				await request.SendWebRequest().ToUniTask(cancellationToken: linkedCts.Token);
 				return new UnityHttpClientResponse(request);
 			}
 			catch (OperationCanceledException)
 			{
-				request.Abort();
 				return UnityHttpClientResponse.CreateTimeout();
 			}
 			catch (UnityWebRequestException e)
@@ -150,7 +151,6 @@ namespace MiniIT.Http
 				if (string.Equals(request.error, REQUEST_TIMEOUT_ERROR, StringComparison.OrdinalIgnoreCase) ||
 				    string.Equals(e.Message, REQUEST_TIMEOUT_ERROR, StringComparison.OrdinalIgnoreCase))
 				{
-					request.Abort();
 					return UnityHttpClientResponse.CreateTimeout();
 				}
 
