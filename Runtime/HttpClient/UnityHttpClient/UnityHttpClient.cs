@@ -137,20 +137,33 @@ namespace MiniIT.Http
 			using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken);
 			try
 			{
-				await request.SendWebRequest().ToUniTask(cancellationToken: linkedCts.Token, cancelImmediately: true);
+				var operation = request.SendWebRequest();
+				using var cancellationRegistration = linkedCts.Token.RegisterWithoutCaptureExecutionContext(static state =>
+				{
+					try
+					{
+						((UnityWebRequest)state).Abort();
+					}
+					catch (NullReferenceException)
+					{
+					}
+				}, request);
+
+				await operation.ToUniTask();
+
+				if (linkedCts.IsCancellationRequested)
+				{
+					return UnityHttpClientResponse.CreateTimeout();
+				}
+
 				return new UnityHttpClientResponse(request);
-			}
-			catch (OperationCanceledException)
-			{
-				request.Abort();
-				return UnityHttpClientResponse.CreateTimeout();
 			}
 			catch (UnityWebRequestException e)
 			{
-				if (string.Equals(request.error, REQUEST_TIMEOUT_ERROR, StringComparison.OrdinalIgnoreCase) ||
+				if (linkedCts.IsCancellationRequested ||
+				    string.Equals(request.error, REQUEST_TIMEOUT_ERROR, StringComparison.OrdinalIgnoreCase) ||
 				    string.Equals(e.Message, REQUEST_TIMEOUT_ERROR, StringComparison.OrdinalIgnoreCase))
 				{
-					request.Abort();
 					return UnityHttpClientResponse.CreateTimeout();
 				}
 
