@@ -62,3 +62,6 @@ crashlytics-build.properties
 
 # MacOS directories view settings
 **/.DS_Store
+
+**/.codegraph
+

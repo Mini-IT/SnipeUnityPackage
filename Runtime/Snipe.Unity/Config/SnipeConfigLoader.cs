@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using fastJSON;
 using Microsoft.Extensions.Logging;
@@ -26,7 +27,8 @@ namespace MiniIT.Snipe
 			_httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
 		}
 
-		public async UniTask<Dictionary<string, object>> Load(Dictionary<string, object> additionalParams = null, SnipeConfigLoadingStatistics loadingStatistics = null)
+		public async UniTask<Dictionary<string, object>> Load(Dictionary<string, object> additionalParams = null,
+			SnipeConfigLoadingStatistics loadingStatistics = null, CancellationToken cancellationToken = default)
 		{
 			string requestParamsJson = BuildRequestParamsJson(additionalParams);
 
@@ -41,7 +43,7 @@ namespace MiniIT.Snipe
 
 			try
 			{
-				var response = await httpClient.PostJson(new Uri(_url), requestParamsJson, TimeSpan.FromSeconds(3));
+				var response = await httpClient.PostJson(new Uri(_url), requestParamsJson, TimeSpan.FromSeconds(3), cancellationToken);
 
 				if (!response.IsSuccess)
 				{

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using MiniIT.Utils;
 
 namespace MiniIT.Snipe
 {
@@ -37,11 +38,7 @@ namespace MiniIT.Snipe
 
 		public void Dispose()
 		{
-			if (_loadingCancellation != null)
-			{
-				_loadingCancellation.Dispose();
-				_loadingCancellation = null;
-			}
+			CancellationTokenHelper.CancelAndDispose(ref _loadingCancellation);
 		}
 
 		public async UniTask<Dictionary<string, object>> Load(Dictionary<string, object> additionalRequestParams = null, CancellationToken cancellationToken = default)
@@ -66,11 +63,11 @@ namespace MiniIT.Snipe
 
 			if (_loadingCancellation != null)
 			{
-				_loadingCancellation.Cancel();
-				_loadingCancellation.Dispose();
+				CancellationTokenHelper.CancelAndDispose(ref _loadingCancellation);
 			}
 
 			_loadingCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+			CancellationToken loadingToken = _loadingCancellation.Token;
 
 			if (_loader == null)
 			{
@@ -86,7 +83,7 @@ namespace MiniIT.Snipe
 				Statistics.SetState(SnipeConfigLoadingStatistics.LoadingState.Loading);
 			}
 
-			_config = await _loader.Load(additionalRequestParams, Statistics);
+			_config = await _loader.Load(additionalRequestParams, Statistics, loadingToken);
 
 			lock (_statisticsLock)
 			{
@@ -96,20 +93,14 @@ namespace MiniIT.Snipe
 
 			TrackStats();
 
-			_loadingCancellation?.Dispose();
-			_loadingCancellation = null;
+			CancellationTokenHelper.Dispose(ref _loadingCancellation, false);
 
 			return _config;
 		}
 
 		public void Reset()
 		{
-			if (_loadingCancellation != null)
-			{
-				_loadingCancellation.Cancel();
-				_loadingCancellation.Dispose();
-				_loadingCancellation = null;
-			}
+			CancellationTokenHelper.CancelAndDispose(ref _loadingCancellation);
 
 			_config = null;
 		}

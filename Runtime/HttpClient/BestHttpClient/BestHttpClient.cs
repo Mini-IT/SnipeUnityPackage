@@ -6,6 +6,7 @@
 
 using System;
 using System.IO;
+using System.Threading;
 using Best.HTTP;
 using Best.HTTP.Request.Authenticators;
 using Best.HTTP.Request.Upload.Forms;
@@ -60,28 +61,26 @@ namespace MiniIT.Http
 			_persistentClientId = id;
 		}
 
-		public async UniTask<IHttpClientResponse> Get(Uri uri)
+		public async UniTask<IHttpClientResponse> Get(Uri uri, CancellationToken cancellationToken = default)
 		{
 			var request = HTTPRequest.CreateGet(uri);
 			request.TimeoutSettings.ConnectTimeout = _defaultConnectTimeout;
 			request.DownloadSettings.DisableCache = true;
 			request.SetHeader("Cache-Control", "no-cache");
-			await request.Send();
-			return new BestHttpClientResponse(request.Response);
+			return await Send(request, cancellationToken);
 		}
 
-		public async UniTask<IHttpClientResponse> Get(Uri uri, TimeSpan timeout)
+		public async UniTask<IHttpClientResponse> Get(Uri uri, TimeSpan timeout, CancellationToken cancellationToken = default)
 		{
 			var request = HTTPRequest.CreateGet(uri);
 			request.TimeoutSettings.ConnectTimeout = _defaultConnectTimeout;
 			request.TimeoutSettings.Timeout = timeout;
 			request.DownloadSettings.DisableCache = true;
 			request.SetHeader("Cache-Control", "no-cache");
-			await request.Send();
-			return new BestHttpClientResponse(request.Response);
+			return await Send(request, cancellationToken);
 		}
 
-		public async UniTask<IHttpClientResponse> PostJson(Uri uri, string json, TimeSpan timeout)
+		public async UniTask<IHttpClientResponse> PostJson(Uri uri, string json, TimeSpan timeout, CancellationToken cancellationToken = default)
 		{
 			var request = HTTPRequest.CreatePost(uri);
 			request.SetHeader("Content-Type", "application/json; charset=UTF-8");
@@ -95,11 +94,10 @@ namespace MiniIT.Http
 			request.TimeoutSettings.Timeout = timeout;
 			request.DownloadSettings.DisableCache = true;
 			request.SetHeader("Cache-Control", "no-cache");
-			await request.Send();
-			return new BestHttpClientResponse(request.Response);
+			return await Send(request, cancellationToken);
 		}
 
-		public async UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content, TimeSpan timeout)
+		public async UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content, TimeSpan timeout, CancellationToken cancellationToken = default)
 		{
 			var request = HTTPRequest.CreatePost(uri);
 
@@ -112,8 +110,7 @@ namespace MiniIT.Http
 			request.TimeoutSettings.Timeout = timeout;
 			request.DownloadSettings.DisableCache = true;
 			request.SetHeader("Cache-Control", "no-cache");
-			await request.Send();
-			return new BestHttpClientResponse(request.Response);
+			return await Send(request, cancellationToken);
 		}
 
 		private void FillHeaders(HTTPRequest request)
@@ -126,6 +123,44 @@ namespace MiniIT.Http
 			if (!string.IsNullOrEmpty(_persistentClientId))
 			{
 				request.SetHeader("DeviceID", _persistentClientId);
+			}
+		}
+
+		private async UniTask<IHttpClientResponse> Send(HTTPRequest request, CancellationToken cancellationToken)
+		{
+			if (cancellationToken.IsCancellationRequested)
+			{
+				return BestHttpClientResponse.CreateTimeout();
+			}
+
+			CancellationTokenRegistration registration = default;
+			if (cancellationToken.CanBeCanceled)
+			{
+				registration = cancellationToken.Register(() => request.Abort());
+			}
+
+			try
+			{
+				await request.Send();
+
+				if (cancellationToken.IsCancellationRequested)
+				{
+					return BestHttpClientResponse.CreateTimeout();
+				}
+
+				return new BestHttpClientResponse(request.Response);
+			}
+			catch (OperationCanceledException)
+			{
+				return BestHttpClientResponse.CreateTimeout();
+			}
+			catch (Exception) when (cancellationToken.IsCancellationRequested)
+			{
+				return BestHttpClientResponse.CreateTimeout();
+			}
+			finally
+			{
+				registration.Dispose();
 			}
 		}
 	}

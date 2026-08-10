@@ -49,29 +49,29 @@ namespace MiniIT.Http
 			}
 		}
 
-		public UniTask<IHttpClientResponse> Get(Uri uri)
+		public UniTask<IHttpClientResponse> Get(Uri uri, CancellationToken cancellationToken = default)
 		{
 			var request = new HttpRequestMessage(HttpMethod.Get, uri);
-			return Send(request, TimeSpan.FromSeconds(DEFAULT_TIMEOUT_SECONDS));
+			return Send(request, TimeSpan.FromSeconds(DEFAULT_TIMEOUT_SECONDS), cancellationToken);
 		}
 
-		public UniTask<IHttpClientResponse> Get(Uri uri, TimeSpan timeout)
+		public UniTask<IHttpClientResponse> Get(Uri uri, TimeSpan timeout, CancellationToken cancellationToken = default)
 		{
 			var request = new HttpRequestMessage(HttpMethod.Get, uri);
-			return Send(request, timeout);
+			return Send(request, timeout, cancellationToken);
 		}
 
-		public UniTask<IHttpClientResponse> PostJson(Uri uri, string json, TimeSpan timeout)
+		public UniTask<IHttpClientResponse> PostJson(Uri uri, string json, TimeSpan timeout, CancellationToken cancellationToken = default)
 		{
 			var request = new HttpRequestMessage(HttpMethod.Post, uri)
 			{
 				Content = new StringContent(json, Encoding.UTF8, "application/json")
 			};
 
-			return Send(request, timeout);
+			return Send(request, timeout, cancellationToken);
 		}
 
-		public UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content, TimeSpan timeout)
+		public UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content, TimeSpan timeout, CancellationToken cancellationToken = default)
 		{
 			var form = new MultipartFormDataContent();
 			form.Add(new ByteArrayContent(content), name);
@@ -81,14 +81,16 @@ namespace MiniIT.Http
 				Content = form
 			};
 
-			return Send(request, timeout);
+			return Send(request, timeout, cancellationToken);
 		}
 
-		private async UniTask<IHttpClientResponse> Send(HttpRequestMessage request, TimeSpan timeout)
+		private async UniTask<IHttpClientResponse> Send(HttpRequestMessage request, TimeSpan timeout, CancellationToken cancellationToken)
 		{
 			try
 			{
-				using var cts = new CancellationTokenSource(timeout);
+				using var timeoutCts = new CancellationTokenSource(timeout);
+				using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken);
+				CancellationToken requestCancellation = linkedCts.Token;
 
 				// IMPORTANT
 				// A known issue in Unity/Android networking: when DNS resolution blocks inside the platform resolver,
@@ -96,10 +98,10 @@ namespace MiniIT.Http
 				// native networking layers before the `async` continuation.
 				// Manual DNS pre-resolution protects against main thread freezing on Android
 				await UniTask.RunOnThreadPool(async () => _ = await Dns.GetHostAddressesAsync(request.RequestUri.Host).ConfigureAwait(false),
-					cancellationToken: cts.Token);
+					cancellationToken: requestCancellation);
 
 				var response = await _httpClient
-					.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token)
+					.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, requestCancellation)
 					.ConfigureAwait(false);
 
 				return new SystemHttpClientResponse(response);

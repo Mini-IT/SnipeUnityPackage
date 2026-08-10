@@ -10,7 +10,8 @@
         "MiniIT.Framework.Utilities",
         "MiniIT.HttpClient.Abstraction",
         "fastJSON",
-        "UniTask"
+        "UniTask",
+        "MiniIT.Snipe.Core"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

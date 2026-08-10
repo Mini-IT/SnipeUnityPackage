@@ -3,6 +3,7 @@
     "rootNamespace": "MiniIT.Snipe",
     "references": [
         "MiniIT.Snipe.Core",
+		"MiniIT.Snipe.Abstractions",
         "MiniIT.Snipe.Communicator",
         "MiniIT.Integrations.Nutaku",
         "fastJSON"

@@ -92,7 +92,7 @@ namespace MiniIT.Snipe.Tables
 
 				try
 				{
-					var webRequest = await httpClient.Get(new Uri(url), TimeSpan.FromSeconds(1));
+					var webRequest = await httpClient.Get(new Uri(url), TimeSpan.FromSeconds(1), cancellationToken);
 
 					if (webRequest.IsSuccess)
 					{

@@ -265,6 +265,7 @@ namespace MiniIT.Snipe
 			IDictionary<string, object> data = _options.LoginParameters != null ? new Dictionary<string, object>(_options.LoginParameters) : new Dictionary<string, object>();
 			data["login"] = login;
 			data["auth"] = password;
+			data["ckey"] = _options.ClientKey;
 			FillCommonAuthRequestParameters(data);
 
 			if (_options.CompressionEnabled)
