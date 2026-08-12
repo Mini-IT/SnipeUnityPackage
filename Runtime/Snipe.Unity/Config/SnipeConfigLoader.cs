@@ -27,7 +27,7 @@ namespace MiniIT.Snipe
 			_httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
 		}
 
-		public async UniTask<Dictionary<string, object>> Load(Dictionary<string, object> additionalParams = null,
+		public async UniTask<Dictionary<string, object>> Load(TimeSpan timeout, Dictionary<string, object> additionalParams = null,
 			SnipeConfigLoadingStatistics loadingStatistics = null, CancellationToken cancellationToken = default)
 		{
 			string requestParamsJson = BuildRequestParamsJson(additionalParams);
@@ -43,7 +43,7 @@ namespace MiniIT.Snipe
 
 			try
 			{
-				var response = await httpClient.PostJson(new Uri(_url), requestParamsJson, TimeSpan.FromSeconds(3), cancellationToken);
+				var response = await httpClient.PostJson(new Uri(_url), requestParamsJson, timeout, cancellationToken);
 
 				if (!response.IsSuccess)
 				{

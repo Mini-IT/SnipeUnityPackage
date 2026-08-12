@@ -59,7 +59,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			};
 			var service = new SnipeConfigLoadingService("project", CreateServices(httpClient));
 
-			service.Load().Forget();
+			service.Load(TimeSpan.FromSeconds(3)).Forget();
 
 			yield return WaitUntil(() => httpClient.PostJsonCalls > 0);
 

@@ -9,7 +9,7 @@ namespace MiniIT.Snipe
 	public interface ISnipeConfigLoadingService
 	{
 		Dictionary<string, object> Config { get; }
-		UniTask<Dictionary<string, object>> Load(Dictionary<string, object> additionalRequestParams = null, CancellationToken cancellationToken = default);
+		UniTask<Dictionary<string, object>> Load(TimeSpan timeout, Dictionary<string, object> additionalRequestParams = null, CancellationToken cancellationToken = default);
 		void Reset();
 	}
 
@@ -41,7 +41,7 @@ namespace MiniIT.Snipe
 			CancellationTokenHelper.CancelAndDispose(ref _loadingCancellation);
 		}
 
-		public async UniTask<Dictionary<string, object>> Load(Dictionary<string, object> additionalRequestParams = null, CancellationToken cancellationToken = default)
+		public async UniTask<Dictionary<string, object>> Load(TimeSpan timeout, Dictionary<string, object> additionalRequestParams = null, CancellationToken cancellationToken = default)
 		{
 			if (_config != null)
 			{
@@ -83,7 +83,7 @@ namespace MiniIT.Snipe
 				Statistics.SetState(SnipeConfigLoadingStatistics.LoadingState.Loading);
 			}
 
-			_config = await _loader.Load(additionalRequestParams, Statistics, loadingToken);
+			_config = await _loader.Load(timeout, additionalRequestParams, Statistics, loadingToken);
 
 			lock (_statisticsLock)
 			{
