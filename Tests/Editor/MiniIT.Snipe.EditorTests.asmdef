@@ -13,6 +13,7 @@
         "MiniIT.Snipe.Services",
         "MiniIT.Snipe.Unity",
 		"MiniIT.HttpClient.Abstraction",
+		"MiniIT.HttpClient.Unity",
 		"MiniIT.Storage.SharedPrefs",
         "MiniIT.Snipe.Abstractions",
         "MiniIT.Snipe.Nulls",

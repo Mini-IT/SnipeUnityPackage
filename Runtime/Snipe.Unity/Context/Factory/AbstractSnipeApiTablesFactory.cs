@@ -35,7 +35,6 @@ namespace MiniIT.Snipe
 			{
 				TablesOptions.AddTableUrl($"https://static.snipe.dev/{projectName}/");
 				TablesOptions.AddTableUrl($"https://static-noproxy.snipe.dev/{projectName}/");
-				TablesOptions.AddTableUrl($"https://snipe.tuner-life.com/{projectName}/");
 			}
 		}
 	}
