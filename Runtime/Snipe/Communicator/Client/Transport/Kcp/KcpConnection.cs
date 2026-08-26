@@ -145,7 +145,7 @@ namespace MiniIT.Snipe
 				_socket = new UdpSocketWrapper(_services);
 				_socket.OnConnected += OnSocketConnected;
 				_socket.OnDisconnected += OnSocketDisconnected;
-				_socket.Connect(host, port);
+				_socket.Connect(host, port, _authenticationTimeout);
 			}
 		}
 
