@@ -109,8 +109,15 @@ namespace MiniIT.Snipe
 			DoSendBatch(messages);
 		}
 
-		private void OnClientConnected()
+		// [Testable]
+		internal void OnClientConnected()
 		{
+			if (_connectionEstablished)
+			{
+				_logger.LogTrace("OnUdpClientConnected - old connection recovered");
+				return;
+			}
+
 			_connectionEstablished = true;
 
 			_logger.LogTrace("OnUdpClientConnected");
