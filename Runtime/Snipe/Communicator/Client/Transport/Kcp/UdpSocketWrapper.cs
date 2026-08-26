@@ -8,23 +8,25 @@ namespace MiniIT.Snipe
 {
 	public sealed class UdpSocketWrapper : IDisposable
 	{
-		public Action OnConnected;
-		public Action OnDisconnected;
-
-		public bool Connected => _socket != null && _socket.Connected;
+		public bool IsConnected => _socket != null && _socket.Connected;
 
 		private Socket _socket;
 		private int _connectAttempt;
 
 		private readonly ILogger _logger;
 		private readonly object _connectLock = new object();
+		private readonly Action _connectedHandler;
+		private readonly Action _disconnectedHandler;
 
-		public UdpSocketWrapper(ISnipeServices services)
+		public UdpSocketWrapper(ISnipeServices services, Action connectedHandler, Action disconnectedHandler)
 		{
 			if (services == null)
 			{
 				throw new ArgumentNullException(nameof(services));
 			}
+
+			_connectedHandler = connectedHandler;
+			_disconnectedHandler = disconnectedHandler;
 
 			_logger = services.LoggerFactory.CreateLogger(nameof(UdpSocketWrapper));
 		}
@@ -64,7 +66,7 @@ namespace MiniIT.Snipe
 
 			if (socket != null && CompleteConnect(attempt, socket))
 			{
-				OnConnected?.Invoke();
+				_connectedHandler?.Invoke();
 				return;
 			}
 
@@ -93,7 +95,7 @@ namespace MiniIT.Snipe
 			catch (Exception)
 			{
 				Dispose();
-				OnDisconnected?.Invoke();
+				_disconnectedHandler?.Invoke();
 			}
 		}
 
@@ -194,7 +196,7 @@ namespace MiniIT.Snipe
 				_connectAttempt++;
 			}
 
-			OnDisconnected?.Invoke();
+			_disconnectedHandler?.Invoke();
 			return true;
 		}
 

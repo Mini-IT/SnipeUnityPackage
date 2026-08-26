@@ -74,7 +74,7 @@ namespace MiniIT.Snipe
 		public Action<ArraySegment<byte>, KcpChannel, bool> OnData;
 		public Action OnDisconnected;
 
-		public bool Connected => _socket != null && _socket.Connected && _state == KcpState.Authenticated;
+		public bool Connected => _socket != null && _socket.IsConnected && _state == KcpState.Authenticated;
 
 		private UdpSocketWrapper _socket;
 		private Kcp _kcp;
@@ -115,12 +115,7 @@ namespace MiniIT.Snipe
 
 		public KcpConnection(ISnipeServices services)
 		{
-			if (services == null)
-			{
-				throw new ArgumentNullException(nameof(services));
-			}
-
-			_services = services;
+			_services = services ?? throw new ArgumentNullException(nameof(services));
 			_logger = services.LoggerFactory.CreateLogger(nameof(KcpConnection));
 		}
 
@@ -142,9 +137,7 @@ namespace MiniIT.Snipe
 					_state = KcpState.Disconnected;
 				}
 
-				_socket = new UdpSocketWrapper(_services);
-				_socket.OnConnected += OnSocketConnected;
-				_socket.OnDisconnected += OnSocketDisconnected;
+				_socket = new UdpSocketWrapper(_services, OnSocketConnected, OnSocketDisconnected);
 				_socket.Connect(host, port, _authenticationTimeout);
 			}
 		}
@@ -252,7 +245,7 @@ namespace MiniIT.Snipe
 
 			try
 			{
-				if (_socket != null && _socket.Connected && !canAttemptReconnect)
+				if (_socket != null && _socket.IsConnected && !canAttemptReconnect)
 				{
 					try
 					{
@@ -1068,12 +1061,7 @@ namespace MiniIT.Snipe
 				_socket = null;
 			}
 
-			if (socket != null)
-			{
-				socket.OnConnected -= OnSocketConnected;
-				socket.OnDisconnected -= OnSocketDisconnected;
-				socket.Dispose();
-			}
+			socket?.Dispose();
 		}
 
 		private void ReleaseKcp()
