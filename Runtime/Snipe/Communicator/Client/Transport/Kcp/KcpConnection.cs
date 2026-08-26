@@ -248,6 +248,7 @@ namespace MiniIT.Snipe
 			}
 
 			_selfDisconnecting = true;
+			_hasReceivedValidMessage = false;
 
 			try
 			{
