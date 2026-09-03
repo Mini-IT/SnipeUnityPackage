@@ -10,6 +10,8 @@ namespace MiniIT.Snipe.Api
 		private readonly SnipeOptionsBuilder _optionsBuilder;
 		private readonly ISnipeTablesProvider _tablesProvider;
 		private readonly ISnipeServices _services;
+		private ILogReporterFactory _logReporterFactory;
+		private bool _logReporterFactoryLocked;
 		public TablesOptions TablesOptions { get; } = new TablesOptions();
 
 		protected AbstractSnipeApiContextFactory(
@@ -22,6 +24,16 @@ namespace MiniIT.Snipe.Api
 			_services = services;
 		}
 
+		public void SetLogReporterFactory(ILogReporterFactory logReporterFactory)
+		{
+			if (_logReporterFactoryLocked)
+			{
+				throw new InvalidOperationException("Log reporter factory cannot be changed after a reporter has been created.");
+			}
+
+			_logReporterFactory = logReporterFactory;
+		}
+
 		public SnipeContext CreateContext(int id)
 		{
 			var options = _optionsBuilder.Build(id, _services);
@@ -29,10 +41,28 @@ namespace MiniIT.Snipe.Api
 			var analytics = (_services.Analytics as IAnalyticsTrackerProvider)?.GetTracker(id);
 			var communicator = new SnipeCommunicator(options, analytics, _services);
 			var auth = new UnityAuthSubsystem(id, options, communicator, analytics, _services);
-			var logReporter = new LogReporter();
+			var logReporter = CreateLogReporter();
 
 			var context = new SnipeApiContext(id, options, communicator, auth, logReporter, this, _tablesProvider);
 			return context;
+		}
+
+		protected ILogReporter CreateLogReporter()
+		{
+			_logReporterFactoryLocked = true;
+
+			if (_logReporterFactory == null)
+			{
+				return new LogReporter();
+			}
+
+			ILogReporter logReporter = _logReporterFactory.Create();
+			if (logReporter == null)
+			{
+				throw new InvalidOperationException($"{nameof(ILogReporterFactory)} returned null.");
+			}
+
+			return logReporter;
 		}
 
 		public void Reconfigure(SnipeContext context)

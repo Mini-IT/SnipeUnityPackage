@@ -23,12 +23,12 @@ namespace MiniIT.Snipe
 
 		public ISnipeCommunicator Communicator { get; }
 		public AuthSubsystem Auth { get; }
-		public LogReporter LogReporter { get; }
+		public ILogReporter LogReporter { get; }
 
 		/// <summary>
 		/// Protected constructor. Use <see cref="SnipeManager"/> to get an instance
 		/// </summary>
-		protected SnipeContext(int id, SnipeOptions options, ISnipeCommunicator communicator, AuthSubsystem auth, LogReporter logReporter)
+		protected SnipeContext(int id, SnipeOptions options, ISnipeCommunicator communicator, AuthSubsystem auth, ILogReporter logReporter)
 		{
 			Id = id;
 			Communicator = communicator;
