@@ -1,7 +1,6 @@
 using System;
 using MiniIT.Snipe.Configuration;
 using MiniIT.Snipe.Unity;
-using MiniIT.Snipe;
 
 namespace MiniIT.Snipe.Api
 {

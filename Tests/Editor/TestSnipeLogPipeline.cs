@@ -172,11 +172,12 @@ namespace MiniIT.Snipe.Tests.Editor
 		public async Task SendAsync_RetriesFilesInOrderAndDeletesOnlyAfterSuccess()
 		{
 			var sender = new RecordingSender(false, true, true);
-			using (var pipeline = new SnipeLogPipeline(42, CreateTemporaryDirectory(), sender))
+			string directory = CreateTemporaryDirectory();
+			using (var pipeline = new SnipeLogPipeline(42, directory, sender))
 			{
 				pipeline.Append(new SnipeLogRecord(1, LogType.Log, "first", string.Empty));
 				Assert.IsFalse(await pipeline.SendAsync());
-				Assert.AreEqual(1, pipeline.GetFilesReadyToSend().Length);
+				Assert.AreEqual(1, CountNonEmptyLogFiles(directory));
 
 				pipeline.Append(new SnipeLogRecord(2, LogType.Warning, "second", string.Empty));
 				Assert.IsTrue(await pipeline.SendAsync());
@@ -185,7 +186,7 @@ namespace MiniIT.Snipe.Tests.Editor
 				StringAssert.Contains("first", sender.Contents[0]);
 				StringAssert.Contains("first", sender.Contents[1]);
 				StringAssert.Contains("second", sender.Contents[2]);
-				Assert.AreEqual(0, pipeline.GetFilesReadyToSend().Length);
+				Assert.AreEqual(0, CountNonEmptyLogFiles(directory));
 			}
 		}
 
@@ -304,6 +305,21 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			byte[] bytes = new UTF8Encoding(false).GetBytes(content);
 			return new StreamReader(new MemoryStream(bytes), new UTF8Encoding(false));
+		}
+
+		private static int CountNonEmptyLogFiles(string directory)
+		{
+			int count = 0;
+			string[] files = Directory.GetFiles(directory, "*.ndjson");
+			for (int i = 0; i < files.Length; i++)
+			{
+				if (new FileInfo(files[i]).Length > 0)
+				{
+					count++;
+				}
+			}
+
+			return count;
 		}
 
 		private static async Task WaitUntilAsync(Func<bool> condition)

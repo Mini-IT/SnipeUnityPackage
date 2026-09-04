@@ -1,6 +1,6 @@
 namespace MiniIT.Snipe
 {
-	public sealed class DefaultLogReporterFactory : ILogReporterFactory
+	internal sealed class DefaultLogReporterFactory : ILogReporterFactory
 	{
 		public ILogReporter Create()
 		{

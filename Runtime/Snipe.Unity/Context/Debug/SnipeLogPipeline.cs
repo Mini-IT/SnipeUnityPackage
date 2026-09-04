@@ -161,11 +161,6 @@ namespace MiniIT.Snipe
 			_buffer.Dispose();
 		}
 
-		internal string[] GetFilesReadyToSend()
-		{
-			return _buffer.GetFilesReadyToSend();
-		}
-
 		internal static bool IsDiagnosticLog(string message)
 		{
 			return !string.IsNullOrEmpty(message) &&
