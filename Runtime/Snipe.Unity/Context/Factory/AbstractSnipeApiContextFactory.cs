@@ -7,10 +7,11 @@ namespace MiniIT.Snipe.Api
 {
 	public abstract class AbstractSnipeApiContextFactory : ISnipeContextFactory, ISnipeApiContextItemsFactory
 	{
+		private readonly object _logReporterFactoryLock = new object();
 		private readonly SnipeOptionsBuilder _optionsBuilder;
 		private readonly ISnipeTablesProvider _tablesProvider;
 		private readonly ISnipeServices _services;
-		private ILogReporterFactory _logReporterFactory;
+		private ILogReporterFactory _logReporterFactory = new DefaultLogReporterFactory();
 		private bool _logReporterFactoryLocked;
 		public TablesOptions TablesOptions { get; } = new TablesOptions();
 
@@ -26,12 +27,20 @@ namespace MiniIT.Snipe.Api
 
 		public void SetLogReporterFactory(ILogReporterFactory logReporterFactory)
 		{
-			if (_logReporterFactoryLocked)
+			if (logReporterFactory == null)
 			{
-				throw new InvalidOperationException("Log reporter factory cannot be changed after a reporter has been created.");
+				throw new ArgumentNullException(nameof(logReporterFactory));
 			}
 
-			_logReporterFactory = logReporterFactory;
+			lock (_logReporterFactoryLock)
+			{
+				if (_logReporterFactoryLocked)
+				{
+					throw new InvalidOperationException("Log reporter factory cannot be changed after a reporter has been created.");
+				}
+
+				_logReporterFactory = logReporterFactory;
+			}
 		}
 
 		public SnipeContext CreateContext(int id)
@@ -49,14 +58,14 @@ namespace MiniIT.Snipe.Api
 
 		protected ILogReporter CreateLogReporter()
 		{
-			_logReporterFactoryLocked = true;
-
-			if (_logReporterFactory == null)
+			ILogReporterFactory logReporterFactory;
+			lock (_logReporterFactoryLock)
 			{
-				return new LogReporter();
+				_logReporterFactoryLocked = true;
+				logReporterFactory = _logReporterFactory;
 			}
 
-			ILogReporter logReporter = _logReporterFactory.Create();
+			ILogReporter logReporter = logReporterFactory.Create();
 			if (logReporter == null)
 			{
 				throw new InvalidOperationException($"{nameof(ILogReporterFactory)} returned null.");

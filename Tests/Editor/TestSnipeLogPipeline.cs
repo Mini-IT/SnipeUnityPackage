@@ -44,6 +44,16 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[Test]
+		public void ContextFactory_RejectsNullFactoriesAndReporters()
+		{
+			var factory = new ContextFactoryStub();
+
+			Assert.Throws<ArgumentNullException>(() => factory.SetLogReporterFactory(null));
+			factory.SetLogReporterFactory(new ReporterFactoryStub(null));
+			Assert.Throws<InvalidOperationException>(() => factory.CreateReporter());
+		}
+
+		[Test]
 		public async Task ContextFactory_CustomReporterReceivesLifecycleCalls()
 		{
 			var reporter = new ReporterStub();
@@ -64,6 +74,22 @@ namespace MiniIT.Snipe.Tests.Editor
 			Assert.AreSame(options, reporter.LastOptions);
 			Assert.AreEqual(1, reporter.SendCount);
 			Assert.AreEqual(1, reporter.DisposeCount);
+		}
+
+		[Test]
+		public async Task DefaultReporter_DelegatesLifecycleToPipeline()
+		{
+			var pipeline = new PipelineStub();
+			var reporter = new LogReporter(pipeline);
+
+			reporter.Initialize(null, null);
+			Assert.IsTrue(await reporter.SendAsync());
+			reporter.Dispose();
+			reporter.Dispose();
+
+			Assert.AreEqual(1, pipeline.InitializeCount);
+			Assert.AreEqual(1, pipeline.SendCount);
+			Assert.AreEqual(1, pipeline.DisposeCount);
 		}
 
 		[Test]
@@ -164,6 +190,29 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[Test]
+		public async Task SendAsync_BarrierFlushesPriorRecordsInFifoOrder()
+		{
+			var sender = new RecordingSender(true);
+			using (var pipeline = new SnipeLogPipeline(null, CreateTemporaryDirectory(), sender))
+			{
+				pipeline.Append(new SnipeLogRecord(1, LogType.Log, "first", string.Empty));
+				pipeline.Append(new SnipeLogRecord(2, LogType.Warning, "second", string.Empty));
+				pipeline.Append(new SnipeLogRecord(3, LogType.Error, "third", string.Empty));
+
+				Assert.IsTrue(await pipeline.SendAsync());
+				Assert.AreEqual(1, sender.Contents.Count);
+
+				string content = sender.Contents[0];
+				int firstIndex = content.IndexOf("first", StringComparison.Ordinal);
+				int secondIndex = content.IndexOf("second", StringComparison.Ordinal);
+				int thirdIndex = content.IndexOf("third", StringComparison.Ordinal);
+				Assert.That(firstIndex, Is.GreaterThanOrEqualTo(0));
+				Assert.That(secondIndex, Is.GreaterThan(firstIndex));
+				Assert.That(thirdIndex, Is.GreaterThan(secondIndex));
+			}
+		}
+
+		[Test]
 		public async Task SendAsync_SerializesSendsWithoutBlockingAppend()
 		{
 			var sender = new BlockingSender();
@@ -213,6 +262,28 @@ namespace MiniIT.Snipe.Tests.Editor
 
 				Assert.IsFalse(result);
 				CollectionAssert.AreEqual(new[] { 1, 2 }, portions);
+			}
+		}
+
+		[Test]
+		public void Dispose_DrainsQueuedRecordsAndIsIdempotent()
+		{
+			string directory = CreateTemporaryDirectory();
+			var pipeline = new SnipeLogPipeline(null, directory, new RecordingSender(true));
+			for (int i = 0; i < 100; i++)
+			{
+				pipeline.Append(new SnipeLogRecord(i, LogType.Log, $"record-{i:D3}", string.Empty));
+			}
+
+			pipeline.Dispose();
+			pipeline.Dispose();
+
+			string[] files = Directory.GetFiles(directory, "*.ndjson");
+			Assert.AreEqual(1, files.Length);
+			string content = File.ReadAllText(files[0]);
+			for (int i = 0; i < 100; i++)
+			{
+				StringAssert.Contains($"record-{i:D3}", content);
 			}
 		}
 
@@ -314,6 +385,33 @@ namespace MiniIT.Snipe.Tests.Editor
 				InitializeCount++;
 				LastContext = context;
 				LastOptions = options;
+			}
+
+			public UniTask<bool> SendAsync()
+			{
+				SendCount++;
+				return UniTask.FromResult(true);
+			}
+
+			public void Dispose()
+			{
+				DisposeCount++;
+			}
+		}
+
+		private sealed class PipelineStub : ISnipeLogPipeline
+		{
+			internal int InitializeCount { get; private set; }
+			internal int SendCount { get; private set; }
+			internal int DisposeCount { get; private set; }
+
+			public void Initialize(SnipeContext context, SnipeOptions options)
+			{
+				InitializeCount++;
+			}
+
+			public void Append(SnipeLogRecord record)
+			{
 			}
 
 			public UniTask<bool> SendAsync()

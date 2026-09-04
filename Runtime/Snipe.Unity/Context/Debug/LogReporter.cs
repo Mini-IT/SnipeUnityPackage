@@ -7,11 +7,18 @@ namespace MiniIT
 {
 	public class LogReporter : ILogReporter
 	{
-		private readonly SnipeLogPipeline _pipeline = new SnipeLogPipeline();
+		private readonly ISnipeLogPipeline _pipeline;
 		private bool _subscribed;
+		private bool _disposed;
 
 		public LogReporter()
+			: this(new SnipeLogPipeline())
 		{
+		}
+
+		internal LogReporter(ISnipeLogPipeline pipeline)
+		{
+			_pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
 			Application.logMessageReceivedThreaded += HandleLogMessageReceived;
 			_subscribed = true;
 		}
@@ -28,6 +35,12 @@ namespace MiniIT
 
 		public void Dispose()
 		{
+			if (_disposed)
+			{
+				return;
+			}
+
+			_disposed = true;
 			if (_subscribed)
 			{
 				Application.logMessageReceivedThreaded -= HandleLogMessageReceived;

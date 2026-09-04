@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using Cysharp.Threading.Tasks;
@@ -10,7 +9,7 @@ using UnityEngine;
 
 namespace MiniIT.Snipe
 {
-	public sealed class SnipeLogPipeline : IDisposable
+	public sealed class SnipeLogPipeline : ISnipeLogPipeline
 	{
 		public const string DiagnosticLogPrefix = "[SnipeLogPipeline]";
 
@@ -67,9 +66,9 @@ namespace MiniIT.Snipe
 				{
 					return;
 				}
-			}
 
-			_buffer.Append(SerializeRecord(record));
+				_buffer.Append(SerializeRecordToUtf8(record));
+			}
 		}
 
 		public async UniTask<bool> SendAsync()
@@ -82,6 +81,7 @@ namespace MiniIT.Snipe
 				semaphoreOccupied = true;
 
 				ILogFileSender sender;
+				UniTask<bool> rotation;
 				lock (_stateLock)
 				{
 					if (_disposed)
@@ -90,15 +90,16 @@ namespace MiniIT.Snipe
 					}
 
 					sender = _sender;
+					if (sender == null)
+					{
+						DebugLogger.LogWarning($"{DiagnosticLogPrefix} Log pipeline is not initialized.");
+						return false;
+					}
+
+					rotation = _buffer.RotateAsync();
 				}
 
-				if (sender == null)
-				{
-					DebugLogger.LogWarning($"{DiagnosticLogPrefix} Log pipeline is not initialized.");
-					return false;
-				}
-
-				if (!_buffer.Rotate())
+				if (!await rotation)
 				{
 					return false;
 				}
@@ -223,297 +224,10 @@ namespace MiniIT.Snipe
 
 			return builder.ToString();
 		}
-	}
 
-	internal sealed class SnipeLogFileBuffer : IDisposable
-	{
-		internal static readonly UTF8Encoding Utf8NoBom = new UTF8Encoding(false);
-
-		private const string FILE_PREFIX = "snipe-log-";
-		private const string FILE_EXTENSION = ".ndjson";
-		private const int MAX_RETAINED_STALE_FILES = 3;
-		private const int MIN_BYTES_TO_FLUSH = 4096;
-
-		private readonly object _syncRoot = new object();
-		private readonly string _directoryPath;
-		private readonly string _sessionFilePrefix;
-
-		private StreamWriter _currentWriter;
-		private string _currentFilePath;
-		private int _bytesSinceFlush;
-		private int _fileSequence;
-		private long _currentFileLength;
-		private bool _storageReady;
-		private bool _disposed;
-
-		internal SnipeLogFileBuffer(string directoryPath)
+		private static byte[] SerializeRecordToUtf8(SnipeLogRecord record)
 		{
-			if (string.IsNullOrEmpty(directoryPath))
-			{
-				throw new ArgumentException("Log cache directory is required.", nameof(directoryPath));
-			}
-
-			_directoryPath = directoryPath;
-			_sessionFilePrefix = $"{FILE_PREFIX}{Guid.NewGuid():N}-";
-			EnsureStorageReady();
-			CleanupStaleFiles();
-		}
-
-		internal bool Append(string line)
-		{
-			if (string.IsNullOrEmpty(line))
-			{
-				return false;
-			}
-
-			lock (_syncRoot)
-			{
-				if (_disposed || !EnsureStorageReady())
-				{
-					return false;
-				}
-
-				try
-				{
-					_currentWriter.WriteLine(line);
-					int bytesWritten = Utf8NoBom.GetByteCount(line) + 1;
-					_currentFileLength += bytesWritten;
-					_bytesSinceFlush += bytesWritten;
-
-					if (_bytesSinceFlush >= MIN_BYTES_TO_FLUSH)
-					{
-						_currentWriter.Flush();
-						_bytesSinceFlush = 0;
-					}
-
-					return true;
-				}
-				catch (Exception ex)
-				{
-					DebugLogger.LogError($"{SnipeLogPipeline.DiagnosticLogPrefix} Failed to append log record: {LogUtil.GetReducedException(ex)}");
-					CloseCurrentWriter();
-					_storageReady = false;
-					return false;
-				}
-			}
-		}
-
-		internal bool Rotate()
-		{
-			lock (_syncRoot)
-			{
-				if (_disposed || !EnsureStorageReady())
-				{
-					return false;
-				}
-
-				if (_currentFileLength <= 0)
-				{
-					return true;
-				}
-
-				try
-				{
-					CloseCurrentWriter();
-					CreateCurrentFile();
-					CleanupStaleFiles();
-					return true;
-				}
-				catch (Exception ex)
-				{
-					DebugLogger.LogError($"{SnipeLogPipeline.DiagnosticLogPrefix} Failed to rotate log file: {LogUtil.GetReducedException(ex)}");
-					CloseCurrentWriter();
-					_storageReady = false;
-					return false;
-				}
-			}
-		}
-
-		internal string[] GetFilesReadyToSend()
-		{
-			lock (_syncRoot)
-			{
-				if (!Directory.Exists(_directoryPath))
-				{
-					return Array.Empty<string>();
-				}
-
-				string[] files = Directory.GetFiles(_directoryPath, $"{_sessionFilePrefix}*{FILE_EXTENSION}");
-				Array.Sort(files, StringComparer.Ordinal);
-				var result = new List<string>(files.Length);
-
-				for (int i = 0; i < files.Length; i++)
-				{
-					string filePath = files[i];
-					if (PathEquals(filePath, _currentFilePath))
-					{
-						continue;
-					}
-
-					if (new FileInfo(filePath).Length == 0)
-					{
-						TryDeleteFile(filePath);
-						continue;
-					}
-
-					result.Add(filePath);
-				}
-
-				return result.ToArray();
-			}
-		}
-
-		internal bool DeleteSentFile(string filePath)
-		{
-			lock (_syncRoot)
-			{
-				bool deleted = TryDeleteFile(filePath);
-				CleanupStaleFiles();
-				return deleted;
-			}
-		}
-
-		public void Dispose()
-		{
-			lock (_syncRoot)
-			{
-				if (_disposed)
-				{
-					return;
-				}
-
-				_disposed = true;
-				CloseCurrentWriter();
-				if (_currentFileLength == 0)
-				{
-					TryDeleteFile(_currentFilePath);
-				}
-
-				CleanupStaleFiles();
-			}
-		}
-
-		private bool EnsureStorageReady()
-		{
-			if (_storageReady)
-			{
-				return true;
-			}
-
-			try
-			{
-				Directory.CreateDirectory(_directoryPath);
-				CreateCurrentFile();
-				_storageReady = true;
-				return true;
-			}
-			catch (Exception ex)
-			{
-				DebugLogger.LogError($"{SnipeLogPipeline.DiagnosticLogPrefix} Failed to initialize log storage: {LogUtil.GetReducedException(ex)}");
-				_storageReady = false;
-				return false;
-			}
-		}
-
-		private void CreateCurrentFile()
-		{
-			string fileName = $"{_sessionFilePrefix}{_fileSequence++:D8}-{Guid.NewGuid():N}{FILE_EXTENSION}";
-			_currentFilePath = Path.Combine(_directoryPath, fileName);
-			var stream = new FileStream(_currentFilePath, FileMode.CreateNew, FileAccess.Write, FileShare.Read);
-			_currentWriter = new StreamWriter(stream, Utf8NoBom)
-			{
-				NewLine = "\n"
-			};
-			_bytesSinceFlush = 0;
-			_currentFileLength = 0;
-		}
-
-		private void CloseCurrentWriter()
-		{
-			if (_currentWriter == null)
-			{
-				return;
-			}
-
-			try
-			{
-				_currentWriter.Flush();
-			}
-			catch (Exception ex)
-			{
-				DebugLogger.LogWarning($"{SnipeLogPipeline.DiagnosticLogPrefix} Failed to flush log file: {LogUtil.GetReducedException(ex)}");
-			}
-
-			try
-			{
-				_currentWriter.Dispose();
-			}
-			catch (Exception ex)
-			{
-				DebugLogger.LogWarning($"{SnipeLogPipeline.DiagnosticLogPrefix} Failed to close log file: {LogUtil.GetReducedException(ex)}");
-			}
-			finally
-			{
-				_currentWriter = null;
-				_bytesSinceFlush = 0;
-			}
-		}
-
-		private void CleanupStaleFiles()
-		{
-			if (!Directory.Exists(_directoryPath))
-			{
-				return;
-			}
-
-			string[] files = Directory.GetFiles(_directoryPath, $"{FILE_PREFIX}*{FILE_EXTENSION}");
-			var staleFiles = new List<FileInfo>();
-			for (int i = 0; i < files.Length; i++)
-			{
-				string filePath = files[i];
-				if (PathEquals(filePath, _currentFilePath) ||
-					Path.GetFileName(filePath).StartsWith(_sessionFilePrefix, StringComparison.Ordinal))
-				{
-					continue;
-				}
-
-				staleFiles.Add(new FileInfo(filePath));
-			}
-
-			staleFiles.Sort((left, right) =>
-			{
-				int comparison = DateTime.Compare(right.LastWriteTimeUtc, left.LastWriteTimeUtc);
-				return comparison != 0 ? comparison : string.CompareOrdinal(left.FullName, right.FullName);
-			});
-
-			for (int i = MAX_RETAINED_STALE_FILES; i < staleFiles.Count; i++)
-			{
-				TryDeleteFile(staleFiles[i].FullName);
-			}
-		}
-
-		private static bool TryDeleteFile(string filePath)
-		{
-			if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
-			{
-				return true;
-			}
-
-			try
-			{
-				File.Delete(filePath);
-				return true;
-			}
-			catch (Exception ex)
-			{
-				DebugLogger.LogWarning($"{SnipeLogPipeline.DiagnosticLogPrefix} Failed to delete {filePath}: {LogUtil.GetReducedException(ex)}");
-				return false;
-			}
-		}
-
-		private static bool PathEquals(string left, string right)
-		{
-			return string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+			return SnipeLogFileBuffer.Utf8NoBom.GetBytes(SerializeRecord(record) + "\n");
 		}
 	}
 }
