@@ -11,7 +11,7 @@ namespace MiniIT.Snipe
 {
 	public sealed class SnipeLogPipeline : ISnipeLogPipeline
 	{
-		public const string DiagnosticLogPrefix = "[SnipeLogPipeline]";
+		public const string DIAGNOSTIC_LOG_PREFIX = "[SnipeLogPipeline]";
 
 		private const string CACHE_DIRECTORY_NAME = "snipe-log-pipeline";
 
@@ -81,7 +81,7 @@ namespace MiniIT.Snipe
 				semaphoreOccupied = true;
 
 				ILogFileSender sender;
-				UniTask<bool> rotation;
+				UniTask<bool> fileSeal;
 				lock (_stateLock)
 				{
 					if (_disposed)
@@ -92,14 +92,14 @@ namespace MiniIT.Snipe
 					sender = _sender;
 					if (sender == null)
 					{
-						DebugLogger.LogWarning($"{DiagnosticLogPrefix} Log pipeline is not initialized.");
+						DebugLogger.LogWarning($"{DIAGNOSTIC_LOG_PREFIX} Log pipeline is not initialized.");
 						return false;
 					}
 
-					rotation = _buffer.RotateAsync();
+					fileSeal = _buffer.SealCurrentFileAsync();
 				}
 
-				if (!await rotation)
+				if (!await fileSeal)
 				{
 					return false;
 				}
@@ -119,7 +119,7 @@ namespace MiniIT.Snipe
 					}
 					catch (Exception ex)
 					{
-						DebugLogger.LogError($"{DiagnosticLogPrefix} Failed sending {filePath}: {LogUtil.GetReducedException(ex)}");
+						DebugLogger.LogError($"{DIAGNOSTIC_LOG_PREFIX} Failed sending {filePath}: {LogUtil.GetReducedException(ex)}");
 						return false;
 					}
 
@@ -133,7 +133,7 @@ namespace MiniIT.Snipe
 			}
 			catch (Exception ex)
 			{
-				DebugLogger.LogError($"{DiagnosticLogPrefix} Send failed: {LogUtil.GetReducedException(ex)}");
+				DebugLogger.LogError($"{DIAGNOSTIC_LOG_PREFIX} Send failed: {LogUtil.GetReducedException(ex)}");
 				return false;
 			}
 			finally
@@ -164,7 +164,7 @@ namespace MiniIT.Snipe
 		internal static bool IsDiagnosticLog(string message)
 		{
 			return !string.IsNullOrEmpty(message) &&
-				message.StartsWith(DiagnosticLogPrefix, StringComparison.Ordinal);
+				message.StartsWith(DIAGNOSTIC_LOG_PREFIX, StringComparison.Ordinal);
 		}
 
 		internal static string SerializeRecord(SnipeLogRecord record)

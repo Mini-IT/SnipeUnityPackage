@@ -66,7 +66,7 @@ namespace MiniIT.Snipe.Internal
 
 			if (_services == null)
 			{
-				DebugLogger.LogError($"{SnipeLogPipeline.DiagnosticLogPrefix} Missing services for log sender.");
+				DebugLogger.LogError($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Missing services for log sender.");
 				return false;
 			}
 
@@ -74,7 +74,7 @@ namespace MiniIT.Snipe.Internal
 			string url = _snipeOptions?.LogReporterUrl;
 			if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(url))
 			{
-				DebugLogger.LogWarning($"{SnipeLogPipeline.DiagnosticLogPrefix} Invalid apiKey or url.");
+				DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Invalid apiKey or url.");
 				return false;
 			}
 
@@ -104,10 +104,10 @@ namespace MiniIT.Snipe.Internal
 					{
 						if (batch.HasOversizedRecord)
 						{
-							DebugLogger.LogWarning($"{SnipeLogPipeline.DiagnosticLogPrefix} Oversized log record detected. portion={portionIndex} recordBytes={batch.OversizedRecordBytes} maxChunkBytes={profile.MaxChunkBytes}");
+							DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Oversized log record detected. portion={portionIndex} recordBytes={batch.OversizedRecordBytes} maxChunkBytes={profile.MaxChunkBytes}");
 						}
 
-						DebugLogger.Log($"{SnipeLogPipeline.DiagnosticLogPrefix} Posting log portion. portion={portionIndex} recordCount={batch.RecordCount} payloadBytes={batch.PayloadBytes} timeoutSeconds={profile.RequestTimeout.TotalSeconds}");
+						DebugLogger.Log($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Posting log portion. portion={portionIndex} recordCount={batch.RecordCount} payloadBytes={batch.PayloadBytes} timeoutSeconds={profile.RequestTimeout.TotalSeconds}");
 						return await PostJsonAsync(httpClient, new Uri(url), batch.Content, profile.RequestTimeout);
 					});
 			}
@@ -287,16 +287,16 @@ namespace MiniIT.Snipe.Internal
 				HttpStatusCode statusCode = (HttpStatusCode)response.ResponseCode;
 				if (!response.IsSuccess)
 				{
-					DebugLogger.LogWarning($"{SnipeLogPipeline.DiagnosticLogPrefix} Failed posting log portion. Result code = {(int)statusCode} {statusCode} {response.Error}");
+					DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed posting log portion. Result code = {(int)statusCode} {statusCode} {response.Error}");
 					return false;
 				}
 
-				DebugLogger.Log($"{SnipeLogPipeline.DiagnosticLogPrefix} Send log portion result code = {(int)statusCode} {statusCode}");
+				DebugLogger.Log($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Send log portion result code = {(int)statusCode} {statusCode}");
 				return true;
 			}
 			catch (Exception ex)
 			{
-				DebugLogger.LogError($"{SnipeLogPipeline.DiagnosticLogPrefix} Error posting log portion: {LogUtil.GetReducedException(ex)}");
+				DebugLogger.LogError($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Error posting log portion: {LogUtil.GetReducedException(ex)}");
 				return false;
 			}
 			finally

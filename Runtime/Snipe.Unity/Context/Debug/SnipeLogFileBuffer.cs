@@ -71,9 +71,9 @@ namespace MiniIT.Snipe.Internal
 			return TryEnqueue(SnipeLogBufferCommand.Append(record));
 		}
 
-		internal async UniTask<bool> RotateAsync()
+		internal async UniTask<bool> SealCurrentFileAsync()
 		{
-			SnipeLogBufferCommand command = SnipeLogBufferCommand.Rotate();
+			SnipeLogBufferCommand command = SnipeLogBufferCommand.SealCurrentFile();
 			if (!TryEnqueue(command))
 			{
 				return false;
@@ -170,7 +170,7 @@ namespace MiniIT.Snipe.Internal
 			}
 			catch (Exception ex)
 			{
-				DebugLogger.LogWarning($"{SnipeLogPipeline.DiagnosticLogPrefix} Failed to stop log writer: {LogUtil.GetReducedException(ex)}");
+				DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to stop log writer: {LogUtil.GetReducedException(ex)}");
 			}
 
 			_commandSignal.Dispose();
@@ -237,13 +237,13 @@ namespace MiniIT.Snipe.Internal
 
 				try
 				{
-					switch (command.Type)
+					switch (command.CommandType)
 					{
 						case SnipeLogBufferCommandType.Append:
 							await AppendRecordAsync(command.Data).ConfigureAwait(false);
 							break;
-						case SnipeLogBufferCommandType.Rotate:
-							command.Completion.TrySetResult(await RotateStorageAsync().ConfigureAwait(false));
+						case SnipeLogBufferCommandType.SealCurrentFile:
+							command.Completion.TrySetResult(await ProcessSealCurrentFileAsync().ConfigureAwait(false));
 							break;
 						case SnipeLogBufferCommandType.Stop:
 							await CloseCurrentWriterAsync().ConfigureAwait(false);
@@ -255,9 +255,9 @@ namespace MiniIT.Snipe.Internal
 				}
 				catch (Exception ex)
 				{
-					DebugLogger.LogError($"{SnipeLogPipeline.DiagnosticLogPrefix} Log writer command failed: {LogUtil.GetReducedException(ex)}");
+					DebugLogger.LogError($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Log writer command failed: {LogUtil.GetReducedException(ex)}");
 					command.Completion?.TrySetResult(false);
-					if (command.Type == SnipeLogBufferCommandType.Stop)
+					if (command.CommandType == SnipeLogBufferCommandType.Stop)
 					{
 						return;
 					}
@@ -293,7 +293,7 @@ namespace MiniIT.Snipe.Internal
 			}
 		}
 
-		private async Task<bool> RotateStorageAsync()
+		private async Task<bool> ProcessSealCurrentFileAsync()
 		{
 			if (!EnsureStorageReady())
 			{
@@ -319,7 +319,7 @@ namespace MiniIT.Snipe.Internal
 			}
 			catch (Exception ex)
 			{
-				DebugLogger.LogError($"{SnipeLogPipeline.DiagnosticLogPrefix} Failed to rotate log file: {LogUtil.GetReducedException(ex)}");
+				DebugLogger.LogError($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to seal current log file: {LogUtil.GetReducedException(ex)}");
 				_storageReady = false;
 				return false;
 			}
@@ -340,7 +340,7 @@ namespace MiniIT.Snipe.Internal
 			catch (Exception ex)
 			{
 				success = false;
-				DebugLogger.LogWarning($"{SnipeLogPipeline.DiagnosticLogPrefix} Failed to flush log file: {LogUtil.GetReducedException(ex)}");
+				DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to flush log file: {LogUtil.GetReducedException(ex)}");
 			}
 
 			try
@@ -350,7 +350,7 @@ namespace MiniIT.Snipe.Internal
 			catch (Exception ex)
 			{
 				success = false;
-				DebugLogger.LogWarning($"{SnipeLogPipeline.DiagnosticLogPrefix} Failed to close log file: {LogUtil.GetReducedException(ex)}");
+				DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to close log file: {LogUtil.GetReducedException(ex)}");
 			}
 			finally
 			{
@@ -405,12 +405,12 @@ namespace MiniIT.Snipe.Internal
 
 		private bool ProcessWebGlCommand(SnipeLogBufferCommand command, int maxBytes)
 		{
-			switch (command.Type)
+			switch (command.CommandType)
 			{
 				case SnipeLogBufferCommandType.Append:
 					return AppendRecordChunk(command, maxBytes);
-				case SnipeLogBufferCommandType.Rotate:
-					command.Completion.TrySetResult(RotateStorageSynchronously());
+				case SnipeLogBufferCommandType.SealCurrentFile:
+					command.Completion.TrySetResult(ProcessSealCurrentFileSynchronously());
 					return true;
 				default:
 					return true;
@@ -448,7 +448,7 @@ namespace MiniIT.Snipe.Internal
 			}
 		}
 
-		private bool RotateStorageSynchronously()
+		private bool ProcessSealCurrentFileSynchronously()
 		{
 			if (!EnsureStorageReady())
 			{
@@ -474,7 +474,7 @@ namespace MiniIT.Snipe.Internal
 			}
 			catch (Exception ex)
 			{
-				DebugLogger.LogError($"{SnipeLogPipeline.DiagnosticLogPrefix} Failed to rotate log file: {LogUtil.GetReducedException(ex)}");
+				DebugLogger.LogError($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to seal current log file: {LogUtil.GetReducedException(ex)}");
 				_storageReady = false;
 				return false;
 			}
@@ -521,7 +521,7 @@ namespace MiniIT.Snipe.Internal
 			catch (Exception ex)
 			{
 				success = false;
-				DebugLogger.LogWarning($"{SnipeLogPipeline.DiagnosticLogPrefix} Failed to flush log file: {LogUtil.GetReducedException(ex)}");
+				DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to flush log file: {LogUtil.GetReducedException(ex)}");
 			}
 
 			try
@@ -531,7 +531,7 @@ namespace MiniIT.Snipe.Internal
 			catch (Exception ex)
 			{
 				success = false;
-				DebugLogger.LogWarning($"{SnipeLogPipeline.DiagnosticLogPrefix} Failed to close log file: {LogUtil.GetReducedException(ex)}");
+				DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to close log file: {LogUtil.GetReducedException(ex)}");
 			}
 			finally
 			{
@@ -559,7 +559,7 @@ namespace MiniIT.Snipe.Internal
 			}
 			catch (Exception ex)
 			{
-				DebugLogger.LogError($"{SnipeLogPipeline.DiagnosticLogPrefix} Failed to initialize log storage: {LogUtil.GetReducedException(ex)}");
+				DebugLogger.LogError($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to initialize log storage: {LogUtil.GetReducedException(ex)}");
 				_storageReady = false;
 				return false;
 			}
@@ -581,7 +581,7 @@ namespace MiniIT.Snipe.Internal
 
 		private void HandleAppendFailure(Exception exception)
 		{
-			DebugLogger.LogError($"{SnipeLogPipeline.DiagnosticLogPrefix} Failed to append log record: {LogUtil.GetReducedException(exception)}");
+			DebugLogger.LogError($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to append log record: {LogUtil.GetReducedException(exception)}");
 #if UNITY_WEBGL && !UNITY_EDITOR
 			CloseCurrentWriterSynchronously();
 #else
@@ -592,7 +592,7 @@ namespace MiniIT.Snipe.Internal
 			catch (Exception closeException)
 			{
 				DebugLogger.LogWarning(
-					$"{SnipeLogPipeline.DiagnosticLogPrefix} Failed to close log file: {LogUtil.GetReducedException(closeException)}");
+					$"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to close log file: {LogUtil.GetReducedException(closeException)}");
 			}
 			finally
 			{
@@ -626,7 +626,7 @@ namespace MiniIT.Snipe.Internal
 				}
 				catch (Exception ex)
 				{
-					DebugLogger.LogWarning($"{SnipeLogPipeline.DiagnosticLogPrefix} Failed to clean stale log files: {LogUtil.GetReducedException(ex)}");
+					DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to clean stale log files: {LogUtil.GetReducedException(ex)}");
 				}
 			}
 		}
@@ -678,7 +678,7 @@ namespace MiniIT.Snipe.Internal
 			}
 			catch (Exception ex)
 			{
-				DebugLogger.LogWarning($"{SnipeLogPipeline.DiagnosticLogPrefix} Failed to delete {filePath}: {LogUtil.GetReducedException(ex)}");
+				DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to delete {filePath}: {LogUtil.GetReducedException(ex)}");
 				return false;
 			}
 		}

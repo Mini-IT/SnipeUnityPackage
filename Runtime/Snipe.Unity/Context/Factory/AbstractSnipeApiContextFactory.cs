@@ -10,7 +10,7 @@ namespace MiniIT.Snipe.Api
 		private readonly SnipeOptionsBuilder _optionsBuilder;
 		private readonly ISnipeTablesProvider _tablesProvider;
 		private readonly ISnipeServices _services;
-		private ILogReporterFactory _logReporterFactory = new DefaultLogReporterFactory();
+		private ILogReporterFactory _logReporterFactory;
 		private bool _logReporterFactoryLocked;
 		public TablesOptions TablesOptions { get; } = new TablesOptions();
 
@@ -61,13 +61,15 @@ namespace MiniIT.Snipe.Api
 			lock (_logReporterFactoryLock)
 			{
 				_logReporterFactoryLocked = true;
+				_logReporterFactory ??= new DefaultLogReporterFactory();
 				logReporterFactory = _logReporterFactory;
 			}
 
-			ILogReporter logReporter = logReporterFactory.Create();
+			ILogReporter logReporter = logReporterFactory.CreateLogReporter();
 			if (logReporter == null)
 			{
-				throw new InvalidOperationException($"{nameof(ILogReporterFactory)} returned null.");
+				throw new InvalidOperationException(
+					$"{nameof(ILogReporterFactory)}.{nameof(ILogReporterFactory.CreateLogReporter)}() returned null.");
 			}
 
 			return logReporter;

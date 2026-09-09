@@ -11,6 +11,6 @@ namespace MiniIT.Snipe
 
 	public interface ILogReporterFactory
 	{
-		ILogReporter Create();
+		ILogReporter CreateLogReporter();
 	}
 }

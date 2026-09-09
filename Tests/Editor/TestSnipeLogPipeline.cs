@@ -382,7 +382,7 @@ namespace MiniIT.Snipe.Tests.Editor
 				_reporter = reporter;
 			}
 
-			public ILogReporter Create()
+			public ILogReporter CreateLogReporter()
 			{
 				return _reporter;
 			}

@@ -5,23 +5,23 @@ namespace MiniIT.Snipe.Internal
 	internal enum SnipeLogBufferCommandType
 	{
 		Append,
-		Rotate,
+		SealCurrentFile,
 		Stop
 	}
 
 	internal sealed class SnipeLogBufferCommand
 	{
-		internal SnipeLogBufferCommandType Type { get; }
+		internal SnipeLogBufferCommandType CommandType { get; }
 		internal byte[] Data { get; }
 		internal TaskCompletionSource<bool> Completion { get; }
 		internal int Offset { get; set; }
 
 		private SnipeLogBufferCommand(
-			SnipeLogBufferCommandType type,
+			SnipeLogBufferCommandType commandType,
 			byte[] data,
 			TaskCompletionSource<bool> completion)
 		{
-			Type = type;
+			CommandType = commandType;
 			Data = data;
 			Completion = completion;
 		}
@@ -31,10 +31,10 @@ namespace MiniIT.Snipe.Internal
 			return new SnipeLogBufferCommand(SnipeLogBufferCommandType.Append, data, null);
 		}
 
-		internal static SnipeLogBufferCommand Rotate()
+		internal static SnipeLogBufferCommand SealCurrentFile()
 		{
 			return new SnipeLogBufferCommand(
-				SnipeLogBufferCommandType.Rotate,
+				SnipeLogBufferCommandType.SealCurrentFile,
 				null,
 				new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously));
 		}
