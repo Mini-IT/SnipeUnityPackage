@@ -6,7 +6,6 @@ using Cysharp.Threading.Tasks;
 using System.IO;
 using MiniIT.Http;
 using MiniIT.Snipe.Logging;
-using UnityEngine.Networking;
 
 #if ZSTRING
 using Cysharp.Text;
@@ -17,6 +16,12 @@ namespace MiniIT.Snipe.Internal
 	internal class LogSender
 	{
 		private const int MAX_CHUNK_LENGTH = 200 * 1024;
+		private const int MAX_SEND_ATTEMPTS = 3;
+		private const int INITIAL_RETRY_DELAY_MS = 500;
+		private const long MIN_SUCCESS_HTTP_CODE = 200;
+		private const long MAX_SUCCESS_HTTP_CODE_EXCLUSIVE = 300;
+
+		private static readonly TimeSpan _sendTimeout = TimeSpan.FromSeconds(5);
 
 		private readonly SnipeContext _snipeContext;
 		private readonly string _apiKey;
@@ -57,6 +62,7 @@ namespace MiniIT.Snipe.Internal
 
 			IHttpClient httpClient = _services.HttpClientFactory.CreateHttpClient();
 			httpClient.SetAuthToken(_apiKey);
+			var uri = new Uri(_url);
 
 			while (!file.EndOfStream)
 			{
@@ -66,13 +72,13 @@ namespace MiniIT.Snipe.Internal
 
 				try
 				{
-					response = await httpClient.PostJson(new Uri(_url), content, TimeSpan.FromSeconds(5));
-					statusCode = (HttpStatusCode)response.ResponseCode;
+					response = await PostWithRetryAsync(httpClient, uri, content);
+					statusCode = (HttpStatusCode)(response?.ResponseCode ?? 0);
 
-					if (!response.IsSuccess)
+					if (!IsSuccessfulHttpResponse(response))
 					{
 						succeeded = false;
-						DebugLogger.Log($"[{nameof(LogSender)}] Failed posting log. Result code = {(int)statusCode} {statusCode} " + response.Error);
+						DebugLogger.Log($"[{nameof(LogSender)}] Failed posting log. Result code = {(int)statusCode} {statusCode} {response?.Error ?? "No response"}");
 						break;
 					}
 
@@ -80,15 +86,9 @@ namespace MiniIT.Snipe.Internal
 				}
 				catch (Exception ex)
 				{
-					succeeded = response != null && response.IsSuccess;
-
-					if (!succeeded)
-					{
-						DebugLogger.LogError($"[{nameof(LogSender)}] Error posting log portion: {LogUtil.GetReducedException(ex)}");
-						break;
-					}
-
-					statusCode = HttpStatusCode.OK;
+					succeeded = false;
+					DebugLogger.LogError($"[{nameof(LogSender)}] Error posting log portion: {LogUtil.GetReducedException(ex)}");
+					break;
 				}
 				finally
 				{
@@ -107,6 +107,46 @@ namespace MiniIT.Snipe.Internal
 			}
 
 			return succeeded;
+		}
+
+		private async UniTask<IHttpClientResponse> PostWithRetryAsync(IHttpClient httpClient, Uri uri, string content)
+		{
+			for (int attempt = 1; attempt <= MAX_SEND_ATTEMPTS; attempt++)
+			{
+				IHttpClientResponse response = null;
+
+				try
+				{
+					response = await httpClient.PostJson(uri, content, _sendTimeout);
+				}
+				catch (Exception) when (attempt < MAX_SEND_ATTEMPTS)
+				{
+				}
+
+				if (IsSuccessfulHttpResponse(response) || !IsRetryableTransportFailure(response) || attempt == MAX_SEND_ATTEMPTS)
+				{
+					return response;
+				}
+
+				response?.Dispose();
+
+				int delayMs = INITIAL_RETRY_DELAY_MS * (1 << (attempt - 1));
+				await UniTask.Delay(delayMs, ignoreTimeScale: true);
+			}
+
+			return null;
+		}
+
+		private bool IsSuccessfulHttpResponse(IHttpClientResponse response)
+		{
+			return response != null && response.IsSuccess &&
+				response.ResponseCode >= MIN_SUCCESS_HTTP_CODE && response.ResponseCode < MAX_SUCCESS_HTTP_CODE_EXCLUSIVE;
+		}
+
+		private bool IsRetryableTransportFailure(IHttpClientResponse response)
+		{
+			return response == null || response.ResponseCode <= 0 ||
+				(!response.IsSuccess && response.ResponseCode == (long)HttpStatusCode.RequestTimeout);
 		}
 
 		private string GetPortionContent(StreamReader file, ref string line, int connectionId, int userId, string appVersion, RuntimePlatform appPlatform)
