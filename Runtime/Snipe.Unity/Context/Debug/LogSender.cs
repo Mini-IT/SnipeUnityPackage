@@ -131,7 +131,7 @@ namespace MiniIT.Snipe.Internal
 				response?.Dispose();
 
 				int delayMs = INITIAL_RETRY_DELAY_MS * (1 << (attempt - 1));
-				await UniTask.Delay(TimeSpan.FromMilliseconds(delayMs));
+				await UniTask.Delay(delayMs, ignoreTimeScale: true);
 			}
 
 			return null;
