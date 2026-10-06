@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using MiniIT.Http;
 using MiniIT.Snipe.Configuration;
@@ -20,7 +21,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			transport.Connect("https://example.com/");
 
-			yield return WaitUntil(() => httpClient.GetWithTimeoutCalls > 0);
+			yield return httpClient.GetWithTimeoutCalled.AsUniTask().ToCoroutine();
 
 			Assert.AreEqual(0, httpClient.GetWithoutTimeoutCalls);
 			Assert.AreEqual(TimeSpan.FromSeconds(3), httpClient.LastGetTimeout);
@@ -40,7 +41,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			transport.Connect("https://example.com/");
 
-			yield return WaitUntil(() => httpClient.GetWithTimeoutCalls > 0);
+			yield return httpClient.GetWithTimeoutCalled.AsUniTask().ToCoroutine();
 
 			var token = httpClient.LastGetToken;
 			Assert.IsFalse(token.IsCancellationRequested);
@@ -61,7 +62,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			service.Load(TimeSpan.FromSeconds(3)).Forget();
 
-			yield return WaitUntil(() => httpClient.PostJsonCalls > 0);
+			yield return httpClient.PostJsonCalled.AsUniTask().ToCoroutine();
 
 			var token = httpClient.LastPostJsonToken;
 			Assert.IsFalse(token.IsCancellationRequested);
@@ -97,22 +98,6 @@ namespace MiniIT.Snipe.Tests.Editor
 				defaults.Ticker);
 		}
 
-		private static IEnumerator WaitUntil(Func<bool> condition)
-		{
-			const int MAX_WAIT_FRAMES = 60;
-			for (int i = 0; i < MAX_WAIT_FRAMES; i++)
-			{
-				if (condition())
-				{
-					yield break;
-				}
-
-				yield return null;
-			}
-
-			Assert.Fail("Condition was not reached");
-		}
-
 		private sealed class RecordingHttpClientFactory : IHttpClientFactory
 		{
 			private readonly IHttpClient _httpClient;
@@ -127,8 +112,15 @@ namespace MiniIT.Snipe.Tests.Editor
 
 		private sealed class RecordingHttpClient : IHttpClient
 		{
+			private readonly TaskCompletionSource<bool> _getWithTimeoutCalled =
+				new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+			private readonly TaskCompletionSource<bool> _postJsonCalled =
+				new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
 			public bool CompleteGet = true;
 			public bool CompletePostJson = true;
+			public Task GetWithTimeoutCalled => _getWithTimeoutCalled.Task;
+			public Task PostJsonCalled => _postJsonCalled.Task;
 
 			public int GetWithoutTimeoutCalls;
 			public int GetWithTimeoutCalls;
@@ -153,6 +145,7 @@ namespace MiniIT.Snipe.Tests.Editor
 				GetWithTimeoutCalls++;
 				LastGetTimeout = timeout;
 				LastGetToken = cancellationToken;
+				_getWithTimeoutCalled.TrySetResult(true);
 
 				return CompleteGet
 					? UniTask.FromResult<IHttpClientResponse>(new RecordingHttpClientResponse(true))
@@ -163,6 +156,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			{
 				PostJsonCalls++;
 				LastPostJsonToken = cancellationToken;
+				_postJsonCalled.TrySetResult(true);
 
 				return CompletePostJson
 					? UniTask.FromResult<IHttpClientResponse>(new RecordingHttpClientResponse(true))
