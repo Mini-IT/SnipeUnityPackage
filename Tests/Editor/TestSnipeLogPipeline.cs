@@ -1,14 +1,18 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using System.Threading;
 using Cysharp.Threading.Tasks;
+using MiniIT.Http;
 using MiniIT.Snipe.Api;
 using MiniIT.Snipe.Configuration;
 using MiniIT.Snipe.Internal;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace MiniIT.Snipe.Tests.Editor
 {
@@ -286,6 +290,219 @@ namespace MiniIT.Snipe.Tests.Editor
 			{
 				StringAssert.Contains($"record-{i:D3}", content);
 			}
+		}
+
+		[TestCase(200, true, true)]
+		[TestCase(299, true, true)]
+		[TestCase(200, false, false)]
+		[TestCase(199, true, false)]
+		[TestCase(300, true, false)]
+		[TestCase(400, false, false)]
+		[TestCase(401, false, false)]
+		[TestCase(403, false, false)]
+		[TestCase(408, true, false)]
+		[TestCase(429, false, false)]
+		[TestCase(500, false, false)]
+		public async Task PostJsonAsync_StopsOnSuccessOrNonRetryableResponse(int code, bool isSuccess, bool expected)
+		{
+			var response = new HttpResponseStub(code, isSuccess);
+			var client = new HttpClientStub(response);
+			var delays = new List<int>();
+
+			bool result = await LogSender.PostJsonAsync(client, new Uri("https://example.com/log"), "{}",
+				TimeSpan.FromSeconds(5), delay => RecordDelay(delays, delay));
+
+			Assert.AreEqual(expected, result);
+			Assert.AreEqual(1, client.Contents.Count);
+			Assert.IsEmpty(delays);
+			Assert.AreEqual(1, response.DisposeCount);
+		}
+
+		[TestCase("exception")]
+		[TestCase("null")]
+		[TestCase("zero")]
+		[TestCase("negative")]
+		[TestCase("timeout")]
+		public async Task PostJsonAsync_RetriesTransientFailuresWithSamePayloadAndTimeout(string failure)
+		{
+			object first = CreateHttpFailure(failure);
+			object second = CreateHttpFailure(failure);
+			var success = new HttpResponseStub(200, true);
+			var client = new HttpClientStub(first, second, success);
+			var delays = new List<int>();
+			var url = new Uri("https://example.com/log");
+			TimeSpan timeout = LogSender.GetSendProfile(RuntimePlatform.WebGLPlayer).RequestTimeout;
+			const string content = "{\"msg\":\"Привет\"}";
+
+			bool result = await LogSender.PostJsonAsync(client, url, content, timeout, delay =>
+			{
+				AssertDisposed(first);
+				if (delays.Count > 0)
+				{
+					AssertDisposed(second);
+				}
+				return RecordDelay(delays, delay);
+			});
+
+			Assert.IsTrue(result);
+			CollectionAssert.AreEqual(new[] { 500, 1000 }, delays);
+			CollectionAssert.AreEqual(new[] { content, content, content }, client.Contents);
+			CollectionAssert.AreEqual(new[] { url, url, url }, client.Urls);
+			CollectionAssert.AreEqual(new[] { timeout, timeout, timeout }, client.Timeouts);
+			AssertDisposed(first);
+			AssertDisposed(second);
+			AssertDisposed(success);
+		}
+
+		[TestCase("exception")]
+		[TestCase("null")]
+		[TestCase("zero")]
+		[TestCase("negative")]
+		[TestCase("timeout")]
+		public async Task PostJsonAsync_StopsAfterThreeFailedAttempts(string failure)
+		{
+			object first = CreateHttpFailure(failure);
+			object second = CreateHttpFailure(failure);
+			object third = CreateHttpFailure(failure);
+			var client = new HttpClientStub(first, second, third);
+			var delays = new List<int>();
+
+			Assert.IsFalse(await LogSender.PostJsonAsync(client, new Uri("https://example.com/log"), "{}",
+				TimeSpan.FromSeconds(5), delay => RecordDelay(delays, delay)));
+
+			Assert.AreEqual(3, client.Contents.Count);
+			CollectionAssert.AreEqual(new[] { 500, 1000 }, delays);
+			AssertDisposed(first);
+			AssertDisposed(second);
+			AssertDisposed(third);
+		}
+
+		[Test]
+		public async Task PostJsonAsync_StopsRetryingWhenServerRejectsNextAttempt()
+		{
+			var failure = new HttpResponseStub(0, false);
+			var rejection = new HttpResponseStub(401, false);
+			var client = new HttpClientStub(failure, rejection);
+			var delays = new List<int>();
+
+			Assert.IsFalse(await LogSender.PostJsonAsync(client, new Uri("https://example.com/log"), "{}",
+				TimeSpan.FromSeconds(5), delay => RecordDelay(delays, delay)));
+
+			Assert.AreEqual(2, client.Contents.Count);
+			CollectionAssert.AreEqual(new[] { 500 }, delays);
+			AssertDisposed(failure);
+			AssertDisposed(rejection);
+		}
+
+		[UnityTest]
+		public IEnumerator PostJsonAsync_RetriesWhileTimeScaleIsZero()
+		{
+			float previousTimeScale = Time.timeScale;
+			var first = new HttpResponseStub(0, false);
+			var second = new HttpResponseStub(408, false);
+			var success = new HttpResponseStub(200, true);
+			var client = new HttpClientStub(first, second, success);
+			try
+			{
+				Time.timeScale = 0;
+				Task<bool> send = LogSender.PostJsonAsync(client, new Uri("https://example.com/log"), "{}",
+					TimeSpan.FromSeconds(5)).AsTask();
+				var elapsed = System.Diagnostics.Stopwatch.StartNew();
+				while (!send.IsCompleted && elapsed.Elapsed < TimeSpan.FromSeconds(10))
+				{
+					yield return null;
+				}
+
+				Assert.IsTrue(send.IsCompleted, "Retries stalled with timeScale = 0.");
+				Assert.IsTrue(send.GetAwaiter().GetResult());
+				Assert.AreEqual(3, client.Contents.Count);
+				AssertDisposed(first);
+				AssertDisposed(second);
+				AssertDisposed(success);
+			}
+			finally
+			{
+				Time.timeScale = previousTimeScale;
+			}
+		}
+
+		private static UniTask RecordDelay(List<int> delays, int delay)
+		{
+			delays.Add(delay);
+			return UniTask.CompletedTask;
+		}
+
+		private static object CreateHttpFailure(string failure)
+		{
+			switch (failure)
+			{
+				case "exception": return new IOException("Transient network failure");
+				case "null": return null;
+				case "zero": return new HttpResponseStub(0, false);
+				case "negative": return new HttpResponseStub(-1, false);
+				case "timeout": return new HttpResponseStub(408, false);
+				default: throw new ArgumentOutOfRangeException(nameof(failure));
+			}
+		}
+
+		private static void AssertDisposed(object response)
+		{
+			if (response is HttpResponseStub stub)
+			{
+				Assert.AreEqual(1, stub.DisposeCount);
+			}
+		}
+
+		private sealed class HttpClientStub : IHttpClient
+		{
+			private readonly Queue<object> _results;
+			internal readonly List<string> Contents = new List<string>();
+			internal readonly List<Uri> Urls = new List<Uri>();
+			internal readonly List<TimeSpan> Timeouts = new List<TimeSpan>();
+
+			internal HttpClientStub(params object[] results)
+			{
+				_results = new Queue<object>(results);
+			}
+
+			public UniTask<IHttpClientResponse> PostJson(Uri uri, string content, TimeSpan timeout, CancellationToken cancellationToken = default)
+			{
+				Contents.Add(content);
+				Urls.Add(uri);
+				Timeouts.Add(timeout);
+				Assert.IsNotEmpty(_results, "Unexpected extra HTTP attempt.");
+				object result = _results.Dequeue();
+				if (result is Exception exception)
+				{
+					return UniTask.FromException<IHttpClientResponse>(exception);
+				}
+				return UniTask.FromResult((IHttpClientResponse)result);
+			}
+
+			public void Reset() { }
+			public void SetAuthToken(string token) { }
+			public void SetPersistentClientId(string token) { }
+			public UniTask<IHttpClientResponse> Get(Uri uri, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+			public UniTask<IHttpClientResponse> Get(Uri uri, TimeSpan timeout, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+			public UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content, TimeSpan timeout, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+		}
+
+		private sealed class HttpResponseStub : IHttpClientResponse
+		{
+			public long ResponseCode { get; }
+			public bool IsSuccess { get; }
+			public string Error => IsSuccess ? null : "HTTP failure";
+			internal int DisposeCount;
+
+			internal HttpResponseStub(long responseCode, bool isSuccess)
+			{
+				ResponseCode = responseCode;
+				IsSuccess = isSuccess;
+			}
+
+			public void Dispose() => DisposeCount++;
+			public UniTask<string> GetStringContentAsync() => throw new NotSupportedException();
+			public UniTask<byte[]> GetBinaryContentAsync() => throw new NotSupportedException();
 		}
 
 		private string CreateTemporaryDirectory()
