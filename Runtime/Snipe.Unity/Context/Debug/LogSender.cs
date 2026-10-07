@@ -1,47 +1,84 @@
 using System;
-using System.Text;
-using System.Net;
-using UnityEngine;
-using Cysharp.Threading.Tasks;
 using System.IO;
+using System.Net;
+using System.Text;
+using Cysharp.Threading.Tasks;
 using MiniIT.Http;
 using MiniIT.Snipe.Logging;
-
-#if ZSTRING
-using Cysharp.Text;
-#endif
+using UnityEngine;
 
 namespace MiniIT.Snipe.Internal
 {
-	internal class LogSender
+	internal interface ILogFileSender
 	{
-		private const int MAX_CHUNK_LENGTH = 200 * 1024;
+		UniTask<bool> SendAsync(StreamReader file, Action<int> acknowledgeRecords);
+	}
+
+	internal sealed class LogBatchContent
+	{
+		internal string Content;
+		internal int RecordCount;
+		internal int PayloadBytes;
+		internal bool HasOversizedRecord;
+		internal int OversizedRecordBytes;
+	}
+
+	internal readonly struct LogSendProfile
+	{
+		internal int MaxChunkBytes { get; }
+		internal TimeSpan RequestTimeout { get; }
+
+		internal LogSendProfile(int maxChunkBytes, TimeSpan requestTimeout)
+		{
+			MaxChunkBytes = maxChunkBytes;
+			RequestTimeout = requestTimeout;
+		}
+	}
+
+	internal sealed class LogSender : ILogFileSender
+	{
+		private const int DEFAULT_MAX_CHUNK_BYTES = 200 * 1024;
+		private const int WEB_GL_MAX_CHUNK_BYTES = 4 * 1024;
+		private const int DEFAULT_REQUEST_TIMEOUT_SECONDS = 5;
+		private const int WEB_GL_REQUEST_TIMEOUT_SECONDS = 20;
 		private const int MAX_SEND_ATTEMPTS = 3;
 		private const int INITIAL_RETRY_DELAY_MS = 500;
 		private const long MIN_SUCCESS_HTTP_CODE = 200;
 		private const long MAX_SUCCESS_HTTP_CODE_EXCLUSIVE = 300;
 
-		private static readonly TimeSpan _sendTimeout = TimeSpan.FromSeconds(5);
+		private static readonly UTF8Encoding s_utf8NoBom = new UTF8Encoding(false);
 
 		private readonly SnipeContext _snipeContext;
-		private readonly string _apiKey;
-		private readonly string _url;
+		private readonly SnipeOptions _snipeOptions;
 		private readonly ISnipeServices _services;
+		private readonly int? _sessionID;
 
-		public LogSender(SnipeContext snipeContext, SnipeOptions snipeOptions, ISnipeServices services)
+		internal LogSender(SnipeContext snipeContext, SnipeOptions snipeOptions, ISnipeServices services, int? sessionID)
 		{
 			_snipeContext = snipeContext;
-			_services = services ?? throw new ArgumentNullException(nameof(services));
-
-			_apiKey = snipeOptions.ClientKey;
-			_url = snipeOptions.LogReporterUrl;
+			_snipeOptions = snipeOptions;
+			_services = services;
+			_sessionID = sessionID;
 		}
 
-		internal async UniTask<bool> SendAsync(StreamReader file)
+		public async UniTask<bool> SendAsync(StreamReader file, Action<int> acknowledgeRecords)
 		{
-			if (string.IsNullOrEmpty(_apiKey) || string.IsNullOrEmpty(_url))
+			if (file == null)
 			{
-				DebugLogger.LogWarning($"[{nameof(LogSender)}] Invalid apiKey or url");
+				throw new ArgumentNullException(nameof(file));
+			}
+
+			if (_services == null)
+			{
+				DebugLogger.LogError($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Missing services for log sender.");
+				return false;
+			}
+
+			string apiKey = _snipeOptions?.ClientKey;
+			string url = _snipeOptions?.LogReporterUrl;
+			if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(url))
+			{
+				DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Invalid apiKey or url.");
 				return false;
 			}
 
@@ -52,72 +89,240 @@ namespace MiniIT.Snipe.Internal
 				int.TryParse(_snipeContext.Communicator.ConnectionId, out connectionId);
 				userId = _snipeContext.Auth?.UserID ?? 0;
 			}
-			string appVersion = Application.version;
-			RuntimePlatform appPlatform = Application.platform;
 
-			bool succeeded = true;
-			HttpStatusCode statusCode = default;
-
-			string line = null;
-
+			LogSendProfile profile = GetSendProfile(Application.platform);
 			IHttpClient httpClient = _services.HttpClientFactory.CreateHttpClient();
-			httpClient.SetAuthToken(_apiKey);
-			var uri = new Uri(_url);
+			httpClient.SetAuthToken(apiKey);
 
-			while (!file.EndOfStream)
+			try
 			{
-				string content = GetPortionContent(file, ref line, connectionId, userId, appVersion, appPlatform);
-
-				IHttpClientResponse response = null;
-
-				try
-				{
-					response = await PostWithRetryAsync(httpClient, uri, content);
-					statusCode = (HttpStatusCode)(response?.ResponseCode ?? 0);
-
-					if (!IsSuccessfulHttpResponse(response))
+				return await SendBatchesAsync(
+					file,
+					connectionId,
+					_sessionID,
+					userId,
+					Application.version,
+					Application.platform.ToString(),
+					profile.MaxChunkBytes,
+					async (batch, portionIndex) =>
 					{
-						succeeded = false;
-						DebugLogger.Log($"[{nameof(LogSender)}] Failed posting log. Result code = {(int)statusCode} {statusCode} {response?.Error ?? "No response"}");
+						if (batch.HasOversizedRecord)
+						{
+							DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Oversized log record detected. portion={portionIndex} recordBytes={batch.OversizedRecordBytes} maxChunkBytes={profile.MaxChunkBytes}");
+						}
+
+						DebugLogger.Log($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Posting log portion. portion={portionIndex} recordCount={batch.RecordCount} payloadBytes={batch.PayloadBytes} timeoutSeconds={profile.RequestTimeout.TotalSeconds}");
+						return await PostJsonAsync(httpClient, new Uri(url), batch.Content, profile.RequestTimeout);
+					},
+					acknowledgeRecords);
+			}
+			finally
+			{
+				if (httpClient is IDisposable disposable)
+				{
+					disposable.Dispose();
+				}
+			}
+		}
+
+		internal static async UniTask<bool> SendBatchesAsync(
+			StreamReader file,
+			int connectionId,
+			int? sessionID,
+			int userId,
+			string appVersion,
+			string platform,
+			int maxChunkBytes,
+			Func<LogBatchContent, int, UniTask<bool>> sendPortionAsync,
+			Action<int> acknowledgeRecords = null)
+		{
+			if (file == null)
+			{
+				throw new ArgumentNullException(nameof(file));
+			}
+
+			if (sendPortionAsync == null)
+			{
+				throw new ArgumentNullException(nameof(sendPortionAsync));
+			}
+
+			string carryLine = null;
+			int portionIndex = 0;
+			while (!file.EndOfStream || !string.IsNullOrEmpty(carryLine))
+			{
+				LogBatchContent batch = BuildBatchContent(
+					file,
+					ref carryLine,
+					connectionId,
+					sessionID,
+					userId,
+					appVersion,
+					platform,
+					maxChunkBytes);
+
+				if (batch == null)
+				{
+					continue;
+				}
+
+				portionIndex++;
+				if (!await sendPortionAsync(batch, portionIndex))
+				{
+					return false;
+				}
+
+				acknowledgeRecords?.Invoke(batch.RecordCount);
+			}
+
+			return true;
+		}
+
+		internal static LogBatchContent BuildBatchContent(
+			StreamReader file,
+			ref string carryLine,
+			int connectionId,
+			int? sessionID,
+			int userId,
+			string appVersion,
+			string platform,
+			int maxChunkBytes)
+		{
+			string prefix = BuildBatchPrefix(connectionId, sessionID, userId, appVersion, platform);
+			const string suffix = "]}";
+			int payloadBytes = s_utf8NoBom.GetByteCount(prefix) + s_utf8NoBom.GetByteCount(suffix);
+			var builder = new StringBuilder(prefix);
+			int recordCount = 0;
+			bool oversized = false;
+			int oversizedRecordBytes = 0;
+			string pendingLine = carryLine;
+			carryLine = null;
+
+			while (true)
+			{
+				if (string.IsNullOrEmpty(pendingLine))
+				{
+					pendingLine = ReadNextNonEmptyLine(file);
+				}
+
+				if (string.IsNullOrEmpty(pendingLine))
+				{
+					break;
+				}
+
+				int recordBytes = s_utf8NoBom.GetByteCount(pendingLine);
+				int separatorBytes = recordCount > 0 ? 1 : 0;
+				if (payloadBytes + separatorBytes + recordBytes > maxChunkBytes)
+				{
+					if (recordCount > 0)
+					{
+						carryLine = pendingLine;
 						break;
 					}
 
-					DebugLogger.Log($"[{nameof(LogSender)}] Send log portion result code = {(int)statusCode} {statusCode}");
+					oversized = true;
+					oversizedRecordBytes = recordBytes;
 				}
-				catch (Exception ex)
+
+				if (recordCount > 0)
 				{
-					succeeded = false;
-					DebugLogger.LogError($"[{nameof(LogSender)}] Error posting log portion: {LogUtil.GetReducedException(ex)}");
+					builder.Append(',');
+				}
+
+				builder.Append(pendingLine);
+				payloadBytes += separatorBytes + recordBytes;
+				recordCount++;
+				pendingLine = null;
+
+				if (oversized)
+				{
 					break;
 				}
-				finally
-				{
-					response?.Dispose();
-				}
 			}
 
-			if (succeeded)
+			if (recordCount == 0)
 			{
-				DebugLogger.Log($"[{nameof(LogSender)}] Sent successfully. UserId = {userId}, ConnectionId = {connectionId}");
+				return null;
 			}
 
-			if (httpClient is IDisposable disposable)
+			builder.Append(suffix);
+			return new LogBatchContent
 			{
-				disposable.Dispose();
-			}
-
-			return succeeded;
+				Content = builder.ToString(),
+				RecordCount = recordCount,
+				PayloadBytes = payloadBytes,
+				HasOversizedRecord = oversized,
+				OversizedRecordBytes = oversizedRecordBytes
+			};
 		}
 
-		private async UniTask<IHttpClientResponse> PostWithRetryAsync(IHttpClient httpClient, Uri uri, string content)
+		internal static string BuildBatchPrefix(int connectionId, int? sessionID, int userId, string appVersion, string platform)
+		{
+			var builder = new StringBuilder();
+			builder.Append('{');
+			builder.Append("\"connectionID\":");
+			builder.Append(connectionId);
+			builder.Append(',');
+			if (sessionID.HasValue)
+			{
+				builder.Append("\"sessionID\":");
+				builder.Append(sessionID.Value);
+				builder.Append(',');
+			}
+
+			builder.Append("\"userID\":");
+			builder.Append(userId);
+			builder.Append(",\"version\":\"");
+			builder.Append(SnipeLogPipeline.EscapeJson(appVersion));
+			builder.Append("\",\"platform\":\"");
+			builder.Append(SnipeLogPipeline.EscapeJson(platform));
+			builder.Append("\",\"list\":[");
+			return builder.ToString();
+		}
+
+		internal static LogSendProfile GetSendProfile(RuntimePlatform platform)
+		{
+			return platform == RuntimePlatform.WebGLPlayer
+				? new LogSendProfile(WEB_GL_MAX_CHUNK_BYTES, TimeSpan.FromSeconds(WEB_GL_REQUEST_TIMEOUT_SECONDS))
+				: new LogSendProfile(DEFAULT_MAX_CHUNK_BYTES, TimeSpan.FromSeconds(DEFAULT_REQUEST_TIMEOUT_SECONDS));
+		}
+
+		internal static async UniTask<bool> PostJsonAsync(
+			IHttpClient httpClient, Uri url, string content, TimeSpan timeout, Func<int, UniTask> delayAsync = null)
+		{
+			IHttpClientResponse response = null;
+			try
+			{
+				response = await PostWithRetryAsync(httpClient, url, content, timeout, delayAsync ?? DelayBeforeRetryAsync);
+				HttpStatusCode statusCode = (HttpStatusCode)(response?.ResponseCode ?? 0);
+				if (!IsSuccessfulHttpResponse(response))
+				{
+					DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed posting log portion. Result code = {(int)statusCode} {statusCode} {response?.Error ?? "No response"}");
+					return false;
+				}
+
+				DebugLogger.Log($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Send log portion result code = {(int)statusCode} {statusCode}");
+				return true;
+			}
+			catch (Exception ex)
+			{
+				DebugLogger.LogError($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Error posting log portion: {LogUtil.GetReducedException(ex)}");
+				return false;
+			}
+			finally
+			{
+				response?.Dispose();
+			}
+		}
+
+		private static async UniTask<IHttpClientResponse> PostWithRetryAsync(
+			IHttpClient httpClient, Uri url, string content, TimeSpan timeout, Func<int, UniTask> delayAsync)
 		{
 			for (int attempt = 1; attempt <= MAX_SEND_ATTEMPTS; attempt++)
 			{
 				IHttpClientResponse response = null;
-
 				try
 				{
-					response = await httpClient.PostJson(uri, content, _sendTimeout);
+					response = await httpClient.PostJson(url, content, timeout);
 				}
 				catch (Exception) when (attempt < MAX_SEND_ATTEMPTS)
 				{
@@ -129,71 +334,42 @@ namespace MiniIT.Snipe.Internal
 				}
 
 				response?.Dispose();
-
 				int delayMs = INITIAL_RETRY_DELAY_MS * (1 << (attempt - 1));
-				await UniTask.Delay(delayMs, ignoreTimeScale: true);
+				await delayAsync(delayMs);
 			}
 
 			return null;
 		}
 
-		private bool IsSuccessfulHttpResponse(IHttpClientResponse response)
+		private static UniTask DelayBeforeRetryAsync(int delayMs)
+		{
+			return UniTask.Delay(delayMs, ignoreTimeScale: true);
+		}
+
+		private static bool IsSuccessfulHttpResponse(IHttpClientResponse response)
 		{
 			return response != null && response.IsSuccess &&
 				response.ResponseCode >= MIN_SUCCESS_HTTP_CODE && response.ResponseCode < MAX_SUCCESS_HTTP_CODE_EXCLUSIVE;
 		}
 
-		private bool IsRetryableTransportFailure(IHttpClientResponse response)
+		private static bool IsRetryableTransportFailure(IHttpClientResponse response)
 		{
 			return response == null || response.ResponseCode <= 0 ||
 				(!response.IsSuccess && response.ResponseCode == (long)HttpStatusCode.RequestTimeout);
 		}
 
-		private string GetPortionContent(StreamReader file, ref string line, int connectionId, int userId, string appVersion, RuntimePlatform appPlatform)
+		private static string ReadNextNonEmptyLine(StreamReader file)
 		{
-#if ZSTRING
-			using var contentBuilder = ZString.CreateStringBuilder(true);
-#else
-			var contentBuilder = new StringBuilder();
-#endif
-			contentBuilder.Append("{");
-			contentBuilder.Append($"\"connectionID\":{connectionId},");
-			contentBuilder.Append($"\"userID\":{userId},");
-			contentBuilder.Append($"\"version\":\"{appVersion}\",");
-			contentBuilder.Append($"\"platform\":\"{appPlatform}\",");
-			contentBuilder.Append("\"list\":[");
-
-			bool linesAdded = false;
-
-			if (!string.IsNullOrEmpty(line))
-			{
-				contentBuilder.Append(line);
-				line = null;
-				linesAdded = true;
-			}
-
 			while (!file.EndOfStream)
 			{
-				line = file.ReadLine(); // ReadLineAsync?
-
-				if (linesAdded && contentBuilder.Length + line.Length > MAX_CHUNK_LENGTH)
+				string line = file.ReadLine();
+				if (!string.IsNullOrEmpty(line))
 				{
-					break;
+					return line;
 				}
-
-				if (linesAdded)
-				{
-					contentBuilder.Append(",");
-				}
-
-				contentBuilder.Append(line);
-
-				linesAdded = true;
 			}
 
-			contentBuilder.Append("]}");
-
-			return contentBuilder.ToString();
+			return null;
 		}
 	}
 }
