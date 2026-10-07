@@ -41,6 +41,10 @@ namespace MiniIT.Snipe.Internal
 		private const int WEB_GL_MAX_CHUNK_BYTES = 4 * 1024;
 		private const int DEFAULT_REQUEST_TIMEOUT_SECONDS = 5;
 		private const int WEB_GL_REQUEST_TIMEOUT_SECONDS = 20;
+		private const int MAX_SEND_ATTEMPTS = 3;
+		private const int INITIAL_RETRY_DELAY_MS = 500;
+		private const long MIN_SUCCESS_HTTP_CODE = 200;
+		private const long MAX_SUCCESS_HTTP_CODE_EXCLUSIVE = 300;
 
 		private static readonly UTF8Encoding s_utf8NoBom = new UTF8Encoding(false);
 
@@ -278,16 +282,17 @@ namespace MiniIT.Snipe.Internal
 				: new LogSendProfile(DEFAULT_MAX_CHUNK_BYTES, TimeSpan.FromSeconds(DEFAULT_REQUEST_TIMEOUT_SECONDS));
 		}
 
-		private static async UniTask<bool> PostJsonAsync(IHttpClient httpClient, Uri url, string content, TimeSpan timeout)
+		internal static async UniTask<bool> PostJsonAsync(
+			IHttpClient httpClient, Uri url, string content, TimeSpan timeout, Func<int, UniTask> delayAsync = null)
 		{
 			IHttpClientResponse response = null;
 			try
 			{
-				response = await httpClient.PostJson(url, content, timeout);
-				HttpStatusCode statusCode = (HttpStatusCode)response.ResponseCode;
-				if (!response.IsSuccess)
+				response = await PostWithRetryAsync(httpClient, url, content, timeout, delayAsync ?? DelayBeforeRetryAsync);
+				HttpStatusCode statusCode = (HttpStatusCode)(response?.ResponseCode ?? 0);
+				if (!IsSuccessfulHttpResponse(response))
 				{
-					DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed posting log portion. Result code = {(int)statusCode} {statusCode} {response.Error}");
+					DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed posting log portion. Result code = {(int)statusCode} {statusCode} {response?.Error ?? "No response"}");
 					return false;
 				}
 
@@ -303,6 +308,50 @@ namespace MiniIT.Snipe.Internal
 			{
 				response?.Dispose();
 			}
+		}
+
+		private static async UniTask<IHttpClientResponse> PostWithRetryAsync(
+			IHttpClient httpClient, Uri url, string content, TimeSpan timeout, Func<int, UniTask> delayAsync)
+		{
+			for (int attempt = 1; attempt <= MAX_SEND_ATTEMPTS; attempt++)
+			{
+				IHttpClientResponse response = null;
+				try
+				{
+					response = await httpClient.PostJson(url, content, timeout);
+				}
+				catch (Exception) when (attempt < MAX_SEND_ATTEMPTS)
+				{
+				}
+
+				if (IsSuccessfulHttpResponse(response) || !IsRetryableTransportFailure(response) || attempt == MAX_SEND_ATTEMPTS)
+				{
+					return response;
+				}
+
+				response?.Dispose();
+				int delayMs = INITIAL_RETRY_DELAY_MS * (1 << (attempt - 1));
+				await delayAsync(delayMs);
+			}
+
+			return null;
+		}
+
+		private static UniTask DelayBeforeRetryAsync(int delayMs)
+		{
+			return UniTask.Delay(delayMs, ignoreTimeScale: true);
+		}
+
+		private static bool IsSuccessfulHttpResponse(IHttpClientResponse response)
+		{
+			return response != null && response.IsSuccess &&
+				response.ResponseCode >= MIN_SUCCESS_HTTP_CODE && response.ResponseCode < MAX_SUCCESS_HTTP_CODE_EXCLUSIVE;
+		}
+
+		private static bool IsRetryableTransportFailure(IHttpClientResponse response)
+		{
+			return response == null || response.ResponseCode <= 0 ||
+				(!response.IsSuccess && response.ResponseCode == (long)HttpStatusCode.RequestTimeout);
 		}
 
 		private static string ReadNextNonEmptyLine(StreamReader file)

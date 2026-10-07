@@ -11,6 +11,7 @@ namespace MiniIT.Http
 {
 	public class SystemHttpClient : IHttpClient, IDisposable
 	{
+		private const HttpStatusCode TRANSPORT_FAILURE_STATUS_CODE = 0;
 		private const int DEFAULT_TIMEOUT_SECONDS = 15;
 
 		private readonly HttpClient _httpClient;
@@ -112,12 +113,17 @@ namespace MiniIT.Http
 			}
 			catch (Exception e)
 			{
-				return new SystemHttpClientResponse(HttpStatusCode.BadRequest, e.Message);
+				return CreateTransportFailure(e.Message);
 			}
 			finally
 			{
 				await UniTask.SwitchToMainThread();
 			}
+		}
+
+		private SystemHttpClientResponse CreateTransportFailure(string error)
+		{
+			return new SystemHttpClientResponse(TRANSPORT_FAILURE_STATUS_CODE, error);
 		}
 
 		public void Dispose()

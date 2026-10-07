@@ -3,6 +3,7 @@ using System.Collections;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using MiniIT.Http;
 using NUnit.Framework;
@@ -16,7 +17,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		public IEnumerator Get_CancelledFromWorkerThread_ReturnsTimeout()
 		{
 			using var cancellation = new CancellationTokenSource();
-			using var requestReceived = new ManualResetEventSlim();
+			var requestReceived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 			var listener = new TcpListener(IPAddress.Loopback, 0);
 			listener.Start();
 
@@ -28,7 +29,7 @@ namespace MiniIT.Snipe.Tests.Editor
 				var client = new UnityHttpClient();
 				UniTask<IHttpClientResponse> request = client.Get(new Uri($"http://127.0.0.1:{endpoint.Port}/"), cancellation.Token);
 
-				yield return WaitUntil(() => requestReceived.IsSet);
+				yield return requestReceived.Task.AsUniTask().ToCoroutine();
 				ThreadPool.QueueUserWorkItem(_ => cancellation.Cancel());
 
 				IHttpClientResponse response = null;
@@ -47,7 +48,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		public IEnumerator Get_Timeout_ReturnsTimeout()
 		{
 			using var serverCancellation = new CancellationTokenSource();
-			using var requestReceived = new ManualResetEventSlim();
+			var requestReceived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 			var listener = new TcpListener(IPAddress.Loopback, 0);
 			listener.Start();
 
@@ -59,7 +60,7 @@ namespace MiniIT.Snipe.Tests.Editor
 				var client = new UnityHttpClient();
 				UniTask<IHttpClientResponse> request = client.Get(new Uri($"http://127.0.0.1:{endpoint.Port}/"), TimeSpan.FromMilliseconds(100));
 
-				yield return WaitUntil(() => requestReceived.IsSet);
+				yield return requestReceived.Task.AsUniTask().ToCoroutine();
 
 				IHttpClientResponse response = null;
 				yield return request.ToCoroutine(value => response = value);
@@ -74,33 +75,17 @@ namespace MiniIT.Snipe.Tests.Editor
 			}
 		}
 
-		private static void HoldConnection(TcpListener listener, ManualResetEventSlim requestReceived, CancellationToken cancellationToken)
+		private static void HoldConnection(TcpListener listener, TaskCompletionSource<bool> requestReceived, CancellationToken cancellationToken)
 		{
 			try
 			{
 				using TcpClient connection = listener.AcceptTcpClient();
-				requestReceived.Set();
+				requestReceived.TrySetResult(true);
 				cancellationToken.WaitHandle.WaitOne();
 			}
 			catch (SocketException)
 			{
 			}
-		}
-
-		private static IEnumerator WaitUntil(Func<bool> condition)
-		{
-			const int MAX_WAIT_FRAMES = 60;
-			for (int i = 0; i < MAX_WAIT_FRAMES; i++)
-			{
-				if (condition())
-				{
-					yield break;
-				}
-
-				yield return null;
-			}
-
-			Assert.Fail("Condition was not reached");
 		}
 	}
 }

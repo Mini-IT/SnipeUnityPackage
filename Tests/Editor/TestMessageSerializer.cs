@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using NUnit.Framework;
 using MiniIT.MessagePack;
 using MiniIT.Snipe.Configuration;
@@ -31,9 +32,9 @@ namespace MiniIT.Snipe.Tests.Editor
 			}
 
 			// Unique WebSocketTransport instances
-			Task<List<byte[]>> resultTask = TestWSMessageSerializerAsync(data, snipeOptions, services);
-			yield return WaitForTask(resultTask);
-			List<byte[]> result = resultTask.Result;
+			List<byte[]> result = null;
+			yield return TestWSMessageSerializerAsync(data, snipeOptions, services).AsUniTask()
+				.ToCoroutine(value => result = value);
 
 			Assert.AreEqual(serialized.Count, result.Count);
 			for (int i = 0; i < data.Count; i++)
@@ -47,9 +48,8 @@ namespace MiniIT.Snipe.Tests.Editor
 				SnipeOptions = snipeOptions,
 				SnipeServices = services,
 			});
-			resultTask = TestWSMessageSerializerAsync(data, transport);
-			yield return WaitForTask(resultTask);
-			result = resultTask.Result;
+			yield return TestWSMessageSerializerAsync(data, transport).AsUniTask()
+				.ToCoroutine(value => result = value);
 
 			Assert.AreEqual(serialized.Count, result.Count);
 			for (int i = 0; i < data.Count; i++)
@@ -97,35 +97,6 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			await Task.WhenAll(tasks);
 			return result;
-		}
-
-		private IEnumerator WaitForTask(Task task)
-		{
-			const int MAX_WAIT_FRAMES = 600;
-			for (int i = 0; i < MAX_WAIT_FRAMES; i++)
-			{
-				if (task.IsCompleted)
-				{
-					break;
-				}
-
-				yield return null;
-			}
-
-			if (!task.IsCompleted)
-			{
-				Assert.Fail("Task did not complete");
-			}
-
-			if (task.IsCanceled)
-			{
-				Assert.Fail("Task was canceled");
-			}
-
-			if (task.IsFaulted)
-			{
-				throw task.Exception.InnerException ?? task.Exception;
-			}
 		}
 
 		private IDictionary<string, object> GenerateRandomSnipeObject()
