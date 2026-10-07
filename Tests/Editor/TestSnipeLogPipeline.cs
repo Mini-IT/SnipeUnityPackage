@@ -194,6 +194,136 @@ namespace MiniIT.Snipe.Tests.Editor
 			}
 		}
 
+		[TestCase(false)]
+		[TestCase(true)]
+		public async Task SendAsync_ResumesAfterAcknowledgedPortionsAndKeepsNewFilesInOrder(bool throwOnFailure)
+		{
+			object failure = throwOnFailure ? new IOException("Simulated send failure") : (object)false;
+			var sender = new BatchedSender(true, true, failure, false, true, true, true);
+			string directory = CreateTemporaryDirectory();
+			using (var pipeline = new SnipeLogPipeline(null, directory, sender))
+			{
+				AppendRecords(pipeline, "A", "B", "C", "D");
+				Assert.IsFalse(await pipeline.SendAsync());
+				string filePath = Directory.GetFiles(directory, "*.ndjson")[0];
+				string originalContent = File.ReadAllText(filePath);
+				Assert.AreEqual(4, CountRecords(originalContent));
+
+				AppendRecords(pipeline, "E");
+				Assert.IsFalse(await pipeline.SendAsync());
+				Assert.AreEqual(originalContent, File.ReadAllText(filePath));
+				Assert.IsTrue(await pipeline.SendAsync());
+
+				CollectionAssert.AreEqual(new[]
+				{
+					BuildExpectedBatch("A"), BuildExpectedBatch("B"), BuildExpectedBatch("C"),
+					BuildExpectedBatch("C"), BuildExpectedBatch("C"), BuildExpectedBatch("D"), BuildExpectedBatch("E")
+				}, sender.Contents);
+				Assert.AreEqual(0, CountNonEmptyLogFiles(directory));
+			}
+		}
+
+		[Test]
+		public async Task SendAsync_PreservesProgressWhenPipelineIsReinitialized()
+		{
+			var sender = new BatchedSender(true, false);
+			var client = new HttpClientStub(new HttpResponseStub(200, true));
+			var defaults = new NullSnipeServices();
+			var services = new NullSnipeServices(defaults.SharedPrefs, defaults.LoggerFactory, defaults.Analytics,
+				defaults.MainThreadRunner, defaults.ApplicationInfo, defaults.FuzzyStopwatchFactory,
+				new HttpClientFactoryStub(client), defaults.InternetReachability, defaults.Ticker);
+			SnipeOptions options = new SnipeOptionsBuilder()
+				.SetProjectInfo(new SnipeProjectInfo { ClientKey = "test-key" })
+				.SetLogReporterUrl("https://example.com/log")
+				.Build(0, services);
+			var communicator = new SnipeCommunicator(options, null, services);
+			using (var context = new ContextStub(options, new ReporterStub(), communicator))
+			using (var pipeline = new SnipeLogPipeline(null, CreateTemporaryDirectory(), sender))
+			{
+				AppendRecords(pipeline, "A", "B");
+				Assert.IsFalse(await pipeline.SendAsync());
+				pipeline.Initialize(context, options);
+				Assert.IsTrue(await pipeline.SendAsync());
+				Assert.AreEqual(1, client.Contents.Count);
+				StringAssert.DoesNotContain("\"msg\":\"A\"", client.Contents[0]);
+				StringAssert.Contains("\"msg\":\"B\"", client.Contents[0]);
+			}
+			communicator.Dispose();
+		}
+
+		[Test]
+		public async Task SendAsync_ResumesWithEmptyLinesAndUnicodeRecords()
+		{
+			var sender = new BatchedSender(false, true, false, true);
+			string directory = CreateTemporaryDirectory();
+			using (var pipeline = new SnipeLogPipeline(null, directory, sender))
+			{
+				AppendRecords(pipeline, "А", "Б");
+				Assert.IsFalse(await pipeline.SendAsync());
+				string filePath = Directory.GetFiles(directory, "*.ndjson")[0];
+				string content = File.ReadAllText(filePath);
+				File.WriteAllText(filePath, "\n" + content.Replace("\n", "\n\n") + "\n", new UTF8Encoding(false));
+
+				Assert.IsFalse(await pipeline.SendAsync());
+				Assert.IsTrue(await pipeline.SendAsync());
+				CollectionAssert.AreEqual(new[]
+				{
+					BuildExpectedBatch("А"), BuildExpectedBatch("А"), BuildExpectedBatch("Б"), BuildExpectedBatch("Б")
+				}, sender.Contents);
+				Assert.AreEqual(0, CountNonEmptyLogFiles(directory));
+			}
+		}
+
+		[Test]
+		[Platform("Win")]
+		public async Task SendAsync_PreservesAcknowledgementsWhenDeletingFileFails()
+		{
+			var sender = new BatchedSender(true);
+			string directory = CreateTemporaryDirectory();
+			FileStream deletionBlocker = null;
+			try
+			{
+				using (var pipeline = new SnipeLogPipeline(null, directory, sender))
+				{
+					sender.BeforeSend = () => deletionBlocker = new FileStream(
+						Directory.GetFiles(directory, "*.ndjson")[0], FileMode.Open, FileAccess.Read, FileShare.Read);
+					AppendRecords(pipeline, "A");
+					Assert.IsFalse(await pipeline.SendAsync());
+					Assert.AreEqual(1, CountNonEmptyLogFiles(directory));
+
+					deletionBlocker.Dispose();
+					deletionBlocker = null;
+					sender.BeforeSend = null;
+					Assert.IsTrue(await pipeline.SendAsync());
+					CollectionAssert.AreEqual(new[] { BuildExpectedBatch("A") }, sender.Contents);
+					Assert.AreEqual(0, CountNonEmptyLogFiles(directory));
+				}
+			}
+			finally
+			{
+				deletionBlocker?.Dispose();
+			}
+		}
+
+		[TestCase(0)]
+		[TestCase(1)]
+		public async Task SendAsync_RejectsFileShorterThanAcknowledgedProgress(int remainingRecords)
+		{
+			var sender = new BatchedSender(true, true, false);
+			string directory = CreateTemporaryDirectory();
+			using (var pipeline = new SnipeLogPipeline(null, directory, sender))
+			{
+				AppendRecords(pipeline, "A", "B", "C");
+				Assert.IsFalse(await pipeline.SendAsync());
+				string filePath = Directory.GetFiles(directory, "*.ndjson")[0];
+				string shortenedContent = remainingRecords == 0 ? string.Empty : SnipeLogPipeline.SerializeRecord(CreateRecord("A")) + "\n";
+				File.WriteAllText(filePath, shortenedContent, new UTF8Encoding(false));
+				Assert.IsFalse(await pipeline.SendAsync());
+				Assert.IsTrue(File.Exists(filePath));
+				Assert.AreEqual(3, sender.Contents.Count);
+			}
+		}
+
 		[Test]
 		public async Task SendAsync_BarrierFlushesPriorRecordsInFifoOrder()
 		{
@@ -225,7 +355,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			{
 				pipeline.Append(new SnipeLogRecord(1, LogType.Log, "first", string.Empty));
 				Task<bool> firstSend = pipeline.SendAsync().AsTask();
-				await WaitUntilAsync(() => sender.SendCount == 1);
+				await sender.FirstSendStarted;
 
 				Task<bool> secondSend = pipeline.SendAsync().AsTask();
 				pipeline.Append(new SnipeLogRecord(2, LogType.Log, "second", string.Empty));
@@ -248,6 +378,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			string prefix = LogSender.BuildBatchPrefix(1, null, 3, "v", "p");
 			int maxBytes = Encoding.UTF8.GetByteCount(prefix) + Encoding.UTF8.GetByteCount(first) + Encoding.UTF8.GetByteCount("]}");
 			var portions = new List<int>();
+			var acknowledged = new List<int>();
 
 			using (StreamReader reader = CreateReader(string.Join("\n", first, second, third)))
 			{
@@ -263,11 +394,35 @@ namespace MiniIT.Snipe.Tests.Editor
 					{
 						portions.Add(portionIndex);
 						return UniTask.FromResult(portionIndex < 2);
-					});
+					}, acknowledged.Add);
 
 				Assert.IsFalse(result);
 				CollectionAssert.AreEqual(new[] { 1, 2 }, portions);
+				CollectionAssert.AreEqual(new[] { 1 }, acknowledged);
 			}
+		}
+
+		[Test]
+		public async Task SendBatchesAsync_AcknowledgesEveryRecordInSuccessfulPortions()
+		{
+			const string first = "{\"msg\":\"А\"}";
+			const string second = "{\"msg\":\"Б\"}";
+			const string third = "{\"msg\":\"В\"}";
+			string prefix = LogSender.BuildBatchPrefix(1, null, 3, "v", "p");
+			int maxBytes = Encoding.UTF8.GetByteCount(prefix + first + "," + second + "]}");
+			var acknowledged = new List<int>();
+			var contents = new List<string>();
+			using (StreamReader reader = CreateReader("\n" + first + "\n\n" + second + "\n" + third + "\n\n"))
+			{
+				Assert.IsTrue(await LogSender.SendBatchesAsync(reader, 1, null, 3, "v", "p", maxBytes,
+					(batch, portionIndex) =>
+					{
+						contents.Add(batch.Content);
+						return UniTask.FromResult(true);
+					}, acknowledged.Add));
+			}
+			CollectionAssert.AreEqual(new[] { 2, 1 }, acknowledged);
+			CollectionAssert.AreEqual(new[] { prefix + first + "," + second + "]}", prefix + third + "]}" }, contents);
 		}
 
 		[Test]
@@ -453,6 +608,13 @@ namespace MiniIT.Snipe.Tests.Editor
 			}
 		}
 
+		private sealed class HttpClientFactoryStub : IHttpClientFactory
+		{
+			private readonly IHttpClient _client;
+			internal HttpClientFactoryStub(IHttpClient client) => _client = client;
+			public IHttpClient CreateHttpClient() => _client;
+		}
+
 		private sealed class HttpClientStub : IHttpClient
 		{
 			private readonly Queue<object> _results;
@@ -518,6 +680,42 @@ namespace MiniIT.Snipe.Tests.Editor
 			return new SnipeOptionsBuilder().Build(0, new NullSnipeServices());
 		}
 
+		private static SnipeLogRecord CreateRecord(string message)
+		{
+			return new SnipeLogRecord(1, LogType.Log, message, string.Empty);
+		}
+
+		private static void AppendRecords(SnipeLogPipeline pipeline, params string[] messages)
+		{
+			foreach (string message in messages)
+			{
+				pipeline.Append(CreateRecord(message));
+			}
+		}
+
+		private static string BuildExpectedBatch(string message)
+		{
+			return LogSender.BuildBatchPrefix(1, null, 3, "v", "p") +
+				SnipeLogPipeline.SerializeRecord(CreateRecord(message)) + "]}";
+		}
+
+		private static int CountRecords(string content)
+		{
+			int count = 0;
+			using (StreamReader reader = CreateReader(content))
+			{
+				string line;
+				while ((line = reader.ReadLine()) != null)
+				{
+					if (line.Length > 0)
+					{
+						count++;
+					}
+				}
+			}
+			return count;
+		}
+
 		private static StreamReader CreateReader(string content)
 		{
 			byte[] bytes = new UTF8Encoding(false).GetBytes(content);
@@ -537,16 +735,6 @@ namespace MiniIT.Snipe.Tests.Editor
 			}
 
 			return count;
-		}
-
-		private static async Task WaitUntilAsync(Func<bool> condition)
-		{
-			for (int i = 0; i < 100 && !condition(); i++)
-			{
-				await Task.Yield();
-			}
-
-			Assert.IsTrue(condition());
 		}
 
 		private sealed class ContextFactoryStub : AbstractSnipeApiContextFactory
@@ -574,8 +762,8 @@ namespace MiniIT.Snipe.Tests.Editor
 
 		private sealed class ContextStub : SnipeContext
 		{
-			internal ContextStub(SnipeOptions options, ILogReporter reporter)
-				: base(0, options, null, null, reporter)
+			internal ContextStub(SnipeOptions options, ILogReporter reporter, ISnipeCommunicator communicator = null)
+				: base(0, options, communicator, null, reporter)
 			{
 			}
 
@@ -659,6 +847,35 @@ namespace MiniIT.Snipe.Tests.Editor
 			}
 		}
 
+		private sealed class BatchedSender : ILogFileSender
+		{
+			private readonly Queue<object> _results;
+			internal List<string> Contents { get; } = new List<string>();
+			internal Action BeforeSend;
+
+			internal BatchedSender(params object[] results)
+			{
+				_results = new Queue<object>(results);
+			}
+
+			public UniTask<bool> SendAsync(StreamReader file, Action<int> acknowledgeRecords)
+			{
+				return LogSender.SendBatchesAsync(file, 1, null, 3, "v", "p",
+					Encoding.UTF8.GetByteCount(BuildExpectedBatch("A")),
+					(batch, portionIndex) =>
+					{
+						BeforeSend?.Invoke();
+						Contents.Add(batch.Content);
+						object result = _results.Count > 0 ? _results.Dequeue() : true;
+						if (result is Exception exception)
+						{
+							throw exception;
+						}
+						return UniTask.FromResult((bool)result);
+					}, acknowledgeRecords);
+			}
+		}
+
 		private sealed class RecordingSender : ILogFileSender
 		{
 			private readonly Queue<bool> _results;
@@ -670,29 +887,45 @@ namespace MiniIT.Snipe.Tests.Editor
 				_results = new Queue<bool>(results);
 			}
 
-			public UniTask<bool> SendAsync(StreamReader file)
+			public UniTask<bool> SendAsync(StreamReader file, Action<int> acknowledgeRecords)
 			{
-				Contents.Add(file.ReadToEnd());
-				return UniTask.FromResult(_results.Count == 0 || _results.Dequeue());
+				string content = file.ReadToEnd();
+				Contents.Add(content);
+				bool success = _results.Count == 0 || _results.Dequeue();
+				if (success)
+				{
+					acknowledgeRecords(CountRecords(content));
+				}
+				return UniTask.FromResult(success);
 			}
 		}
 
 		private sealed class BlockingSender : ILogFileSender
 		{
 			private readonly UniTaskCompletionSource<bool> _firstSend = new UniTaskCompletionSource<bool>();
+			private readonly TaskCompletionSource<bool> _firstSendStarted =
+				new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
+			internal Task FirstSendStarted => _firstSendStarted.Task;
 			internal int SendCount { get; private set; }
 			internal List<string> Contents { get; } = new List<string>();
 
-			public async UniTask<bool> SendAsync(StreamReader file)
+			public async UniTask<bool> SendAsync(StreamReader file, Action<int> acknowledgeRecords)
 			{
-				Contents.Add(file.ReadToEnd());
+				string content = file.ReadToEnd();
+				Contents.Add(content);
 				SendCount++;
 				if (SendCount == 1)
 				{
-					return await _firstSend.Task;
+					_firstSendStarted.TrySetResult(true);
+					bool success = await _firstSend.Task;
+					if (!success)
+					{
+						return false;
+					}
 				}
 
+				acknowledgeRecords(CountRecords(content));
 				return true;
 			}
 

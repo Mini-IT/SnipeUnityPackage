@@ -11,7 +11,7 @@ namespace MiniIT.Snipe.Internal
 {
 	internal interface ILogFileSender
 	{
-		UniTask<bool> SendAsync(StreamReader file);
+		UniTask<bool> SendAsync(StreamReader file, Action<int> acknowledgeRecords);
 	}
 
 	internal sealed class LogBatchContent
@@ -61,7 +61,7 @@ namespace MiniIT.Snipe.Internal
 			_sessionID = sessionID;
 		}
 
-		public async UniTask<bool> SendAsync(StreamReader file)
+		public async UniTask<bool> SendAsync(StreamReader file, Action<int> acknowledgeRecords)
 		{
 			if (file == null)
 			{
@@ -113,7 +113,8 @@ namespace MiniIT.Snipe.Internal
 
 						DebugLogger.Log($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Posting log portion. portion={portionIndex} recordCount={batch.RecordCount} payloadBytes={batch.PayloadBytes} timeoutSeconds={profile.RequestTimeout.TotalSeconds}");
 						return await PostJsonAsync(httpClient, new Uri(url), batch.Content, profile.RequestTimeout);
-					});
+					},
+					acknowledgeRecords);
 			}
 			finally
 			{
@@ -132,7 +133,8 @@ namespace MiniIT.Snipe.Internal
 			string appVersion,
 			string platform,
 			int maxChunkBytes,
-			Func<LogBatchContent, int, UniTask<bool>> sendPortionAsync)
+			Func<LogBatchContent, int, UniTask<bool>> sendPortionAsync,
+			Action<int> acknowledgeRecords = null)
 		{
 			if (file == null)
 			{
@@ -168,6 +170,8 @@ namespace MiniIT.Snipe.Internal
 				{
 					return false;
 				}
+
+				acknowledgeRecords?.Invoke(batch.RecordCount);
 			}
 
 			return true;

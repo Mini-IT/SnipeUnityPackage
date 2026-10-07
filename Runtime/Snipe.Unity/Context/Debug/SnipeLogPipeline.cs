@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using Cysharp.Threading.Tasks;
@@ -17,6 +18,8 @@ namespace MiniIT.Snipe
 
 		private readonly object _stateLock = new object();
 		private readonly AlterSemaphore _sendSemaphore = new AlterSemaphore(1, 1);
+		// Accessed only by the serialized send operation; survives sender reinitialization.
+		private readonly Dictionary<string, long> _acknowledgedRecords = new Dictionary<string, long>();
 		private readonly SnipeLogFileBuffer _buffer;
 		private readonly int? _sessionID;
 
@@ -104,17 +107,32 @@ namespace MiniIT.Snipe
 					return false;
 				}
 
+				// The buffer removes empty files; preserve an acknowledged file that was unexpectedly truncated.
+				foreach (var progress in _acknowledgedRecords)
+				{
+					if (progress.Value > 0 && new FileInfo(progress.Key).Length == 0)
+					{
+						throw new InvalidDataException("Acknowledged log file was truncated to zero bytes.");
+					}
+				}
+
 				string[] filesToSend = _buffer.GetFilesReadyToSend();
 				for (int i = 0; i < filesToSend.Length; i++)
 				{
 					string filePath = filesToSend[i];
+					_acknowledgedRecords.TryGetValue(filePath, out long acknowledgedRecords);
 					bool success;
 
 					try
 					{
 						using (var file = new StreamReader(filePath, SnipeLogFileBuffer.Utf8NoBom))
 						{
-							success = await sender.SendAsync(file);
+							SkipAcknowledgedRecords(file, acknowledgedRecords);
+							success = await sender.SendAsync(file, count =>
+							{
+								acknowledgedRecords += count;
+								_acknowledgedRecords[filePath] = acknowledgedRecords;
+							});
 						}
 					}
 					catch (Exception ex)
@@ -127,6 +145,8 @@ namespace MiniIT.Snipe
 					{
 						return false;
 					}
+
+					_acknowledgedRecords.Remove(filePath);
 				}
 
 				return true;
@@ -141,6 +161,23 @@ namespace MiniIT.Snipe
 				if (semaphoreOccupied)
 				{
 					_sendSemaphore.Release();
+				}
+			}
+		}
+
+		private static void SkipAcknowledgedRecords(StreamReader file, long acknowledgedRecords)
+		{
+			while (acknowledgedRecords > 0)
+			{
+				string line = file.ReadLine();
+				if (line == null)
+				{
+					throw new InvalidDataException("Log file contains fewer records than its acknowledged progress.");
+				}
+
+				if (line.Length > 0)
+				{
+					acknowledgedRecords--;
 				}
 			}
 		}
