@@ -61,7 +61,7 @@ namespace MiniIT.Snipe
 			Fetcher?.SetServices(services);
 		}
 
-		public void Initialize(int contextId,
+		public virtual void Initialize(int contextId,
 			ISnipeCommunicator communicator,
 			AuthSubsystem authSubsystem,
 			Func<string> getClientKeyMethod)
@@ -83,7 +83,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		public void Start()
+		public virtual void Start()
 		{
 			if (_communicator == null)
 			{
@@ -116,7 +116,7 @@ namespace MiniIT.Snipe
 			}
 		}
 
-		public void Bind(BindResultCallback callback = null)
+		public virtual void Bind(BindResultCallback callback = null)
 		{
 			_bindResultCallback = callback;
 
@@ -366,7 +366,7 @@ namespace MiniIT.Snipe
 			_bindResultCallback = null;
 		}
 
-		public void Dispose()
+		public virtual void Dispose()
 		{
 			if (_communicator != null)
 			{
