@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using MiniIT.Http;
 using MiniIT.Snipe.Configuration;
@@ -21,7 +20,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			transport.Connect("https://example.com/");
 
-			yield return httpClient.GetWithTimeoutCalled.AsUniTask().ToCoroutine();
+			yield return WaitUntil(() => httpClient.GetWithTimeoutCalls > 0);
 
 			Assert.AreEqual(0, httpClient.GetWithoutTimeoutCalls);
 			Assert.AreEqual(TimeSpan.FromSeconds(3), httpClient.LastGetTimeout);
@@ -41,7 +40,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			transport.Connect("https://example.com/");
 
-			yield return httpClient.GetWithTimeoutCalled.AsUniTask().ToCoroutine();
+			yield return WaitUntil(() => httpClient.GetWithTimeoutCalls > 0);
 
 			var token = httpClient.LastGetToken;
 			Assert.IsFalse(token.IsCancellationRequested);
@@ -49,6 +48,47 @@ namespace MiniIT.Snipe.Tests.Editor
 			transport.Dispose();
 
 			Assert.IsTrue(token.IsCancellationRequested);
+		}
+
+		[UnityTest]
+		public IEnumerator HttpTransport_CancelledPostReturnsTimeout_ReconnectStartsHandshake()
+		{
+			return CheckReconnectAfterPostCancellation(true);
+		}
+
+		[UnityTest]
+		public IEnumerator HttpTransport_CancelledPostThrows_ReconnectStartsHandshake()
+		{
+			return CheckReconnectAfterPostCancellation(false);
+		}
+
+		private static IEnumerator CheckReconnectAfterPostCancellation(bool returnTimeoutResponse)
+		{
+			var httpClient = new RecordingHttpClient()
+			{
+				CompletePostJson = false,
+				ReturnTimeoutOnPostCancellation = returnTimeoutResponse,
+			};
+
+			var transport = CreateHttpTransport(httpClient);
+
+			try
+			{
+				transport.Connect("https://example.com/");
+				yield return WaitUntil(() => transport.Connected);
+				transport.SendMessage(new Dictionary<string, object>() { ["t"] = "server.ping", ["id"] = -1 });
+				yield return WaitUntil(() => httpClient.PostJsonCalls > 0);
+
+				transport.Disconnect();
+				Assert.IsTrue(httpClient.LastPostJsonToken.IsCancellationRequested);
+				transport.Connect("https://example.com/");
+				yield return WaitUntil(() => httpClient.GetWithTimeoutCalls == 2);
+				Assert.IsTrue(transport.Connected);
+			}
+			finally
+			{
+				transport.Dispose();
+			}
 		}
 
 		[UnityTest]
@@ -62,7 +102,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			service.Load(TimeSpan.FromSeconds(3)).Forget();
 
-			yield return httpClient.PostJsonCalled.AsUniTask().ToCoroutine();
+			yield return WaitUntil(() => httpClient.PostJsonCalls > 0);
 
 			var token = httpClient.LastPostJsonToken;
 			Assert.IsFalse(token.IsCancellationRequested);
@@ -98,6 +138,23 @@ namespace MiniIT.Snipe.Tests.Editor
 				defaults.Ticker);
 		}
 
+		private static IEnumerator WaitUntil(Func<bool> condition)
+		{
+			const int MAX_WAIT_FRAMES = 60;
+
+			for (int i = 0; i < MAX_WAIT_FRAMES; i++)
+			{
+				if (condition())
+				{
+					yield break;
+				}
+
+				yield return null;
+			}
+
+			Assert.Fail("Condition was not reached");
+		}
+
 		private sealed class RecordingHttpClientFactory : IHttpClientFactory
 		{
 			private readonly IHttpClient _httpClient;
@@ -112,15 +169,9 @@ namespace MiniIT.Snipe.Tests.Editor
 
 		private sealed class RecordingHttpClient : IHttpClient
 		{
-			private readonly TaskCompletionSource<bool> _getWithTimeoutCalled =
-				new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-			private readonly TaskCompletionSource<bool> _postJsonCalled =
-				new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-
 			public bool CompleteGet = true;
 			public bool CompletePostJson = true;
-			public Task GetWithTimeoutCalled => _getWithTimeoutCalled.Task;
-			public Task PostJsonCalled => _postJsonCalled.Task;
+			public bool ReturnTimeoutOnPostCancellation;
 
 			public int GetWithoutTimeoutCalls;
 			public int GetWithTimeoutCalls;
@@ -145,7 +196,6 @@ namespace MiniIT.Snipe.Tests.Editor
 				GetWithTimeoutCalls++;
 				LastGetTimeout = timeout;
 				LastGetToken = cancellationToken;
-				_getWithTimeoutCalled.TrySetResult(true);
 
 				return CompleteGet
 					? UniTask.FromResult<IHttpClientResponse>(new RecordingHttpClientResponse(true))
@@ -156,11 +206,10 @@ namespace MiniIT.Snipe.Tests.Editor
 			{
 				PostJsonCalls++;
 				LastPostJsonToken = cancellationToken;
-				_postJsonCalled.TrySetResult(true);
 
 				return CompletePostJson
 					? UniTask.FromResult<IHttpClientResponse>(new RecordingHttpClientResponse(true))
-					: WaitForCancellation(cancellationToken);
+					: WaitForCancellation(cancellationToken, ReturnTimeoutOnPostCancellation);
 			}
 
 			public UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content, TimeSpan timeout, CancellationToken cancellationToken = default)
@@ -168,19 +217,33 @@ namespace MiniIT.Snipe.Tests.Editor
 				return UniTask.FromResult<IHttpClientResponse>(new RecordingHttpClientResponse(true));
 			}
 
-			private static UniTask<IHttpClientResponse> WaitForCancellation(CancellationToken cancellationToken)
+			private static UniTask<IHttpClientResponse> WaitForCancellation(CancellationToken cancellationToken, bool returnTimeoutResponse = false)
 			{
 				var completion = new UniTaskCompletionSource<IHttpClientResponse>();
+				var state = (completion, cancellationToken, returnTimeoutResponse);
 				if (cancellationToken.IsCancellationRequested)
 				{
-					completion.TrySetCanceled(cancellationToken);
+					CompleteCancellation(state);
 				}
 				else if (cancellationToken.CanBeCanceled)
 				{
-					cancellationToken.Register(() => completion.TrySetCanceled(cancellationToken));
+					cancellationToken.Register(CompleteCancellation, state);
 				}
 
 				return completion.Task;
+			}
+
+			private static void CompleteCancellation(object state)
+			{
+				var cancellation = ((UniTaskCompletionSource<IHttpClientResponse> Completion, CancellationToken Token, bool ReturnTimeoutResponse))state;
+				if (cancellation.ReturnTimeoutResponse)
+				{
+					cancellation.Completion.TrySetResult(new RecordingHttpClientResponse(false));
+				}
+				else
+				{
+					cancellation.Completion.TrySetCanceled(cancellation.Token);
+				}
 			}
 		}
 

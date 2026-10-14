@@ -323,6 +323,7 @@ namespace MiniIT.Snipe
 
 				if (cancellation.IsCancellationRequested)
 				{
+					_sendSemaphore.Release();
 					return;
 				}
 
