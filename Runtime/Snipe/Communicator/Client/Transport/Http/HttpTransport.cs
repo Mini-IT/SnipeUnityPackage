@@ -323,7 +323,6 @@ namespace MiniIT.Snipe
 
 				if (cancellation.IsCancellationRequested)
 				{
-					_sendSemaphore.Release();
 					return;
 				}
 
@@ -362,6 +361,12 @@ namespace MiniIT.Snipe
 			finally
 			{
 				response?.Dispose();
+
+				if (cancellation.IsCancellationRequested && semaphoreOccupied)
+				{
+					semaphoreOccupied = false;
+					_sendSemaphore.Release();
+				}
 			}
 
 			try
