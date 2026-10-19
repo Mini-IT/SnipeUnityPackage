@@ -52,6 +52,49 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[UnityTest]
+		public IEnumerator HttpTransport_CancelledPostReturnsTimeout_ReconnectStartsHandshake()
+		{
+			return CheckReconnectAfterPostCancellation(true);
+		}
+
+		[UnityTest]
+		public IEnumerator HttpTransport_CancelledPostThrows_ReconnectStartsHandshake()
+		{
+			return CheckReconnectAfterPostCancellation(false);
+		}
+
+		private static IEnumerator CheckReconnectAfterPostCancellation(bool returnTimeoutResponse)
+		{
+			var httpClient = new RecordingHttpClient()
+			{
+				CompletePostJson = false,
+				ReturnTimeoutOnPostCancellation = returnTimeoutResponse,
+			};
+
+			var transport = CreateHttpTransport(httpClient);
+
+			try
+			{
+				transport.Connect("https://example.com/");
+				yield return httpClient.ConnectionOpened.Task.AsUniTask().ToCoroutine();
+				transport.SendMessage(new Dictionary<string, object>() { ["t"] = "server.ping", ["id"] = -1 });
+				yield return httpClient.PostJsonCalled.AsUniTask().ToCoroutine();
+
+				transport.Disconnect();
+				Assert.IsTrue(httpClient.LastPostJsonToken.IsCancellationRequested);
+				httpClient.ConnectionOpened = new TaskCompletionSource<Transport>(TaskCreationOptions.RunContinuationsAsynchronously);
+				transport.Connect("https://example.com/");
+				yield return httpClient.ConnectionOpened.Task.AsUniTask().ToCoroutine();
+				Assert.AreEqual(2, httpClient.GetWithTimeoutCalls);
+				Assert.IsTrue(transport.Connected);
+			}
+			finally
+			{
+				transport.Dispose();
+			}
+		}
+
+		[UnityTest]
 		public IEnumerator SnipeConfigLoadingService_Dispose_CancelsHttpLoad()
 		{
 			var httpClient = new RecordingHttpClient()
@@ -80,6 +123,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			{
 				SnipeOptions = options,
 				SnipeServices = services,
+				ConnectionOpenedHandler = httpClient.OnConnectionOpened,
 			});
 		}
 
@@ -117,8 +161,12 @@ namespace MiniIT.Snipe.Tests.Editor
 			private readonly TaskCompletionSource<bool> _postJsonCalled =
 				new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
+			public TaskCompletionSource<Transport> ConnectionOpened =
+				new TaskCompletionSource<Transport>(TaskCreationOptions.RunContinuationsAsynchronously);
+
 			public bool CompleteGet = true;
 			public bool CompletePostJson = true;
+			public bool ReturnTimeoutOnPostCancellation;
 			public Task GetWithTimeoutCalled => _getWithTimeoutCalled.Task;
 			public Task PostJsonCalled => _postJsonCalled.Task;
 
@@ -133,6 +181,11 @@ namespace MiniIT.Snipe.Tests.Editor
 			public void Reset() { }
 			public void SetAuthToken(string token) { }
 			public void SetPersistentClientId(string token) { }
+
+			public void OnConnectionOpened(Transport transport)
+			{
+				ConnectionOpened.TrySetResult(transport);
+			}
 
 			public UniTask<IHttpClientResponse> Get(Uri uri, CancellationToken cancellationToken = default)
 			{
@@ -160,7 +213,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 				return CompletePostJson
 					? UniTask.FromResult<IHttpClientResponse>(new RecordingHttpClientResponse(true))
-					: WaitForCancellation(cancellationToken);
+					: WaitForCancellation(cancellationToken, ReturnTimeoutOnPostCancellation);
 			}
 
 			public UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content, TimeSpan timeout, CancellationToken cancellationToken = default)
@@ -168,19 +221,33 @@ namespace MiniIT.Snipe.Tests.Editor
 				return UniTask.FromResult<IHttpClientResponse>(new RecordingHttpClientResponse(true));
 			}
 
-			private static UniTask<IHttpClientResponse> WaitForCancellation(CancellationToken cancellationToken)
+			private static UniTask<IHttpClientResponse> WaitForCancellation(CancellationToken cancellationToken, bool returnTimeoutResponse = false)
 			{
 				var completion = new UniTaskCompletionSource<IHttpClientResponse>();
+				var state = (completion, cancellationToken, returnTimeoutResponse);
 				if (cancellationToken.IsCancellationRequested)
 				{
-					completion.TrySetCanceled(cancellationToken);
+					CompleteCancellation(state);
 				}
 				else if (cancellationToken.CanBeCanceled)
 				{
-					cancellationToken.Register(() => completion.TrySetCanceled(cancellationToken));
+					cancellationToken.Register(CompleteCancellation, state);
 				}
 
 				return completion.Task;
+			}
+
+			private static void CompleteCancellation(object state)
+			{
+				var cancellation = ((UniTaskCompletionSource<IHttpClientResponse> Completion, CancellationToken Token, bool ReturnTimeoutResponse))state;
+				if (cancellation.ReturnTimeoutResponse)
+				{
+					cancellation.Completion.TrySetResult(new RecordingHttpClientResponse(false));
+				}
+				else
+				{
+					cancellation.Completion.TrySetCanceled(cancellation.Token);
+				}
 			}
 		}
 
