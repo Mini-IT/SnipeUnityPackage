@@ -137,7 +137,7 @@ var LibraryWebSocket = {
 				console.log("[JSLIB WebSocket] Connected.");
 
 			if (webSocketState.onOpen)
-				Module.dynCall_vi(webSocketState.onOpen, instanceId);
+				{{{ makeDynCall('vi', 'webSocketState.onOpen') }}}(instanceId);
 		};
 
 		instance.ws.onmessage = function (ev)
@@ -158,7 +158,7 @@ var LibraryWebSocket = {
 
 				try
 				{
-					Module.dynCall_viii( webSocketState.onMessage, instanceId, buffer, dataBuffer.length);
+					{{{ makeDynCall('viii', 'webSocketState.onMessage') }}}(instanceId, buffer, dataBuffer.length);
 				}
 				finally
 				{
@@ -176,7 +176,7 @@ var LibraryWebSocket = {
 				HEAPU8.set(dataBuffer, buffer);
 				try
 				{
-					Module.dynCall_viii(webSocketState.onMessage, instanceId, buffer, dataBuffer.length);
+					{{{ makeDynCall('viii', 'webSocketState.onMessage') }}}(instanceId, buffer, dataBuffer.length);
 				}
 				finally
 				{
@@ -199,7 +199,7 @@ var LibraryWebSocket = {
 
 				try
 				{
-					Module.dynCall_vii( webSocketState.onError, instanceId, msgBuffer);
+					{{{ makeDynCall('vii', 'webSocketState.onError') }}}(instanceId, msgBuffer);
 				}
 				finally
 				{
@@ -215,7 +215,7 @@ var LibraryWebSocket = {
 				console.log("[JSLIB WebSocket] Closed.");
 
 			if (webSocketState.onClose)
-				Module.dynCall_vii( webSocketState.onClose, instanceId, ev.code);
+				{{{ makeDynCall('vii', 'webSocketState.onClose') }}}(instanceId, ev.code);
 
 			delete instance.ws;
 		};
