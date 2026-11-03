@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 
@@ -17,6 +18,8 @@ namespace MiniIT.Snipe.Internal
 		private readonly object _syncRoot = new object();
 		private readonly string _path;
 		private readonly SnipeLogBufferLimits _limits;
+		private readonly Func<long> _getTimestamp;
+		private readonly Func<string, IEnumerable<string>> _enumerateFiles;
 		private readonly HashSet<string> _owners = new HashSet<string>(StringComparer.Ordinal);
 		private readonly Dictionary<string, FileEntry> _files = new Dictionary<string, FileEntry>(s_pathComparer);
 		private int _references;
@@ -26,21 +29,26 @@ namespace MiniIT.Snipe.Internal
 		private bool _unknownOrphanSize;
 		private long _sequence;
 		private long _reservationAttempt;
+		private long _lastCleanupAttemptTimestamp;
 
-		private SnipeLogCacheDirectory(string path, SnipeLogBufferLimits limits)
+		private SnipeLogCacheDirectory(string path, SnipeLogBufferLimits limits,
+			Func<long> getTimestamp, Func<string, IEnumerable<string>> enumerateFiles)
 		{
 			_path = path;
 			_limits = limits;
+			_getTimestamp = getTimestamp ?? Stopwatch.GetTimestamp;
+			_enumerateFiles = enumerateFiles ?? EnumerateLogFiles;
 		}
 
-		internal static SnipeLogCacheDirectory Register(string path, string owner, SnipeLogBufferLimits limits)
+		internal static SnipeLogCacheDirectory Register(string path, string owner, SnipeLogBufferLimits limits,
+			Func<long> getTimestamp = null, Func<string, IEnumerable<string>> enumerateFiles = null)
 		{
 			SnipeLogCacheDirectory directory;
 			lock (s_registryLock)
 			{
 				if (!s_directories.TryGetValue(path, out directory))
 				{
-					directory = new SnipeLogCacheDirectory(path, limits);
+					directory = new SnipeLogCacheDirectory(path, limits, getTimestamp, enumerateFiles);
 					s_directories.Add(path, directory);
 				}
 				else if (!directory._limits.HasSameDiskLimits(limits))
@@ -95,6 +103,18 @@ namespace MiniIT.Snipe.Internal
 					return false;
 				}
 
+				if (!FitsUnsafe(bytes, create ? 1 : 0) && HasCleanupCandidatesUnsafe() && IsCleanupRetryDueUnsafe())
+				{
+					CleanupOrphansUnsafe();
+				}
+
+				// Eviction cannot make an unknown or oversized orphan charge fit.
+				if (_unknownOrphanSize || _orphanBytes > _limits.MaxCacheBytes - bytes ||
+					_orphanFiles >= _limits.MaxCacheFiles)
+				{
+					return false;
+				}
+
 				long attempt = ++_reservationAttempt;
 				while (!FitsUnsafe(bytes, create ? 1 : 0))
 				{
@@ -132,6 +152,27 @@ namespace MiniIT.Snipe.Internal
 			return !_unknownOrphanSize && _orphanBytes <= _limits.MaxCacheBytes &&
 				_usedBytes <= _limits.MaxCacheBytes - _orphanBytes - bytes &&
 				_orphanFiles + _files.Count + files <= _limits.MaxCacheFiles;
+		}
+
+		private bool HasCleanupCandidatesUnsafe()
+		{
+			if (_unknownOrphanSize || _orphanFiles > 0)
+			{
+				return true;
+			}
+			foreach (var file in _files.Values)
+			{
+				if (!_owners.Contains(file.Owner) && file.Pins == 0)
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
+		private bool IsCleanupRetryDueUnsafe()
+		{
+			return _getTimestamp() - _lastCleanupAttemptTimestamp >= Stopwatch.Frequency;
 		}
 
 		internal void CompleteRecord(FileEntry file)
@@ -223,17 +264,27 @@ namespace MiniIT.Snipe.Internal
 
 		private void CleanupOrphansUnsafe()
 		{
-			_orphanBytes = 0;
-			_orphanFiles = 0;
-			_unknownOrphanSize = false;
+			// Shared by all owners. Even a failed attempt consumes the retry interval.
+			_lastCleanupAttemptTimestamp = _getTimestamp();
+			foreach (var file in new List<FileEntry>(_files.Values))
+			{
+				if (!_owners.Contains(file.Owner) && file.Pins == 0)
+				{
+					DeleteUnsafe(file);
+				}
+			}
+
+			long orphanBytes = 0;
+			long orphanFiles = 0;
+			bool sawFile = false;
+			bool completed;
 			try
 			{
-				if (!Directory.Exists(_path)) return;
-				foreach (string path in Directory.EnumerateFiles(_path, FILE_PATTERN))
+				foreach (string path in _enumerateFiles(_path))
 				{
-					if (_files.TryGetValue(path, out var tracked))
+					sawFile = true;
+					if (_files.ContainsKey(path))
 					{
-						if (!_owners.Contains(tracked.Owner) && tracked.Pins == 0) DeleteUnsafe(tracked);
 						continue;
 					}
 					bool active = false;
@@ -249,16 +300,30 @@ namespace MiniIT.Snipe.Internal
 					try { File.Delete(path); }
 					catch (Exception)
 					{
-						_orphanFiles++;
+						orphanFiles++;
 						long length = new FileInfo(path).Length;
-						_orphanBytes = length > long.MaxValue - _orphanBytes ? long.MaxValue : _orphanBytes + length;
+						orphanBytes = length > long.MaxValue - orphanBytes ? long.MaxValue : orphanBytes + length;
 					}
 				}
+				completed = true;
+			}
+			catch (DirectoryNotFoundException) when (!sawFile)
+			{
+				// A cache directory that has not been created contains no orphan files.
+				completed = true;
 			}
 			catch (Exception)
 			{
-				_unknownOrphanSize = true;
+				completed = false;
 			}
+			_orphanBytes = completed ? orphanBytes : Math.Max(_orphanBytes, orphanBytes);
+			_orphanFiles = completed ? orphanFiles : Math.Max(_orphanFiles, orphanFiles);
+			_unknownOrphanSize = !completed;
+		}
+
+		private static IEnumerable<string> EnumerateLogFiles(string path)
+		{
+			return Directory.EnumerateFiles(path, FILE_PATTERN);
 		}
 
 		internal sealed class FileEntry

@@ -20,6 +20,374 @@ namespace MiniIT.Snipe.Tests.Editor
 	{
 		private readonly List<string> _temporaryDirectories = new List<string>();
 
+		[Test]
+		[Platform("Win")]
+		public async Task CacheRecovery_RetriesOrphanWithoutRecreatingBuffer()
+		{
+			string directory = CreateTemporaryDirectory();
+			string orphan = Path.Combine(directory, "snipe-log-orphan.ndjson");
+			File.WriteAllBytes(orphan, new byte[30]);
+			var storage = new CacheRecoveryStorage();
+			var limits = new SnipeLogBufferLimits(10, 20, 10, 20, 2);
+			const string clockOwner = "snipe-log-clock-";
+			using (var blocker = new FileStream(orphan, FileMode.Open, FileAccess.Read, FileShare.Read))
+			{
+				var cache = SnipeLogCacheDirectory.Register(directory, clockOwner, limits, storage.GetTimestamp, storage.EnumerateFiles);
+				try
+				{
+					using (var buffer = new SnipeLogFileBuffer(directory, limits: limits, startWriter: false))
+					{
+						int initialEnumerations = storage.EnumerationCount;
+						buffer.Append(Encoding.UTF8.GetBytes("discarded\n"));
+						buffer.ProcessFrame(100, 64);
+						Assert.AreEqual(30, cache.UsedBytes);
+						Assert.AreEqual(0, buffer.QueuedBytes);
+						blocker.Dispose();
+						storage.Timestamp = System.Diagnostics.Stopwatch.Frequency - 1;
+						buffer.Append(Encoding.UTF8.GetBytes("too-early\n"));
+						buffer.ProcessFrame(100, 64);
+						Assert.IsTrue(File.Exists(orphan));
+						Assert.AreEqual(initialEnumerations, storage.EnumerationCount);
+						storage.Timestamp++;
+						buffer.Append(Encoding.UTF8.GetBytes("recovered\n"));
+						var seal = buffer.SealCurrentFileAsync().AsTask();
+						buffer.ProcessFrame(100, 64);
+						using (var batch = await seal)
+						{
+							Assert.AreEqual(1, batch.Files.Length);
+							Assert.AreEqual("recovered\n", File.ReadAllText(batch.Files[0].Path));
+							Assert.AreEqual(10, cache.UsedBytes);
+							Assert.AreEqual(1, cache.FileCount);
+							var sender = new RecordingSender(true);
+							using (var reader = new StreamReader(batch.Files[0].Path))
+								Assert.IsTrue(await sender.SendAsync(reader, count => batch.Acknowledge(batch.Files[0], count)));
+							CollectionAssert.AreEqual(new[] { "recovered\n" }, sender.Contents);
+							Assert.IsTrue(batch.DeleteSentFile(batch.Files[0]));
+						}
+						Assert.IsFalse(File.Exists(orphan));
+						Assert.AreEqual(initialEnumerations + 1, storage.EnumerationCount);
+						Assert.AreEqual(0, cache.UsedBytes);
+					}
+				}
+				finally { cache.ReleaseOwner(clockOwner); }
+			}
+		}
+
+		[Test]
+		public void CacheRecovery_RetriesFailedEnumerationAtIntervalBoundary()
+		{
+			string directory = CreateTemporaryDirectory();
+			const string owner = "snipe-log-recovery-";
+			string path = Path.Combine(directory, owner + "0.ndjson");
+			var storage = new CacheRecoveryStorage { ThrowOnEnumeration = true };
+			var cache = SnipeLogCacheDirectory.Register(directory, owner,
+				new SnipeLogBufferLimits(10, 20, 10, 20, 2), storage.GetTimestamp, storage.EnumerateFiles);
+			try
+			{
+				Assert.IsFalse(cache.TryReserve(owner, path, null, 10, out _, out _));
+				storage.ThrowOnEnumeration = false;
+				storage.Timestamp = System.Diagnostics.Stopwatch.Frequency - 1;
+				Assert.IsFalse(cache.TryReserve(owner, path, null, 10, out _, out _));
+				Assert.AreEqual(1, storage.EnumerationCount);
+				storage.Timestamp++;
+				WriteCacheRecord(cache, owner, path, "recovered\n");
+				Assert.AreEqual(2, storage.EnumerationCount);
+				Assert.AreEqual(10, cache.UsedBytes);
+				Assert.AreEqual("recovered\n", File.ReadAllText(path));
+			}
+			finally { cache.ReleaseOwner(owner); }
+		}
+
+		[Test]
+		public async Task CacheRecovery_ThrottlesFailedCleanupAcrossConcurrentOwners()
+		{
+			string directory = CreateTemporaryDirectory();
+			string[] owners = { "snipe-log-first-", "snipe-log-second-" };
+			var limits = new SnipeLogBufferLimits(10, 20, 10, 20, 2);
+			var storage = new CacheRecoveryStorage { ThrowOnEnumeration = true };
+			var cache = SnipeLogCacheDirectory.Register(directory, owners[0], limits, storage.GetTimestamp, storage.EnumerateFiles);
+			SnipeLogCacheDirectory.Register(directory, owners[1], limits);
+			try
+			{
+				long second = System.Diagnostics.Stopwatch.Frequency;
+				long[] timestamps = { 0, second - 1, second, second, 2 * second };
+				int[] expectedEnumerations = { 2, 2, 3, 3, 4 };
+				for (int round = 0; round < timestamps.Length; round++)
+				{
+					storage.Timestamp = timestamps[round];
+					var attempts = new Task<bool>[16];
+					for (int i = 0; i < attempts.Length; i++)
+					{
+						string owner = owners[i % owners.Length];
+						string path = Path.Combine(directory, owner + i + ".ndjson");
+						attempts[i] = Task.Run(() => cache.TryReserve(owner, path, null, 10, out _, out _));
+					}
+					foreach (bool accepted in await Task.WhenAll(attempts)) Assert.IsFalse(accepted);
+					Assert.AreEqual(expectedEnumerations[round], storage.EnumerationCount);
+					Assert.AreEqual(0, cache.FileCount);
+				}
+			}
+			finally
+			{
+				cache.ReleaseOwner(owners[0]);
+				cache.ReleaseOwner(owners[1]);
+			}
+		}
+
+		[Test]
+		[Platform("Win")]
+		public void CacheRecovery_RetriesFilesOfDisposedOwnerWithoutNewRegistration()
+		{
+			string directory = CreateTemporaryDirectory();
+			const string first = "snipe-log-first-";
+			const string second = "snipe-log-second-";
+			var storage = new CacheRecoveryStorage();
+			var limits = new SnipeLogBufferLimits(20, 20, 20, 20, 2);
+			var cache = SnipeLogCacheDirectory.Register(directory, first, limits, storage.GetTimestamp, storage.EnumerateFiles);
+			SnipeLogCacheDirectory.Register(directory, second, limits);
+			bool firstReleased = false;
+			try
+			{
+				string firstPath = Path.Combine(directory, first + "0.ndjson");
+				WriteCacheRecord(cache, first, firstPath, new string('1', 19) + "\n");
+				using (var blocker = new FileStream(firstPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+				{
+					cache.ReleaseOwner(first);
+					firstReleased = true;
+					string secondPath = Path.Combine(directory, second + "0.ndjson");
+					Assert.IsFalse(cache.TryReserve(second, secondPath, null, 10, out _, out _));
+					storage.Timestamp = System.Diagnostics.Stopwatch.Frequency;
+					Assert.IsFalse(cache.TryReserve(second, secondPath, null, 10, out _, out _));
+					Assert.AreEqual(20, cache.UsedBytes);
+					blocker.Dispose();
+					Assert.IsFalse(cache.TryReserve(second, secondPath, null, 10, out _, out _));
+					storage.Timestamp *= 2;
+					WriteCacheRecord(cache, second, secondPath, "recovered\n");
+					Assert.IsFalse(File.Exists(firstPath));
+					Assert.AreEqual(10, cache.UsedBytes);
+					Assert.AreEqual(1, cache.FileCount);
+				}
+			}
+			finally
+			{
+				if (!firstReleased) cache.ReleaseOwner(first);
+				cache.ReleaseOwner(second);
+			}
+		}
+
+		[Test]
+		[Platform("Win")]
+		public void CacheRecovery_PartialScanPreservesKnownChargeUntilCompleteScan()
+		{
+			string directory = CreateTemporaryDirectory();
+			string firstPath = Path.Combine(directory, "snipe-log-old-first.ndjson");
+			string secondPath = Path.Combine(directory, "snipe-log-old-second.ndjson");
+			File.WriteAllBytes(firstPath, new byte[30]);
+			File.WriteAllBytes(secondPath, new byte[10]);
+			const string owner = "snipe-log-recovery-";
+			var storage = new CacheRecoveryStorage();
+			using (var firstLock = new FileStream(firstPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+			using (var secondLock = new FileStream(secondPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+			{
+				var cache = SnipeLogCacheDirectory.Register(directory, owner,
+					new SnipeLogBufferLimits(10, 20, 10, 20, 2), storage.GetTimestamp, storage.EnumerateFiles);
+				try
+				{
+					Assert.AreEqual(40, cache.UsedBytes);
+					Assert.AreEqual(2, cache.FileCount);
+					storage.ThrowAfterFiles = 1;
+					storage.Timestamp = System.Diagnostics.Stopwatch.Frequency;
+					string newPath = Path.Combine(directory, owner + "0.ndjson");
+					Assert.IsFalse(cache.TryReserve(owner, newPath, null, 10, out _, out _));
+					Assert.AreEqual(40, cache.UsedBytes);
+					Assert.AreEqual(2, cache.FileCount);
+					firstLock.Dispose();
+					secondLock.Dispose();
+					storage.ThrowAfterFiles = -1;
+					storage.Timestamp *= 2;
+					WriteCacheRecord(cache, owner, newPath, "recovered\n");
+					Assert.AreEqual(10, cache.UsedBytes);
+					Assert.AreEqual(1, cache.FileCount);
+					Assert.IsFalse(File.Exists(firstPath));
+					Assert.IsFalse(File.Exists(secondPath));
+				}
+				finally { cache.ReleaseOwner(owner); }
+			}
+		}
+
+		[TestCase(false, false)]
+		[TestCase(true, false)]
+		[TestCase(true, true)]
+		public async Task CacheRecovery_PreservesLiveOwnersAndPinnedSnapshots(bool pinFile, bool releaseOwner)
+		{
+			string directory = CreateTemporaryDirectory();
+			const string first = "snipe-log-first-";
+			const string second = "snipe-log-second-";
+			var storage = new CacheRecoveryStorage();
+			var limits = new SnipeLogBufferLimits(10, 20, 10, 20, 2);
+			var cache = SnipeLogCacheDirectory.Register(directory, first, limits, storage.GetTimestamp, storage.EnumerateFiles);
+			SnipeLogCacheDirectory.SendBatch selected = null;
+			bool firstReleased = false;
+			bool secondRegistered = false;
+			try
+			{
+				string firstPath = Path.Combine(directory, first + "0.ndjson");
+				var firstFile = WriteCacheRecord(cache, first, firstPath, "protected\n");
+				if (pinFile) selected = cache.AcquireClosedFiles(first);
+				if (releaseOwner)
+				{
+					cache.ReleaseOwner(first);
+					firstReleased = true;
+				}
+				storage.ThrowOnEnumeration = true;
+				SnipeLogCacheDirectory.Register(directory, second, limits);
+				secondRegistered = true;
+				string secondPath = Path.Combine(directory, second + "0.ndjson");
+				Assert.IsFalse(cache.TryReserve(second, secondPath, null, 10, out _, out _));
+				storage.ThrowOnEnumeration = false;
+				storage.Timestamp = System.Diagnostics.Stopwatch.Frequency;
+				WriteCacheRecord(cache, second, secondPath, "recovered\n");
+				Assert.AreEqual(20, cache.UsedBytes);
+				Assert.AreEqual(2, cache.FileCount);
+				Assert.AreEqual("protected\n", File.ReadAllText(firstPath));
+				if (selected != null)
+				{
+					var sender = new RecordingSender(true);
+					using (var reader = new StreamReader(firstPath))
+						Assert.IsTrue(await sender.SendAsync(reader, count => selected.Acknowledge(firstFile, count)));
+					CollectionAssert.AreEqual(new[] { "protected\n" }, sender.Contents);
+					Assert.IsTrue(selected.DeleteSentFile(firstFile));
+					Assert.AreEqual(10, cache.UsedBytes);
+				}
+			}
+			finally
+			{
+				selected?.Dispose();
+				if (!firstReleased) cache.ReleaseOwner(first);
+				if (secondRegistered) cache.ReleaseOwner(second);
+			}
+		}
+
+		[Test]
+		public void CacheRecovery_NormalEvictionAndSendReleaseDoNotScanOrWait()
+		{
+			string directory = CreateTemporaryDirectory();
+			const string owner = "snipe-log-normal-";
+			var storage = new CacheRecoveryStorage();
+			var cache = SnipeLogCacheDirectory.Register(directory, owner,
+				new SnipeLogBufferLimits(10, 20, 10, 20, 2), storage.GetTimestamp, storage.EnumerateFiles);
+			try
+			{
+				string firstPath = Path.Combine(directory, owner + "0.ndjson");
+				WriteCacheRecord(cache, owner, firstPath, "111111111\n");
+				WriteCacheRecord(cache, owner, Path.Combine(directory, owner + "1.ndjson"), "222222222\n");
+				storage.Timestamp = 2 * System.Diagnostics.Stopwatch.Frequency;
+				WriteCacheRecord(cache, owner, Path.Combine(directory, owner + "2.ndjson"), "333333333\n");
+				Assert.IsFalse(File.Exists(firstPath));
+				Assert.AreEqual(20, cache.UsedBytes);
+				Assert.AreEqual(1, storage.EnumerationCount);
+				using (var batch = cache.AcquireClosedFiles(owner))
+				{
+					Assert.AreEqual(2, batch.Files.Length);
+					Assert.AreEqual("222222222\n", File.ReadAllText(batch.Files[0].Path));
+					Assert.AreEqual("333333333\n", File.ReadAllText(batch.Files[1].Path));
+					foreach (var file in batch.Files) Assert.IsTrue(batch.DeleteSentFile(file));
+				}
+				WriteCacheRecord(cache, owner, Path.Combine(directory, owner + "3.ndjson"), "444444444\n");
+				Assert.AreEqual(10, cache.UsedBytes);
+				Assert.AreEqual(1, storage.EnumerationCount);
+			}
+			finally { cache.ReleaseOwner(owner); }
+		}
+
+		[Test]
+		public void CacheRecovery_UnknownSizeDoesNotEvictOwnHistory()
+		{
+			string directory = CreateTemporaryDirectory();
+			const string first = "snipe-log-first-";
+			const string second = "snipe-log-second-";
+			var storage = new CacheRecoveryStorage();
+			var limits = new SnipeLogBufferLimits(10, 20, 10, 20, 2);
+			var cache = SnipeLogCacheDirectory.Register(directory, first, limits, storage.GetTimestamp, storage.EnumerateFiles);
+			bool secondRegistered = false;
+			try
+			{
+				string firstPath = Path.Combine(directory, first + "0.ndjson");
+				WriteCacheRecord(cache, first, firstPath, "protected\n");
+				storage.ThrowOnEnumeration = true;
+				SnipeLogCacheDirectory.Register(directory, second, limits);
+				secondRegistered = true;
+				storage.Timestamp = System.Diagnostics.Stopwatch.Frequency;
+				string nextPath = Path.Combine(directory, first + "1.ndjson");
+				Assert.IsFalse(cache.TryReserve(first, nextPath, null, 10, out _, out _));
+				Assert.AreEqual("protected\n", File.ReadAllText(firstPath));
+				Assert.AreEqual(10, cache.UsedBytes);
+				storage.ThrowOnEnumeration = false;
+				storage.Timestamp *= 2;
+				WriteCacheRecord(cache, first, nextPath, "recovered\n");
+				Assert.AreEqual("protected\n", File.ReadAllText(firstPath));
+				Assert.AreEqual(20, cache.UsedBytes);
+			}
+			finally
+			{
+				cache.ReleaseOwner(first);
+				if (secondRegistered) cache.ReleaseOwner(second);
+			}
+		}
+
+		[Test]
+		public async Task CacheRecovery_MissingDirectoryDoesNotBlockFirstWrite()
+		{
+			string directory = Path.Combine(CreateTemporaryDirectory(), "new-cache");
+			using (var buffer = new SnipeLogFileBuffer(directory, startWriter: false))
+			{
+				Assert.IsFalse(Directory.Exists(directory));
+				buffer.Append(Encoding.UTF8.GetBytes("recovered\n"));
+				var seal = buffer.SealCurrentFileAsync().AsTask();
+				buffer.ProcessFrame(100, 64);
+				using (var batch = await seal)
+				{
+					Assert.AreEqual(1, batch.Files.Length);
+					Assert.AreEqual("recovered\n", File.ReadAllText(batch.Files[0].Path));
+				}
+			}
+		}
+
+		private static SnipeLogCacheDirectory.FileEntry WriteCacheRecord(SnipeLogCacheDirectory cache,
+			string owner, string path, string content)
+		{
+			byte[] data = Encoding.UTF8.GetBytes(content);
+			Assert.IsTrue(cache.TryReserve(owner, path, null, data.Length, out var file, out _));
+			File.WriteAllBytes(path, data);
+			cache.CompleteRecord(file);
+			cache.Seal(file);
+			return file;
+		}
+
+		private sealed class CacheRecoveryStorage
+		{
+			internal long Timestamp { get; set; }
+			internal int EnumerationCount { get; private set; }
+			internal bool ThrowOnEnumeration { get; set; }
+			internal int ThrowAfterFiles { get; set; } = -1;
+
+			internal long GetTimestamp() => Timestamp;
+
+			internal IEnumerable<string> EnumerateFiles(string path)
+			{
+				EnumerationCount++;
+				if (ThrowOnEnumeration) throw new IOException("Simulated directory enumeration failure.");
+				int count = 0;
+				foreach (string file in Directory.EnumerateFiles(path, "snipe-log-*.ndjson"))
+				{
+					if (count == ThrowAfterFiles) throw new IOException("Simulated partial directory scan.");
+					count++;
+					yield return file;
+				}
+				if (count == ThrowAfterFiles) throw new IOException("Simulated partial directory scan.");
+			}
+		}
+
 		[TestCase(0, 20, 20, 30, 2)]
 		[TestCase(10, 9, 20, 30, 2)]
 		[TestCase(10, 20, 9, 30, 2)]
@@ -120,10 +488,11 @@ namespace MiniIT.Snipe.Tests.Editor
 		public async Task QueueLimit_ReleasesBytesAfterFailureAndDispose()
 		{
 			string directory = Path.Combine(CreateTemporaryDirectory(), "blocked");
-			File.WriteAllText(directory, "not a directory");
 			using (var buffer = new SnipeLogFileBuffer(directory,
 				limits: new SnipeLogBufferLimits(10, 20, 10, 10, 1), startWriter: false))
 			{
+				// Fail after the initial scan so the writer, rather than quota admission, fails.
+				File.WriteAllText(directory, "not a directory");
 				Assert.IsTrue(buffer.Append(new byte[10]));
 				buffer.ProcessFrame(100, 64);
 				Assert.AreEqual(0, buffer.QueuedBytes);
