@@ -4,14 +4,15 @@ namespace MiniIT.Snipe
 {
 	public readonly struct SnipeLogRecord
 	{
-		public long Time { get; }
+		/// <summary>Milliseconds since the Unix epoch (UTC).</summary>
+		public long TimestampMilliseconds { get; }
 		public LogType Level { get; }
 		public string Message { get; }
 		public string StackTrace { get; }
 
-		public SnipeLogRecord(long time, LogType level, string message, string stackTrace)
+		public SnipeLogRecord(long timestampMilliseconds, LogType level, string message, string stackTrace)
 		{
-			Time = time;
+			TimestampMilliseconds = timestampMilliseconds;
 			Level = level;
 			Message = message;
 			StackTrace = stackTrace;

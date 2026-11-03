@@ -25,20 +25,20 @@ namespace MiniIT.Snipe
 		private readonly AlterSemaphore _sendSemaphore = new AlterSemaphore(1, 1);
 		private readonly SnipeLogFileBuffer _buffer;
 		private readonly SnipeLogBufferLimits _limits;
-		private readonly int? _sessionID;
+		private readonly int? _sessionId;
 
 		private ILogFileSender _sender;
 		private bool _sendInProgress;
 		private bool _disposed;
 
-		public SnipeLogPipeline(int? sessionID = null)
-			: this(sessionID, Path.Combine(Application.temporaryCachePath, CACHE_DIRECTORY_NAME), null)
+		public SnipeLogPipeline(int? sessionId = null)
+			: this(sessionId, Path.Combine(Application.temporaryCachePath, CACHE_DIRECTORY_NAME), null)
 		{
 		}
 
-		internal SnipeLogPipeline(int? sessionID, string cacheDirectory, ILogFileSender sender, SnipeLogBufferLimits limits = null)
+		internal SnipeLogPipeline(int? sessionId, string cacheDirectory, ILogFileSender sender, SnipeLogBufferLimits limits = null)
 		{
-			_sessionID = sessionID;
+			_sessionId = sessionId;
 			_sender = sender;
 			_limits = limits ?? SnipeLogBufferLimits.Default;
 			_buffer = new SnipeLogFileBuffer(cacheDirectory, limits: _limits);
@@ -63,7 +63,7 @@ namespace MiniIT.Snipe
 					throw new ObjectDisposedException(nameof(SnipeLogPipeline));
 				}
 
-				_sender = new LogSender(context, options, context.Communicator?.Services, _sessionID);
+				_sender = new LogSender(context, options, context.Communicator?.Services, _sessionId);
 			}
 		}
 
@@ -76,14 +76,15 @@ namespace MiniIT.Snipe
 					return;
 				}
 
-				if (!TryGetRecordSlice(record, _limits.MaxRecordBytes, out int messageChars, out int stackChars, out int bytes) ||
-					!_buffer.CanAccept(bytes))
+				if (!TryGetRecordSlice(record, _limits.MaxRecordBytes, out int messageCharCount, out int stackTraceCharCount, out int byteCount) ||
+					!_buffer.CanAccept(byteCount))
 				{
 					return;
 				}
-				var bounded = new SnipeLogRecord(record.Time, record.Level, Prefix(record.Message, messageChars), Prefix(record.StackTrace, stackChars));
+				var bounded = new SnipeLogRecord(record.TimestampMilliseconds, record.Level,
+					Prefix(record.Message, messageCharCount), Prefix(record.StackTrace, stackTraceCharCount));
 				if (_buffer.Append(SerializeRecordToUtf8(bounded)) &&
-					(messageChars < (record.Message?.Length ?? 0) || stackChars < (record.StackTrace?.Length ?? 0)))
+					(messageCharCount < (record.Message?.Length ?? 0) || stackTraceCharCount < (record.StackTrace?.Length ?? 0)))
 				{
 					_buffer.NoteTruncation();
 				}
@@ -126,19 +127,27 @@ namespace MiniIT.Snipe
 
 				using (var batch = await fileSeal)
 				{
-					if (batch == null) return false;
+					if (batch == null)
+					{
+						return false;
+					}
 					foreach (var entry in batch.Files)
 					{
 						long acknowledgedRecords = batch.GetAcknowledgedRecords(entry);
 						if (acknowledgedRecords > 0 && new FileInfo(entry.Path).Length == 0)
+						{
 							throw new InvalidDataException("Acknowledged log file was truncated to zero bytes.");
+						}
 						bool success;
 						using (var file = new StreamReader(entry.Path, SnipeLogFileBuffer.Utf8NoBom))
 						{
 							SkipAcknowledgedRecords(file, acknowledgedRecords);
 							success = await sender.SendAsync(file, count => batch.Acknowledge(entry, count));
 						}
-						if (!success || !batch.DeleteSentFile(entry)) return false;
+						if (!success || !batch.DeleteSentFile(entry))
+						{
+							return false;
+						}
 					}
 				}
 
@@ -167,7 +176,10 @@ namespace MiniIT.Snipe
 					{
 						_buffer.Dispose();
 					}
-					else if (semaphoreOccupied) _buffer.EmitDiagnostics();
+					else if (semaphoreOccupied)
+					{
+						_buffer.EmitDiagnostics();
+					}
 				}
 				finally
 				{
@@ -232,7 +244,7 @@ namespace MiniIT.Snipe
 			var builder = new StringBuilder();
 			builder.Append('{');
 			builder.Append("\"time\":");
-			builder.Append(record.Time);
+			builder.Append(record.TimestampMilliseconds);
 			builder.Append(",\"level\":\"");
 			builder.Append(EscapeJson(record.Level.ToString()));
 			builder.Append("\",\"msg\":\"");
@@ -290,40 +302,68 @@ namespace MiniIT.Snipe
 			return string.IsNullOrEmpty(value) || length == 0 ? string.Empty : length == value.Length ? value : value.Substring(0, length);
 		}
 
-		internal static bool TryGetRecordSlice(SnipeLogRecord record, int maxBytes, out int messageChars, out int stackChars, out int bytes)
+		internal static bool TryGetRecordSlice(SnipeLogRecord record, int maxBytes,
+			out int messageCharCount, out int stackTraceCharCount, out int byteCount)
 		{
 			// Only the fixed envelope is serialized before admission; work on user fields
 			// stops at the limit, even if a producer supplies a multi-megabyte snapshot.
-			bytes = SnipeLogFileBuffer.Utf8NoBom.GetByteCount(SerializeRecord(new SnipeLogRecord(record.Time, record.Level, "", ""))) + 1;
-			messageChars = stackChars = 0;
-			if (bytes > maxBytes) return false;
-			messageChars = TakeEscapedPrefix(record.Message, maxBytes, ref bytes);
-			stackChars = TakeEscapedPrefix(record.StackTrace, maxBytes, ref bytes);
+			byteCount = SnipeLogFileBuffer.Utf8NoBom.GetByteCount(
+				SerializeRecord(new SnipeLogRecord(record.TimestampMilliseconds, record.Level, "", ""))) + 1;
+			messageCharCount = stackTraceCharCount = 0;
+			if (byteCount > maxBytes)
+			{
+				return false;
+			}
+			messageCharCount = TakeEscapedPrefix(record.Message, maxBytes, ref byteCount);
+			stackTraceCharCount = TakeEscapedPrefix(record.StackTrace, maxBytes, ref byteCount);
 			return true;
 		}
 
-		private static int TakeEscapedPrefix(string value, int maxBytes, ref int bytes)
+		private static int TakeEscapedPrefix(string value, int maxBytes, ref int byteCount)
 		{
-			if (string.IsNullOrEmpty(value)) return 0;
+			if (string.IsNullOrEmpty(value))
+			{
+				return 0;
+			}
 			int index = 0;
 			while (index < value.Length)
 			{
-				char c = value[index];
-				int chars = 1;
-				int cost;
-				if (c == '"' || c == '\\' || c == '\b' || c == '\f' || c == '\n' || c == '\r' || c == '\t') cost = 2;
-				else if (c < 0x20) cost = 6;
-				else if (c < 0x80) cost = 1;
-				else if (c < 0x800) cost = 2;
-				else if (char.IsHighSurrogate(c) && index + 1 < value.Length && char.IsLowSurrogate(value[index + 1]))
+				char character = value[index];
+				int characterCount = 1;
+				int characterByteCount;
+				if (character == '"' || character == '\\' || character == '\b' || character == '\f' ||
+					character == '\n' || character == '\r' || character == '\t')
 				{
-					cost = 4;
-					chars = 2;
+					characterByteCount = 2;
 				}
-				else cost = 3; // BMP character or UTF8Encoding's replacement for an unpaired surrogate.
-				if (cost > maxBytes - bytes) break;
-				bytes += cost;
-				index += chars;
+				else if (character < 0x20)
+				{
+					characterByteCount = 6;
+				}
+				else if (character < 0x80)
+				{
+					characterByteCount = 1;
+				}
+				else if (character < 0x800)
+				{
+					characterByteCount = 2;
+				}
+				else if (char.IsHighSurrogate(character) && index + 1 < value.Length && char.IsLowSurrogate(value[index + 1]))
+				{
+					characterByteCount = 4;
+					characterCount = 2;
+				}
+				else
+				{
+					// BMP character or UTF8Encoding's replacement for an unpaired surrogate.
+					characterByteCount = 3;
+				}
+				if (characterByteCount > maxBytes - byteCount)
+				{
+					break;
+				}
+				byteCount += characterByteCount;
+				index += characterCount;
 			}
 			return index;
 		}

@@ -42,14 +42,25 @@ namespace MiniIT.Snipe.Internal
 		private long _evictedRecords;
 		private long _writeFailures;
 
-		internal int QueuedBytes { get { lock (_queueLock) return _queuedBytes; } }
+		internal int QueuedBytes
+		{
+			get
+			{
+				lock (_queueLock)
+				{
+					return _queuedBytes;
+				}
+			}
+		}
 		internal SnipeLogCacheDirectory Cache => _cache;
 
 		internal SnipeLogFileBuffer(string directoryPath, Task writerStartGate = null,
 			SnipeLogBufferLimits limits = null, bool startWriter = true)
 		{
 			if (string.IsNullOrEmpty(directoryPath))
+			{
 				throw new ArgumentException("Log cache directory is required.", nameof(directoryPath));
+			}
 			string fullPath = Path.GetFullPath(directoryPath);
 			_directoryPath = fullPath.Length > Path.GetPathRoot(fullPath).Length
 				? fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) : fullPath;
@@ -69,7 +80,10 @@ namespace MiniIT.Snipe.Internal
 				{
 					_writerLoop = Task.Run(async () =>
 					{
-						if (writerStartGate != null) await writerStartGate.ConfigureAwait(false);
+						if (writerStartGate != null)
+						{
+							await writerStartGate.ConfigureAwait(false);
+						}
 						await ProcessQueueAsync().ConfigureAwait(false);
 					});
 				}
@@ -88,15 +102,26 @@ namespace MiniIT.Snipe.Internal
 		{
 			lock (_queueLock)
 			{
-				if (!_accepting) return false;
+				if (!_accepting)
+				{
+					return false;
+				}
 				if (bytes > 0 && bytes <= _limits.MaxRecordBytes && bytes <= _limits.MaxQueuedBytes - _queuedBytes)
+				{
 					return true;
+				}
 				_queueDrops++;
 				return false;
 			}
 		}
 
-		internal void NoteTruncation() { lock (_queueLock) _truncatedRecords++; }
+		internal void NoteTruncation()
+		{
+			lock (_queueLock)
+			{
+				_truncatedRecords++;
+			}
+		}
 
 		internal bool Append(byte[] record)
 		{
@@ -106,7 +131,10 @@ namespace MiniIT.Snipe.Internal
 		internal async UniTask<SnipeLogCacheDirectory.SendBatch> SealCurrentFileAsync()
 		{
 			var command = SnipeLogBufferCommand.SealCurrentFile();
-			if (!TryEnqueue(command)) return null;
+			if (!TryEnqueue(command))
+			{
+				return null;
+			}
 			return await command.Completion.Task;
 		}
 
@@ -114,7 +142,10 @@ namespace MiniIT.Snipe.Internal
 		{
 			lock (_queueLock)
 			{
-				if (!_accepting) return false;
+				if (!_accepting)
+				{
+					return false;
+				}
 				if (command.Data != null)
 				{
 					if (command.Data.Length > _limits.MaxRecordBytes || command.Data.Length > _limits.MaxQueuedBytes - _queuedBytes)
@@ -126,22 +157,37 @@ namespace MiniIT.Snipe.Internal
 				}
 				_commands.Enqueue(command);
 #if !UNITY_WEBGL || UNITY_EDITOR
-				if (!_frameWriter) _commandSignal.Release();
+				if (!_frameWriter)
+				{
+					_commandSignal.Release();
+				}
 #endif
 			}
-			if (_frameWriter && !_manualWriter) SignalFrameWriter();
+			if (_frameWriter && !_manualWriter)
+			{
+				SignalFrameWriter();
+			}
 			return true;
 		}
 
 		private SnipeLogBufferCommand DequeueCommand()
 		{
-			lock (_queueLock) return _commands.Count > 0 ? _commands.Dequeue() : null;
+			lock (_queueLock)
+			{
+				return _commands.Count > 0 ? _commands.Dequeue() : null;
+			}
 		}
 
 		private void ReleaseRecord(SnipeLogBufferCommand command)
 		{
-			if (command?.Data == null) return;
-			lock (_queueLock) _queuedBytes -= command.Data.Length;
+			if (command?.Data == null)
+			{
+				return;
+			}
+			lock (_queueLock)
+			{
+				_queuedBytes -= command.Data.Length;
+			}
 		}
 
 #if !UNITY_WEBGL || UNITY_EDITOR
@@ -151,14 +197,22 @@ namespace MiniIT.Snipe.Internal
 			{
 				await _commandSignal.WaitAsync().ConfigureAwait(false);
 				var command = DequeueCommand();
-				if (command == null) continue;
+				if (command == null)
+				{
+					continue;
+				}
 				try
 				{
 					if (command.CommandType == SnipeLogBufferCommandType.Append)
 					{
 						if (_currentFileLength > _limits.MaxFileBytes - command.Data.Length)
+						{
 							await CloseCurrentWriterAsync().ConfigureAwait(false);
-						if (!PrepareRecord(command.Data.Length)) continue;
+						}
+						if (!PrepareRecord(command.Data.Length))
+						{
+							continue;
+						}
 						await _currentWriter.WriteAsync(command.Data, 0, command.Data.Length).ConfigureAwait(false);
 						_currentFileLength += command.Data.Length;
 						_bytesSinceFlush += command.Data.Length;
@@ -173,23 +227,37 @@ namespace MiniIT.Snipe.Internal
 					{
 						bool closed = await CloseCurrentWriterAsync().ConfigureAwait(false);
 						if (command.CommandType == SnipeLogBufferCommandType.SealCurrentFile)
+						{
 							command.Completion.TrySetResult(closed ? _cache.AcquireClosedFiles(_owner) : null);
-						if (command.CommandType == SnipeLogBufferCommandType.Stop) return;
+						}
+						if (command.CommandType == SnipeLogBufferCommandType.Stop)
+						{
+							return;
+						}
 					}
 				}
 				catch (Exception)
 				{
 					DiscardFailedWriter();
 					command.Completion?.TrySetResult(null);
-					if (command.CommandType == SnipeLogBufferCommandType.Stop) return;
+					if (command.CommandType == SnipeLogBufferCommandType.Stop)
+					{
+						return;
+					}
 				}
-				finally { ReleaseRecord(command); }
+				finally
+				{
+					ReleaseRecord(command);
+				}
 			}
 		}
 
 		private async Task<bool> CloseCurrentWriterAsync()
 		{
-			if (_currentWriter == null) return true;
+			if (_currentWriter == null)
+			{
+				return true;
+			}
 			try
 			{
 				await _currentWriter.FlushAsync().ConfigureAwait(false);
@@ -209,7 +277,10 @@ namespace MiniIT.Snipe.Internal
 		{
 			lock (_queueLock)
 			{
-				if (_pumpRunning || _disposed) return;
+				if (_pumpRunning || _disposed)
+				{
+					return;
+				}
 				_pumpRunning = true;
 			}
 			ProcessFrameQueueAsync().Forget();
@@ -236,16 +307,28 @@ namespace MiniIT.Snipe.Internal
 		// The production WebGL pump and deterministic Editor tests execute this same writer.
 		internal void ProcessFrame(int maxBytes, int maxCommands)
 		{
-			if (!_frameWriter || maxBytes <= 0 || maxCommands <= 0) return;
+			if (!_frameWriter || maxBytes <= 0 || maxCommands <= 0)
+			{
+				return;
+			}
 			while (maxBytes > 0 && maxCommands-- > 0)
 			{
 				lock (_queueLock)
 				{
-					if (_disposed) return;
-					if (_frameActiveCommand == null && _commands.Count > 0) _frameActiveCommand = _commands.Dequeue();
+					if (_disposed)
+					{
+						return;
+					}
+					if (_frameActiveCommand == null && _commands.Count > 0)
+					{
+						_frameActiveCommand = _commands.Dequeue();
+					}
 				}
 				var command = _frameActiveCommand;
-				if (command == null) return;
+				if (command == null)
+				{
+					return;
+				}
 				bool complete = true;
 				try
 				{
@@ -253,8 +336,14 @@ namespace MiniIT.Snipe.Internal
 					{
 						if (command.Offset == 0)
 						{
-							if (_currentFileLength > _limits.MaxFileBytes - command.Data.Length) CloseCurrentWriter();
-							if (!PrepareRecord(command.Data.Length)) continue;
+							if (_currentFileLength > _limits.MaxFileBytes - command.Data.Length)
+							{
+								CloseCurrentWriter();
+							}
+							if (!PrepareRecord(command.Data.Length))
+							{
+								continue;
+							}
 						}
 						int count = Math.Min(maxBytes, command.Data.Length - command.Offset);
 						// A failed write may have written a prefix before throwing. Charge the
@@ -270,13 +359,18 @@ namespace MiniIT.Snipe.Internal
 							_bytesSinceFlush = 0;
 						}
 						complete = command.Offset == command.Data.Length;
-						if (complete) _cache.CompleteRecord(_currentFile);
+						if (complete)
+						{
+							_cache.CompleteRecord(_currentFile);
+						}
 					}
 					else
 					{
 						bool closed = CloseCurrentWriter();
 						if (command.CommandType == SnipeLogBufferCommandType.SealCurrentFile)
+						{
 							command.Completion.TrySetResult(closed ? _cache.AcquireClosedFiles(_owner) : null);
+						}
 					}
 				}
 				catch (Exception)
@@ -302,9 +396,15 @@ namespace MiniIT.Snipe.Internal
 			lock (_queueLock)
 			{
 				_evictedRecords += evicted;
-				if (!reserved) _quotaDrops++;
+				if (!reserved)
+				{
+					_quotaDrops++;
+				}
 			}
-			if (!reserved) return false;
+			if (!reserved)
+			{
+				return false;
+			}
 			_currentFile = file;
 			if (_currentWriter == null)
 			{
@@ -316,7 +416,10 @@ namespace MiniIT.Snipe.Internal
 
 		private bool CloseCurrentWriter()
 		{
-			if (_currentWriter == null) return true;
+			if (_currentWriter == null)
+			{
+				return true;
+			}
 			try
 			{
 				_currentWriter.Flush();
@@ -342,14 +445,23 @@ namespace MiniIT.Snipe.Internal
 
 		private void DiscardFailedWriter()
 		{
-			try { _currentWriter?.Dispose(); }
-			catch (Exception) { /* Retain the full reservation if deletion also fails. */ }
+			try
+			{
+				_currentWriter?.Dispose();
+			}
+			catch (Exception)
+			{
+				// Retain the full reservation if deletion also fails.
+			}
 			_cache.DiscardFailedFile(_currentFile);
 			_currentWriter = null;
 			_currentFile = null;
 			_currentFileLength = 0;
 			_bytesSinceFlush = 0;
-			lock (_queueLock) _writeFailures++;
+			lock (_queueLock)
+			{
+				_writeFailures++;
+			}
 		}
 
 		internal void EmitDiagnostics()
@@ -357,7 +469,10 @@ namespace MiniIT.Snipe.Internal
 			string message;
 			lock (_queueLock)
 			{
-				if (_truncatedRecords == 0 && _queueDrops == 0 && _quotaDrops == 0 && _evictedRecords == 0 && _writeFailures == 0) return;
+				if (_truncatedRecords == 0 && _queueDrops == 0 && _quotaDrops == 0 && _evictedRecords == 0 && _writeFailures == 0)
+				{
+					return;
+				}
 				message = $"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Buffered logs: truncated={_truncatedRecords}, queueDropped={_queueDrops}, cacheDropped={_quotaDrops}, evicted={_evictedRecords}, writeFailures={_writeFailures}.";
 				_truncatedRecords = _queueDrops = _quotaDrops = _evictedRecords = _writeFailures = 0;
 			}
@@ -370,7 +485,10 @@ namespace MiniIT.Snipe.Internal
 			SnipeLogBufferCommand active;
 			lock (_queueLock)
 			{
-				if (_disposed) return;
+				if (_disposed)
+				{
+					return;
+				}
 				_disposed = true;
 				_accepting = false;
 				pending = _commands.ToArray();
@@ -394,9 +512,15 @@ namespace MiniIT.Snipe.Internal
 			active?.Completion?.TrySetResult(null);
 			try
 			{
-				if (_frameWriter) CloseCurrentWriter();
+				if (_frameWriter)
+				{
+					CloseCurrentWriter();
+				}
 #if !UNITY_WEBGL || UNITY_EDITOR
-				else _writerLoop.GetAwaiter().GetResult();
+				else
+				{
+					_writerLoop.GetAwaiter().GetResult();
+				}
 #endif
 			}
 			finally

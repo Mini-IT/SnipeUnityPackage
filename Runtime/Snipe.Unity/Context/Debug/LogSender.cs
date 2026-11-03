@@ -51,14 +51,14 @@ namespace MiniIT.Snipe.Internal
 		private readonly SnipeContext _snipeContext;
 		private readonly SnipeOptions _snipeOptions;
 		private readonly ISnipeServices _services;
-		private readonly int? _sessionID;
+		private readonly int? _sessionId;
 
-		internal LogSender(SnipeContext snipeContext, SnipeOptions snipeOptions, ISnipeServices services, int? sessionID)
+		internal LogSender(SnipeContext snipeContext, SnipeOptions snipeOptions, ISnipeServices services, int? sessionId)
 		{
 			_snipeContext = snipeContext;
 			_snipeOptions = snipeOptions;
 			_services = services;
-			_sessionID = sessionID;
+			_sessionId = sessionId;
 		}
 
 		public async UniTask<bool> SendAsync(StreamReader file, Action<int> acknowledgeRecords)
@@ -99,7 +99,7 @@ namespace MiniIT.Snipe.Internal
 				return await SendBatchesAsync(
 					file,
 					connectionId,
-					_sessionID,
+					_sessionId,
 					userId,
 					Application.version,
 					Application.platform.ToString(),
@@ -128,7 +128,7 @@ namespace MiniIT.Snipe.Internal
 		internal static async UniTask<bool> SendBatchesAsync(
 			StreamReader file,
 			int connectionId,
-			int? sessionID,
+			int? sessionId,
 			int userId,
 			string appVersion,
 			string platform,
@@ -154,7 +154,7 @@ namespace MiniIT.Snipe.Internal
 					file,
 					ref carryLine,
 					connectionId,
-					sessionID,
+					sessionId,
 					userId,
 					appVersion,
 					platform,
@@ -181,13 +181,13 @@ namespace MiniIT.Snipe.Internal
 			StreamReader file,
 			ref string carryLine,
 			int connectionId,
-			int? sessionID,
+			int? sessionId,
 			int userId,
 			string appVersion,
 			string platform,
 			int maxChunkBytes)
 		{
-			string prefix = BuildBatchPrefix(connectionId, sessionID, userId, appVersion, platform);
+			string prefix = BuildBatchPrefix(connectionId, sessionId, userId, appVersion, platform);
 			const string suffix = "]}";
 			int payloadBytes = s_utf8NoBom.GetByteCount(prefix) + s_utf8NoBom.GetByteCount(suffix);
 			var builder = new StringBuilder(prefix);
@@ -255,17 +255,17 @@ namespace MiniIT.Snipe.Internal
 			};
 		}
 
-		internal static string BuildBatchPrefix(int connectionId, int? sessionID, int userId, string appVersion, string platform)
+		internal static string BuildBatchPrefix(int connectionId, int? sessionId, int userId, string appVersion, string platform)
 		{
 			var builder = new StringBuilder();
 			builder.Append('{');
 			builder.Append("\"connectionID\":");
 			builder.Append(connectionId);
 			builder.Append(',');
-			if (sessionID.HasValue)
+			if (sessionId.HasValue)
 			{
 				builder.Append("\"sessionID\":");
-				builder.Append(sessionID.Value);
+				builder.Append(sessionId.Value);
 				builder.Append(',');
 			}
 

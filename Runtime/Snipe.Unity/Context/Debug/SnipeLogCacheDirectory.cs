@@ -76,12 +76,24 @@ namespace MiniIT.Snipe.Internal
 
 		internal long UsedBytes
 		{
-			get { lock (_syncRoot) return _orphanBytes > long.MaxValue - _usedBytes ? long.MaxValue : _usedBytes + _orphanBytes; }
+			get
+			{
+				lock (_syncRoot)
+				{
+					return _orphanBytes > long.MaxValue - _usedBytes ? long.MaxValue : _usedBytes + _orphanBytes;
+				}
+			}
 		}
 
 		internal long FileCount
 		{
-			get { lock (_syncRoot) return _orphanFiles + _files.Count; }
+			get
+			{
+				lock (_syncRoot)
+				{
+					return _orphanFiles + _files.Count;
+				}
+			}
 		}
 
 		internal bool TryReserve(string owner, string newPath, FileEntry current, int bytes,
@@ -127,7 +139,10 @@ namespace MiniIT.Snipe.Internal
 							oldest = candidate;
 						}
 					}
-					if (oldest == null) return false;
+					if (oldest == null)
+					{
+						return false;
+					}
 					oldest.LastDeleteAttempt = attempt;
 					if (DeleteUnsafe(oldest))
 					{
@@ -177,18 +192,30 @@ namespace MiniIT.Snipe.Internal
 
 		internal void CompleteRecord(FileEntry file)
 		{
-			lock (_syncRoot) file.RecordCount++;
+			lock (_syncRoot)
+			{
+				file.RecordCount++;
+			}
 		}
 
 		internal void Seal(FileEntry file)
 		{
-			if (file == null) return;
-			lock (_syncRoot) file.Sealed = true;
+			if (file == null)
+			{
+				return;
+			}
+			lock (_syncRoot)
+			{
+				file.Sealed = true;
+			}
 		}
 
 		internal void DiscardFailedFile(FileEntry file)
 		{
-			if (file == null) return;
+			if (file == null)
+			{
+				return;
+			}
 			lock (_syncRoot)
 			{
 				file.Faulted = true;
@@ -224,11 +251,17 @@ namespace MiniIT.Snipe.Internal
 				var ownedFiles = new List<FileEntry>();
 				foreach (var file in _files.Values)
 				{
-					if (file.Owner == owner) ownedFiles.Add(file);
+					if (file.Owner == owner)
+					{
+						ownedFiles.Add(file);
+					}
 				}
 				foreach (var file in ownedFiles)
 				{
-					if (file.Pins == 0) DeleteUnsafe(file);
+					if (file.Pins == 0)
+					{
+						DeleteUnsafe(file);
+					}
 				}
 			}
 			ReleaseReference();
@@ -247,7 +280,10 @@ namespace MiniIT.Snipe.Internal
 
 		private bool DeleteUnsafe(FileEntry file)
 		{
-			if (file.Deleted) return true;
+			if (file.Deleted)
+			{
+				return true;
+			}
 			try
 			{
 				File.Delete(file.Path);
@@ -287,7 +323,10 @@ namespace MiniIT.Snipe.Internal
 					{
 						continue;
 					}
-					try { File.Delete(path); }
+					try
+					{
+						File.Delete(path);
+					}
 					catch (Exception)
 					{
 						orphanFiles++;
@@ -352,7 +391,10 @@ namespace MiniIT.Snipe.Internal
 
 			internal long GetAcknowledgedRecords(FileEntry file)
 			{
-				lock (_directory._syncRoot) return file.AcknowledgedRecords;
+				lock (_directory._syncRoot)
+				{
+					return file.AcknowledgedRecords;
+				}
 			}
 
 			internal void Acknowledge(FileEntry file, int count)
@@ -360,25 +402,36 @@ namespace MiniIT.Snipe.Internal
 				lock (_directory._syncRoot)
 				{
 					if (count < 0 || count > file.RecordCount - file.AcknowledgedRecords)
+					{
 						throw new InvalidDataException("Invalid log acknowledgement count.");
+					}
 					file.AcknowledgedRecords += count;
 				}
 			}
 
 			internal bool DeleteSentFile(FileEntry file)
 			{
-				lock (_directory._syncRoot) return _directory.DeleteUnsafe(file);
+				lock (_directory._syncRoot)
+				{
+					return _directory.DeleteUnsafe(file);
+				}
 			}
 
 			public void Dispose()
 			{
-				if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+				if (Interlocked.Exchange(ref _disposed, 1) != 0)
+				{
+					return;
+				}
 				lock (_directory._syncRoot)
 				{
 					foreach (var file in Files)
 					{
 						file.Pins--;
-						if (file.Pins == 0 && !_directory._owners.Contains(file.Owner)) _directory.DeleteUnsafe(file);
+						if (file.Pins == 0 && !_directory._owners.Contains(file.Owner))
+						{
+							_directory.DeleteUnsafe(file);
+						}
 					}
 				}
 				_directory.ReleaseReference();

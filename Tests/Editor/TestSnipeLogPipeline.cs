@@ -69,7 +69,10 @@ namespace MiniIT.Snipe.Tests.Editor
 						Assert.AreEqual(0, cache.UsedBytes);
 					}
 				}
-				finally { cache.ReleaseOwner(clockOwner); }
+				finally
+				{
+					cache.ReleaseOwner(clockOwner);
+				}
 			}
 		}
 
@@ -95,7 +98,10 @@ namespace MiniIT.Snipe.Tests.Editor
 				Assert.AreEqual(10, cache.UsedBytes);
 				Assert.AreEqual("recovered\n", File.ReadAllText(path));
 			}
-			finally { cache.ReleaseOwner(owner); }
+			finally
+			{
+				cache.ReleaseOwner(owner);
+			}
 		}
 
 		[Test]
@@ -122,7 +128,10 @@ namespace MiniIT.Snipe.Tests.Editor
 						string path = Path.Combine(directory, owner + i + ".ndjson");
 						attempts[i] = Task.Run(() => cache.TryReserve(owner, path, null, 10, out _, out _));
 					}
-					foreach (bool accepted in await Task.WhenAll(attempts)) Assert.IsFalse(accepted);
+					foreach (bool accepted in await Task.WhenAll(attempts))
+					{
+						Assert.IsFalse(accepted);
+					}
 					Assert.AreEqual(expectedEnumerations[round], storage.EnumerationCount);
 					Assert.AreEqual(0, cache.FileCount);
 				}
@@ -170,7 +179,10 @@ namespace MiniIT.Snipe.Tests.Editor
 			}
 			finally
 			{
-				if (!firstReleased) cache.ReleaseOwner(first);
+				if (!firstReleased)
+				{
+					cache.ReleaseOwner(first);
+				}
 				cache.ReleaseOwner(second);
 			}
 		}
@@ -211,7 +223,10 @@ namespace MiniIT.Snipe.Tests.Editor
 					Assert.IsFalse(File.Exists(firstPath));
 					Assert.IsFalse(File.Exists(secondPath));
 				}
-				finally { cache.ReleaseOwner(owner); }
+				finally
+				{
+					cache.ReleaseOwner(owner);
+				}
 			}
 		}
 
@@ -233,7 +248,10 @@ namespace MiniIT.Snipe.Tests.Editor
 			{
 				string firstPath = Path.Combine(directory, first + "0.ndjson");
 				var firstFile = WriteCacheRecord(cache, first, firstPath, "protected\n");
-				if (pinFile) selected = cache.AcquireClosedFiles(first);
+				if (pinFile)
+				{
+					selected = cache.AcquireClosedFiles(first);
+				}
 				if (releaseOwner)
 				{
 					cache.ReleaseOwner(first);
@@ -263,8 +281,14 @@ namespace MiniIT.Snipe.Tests.Editor
 			finally
 			{
 				selected?.Dispose();
-				if (!firstReleased) cache.ReleaseOwner(first);
-				if (secondRegistered) cache.ReleaseOwner(second);
+				if (!firstReleased)
+				{
+					cache.ReleaseOwner(first);
+				}
+				if (secondRegistered)
+				{
+					cache.ReleaseOwner(second);
+				}
 			}
 		}
 
@@ -291,13 +315,19 @@ namespace MiniIT.Snipe.Tests.Editor
 					Assert.AreEqual(2, batch.Files.Length);
 					Assert.AreEqual("222222222\n", File.ReadAllText(batch.Files[0].Path));
 					Assert.AreEqual("333333333\n", File.ReadAllText(batch.Files[1].Path));
-					foreach (var file in batch.Files) Assert.IsTrue(batch.DeleteSentFile(file));
+					foreach (var file in batch.Files)
+					{
+						Assert.IsTrue(batch.DeleteSentFile(file));
+					}
 				}
 				WriteCacheRecord(cache, owner, Path.Combine(directory, owner + "3.ndjson"), "444444444\n");
 				Assert.AreEqual(10, cache.UsedBytes);
 				Assert.AreEqual(1, storage.EnumerationCount);
 			}
-			finally { cache.ReleaseOwner(owner); }
+			finally
+			{
+				cache.ReleaseOwner(owner);
+			}
 		}
 
 		[Test]
@@ -331,7 +361,10 @@ namespace MiniIT.Snipe.Tests.Editor
 			finally
 			{
 				cache.ReleaseOwner(first);
-				if (secondRegistered) cache.ReleaseOwner(second);
+				if (secondRegistered)
+				{
+					cache.ReleaseOwner(second);
+				}
 			}
 		}
 
@@ -376,15 +409,24 @@ namespace MiniIT.Snipe.Tests.Editor
 			internal IEnumerable<string> EnumerateFiles(string path)
 			{
 				EnumerationCount++;
-				if (ThrowOnEnumeration) throw new IOException("Simulated directory enumeration failure.");
+				if (ThrowOnEnumeration)
+				{
+					throw new IOException("Simulated directory enumeration failure.");
+				}
 				int count = 0;
 				foreach (string file in Directory.EnumerateFiles(path, "snipe-log-*.ndjson"))
 				{
-					if (count == ThrowAfterFiles) throw new IOException("Simulated partial directory scan.");
+					if (count == ThrowAfterFiles)
+					{
+						throw new IOException("Simulated partial directory scan.");
+					}
 					count++;
 					yield return file;
 				}
-				if (count == ThrowAfterFiles) throw new IOException("Simulated partial directory scan.");
+				if (count == ThrowAfterFiles)
+				{
+					throw new IOException("Simulated partial directory scan.");
+				}
 			}
 		}
 
@@ -414,29 +456,35 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			var empty = CreateRecord("");
 			Assert.IsFalse(SnipeLogPipeline.TryGetRecordSlice(empty, 44, out _, out _, out _));
-			Assert.IsTrue(SnipeLogPipeline.TryGetRecordSlice(empty, 45, out int emptyMessageChars, out int emptyStackChars, out int emptyBytes));
-			Assert.AreEqual(45, emptyBytes);
-			Assert.AreEqual(0, emptyMessageChars);
-			Assert.AreEqual(0, emptyStackChars);
+			Assert.IsTrue(SnipeLogPipeline.TryGetRecordSlice(empty, 45, out int emptyMessageCharCount, out int emptyStackTraceCharCount, out int emptyByteCount));
+			Assert.AreEqual(45, emptyByteCount);
+			Assert.AreEqual(0, emptyMessageCharCount);
+			Assert.AreEqual(0, emptyStackTraceCharCount);
 			var record = new SnipeLogRecord(long.MinValue, LogType.Exception, "\"\\\b\f\n\r\t\u0001А😀\ud800x\udc00", "stack☃");
 			byte[] expected = Encoding.UTF8.GetBytes(SnipeLogPipeline.SerializeRecord(record) + "\n");
 			for (int limit = 45; limit <= expected.Length + 1; limit++)
 			{
-				if (!SnipeLogPipeline.TryGetRecordSlice(record, limit, out int messageChars, out int stackChars, out int bytes))
-					continue; // The longer timestamp and level also belong to the envelope.
-				var bounded = new SnipeLogRecord(record.Time, record.Level,
-					record.Message.Substring(0, messageChars), record.StackTrace.Substring(0, stackChars));
+				if (!SnipeLogPipeline.TryGetRecordSlice(record, limit, out int messageCharCount, out int stackTraceCharCount, out int byteCount))
+				{
+					// The longer timestamp and level also belong to the envelope.
+					continue;
+				}
+				var bounded = new SnipeLogRecord(record.TimestampMilliseconds, record.Level,
+					record.Message.Substring(0, messageCharCount), record.StackTrace.Substring(0, stackTraceCharCount));
 				byte[] data = Encoding.UTF8.GetBytes(SnipeLogPipeline.SerializeRecord(bounded) + "\n");
-				Assert.AreEqual(bytes, data.Length);
+				Assert.AreEqual(byteCount, data.Length);
 				Assert.LessOrEqual(data.Length, limit);
 				string json = new UTF8Encoding(false, true).GetString(data);
 				Assert.AreEqual('\n', json[json.Length - 1]);
 				var decoded = UnityEngine.JsonUtility.FromJson<DecodedRecord>(json);
 				Assert.AreEqual(long.MinValue, decoded.time);
 				Assert.AreEqual("Exception", decoded.level);
-				bool truncated = messageChars < record.Message.Length || stackChars < record.StackTrace.Length;
+				bool truncated = messageCharCount < record.Message.Length || stackTraceCharCount < record.StackTrace.Length;
 				Assert.AreEqual(limit < expected.Length, truncated);
-				if (!truncated) CollectionAssert.AreEqual(expected, data);
+				if (!truncated)
+				{
+					CollectionAssert.AreEqual(expected, data);
+				}
 			}
 		}
 
@@ -530,7 +578,9 @@ namespace MiniIT.Snipe.Tests.Editor
 				limits: new SnipeLogBufferLimits(10, 40, 10, 30, 3), startWriter: false))
 			{
 				foreach (string record in new[] { "111111111\n", "222222222\n", "333333333\n", "444444444\n" })
+				{
 					Assert.IsTrue(buffer.Append(Encoding.UTF8.GetBytes(record)));
+				}
 				var seal = buffer.SealCurrentFileAsync().AsTask();
 				buffer.ProcessFrame(100, 64);
 				using (var batch = await seal)
@@ -594,7 +644,10 @@ namespace MiniIT.Snipe.Tests.Editor
 					Assert.AreEqual("111111111\n", File.ReadAllText(batch.Files[0].Path));
 					Assert.AreEqual("222222222\n", File.ReadAllText(batch.Files[1].Path));
 					Assert.AreEqual(30, buffer.Cache.UsedBytes);
-					foreach (var file in batch.Files) Assert.IsTrue(batch.DeleteSentFile(file));
+					foreach (var file in batch.Files)
+					{
+						Assert.IsTrue(batch.DeleteSentFile(file));
+					}
 				}
 				var nextSeal = buffer.SealCurrentFileAsync().AsTask();
 				buffer.ProcessFrame(100, 64);
@@ -715,7 +768,10 @@ namespace MiniIT.Snipe.Tests.Editor
 				{
 					Assert.AreEqual(2, batch.Files.Length);
 					Assert.AreEqual(20, buffer.Cache.UsedBytes);
-					foreach (var file in batch.Files) Assert.IsTrue(batch.DeleteSentFile(file));
+					foreach (var file in batch.Files)
+					{
+						Assert.IsTrue(batch.DeleteSentFile(file));
+					}
 				}
 				for (int i = 0; i < 3; i++)
 				{
@@ -752,7 +808,10 @@ namespace MiniIT.Snipe.Tests.Editor
 		{
 			using (var buffer = new SnipeLogFileBuffer(CreateTemporaryDirectory(), startWriter: false))
 			{
-				for (int i = 0; i < 3; i++) buffer.Append(new byte[200]);
+				for (int i = 0; i < 3; i++)
+				{
+					buffer.Append(new byte[200]);
+				}
 				var seal = buffer.SealCurrentFileAsync().AsTask();
 				buffer.ProcessFrame(4096, 64);
 				Assert.AreEqual(0, buffer.QueuedBytes);
@@ -770,7 +829,10 @@ namespace MiniIT.Snipe.Tests.Editor
 			{
 				first.Append(new byte[10]);
 				first.ProcessFrame(3, 64);
-				for (int i = 0; i < 3; i++) second.Append(new byte[10]);
+				for (int i = 0; i < 3; i++)
+				{
+					second.Append(new byte[10]);
+				}
 				second.ProcessFrame(4096, 2);
 				Assert.AreEqual(10, second.QueuedBytes);
 				first.Dispose();
@@ -836,7 +898,10 @@ namespace MiniIT.Snipe.Tests.Editor
 				Assert.AreEqual(10, cache.UsedBytes);
 				Assert.IsFalse(File.Exists(partial));
 			}
-			finally { cache.ReleaseOwner(owner); }
+			finally
+			{
+				cache.ReleaseOwner(owner);
+			}
 		}
 
 		[Serializable]
@@ -929,7 +994,8 @@ namespace MiniIT.Snipe.Tests.Editor
 		[Test]
 		public void SerializeRecord_EscapesJsonAndKeepsUnicodeUtf8()
 		{
-			var record = new SnipeLogRecord(12, LogType.Warning, "quote\" slash\\ line\n snowman \u2603 control \u0001", "stack\tvalue");
+			var record = new SnipeLogRecord(timestampMilliseconds: 12, LogType.Warning, "quote\" slash\\ line\n snowman \u2603 control \u0001", "stack\tvalue");
+			Assert.AreEqual(12, record.TimestampMilliseconds);
 
 			string json = SnipeLogPipeline.SerializeRecord(record);
 
@@ -1362,9 +1428,15 @@ namespace MiniIT.Snipe.Tests.Editor
 					Assert.AreEqual(10, first.UsedBytes);
 					Assert.AreEqual(1, first.FileCount);
 				}
-				finally { second.ReleaseOwner(secondOwner); }
+				finally
+				{
+					second.ReleaseOwner(secondOwner);
+				}
 			}
-			finally { first.ReleaseOwner(firstOwner); }
+			finally
+			{
+				first.ReleaseOwner(firstOwner);
+			}
 		}
 
 		[Test]
@@ -1512,7 +1584,10 @@ namespace MiniIT.Snipe.Tests.Editor
 			finally
 			{
 				startGate.TrySetResult(true);
-				if (disposing != null) await disposing;
+				if (disposing != null)
+				{
+					await disposing;
+				}
 				buffer.Dispose();
 			}
 			Assert.IsEmpty(Directory.GetFiles(directory));
@@ -1749,9 +1824,15 @@ namespace MiniIT.Snipe.Tests.Editor
 				return UniTask.FromResult((IHttpClientResponse)result);
 			}
 
-			public void Reset() { }
-			public void SetAuthToken(string token) { }
-			public void SetPersistentClientId(string token) { }
+			public void Reset()
+			{
+			}
+			public void SetAuthToken(string token)
+			{
+			}
+			public void SetPersistentClientId(string token)
+			{
+			}
 			public UniTask<IHttpClientResponse> Get(Uri uri, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 			public UniTask<IHttpClientResponse> Get(Uri uri, TimeSpan timeout, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 			public UniTask<IHttpClientResponse> Post(Uri uri, string name, byte[] content, TimeSpan timeout, CancellationToken cancellationToken = default) => throw new NotSupportedException();
