@@ -20,6 +20,453 @@ namespace MiniIT.Snipe.Tests.Editor
 	{
 		private readonly List<string> _temporaryDirectories = new List<string>();
 
+		[TestCase(0, 20, 20, 30, 2)]
+		[TestCase(10, 9, 20, 30, 2)]
+		[TestCase(10, 20, 9, 30, 2)]
+		[TestCase(10, 20, 20, 19, 2)]
+		[TestCase(10, 20, 20, 30, 0)]
+		public void Limits_RejectInvalidValues(int record, int queue, int file, long cache, int files)
+		{
+			Assert.Throws<ArgumentOutOfRangeException>(() => new SnipeLogBufferLimits(record, queue, file, cache, files));
+		}
+
+		[Test]
+		public void Limits_RejectConflictingDirectoryBudgets()
+		{
+			string directory = CreateTemporaryDirectory();
+			using (var first = new SnipeLogFileBuffer(directory, limits: new SnipeLogBufferLimits(10, 20, 20, 30, 2), startWriter: false))
+			{
+				Assert.Throws<ArgumentException>(() => new SnipeLogFileBuffer(Path.Combine(directory, "."),
+					limits: new SnipeLogBufferLimits(10, 20, 20, 40, 2), startWriter: false));
+			}
+		}
+
+		[Test]
+		public void SerializedSize_UsesExactUtf8BytesAndPreservesEnvelope()
+		{
+			var empty = CreateRecord("");
+			Assert.IsNull(SnipeLogPipeline.SerializeLimitedRecord(empty, 44, out _));
+			Assert.AreEqual(45, SnipeLogPipeline.SerializeLimitedRecord(empty, 45, out bool emptyTruncated).Length);
+			Assert.IsFalse(emptyTruncated);
+			var record = new SnipeLogRecord(long.MinValue, LogType.Exception, "\"\\\b\f\n\r\t\u0001А😀\ud800x\udc00", "stack☃");
+			byte[] expected = Encoding.UTF8.GetBytes(SnipeLogPipeline.SerializeRecord(record) + "\n");
+			for (int limit = 45; limit <= expected.Length + 1; limit++)
+			{
+				byte[] data = SnipeLogPipeline.SerializeLimitedRecord(record, limit, out bool truncated);
+				if (data == null) continue; // The longer timestamp and level also belong to the envelope.
+				Assert.LessOrEqual(data.Length, limit);
+				string json = new UTF8Encoding(false, true).GetString(data);
+				Assert.AreEqual('\n', json[json.Length - 1]);
+				var decoded = UnityEngine.JsonUtility.FromJson<DecodedRecord>(json);
+				Assert.AreEqual(long.MinValue, decoded.time);
+				Assert.AreEqual("Exception", decoded.level);
+				Assert.AreEqual(limit < expected.Length, truncated);
+				if (!truncated) CollectionAssert.AreEqual(expected, data);
+			}
+		}
+
+		[Test]
+		public async Task Append_TruncatesOversizedRecordToValidNdjson()
+		{
+			var sender = new RecordingSender(true);
+			using (var pipeline = new SnipeLogPipeline(null, CreateTemporaryDirectory(), sender,
+				new SnipeLogBufferLimits(54, 108, 108, 216, 4)))
+			{
+				pipeline.Append(new SnipeLogRecord(1, LogType.Log, "А😀\"" + new string('x', 1000000), "stack"));
+				Assert.IsTrue(await pipeline.SendAsync());
+				Assert.AreEqual(1, sender.Contents.Count);
+				Assert.AreEqual(54, Encoding.UTF8.GetByteCount(sender.Contents[0]));
+				var decoded = UnityEngine.JsonUtility.FromJson<DecodedRecord>(sender.Contents[0]);
+				Assert.AreEqual("А😀\"x", decoded.msg);
+				Assert.AreEqual("", decoded.stack);
+			}
+			byte[] split = SnipeLogPipeline.SerializeLimitedRecord(new SnipeLogRecord(1, LogType.Log, "A😀B", "XY"), 49, out bool truncated);
+			Assert.IsTrue(truncated);
+			var prefix = UnityEngine.JsonUtility.FromJson<DecodedRecord>(Encoding.UTF8.GetString(split));
+			Assert.AreEqual("A", prefix.msg);
+			Assert.AreEqual("XY", prefix.stack);
+		}
+
+		[Test]
+		public async Task QueueLimit_RejectsNewestAndCountsEntireActiveArray()
+		{
+			using (var buffer = new SnipeLogFileBuffer(CreateTemporaryDirectory(),
+				limits: new SnipeLogBufferLimits(10, 20, 20, 40, 4), startWriter: false))
+			{
+				Assert.IsTrue(buffer.Append(Encoding.UTF8.GetBytes("111111111\n")));
+				Assert.IsTrue(buffer.Append(Encoding.UTF8.GetBytes("222222222\n")));
+				Assert.IsFalse(buffer.Append(Encoding.UTF8.GetBytes("discarded\n")));
+				buffer.ProcessFrame(3, 64);
+				Assert.AreEqual(20, buffer.QueuedBytes);
+				Assert.IsFalse(buffer.Append(Encoding.UTF8.GetBytes("discarded\n")));
+				buffer.ProcessFrame(7, 64);
+				Assert.AreEqual(10, buffer.QueuedBytes);
+				Assert.IsTrue(buffer.Append(Encoding.UTF8.GetBytes("333333333\n")));
+				Task<SnipeLogCacheDirectory.SendBatch> seal = buffer.SealCurrentFileAsync().AsTask();
+				buffer.ProcessFrame(100, 64);
+				using (var batch = await seal)
+				{
+					Assert.AreEqual(2, batch.Files.Length);
+					Assert.AreEqual("111111111\n222222222\n", File.ReadAllText(batch.Files[0].Path));
+					Assert.AreEqual("333333333\n", File.ReadAllText(batch.Files[1].Path));
+					Assert.AreEqual(20, new FileInfo(batch.Files[0].Path).Length);
+					Assert.AreEqual(10, new FileInfo(batch.Files[1].Path).Length);
+				}
+				Assert.AreEqual(0, buffer.QueuedBytes);
+			}
+		}
+
+		[Test]
+		public async Task QueueLimit_ReleasesBytesAfterFailureAndDispose()
+		{
+			string directory = Path.Combine(CreateTemporaryDirectory(), "blocked");
+			File.WriteAllText(directory, "not a directory");
+			using (var buffer = new SnipeLogFileBuffer(directory,
+				limits: new SnipeLogBufferLimits(10, 20, 10, 10, 1), startWriter: false))
+			{
+				Assert.IsTrue(buffer.Append(new byte[10]));
+				buffer.ProcessFrame(100, 64);
+				Assert.AreEqual(0, buffer.QueuedBytes);
+				File.Delete(directory);
+				Directory.CreateDirectory(directory);
+				Assert.IsTrue(buffer.Append(Encoding.UTF8.GetBytes("recovered\n")));
+				var seal = buffer.SealCurrentFileAsync().AsTask();
+				buffer.ProcessFrame(100, 64);
+				using (var batch = await seal) Assert.AreEqual("recovered\n", File.ReadAllText(batch.Files[0].Path));
+				Assert.IsTrue(buffer.Append(new byte[10]));
+				buffer.Dispose();
+				Assert.AreEqual(0, buffer.QueuedBytes);
+				Assert.AreEqual(0, buffer.Cache.UsedBytes);
+			}
+		}
+
+		[Test]
+		public async Task CacheLimit_EvictsOwnOldestClosedFileAndBoundsFileCount()
+		{
+			using (var buffer = new SnipeLogFileBuffer(CreateTemporaryDirectory(),
+				limits: new SnipeLogBufferLimits(10, 40, 10, 30, 3), startWriter: false))
+			{
+				foreach (string record in new[] { "111111111\n", "222222222\n", "333333333\n", "444444444\n" })
+					Assert.IsTrue(buffer.Append(Encoding.UTF8.GetBytes(record)));
+				var seal = buffer.SealCurrentFileAsync().AsTask();
+				buffer.ProcessFrame(100, 64);
+				using (var batch = await seal)
+				{
+					Assert.AreEqual(3, batch.Files.Length);
+					Assert.AreEqual("222222222\n", File.ReadAllText(batch.Files[0].Path));
+					Assert.AreEqual("444444444\n", File.ReadAllText(batch.Files[2].Path));
+				}
+				Assert.AreEqual(30, buffer.Cache.UsedBytes);
+				Assert.AreEqual(3, buffer.Cache.FileCount);
+			}
+		}
+
+		[Test]
+		public async Task CacheLimit_ReservesAcrossOwnersWithoutDeletingLiveOwnersFiles()
+		{
+			string directory = CreateTemporaryDirectory();
+			var limits = new SnipeLogBufferLimits(20, 40, 20, 30, 4);
+			using (var first = new SnipeLogFileBuffer(directory, limits: limits, startWriter: false))
+			using (var second = new SnipeLogFileBuffer(Path.Combine(directory, "."), limits: limits, startWriter: false))
+			{
+				first.Append(new byte[20]);
+				second.Append(new byte[20]);
+				await Task.WhenAll(Task.Run(() => first.ProcessFrame(100, 64)), Task.Run(() => second.ProcessFrame(100, 64)));
+				Assert.AreSame(first.Cache, second.Cache);
+				Assert.AreEqual(20, first.Cache.UsedBytes);
+				Assert.AreEqual(1, first.Cache.FileCount);
+				var firstSeal = first.SealCurrentFileAsync().AsTask();
+				var secondSeal = second.SealCurrentFileAsync().AsTask();
+				first.ProcessFrame(100, 64);
+				second.ProcessFrame(100, 64);
+				using (var a = await firstSeal)
+				using (var b = await secondSeal)
+				{
+					Assert.AreEqual(1, a.Files.Length + b.Files.Length);
+					var loser = a.Files.Length == 0 ? first : second;
+					var winner = a.Files.Length == 0 ? b : a;
+					loser.Append(new byte[20]);
+					loser.ProcessFrame(100, 64);
+					Assert.IsTrue(File.Exists(winner.Files[0].Path));
+					Assert.AreEqual(20, first.Cache.UsedBytes);
+				}
+			}
+		}
+
+		[Test]
+		public async Task Seal_PinsAllSelectedFilesAndExcludesLaterRotations()
+		{
+			using (var buffer = new SnipeLogFileBuffer(CreateTemporaryDirectory(),
+				limits: new SnipeLogBufferLimits(10, 40, 10, 30, 3), startWriter: false))
+			{
+				buffer.Append(Encoding.UTF8.GetBytes("111111111\n"));
+				buffer.Append(Encoding.UTF8.GetBytes("222222222\n"));
+				var seal = buffer.SealCurrentFileAsync().AsTask();
+				buffer.Append(Encoding.UTF8.GetBytes("333333333\n"));
+				buffer.Append(Encoding.UTF8.GetBytes("444444444\n"));
+				buffer.ProcessFrame(100, 64);
+				using (var batch = await seal)
+				{
+					Assert.AreEqual(2, batch.Files.Length);
+					Assert.AreEqual("111111111\n", File.ReadAllText(batch.Files[0].Path));
+					Assert.AreEqual("222222222\n", File.ReadAllText(batch.Files[1].Path));
+					Assert.AreEqual(30, buffer.Cache.UsedBytes);
+					foreach (var file in batch.Files) Assert.IsTrue(batch.DeleteSentFile(file));
+				}
+				var nextSeal = buffer.SealCurrentFileAsync().AsTask();
+				buffer.ProcessFrame(100, 64);
+				using (var next = await nextSeal)
+				{
+					Assert.AreEqual(1, next.Files.Length);
+					Assert.AreEqual("444444444\n", File.ReadAllText(next.Files[0].Path));
+				}
+			}
+		}
+
+		[Test]
+		public async Task CacheLimit_DropsIncomingWhenAllSelectedFilesFillCache()
+		{
+			var sender = new BlockingSender();
+			string directory = CreateTemporaryDirectory();
+			using (var pipeline = new SnipeLogPipeline(null, directory, sender, new SnipeLogBufferLimits(46, 184, 46, 92, 2)))
+			{
+				AppendRecords(pipeline, "A", "B");
+				Task<bool> sending = pipeline.SendAsync().AsTask();
+				await sender.FirstSendStarted;
+				AppendRecords(pipeline, "C", "D");
+				sender.ReleaseFirst();
+				Assert.IsTrue(await sending);
+				Assert.IsTrue(await pipeline.SendAsync());
+				// Selected files survive; any new disk writes may be dropped or admitted
+				// after successful deletion releases space, depending on writer scheduling.
+				Assert.GreaterOrEqual(sender.Contents.Count, 2);
+				StringAssert.Contains("\"msg\":\"A\"", sender.Contents[0]);
+				StringAssert.Contains("\"msg\":\"B\"", sender.Contents[1]);
+				Assert.IsEmpty(Directory.GetFiles(directory, "*.ndjson"));
+			}
+		}
+
+		[Test]
+		public async Task CacheLimit_EvictionForgetsPartialAcknowledgement()
+		{
+			var sender = new BatchedSender(true, false, true, true);
+			string directory = CreateTemporaryDirectory();
+			using (var pipeline = new SnipeLogPipeline(null, directory, sender, new SnipeLogBufferLimits(46, 184, 92, 92, 2)))
+			{
+				AppendRecords(pipeline, "A", "B");
+				Assert.IsFalse(await pipeline.SendAsync());
+				string evictedPath = Directory.GetFiles(directory, "*.ndjson")[0];
+				AppendRecords(pipeline, "C", "D");
+				Assert.IsTrue(await pipeline.SendAsync());
+				Assert.IsFalse(File.Exists(evictedPath));
+				CollectionAssert.AreEqual(new[] { BuildExpectedBatch("A"), BuildExpectedBatch("B"), BuildExpectedBatch("C"), BuildExpectedBatch("D") }, sender.Contents);
+			}
+		}
+
+		[Test]
+		[Platform("Win")]
+		public async Task CacheLimit_KeepsChargeAndProgressWhenDeleteFails()
+		{
+			using (var buffer = new SnipeLogFileBuffer(CreateTemporaryDirectory(),
+				limits: new SnipeLogBufferLimits(10, 20, 10, 10, 1), startWriter: false))
+			{
+				buffer.Append(new byte[10]);
+				var seal = buffer.SealCurrentFileAsync().AsTask();
+				buffer.ProcessFrame(100, 64);
+				SnipeLogCacheDirectory.FileEntry entry;
+				using (var batch = await seal)
+				{
+					entry = batch.Files[0];
+					batch.Acknowledge(entry, 1);
+				}
+				using (var blocker = new FileStream(entry.Path, FileMode.Open, FileAccess.Read, FileShare.Read))
+				{
+					buffer.Append(new byte[10]);
+					buffer.ProcessFrame(100, 64);
+					Assert.AreEqual(10, buffer.Cache.UsedBytes);
+					Assert.AreEqual(1, buffer.Cache.FileCount);
+					Assert.AreEqual(1, entry.AcknowledgedRecords);
+					Assert.IsTrue(File.Exists(entry.Path));
+				}
+				buffer.Append(new byte[10]);
+				buffer.ProcessFrame(100, 64);
+				Assert.IsFalse(File.Exists(entry.Path));
+				Assert.AreEqual(10, buffer.Cache.UsedBytes);
+			}
+		}
+
+		[Test]
+		[Platform("Win")]
+		public async Task CacheLimit_CountsUndeletableOrphans()
+		{
+			string directory = CreateTemporaryDirectory();
+			string orphan = Path.Combine(directory, "snipe-log-orphan.ndjson");
+			File.WriteAllBytes(orphan, new byte[30]);
+			using (var blocker = new FileStream(orphan, FileMode.Open, FileAccess.Read, FileShare.Read))
+			using (var buffer = new SnipeLogFileBuffer(directory,
+				limits: new SnipeLogBufferLimits(10, 20, 10, 20, 2), startWriter: false))
+			{
+				Assert.AreEqual(30, buffer.Cache.UsedBytes);
+				buffer.Append(new byte[10]);
+				var seal = buffer.SealCurrentFileAsync().AsTask();
+				buffer.ProcessFrame(100, 64);
+				using (var batch = await seal) Assert.IsEmpty(batch.Files);
+				Assert.AreEqual(1, Directory.GetFiles(directory).Length);
+			}
+			using (var replacement = new SnipeLogFileBuffer(directory, startWriter: false))
+				Assert.AreEqual(0, replacement.Cache.UsedBytes);
+		}
+
+		[Test]
+		public async Task CacheLimit_FileSlotsAndEmptySealsDoNotRequireReplacementFiles()
+		{
+			using (var buffer = new SnipeLogFileBuffer(CreateTemporaryDirectory(),
+				limits: new SnipeLogBufferLimits(10, 30, 10, 100, 2), startWriter: false))
+			{
+				buffer.Append(new byte[10]);
+				buffer.Append(new byte[10]);
+				buffer.Append(new byte[10]);
+				var seal = buffer.SealCurrentFileAsync().AsTask();
+				buffer.ProcessFrame(100, 64);
+				using (var batch = await seal)
+				{
+					Assert.AreEqual(2, batch.Files.Length);
+					Assert.AreEqual(20, buffer.Cache.UsedBytes);
+					foreach (var file in batch.Files) Assert.IsTrue(batch.DeleteSentFile(file));
+				}
+				for (int i = 0; i < 3; i++)
+				{
+					var emptySeal = buffer.SealCurrentFileAsync().AsTask();
+					buffer.ProcessFrame(100, 64);
+					using (var batch = await emptySeal) Assert.IsEmpty(batch.Files);
+				}
+				Assert.AreEqual(0, buffer.Cache.FileCount);
+			}
+		}
+
+		[Test]
+		public async Task ProcessFrame_SharesByteBudgetAcrossCommandsAndKeepsFifo()
+		{
+			using (var buffer = new SnipeLogFileBuffer(CreateTemporaryDirectory(),
+				limits: new SnipeLogBufferLimits(6, 20, 20, 40, 4), startWriter: false))
+			{
+				buffer.Append(Encoding.UTF8.GetBytes("123456"));
+				buffer.Append(Encoding.UTF8.GetBytes("78"));
+				var seal = buffer.SealCurrentFileAsync().AsTask();
+				buffer.ProcessFrame(4, 64);
+				Assert.AreEqual(8, buffer.QueuedBytes);
+				Assert.AreEqual(6, buffer.Cache.UsedBytes); // Full reservation, including unwritten bytes.
+				buffer.ProcessFrame(4, 64);
+				Assert.AreEqual(0, buffer.QueuedBytes);
+				Assert.IsFalse(seal.IsCompleted);
+				buffer.ProcessFrame(4, 64);
+				using (var batch = await seal) Assert.AreEqual("12345678", File.ReadAllText(batch.Files[0].Path));
+			}
+		}
+
+		[Test]
+		public async Task ProcessFrame_WritesSeveralShortRecordsInOneFrame()
+		{
+			using (var buffer = new SnipeLogFileBuffer(CreateTemporaryDirectory(), startWriter: false))
+			{
+				for (int i = 0; i < 3; i++) buffer.Append(new byte[200]);
+				var seal = buffer.SealCurrentFileAsync().AsTask();
+				buffer.ProcessFrame(4096, 64);
+				Assert.AreEqual(0, buffer.QueuedBytes);
+				using (var batch = await seal) Assert.AreEqual(600, new FileInfo(batch.Files[0].Path).Length);
+			}
+		}
+
+		[Test]
+		public void ProcessFrame_BoundsCommandsWhenNoBytesCanBeWrittenAndStopsOnDispose()
+		{
+			string directory = CreateTemporaryDirectory();
+			var limits = new SnipeLogBufferLimits(10, 40, 10, 10, 1);
+			using (var first = new SnipeLogFileBuffer(directory, limits: limits, startWriter: false))
+			using (var second = new SnipeLogFileBuffer(directory, limits: limits, startWriter: false))
+			{
+				first.Append(new byte[10]);
+				first.ProcessFrame(3, 64);
+				for (int i = 0; i < 3; i++) second.Append(new byte[10]);
+				second.ProcessFrame(4096, 2);
+				Assert.AreEqual(10, second.QueuedBytes);
+				first.Dispose();
+				Assert.AreEqual(0, first.QueuedBytes);
+				Assert.AreEqual(0, first.Cache.UsedBytes);
+				first.ProcessFrame(4096, 64);
+				Assert.AreEqual(0, Directory.GetFiles(directory).Length);
+				second.ProcessFrame(4096, 64);
+				Assert.AreEqual(10, second.Cache.UsedBytes);
+			}
+		}
+
+		[Test]
+		public async Task CacheLimit_FullPinnedSnapshotRejectsNewDiskRecords()
+		{
+			using (var buffer = new SnipeLogFileBuffer(CreateTemporaryDirectory(),
+				limits: new SnipeLogBufferLimits(10, 40, 10, 20, 2), startWriter: false))
+			{
+				buffer.Append(Encoding.UTF8.GetBytes("111111111\n"));
+				buffer.Append(Encoding.UTF8.GetBytes("222222222\n"));
+				var seal = buffer.SealCurrentFileAsync().AsTask();
+				buffer.Append(Encoding.UTF8.GetBytes("333333333\n"));
+				buffer.Append(Encoding.UTF8.GetBytes("444444444\n"));
+				buffer.ProcessFrame(100, 64);
+				using (var batch = await seal)
+				{
+					Assert.AreEqual(2, batch.Files.Length);
+					Assert.AreEqual("111111111\n", File.ReadAllText(batch.Files[0].Path));
+					Assert.AreEqual("222222222\n", File.ReadAllText(batch.Files[1].Path));
+					Assert.AreEqual(20, buffer.Cache.UsedBytes);
+					Assert.AreEqual(0, buffer.QueuedBytes);
+					buffer.Dispose();
+					Assert.IsTrue(File.Exists(batch.Files[0].Path));
+					Assert.IsTrue(File.Exists(batch.Files[1].Path));
+					Assert.AreEqual(20, buffer.Cache.UsedBytes);
+				}
+				Assert.AreEqual(0, buffer.Cache.UsedBytes);
+				Assert.AreEqual(0, buffer.Cache.FileCount);
+			}
+		}
+
+		[Test]
+		[Platform("Win")]
+		public void CacheLimit_FailedPartialFileRetainsReservationAndCannotBeSent()
+		{
+			string directory = CreateTemporaryDirectory();
+			const string owner = "snipe-log-partial-";
+			var cache = SnipeLogCacheDirectory.Register(directory, owner, new SnipeLogBufferLimits(10, 20, 20, 20, 2));
+			try
+			{
+				string partial = Path.Combine(directory, owner + "0.ndjson");
+				Assert.IsTrue(cache.TryReserve(owner, partial, null, 20, out var file, out _));
+				File.WriteAllBytes(partial, new byte[3]);
+				using (var blocker = new FileStream(partial, FileMode.Open, FileAccess.Read, FileShare.Read))
+				{
+					cache.DiscardFailedFile(file);
+					Assert.AreEqual(20, cache.UsedBytes);
+					Assert.AreEqual(1, cache.FileCount);
+					using (var batch = cache.AcquireClosedFiles(owner)) Assert.IsEmpty(batch.Files);
+					Assert.IsFalse(cache.TryReserve(owner, Path.Combine(directory, owner + "1.ndjson"), null, 10, out _, out _));
+				}
+				Assert.IsTrue(cache.TryReserve(owner, Path.Combine(directory, owner + "1.ndjson"), null, 10, out _, out _));
+				Assert.AreEqual(10, cache.UsedBytes);
+				Assert.IsFalse(File.Exists(partial));
+			}
+			finally { cache.ReleaseOwner(owner); }
+		}
+
+		[Serializable]
+		private sealed class DecodedRecord
+		{
+#pragma warning disable CS0649
+			public long time;
+			public string level;
+			public string msg;
+			public string stack;
+#pragma warning restore CS0649
+		}
+
 		[TearDown]
 		public void TearDown()
 		{
@@ -642,13 +1089,13 @@ namespace MiniIT.Snipe.Tests.Editor
 			try
 			{
 				Assert.IsTrue(buffer.Append(Encoding.UTF8.GetBytes("discard-me\n")));
-				Task<bool> seal = buffer.SealCurrentFileAsync().AsTask();
+				Task<SnipeLogCacheDirectory.SendBatch> seal = buffer.SealCurrentFileAsync().AsTask();
 				disposing = Task.Run(() => buffer.Dispose());
 				Task completed = await Task.WhenAny(seal, Task.Delay(TimeSpan.FromSeconds(5)));
 				Assert.AreSame(seal, completed, "A pending seal must complete without starting the writer.");
-				Assert.IsFalse(await seal);
+				Assert.IsNull(await seal);
 				Assert.IsFalse(buffer.Append(Encoding.UTF8.GetBytes("rejected\n")));
-				Assert.IsFalse(await buffer.SealCurrentFileAsync());
+				Assert.IsNull(await buffer.SealCurrentFileAsync());
 				Assert.IsEmpty(Directory.GetFiles(directory));
 			}
 			finally

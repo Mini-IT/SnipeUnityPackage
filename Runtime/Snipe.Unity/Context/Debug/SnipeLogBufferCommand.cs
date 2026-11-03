@@ -15,6 +15,7 @@ namespace MiniIT.Snipe.Internal
 		internal byte[] Data { get; }
 		internal TaskCompletionSource<bool> Completion { get; }
 		internal int Offset { get; set; }
+		internal SnipeLogCacheDirectory.SendBatch FilesToSend { get; set; }
 
 		private SnipeLogBufferCommand(
 			SnipeLogBufferCommandType commandType,

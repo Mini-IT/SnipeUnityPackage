@@ -2,260 +2,147 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
-using MiniIT.Snipe.Logging;
-#if !UNITY_WEBGL || UNITY_EDITOR
-using System.Threading;
-#endif
 
 namespace MiniIT.Snipe.Internal
 {
 	internal sealed class SnipeLogFileBuffer : IDisposable
 	{
 		internal static readonly UTF8Encoding Utf8NoBom = new UTF8Encoding(false);
-
-		private const string FILE_PREFIX = "snipe-log-";
-		private const string FILE_EXTENSION = ".ndjson";
 		private const int MIN_BYTES_TO_FLUSH = 4096;
-#if UNITY_WEBGL && !UNITY_EDITOR
 		private const int WEB_GL_BYTES_PER_FRAME = 4096;
-#endif
-
-		private static readonly object s_ownersLock = new object();
-		private static readonly StringComparer s_pathComparer =
-			Path.DirectorySeparatorChar == '\\' ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-		private static readonly Dictionary<string, HashSet<string>> s_activeOwners =
-			new Dictionary<string, HashSet<string>>(s_pathComparer);
-
+		private const int WEB_GL_COMMANDS_PER_FRAME = 64;
 		private readonly object _queueLock = new object();
-		private readonly object _fileSystemLock = new object();
 		private readonly Queue<SnipeLogBufferCommand> _commands = new Queue<SnipeLogBufferCommand>();
 		private readonly string _directoryPath;
-		private readonly string _sessionFilePrefix;
-#if UNITY_WEBGL && !UNITY_EDITOR
-		private bool _webGlPumpRunning;
-		private bool _webGlPumpStopped;
-		private SnipeLogBufferCommand _webGlActiveCommand;
-#else
+		private readonly string _owner;
+		private readonly SnipeLogBufferLimits _limits;
+		private readonly SnipeLogCacheDirectory _cache;
+		private readonly bool _frameWriter;
+		private readonly bool _manualWriter;
+#if !UNITY_WEBGL || UNITY_EDITOR
 		private readonly SemaphoreSlim _commandSignal = new SemaphoreSlim(0);
 		private readonly Task _writerLoop;
 #endif
-
 		private FileStream _currentWriter;
-		private string _currentFilePath;
-		private int _bytesSinceFlush;
+		private SnipeLogCacheDirectory.FileEntry _currentFile;
+		private SnipeLogBufferCommand _frameActiveCommand;
+		private int _queuedBytes;
 		private int _fileSequence;
-		private long _currentFileLength;
-		private bool _storageReady;
+		private int _currentFileLength;
+		private int _bytesSinceFlush;
+		private bool _pumpRunning;
 		private bool _accepting = true;
 		private bool _disposed;
+		private long _truncatedRecords;
+		private long _queueDrops;
+		private long _quotaDrops;
+		private long _evictedRecords;
+		private long _writeFailures;
 
-		internal SnipeLogFileBuffer(string directoryPath, Task writerStartGate = null)
+		internal int QueuedBytes { get { lock (_queueLock) return _queuedBytes; } }
+		internal SnipeLogCacheDirectory Cache => _cache;
+
+		internal SnipeLogFileBuffer(string directoryPath, Task writerStartGate = null,
+			SnipeLogBufferLimits limits = null, bool startWriter = true)
 		{
 			if (string.IsNullOrEmpty(directoryPath))
-			{
 				throw new ArgumentException("Log cache directory is required.", nameof(directoryPath));
-			}
-
 			string fullPath = Path.GetFullPath(directoryPath);
 			_directoryPath = fullPath.Length > Path.GetPathRoot(fullPath).Length
-				? fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-				: fullPath;
-			_sessionFilePrefix = $"{FILE_PREFIX}{Guid.NewGuid():N}-";
+				? fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) : fullPath;
+			_owner = $"snipe-log-{Guid.NewGuid():N}-";
+			_limits = limits ?? SnipeLogBufferLimits.Default;
+			_manualWriter = !startWriter;
+#if UNITY_WEBGL && !UNITY_EDITOR
+			_frameWriter = true;
+#else
+			_frameWriter = _manualWriter;
+#endif
+			_cache = SnipeLogCacheDirectory.Register(_directoryPath, _owner, _limits);
 			try
 			{
-				RegisterOwnerAndCleanup();
 #if !UNITY_WEBGL || UNITY_EDITOR
-				_writerLoop = Task.Run(async () =>
+				if (!_frameWriter)
 				{
-					if (writerStartGate != null)
+					_writerLoop = Task.Run(async () =>
 					{
-						await writerStartGate.ConfigureAwait(false);
-					}
-
-					await ProcessQueueAsync().ConfigureAwait(false);
-				});
+						if (writerStartGate != null) await writerStartGate.ConfigureAwait(false);
+						await ProcessQueueAsync().ConfigureAwait(false);
+					});
+				}
 #endif
 			}
 			catch
 			{
-				ReleaseFilesAndOwner();
+				_cache.ReleaseOwner(_owner);
 				throw;
 			}
 		}
 
-		internal bool Append(byte[] record)
+		// Avoid allocating serialized data when admission is already impossible.
+		// Append checks again atomically when it takes ownership of the array.
+		internal bool CanAccept(int bytes)
 		{
-			if (record == null || record.Length == 0)
-			{
-				return false;
-			}
-
-			return TryEnqueue(SnipeLogBufferCommand.Append(record));
-		}
-
-		internal async UniTask<bool> SealCurrentFileAsync()
-		{
-			SnipeLogBufferCommand command = SnipeLogBufferCommand.SealCurrentFile();
-			if (!TryEnqueue(command))
-			{
-				return false;
-			}
-
-			return await command.Completion.Task;
-		}
-
-		internal string[] GetFilesReadyToSend()
-		{
-			lock (_fileSystemLock)
-			{
-				if (!Directory.Exists(_directoryPath))
-				{
-					return Array.Empty<string>();
-				}
-
-				string[] files = Directory.GetFiles(_directoryPath, $"{_sessionFilePrefix}*{FILE_EXTENSION}");
-				Array.Sort(files, StringComparer.Ordinal);
-				var result = new List<string>(files.Length);
-
-				for (int i = 0; i < files.Length; i++)
-				{
-					string filePath = files[i];
-					if (PathEquals(filePath, _currentFilePath))
-					{
-						continue;
-					}
-
-					if (new FileInfo(filePath).Length == 0)
-					{
-						TryDeleteFile(filePath);
-						continue;
-					}
-
-					result.Add(filePath);
-				}
-
-				return result.ToArray();
-			}
-		}
-
-		internal bool DeleteSentFile(string filePath)
-		{
-			lock (_fileSystemLock)
-			{
-				return TryDeleteFile(filePath);
-			}
-		}
-
-		public void Dispose()
-		{
-			SnipeLogBufferCommand[] pendingCommands;
-#if UNITY_WEBGL && !UNITY_EDITOR
-			SnipeLogBufferCommand activeCommand;
-#else
-			SnipeLogBufferCommand stopCommand;
-#endif
 			lock (_queueLock)
 			{
-				if (_disposed)
-				{
-					return;
-				}
+				if (!_accepting) return false;
+				if (bytes > 0 && bytes <= _limits.MaxRecordBytes && bytes <= _limits.MaxQueuedBytes - _queuedBytes)
+					return true;
+				_queueDrops++;
+				return false;
+			}
+		}
 
-				_disposed = true;
-				_accepting = false;
-				pendingCommands = _commands.ToArray();
-				_commands.Clear();
-#if UNITY_WEBGL && !UNITY_EDITOR
-				_webGlPumpStopped = true;
-				activeCommand = _webGlActiveCommand;
-				_webGlActiveCommand = null;
-#else
-				stopCommand = SnipeLogBufferCommand.Stop();
-				_commands.Enqueue(stopCommand);
-				_commandSignal.Release();
-#endif
-			}
+		internal void NoteTruncation() { lock (_queueLock) _truncatedRecords++; }
 
-			for (int i = 0; i < pendingCommands.Length; i++)
-			{
-				pendingCommands[i].Completion?.TrySetResult(false);
-			}
+		internal bool Append(byte[] record)
+		{
+			return record != null && record.Length > 0 && TryEnqueue(SnipeLogBufferCommand.Append(record));
+		}
 
-			try
-			{
-#if UNITY_WEBGL && !UNITY_EDITOR
-				activeCommand?.Completion?.TrySetResult(false);
-				CloseCurrentWriterSynchronously();
-#else
-				stopCommand.Completion.Task.GetAwaiter().GetResult();
-				_writerLoop.GetAwaiter().GetResult();
-#endif
-			}
-			catch (Exception ex)
-			{
-				DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to stop log writer: {LogUtil.GetReducedException(ex)}");
-			}
-
-			finally
-			{
-#if !UNITY_WEBGL || UNITY_EDITOR
-				_commandSignal.Dispose();
-#endif
-				ReleaseFilesAndOwner();
-			}
+		internal async UniTask<SnipeLogCacheDirectory.SendBatch> SealCurrentFileAsync()
+		{
+			var command = SnipeLogBufferCommand.SealCurrentFile();
+			if (!TryEnqueue(command)) return null;
+			return await command.Completion.Task ? command.FilesToSend : null;
 		}
 
 		private bool TryEnqueue(SnipeLogBufferCommand command)
 		{
 			lock (_queueLock)
 			{
-				if (!_accepting)
+				if (!_accepting) return false;
+				if (command.Data != null)
 				{
-					return false;
+					if (command.Data.Length > _limits.MaxRecordBytes || command.Data.Length > _limits.MaxQueuedBytes - _queuedBytes)
+					{
+						_queueDrops++;
+						return false;
+					}
+					_queuedBytes += command.Data.Length;
 				}
-
 				_commands.Enqueue(command);
 #if !UNITY_WEBGL || UNITY_EDITOR
-				// Notification and admission must finish before Dispose can stop the writer.
-				_commandSignal.Release();
+				if (!_frameWriter) _commandSignal.Release();
 #endif
 			}
-
-#if UNITY_WEBGL && !UNITY_EDITOR
-			SignalWriter();
-#endif
+			if (_frameWriter && !_manualWriter) SignalFrameWriter();
 			return true;
 		}
 
 		private SnipeLogBufferCommand DequeueCommand()
 		{
-			lock (_queueLock)
-			{
-				return _commands.Count > 0 ? _commands.Dequeue() : null;
-			}
+			lock (_queueLock) return _commands.Count > 0 ? _commands.Dequeue() : null;
 		}
 
-#if UNITY_WEBGL && !UNITY_EDITOR
-		private void SignalWriter()
+		private void ReleaseRecord(SnipeLogBufferCommand command)
 		{
-			bool startPump = false;
-			lock (_queueLock)
-			{
-				if (!_webGlPumpRunning && !_webGlPumpStopped)
-				{
-					_webGlPumpRunning = true;
-					startPump = true;
-				}
-			}
-
-			if (startPump)
-			{
-				ProcessWebGlQueueAsync().Forget();
-			}
+			if (command?.Data == null) return;
+			lock (_queueLock) _queuedBytes -= command.Data.Length;
 		}
-#endif
 
 #if !UNITY_WEBGL || UNITY_EDITOR
 		private async Task ProcessQueueAsync()
@@ -263,451 +150,273 @@ namespace MiniIT.Snipe.Internal
 			while (true)
 			{
 				await _commandSignal.WaitAsync().ConfigureAwait(false);
-				SnipeLogBufferCommand command = DequeueCommand();
-				if (command == null)
-				{
-					continue;
-				}
-
+				var command = DequeueCommand();
+				if (command == null) continue;
 				try
 				{
-					switch (command.CommandType)
+					if (command.CommandType == SnipeLogBufferCommandType.Append)
 					{
-						case SnipeLogBufferCommandType.Append:
-							await AppendRecordAsync(command.Data).ConfigureAwait(false);
-							break;
-						case SnipeLogBufferCommandType.SealCurrentFile:
-							command.Completion.TrySetResult(await ProcessSealCurrentFileAsync().ConfigureAwait(false));
-							break;
-						case SnipeLogBufferCommandType.Stop:
+						if (_currentFileLength > _limits.MaxFileBytes - command.Data.Length)
 							await CloseCurrentWriterAsync().ConfigureAwait(false);
-							command.Completion.TrySetResult(true);
-							return;
+						if (!PrepareRecord(command.Data.Length)) continue;
+						await _currentWriter.WriteAsync(command.Data, 0, command.Data.Length).ConfigureAwait(false);
+						_currentFileLength += command.Data.Length;
+						_bytesSinceFlush += command.Data.Length;
+						if (_bytesSinceFlush >= MIN_BYTES_TO_FLUSH)
+						{
+							await _currentWriter.FlushAsync().ConfigureAwait(false);
+							_bytesSinceFlush = 0;
+						}
+						_cache.CompleteRecord(_currentFile);
 					}
-				}
-				catch (Exception ex)
-				{
-					DebugLogger.LogError($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Log writer command failed: {LogUtil.GetReducedException(ex)}");
-					command.Completion?.TrySetResult(false);
-					if (command.CommandType == SnipeLogBufferCommandType.Stop)
+					else
 					{
-						return;
+						bool closed = await CloseCurrentWriterAsync().ConfigureAwait(false);
+						if (closed && command.CommandType == SnipeLogBufferCommandType.SealCurrentFile)
+							command.FilesToSend = _cache.AcquireClosedFiles(_owner);
+						command.Completion.TrySetResult(closed);
+						if (command.CommandType == SnipeLogBufferCommandType.Stop) return;
 					}
 				}
-			}
-		}
-
-		private async Task<bool> AppendRecordAsync(byte[] record)
-		{
-			if (!EnsureStorageReady())
-			{
-				return false;
-			}
-
-			try
-			{
-				await _currentWriter.WriteAsync(record, 0, record.Length).ConfigureAwait(false);
-				_currentFileLength += record.Length;
-				_bytesSinceFlush += record.Length;
-
-				if (_bytesSinceFlush >= MIN_BYTES_TO_FLUSH)
+				catch (Exception)
 				{
-					await _currentWriter.FlushAsync().ConfigureAwait(false);
-					_bytesSinceFlush = 0;
+					DiscardFailedWriter();
+					command.Completion?.TrySetResult(false);
+					if (command.CommandType == SnipeLogBufferCommandType.Stop) return;
 				}
-
-				return true;
-			}
-			catch (Exception ex)
-			{
-				HandleAppendFailure(ex);
-				return false;
-			}
-		}
-
-		private async Task<bool> ProcessSealCurrentFileAsync()
-		{
-			if (!EnsureStorageReady())
-			{
-				return false;
-			}
-
-			if (_currentFileLength <= 0)
-			{
-				return true;
-			}
-
-			if (!await CloseCurrentWriterAsync().ConfigureAwait(false))
-			{
-				_storageReady = false;
-				return false;
-			}
-
-			try
-			{
-				CreateCurrentFile();
-				return true;
-			}
-			catch (Exception ex)
-			{
-				DebugLogger.LogError($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to seal current log file: {LogUtil.GetReducedException(ex)}");
-				_storageReady = false;
-				return false;
+				finally { ReleaseRecord(command); }
 			}
 		}
 
 		private async Task<bool> CloseCurrentWriterAsync()
 		{
-			if (_currentWriter == null)
-			{
-				return true;
-			}
-
-			bool success = true;
+			if (_currentWriter == null) return true;
 			try
 			{
 				await _currentWriter.FlushAsync().ConfigureAwait(false);
-			}
-			catch (Exception ex)
-			{
-				success = false;
-				DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to flush log file: {LogUtil.GetReducedException(ex)}");
-			}
-
-			try
-			{
 				_currentWriter.Dispose();
+				PublishClosedFile();
+				return true;
 			}
-			catch (Exception ex)
+			catch (Exception)
 			{
-				success = false;
-				DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to close log file: {LogUtil.GetReducedException(ex)}");
+				DiscardFailedWriter();
+				return false;
 			}
-			finally
-			{
-				_currentWriter = null;
-				_bytesSinceFlush = 0;
-			}
-
-			return success;
 		}
-#else
-		private async UniTaskVoid ProcessWebGlQueueAsync()
+#endif
+
+		private void SignalFrameWriter()
+		{
+			lock (_queueLock)
+			{
+				if (_pumpRunning || _disposed) return;
+				_pumpRunning = true;
+			}
+			ProcessFrameQueueAsync().Forget();
+		}
+
+		private async UniTaskVoid ProcessFrameQueueAsync()
 		{
 			await UniTask.Yield(PlayerLoopTiming.Update);
 			while (true)
 			{
-				SnipeLogBufferCommand command;
 				lock (_queueLock)
 				{
-					if (_webGlPumpStopped)
+					if (_disposed || (_frameActiveCommand == null && _commands.Count == 0))
 					{
-						_webGlPumpRunning = false;
-						return;
-					}
-
-					if (_webGlActiveCommand == null && _commands.Count > 0)
-					{
-						_webGlActiveCommand = _commands.Dequeue();
-					}
-
-					command = _webGlActiveCommand;
-					if (command == null)
-					{
-						_webGlPumpRunning = false;
+						_pumpRunning = false;
 						return;
 					}
 				}
-
-				if (ProcessWebGlCommand(command, WEB_GL_BYTES_PER_FRAME))
-				{
-					lock (_queueLock)
-					{
-						if (ReferenceEquals(_webGlActiveCommand, command))
-						{
-							_webGlActiveCommand = null;
-						}
-					}
-				}
-
+				ProcessFrame(WEB_GL_BYTES_PER_FRAME, WEB_GL_COMMANDS_PER_FRAME);
 				await UniTask.Yield(PlayerLoopTiming.Update);
 			}
 		}
 
-		private bool ProcessWebGlCommand(SnipeLogBufferCommand command, int maxBytes)
+		// The production WebGL pump and deterministic Editor tests execute this same writer.
+		internal void ProcessFrame(int maxBytes, int maxCommands)
 		{
-			switch (command.CommandType)
+			if (!_frameWriter || maxBytes <= 0 || maxCommands <= 0) return;
+			while (maxBytes > 0 && maxCommands-- > 0)
 			{
-				case SnipeLogBufferCommandType.Append:
-					return AppendRecordChunk(command, maxBytes);
-				case SnipeLogBufferCommandType.SealCurrentFile:
-					command.Completion.TrySetResult(ProcessSealCurrentFileSynchronously());
-					return true;
-				default:
-					return true;
-			}
-		}
-
-		private bool AppendRecordChunk(SnipeLogBufferCommand command, int maxBytes)
-		{
-			if (!EnsureStorageReady())
-			{
-				return true;
-			}
-
-			try
-			{
-				int remaining = command.Data.Length - command.Offset;
-				int bytesToWrite = Math.Min(remaining, maxBytes);
-				_currentWriter.Write(command.Data, command.Offset, bytesToWrite);
-				command.Offset += bytesToWrite;
-				_currentFileLength += bytesToWrite;
-				_bytesSinceFlush += bytesToWrite;
-
-				if (_bytesSinceFlush >= MIN_BYTES_TO_FLUSH)
+				lock (_queueLock)
 				{
-					_currentWriter.Flush();
-					_bytesSinceFlush = 0;
+					if (_disposed) return;
+					if (_frameActiveCommand == null && _commands.Count > 0) _frameActiveCommand = _commands.Dequeue();
 				}
-
-				return command.Offset >= command.Data.Length;
-			}
-			catch (Exception ex)
-			{
-				HandleAppendFailure(ex);
-				return true;
-			}
-		}
-
-		private bool ProcessSealCurrentFileSynchronously()
-		{
-			if (!EnsureStorageReady())
-			{
-				return false;
-			}
-
-			if (_currentFileLength <= 0)
-			{
-				return true;
-			}
-
-			if (!CloseCurrentWriterSynchronously())
-			{
-				_storageReady = false;
-				return false;
-			}
-
-			try
-			{
-				CreateCurrentFile();
-				return true;
-			}
-			catch (Exception ex)
-			{
-				DebugLogger.LogError($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to seal current log file: {LogUtil.GetReducedException(ex)}");
-				_storageReady = false;
-				return false;
-			}
-		}
-
-		private bool CloseCurrentWriterSynchronously()
-		{
-			if (_currentWriter == null)
-			{
-				return true;
-			}
-
-			bool success = true;
-			try
-			{
-				_currentWriter.Flush();
-			}
-			catch (Exception ex)
-			{
-				success = false;
-				DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to flush log file: {LogUtil.GetReducedException(ex)}");
-			}
-
-			try
-			{
-				_currentWriter.Dispose();
-			}
-			catch (Exception ex)
-			{
-				success = false;
-				DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to close log file: {LogUtil.GetReducedException(ex)}");
-			}
-			finally
-			{
-				_currentWriter = null;
-				_bytesSinceFlush = 0;
-			}
-
-			return success;
-		}
-#endif
-
-		private bool EnsureStorageReady()
-		{
-			if (_storageReady && _currentWriter != null)
-			{
-				return true;
-			}
-
-			try
-			{
-				Directory.CreateDirectory(_directoryPath);
-				CreateCurrentFile();
-				_storageReady = true;
-				return true;
-			}
-			catch (Exception ex)
-			{
-				DebugLogger.LogError($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to initialize log storage: {LogUtil.GetReducedException(ex)}");
-				_storageReady = false;
-				return false;
-			}
-		}
-
-		private void CreateCurrentFile()
-		{
-			string fileName = $"{_sessionFilePrefix}{_fileSequence++:D8}-{Guid.NewGuid():N}{FILE_EXTENSION}";
-			_currentFilePath = Path.Combine(_directoryPath, fileName);
-#if UNITY_WEBGL && !UNITY_EDITOR
-			_currentWriter = new FileStream(_currentFilePath, FileMode.CreateNew, FileAccess.Write, FileShare.Read, 4096, false);
-#else
-			_currentWriter = new FileStream(_currentFilePath, FileMode.CreateNew, FileAccess.Write, FileShare.Read, 4096, true);
-#endif
-			_bytesSinceFlush = 0;
-			_currentFileLength = 0;
-			_storageReady = true;
-		}
-
-		private void HandleAppendFailure(Exception exception)
-		{
-			DebugLogger.LogError($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to append log record: {LogUtil.GetReducedException(exception)}");
-#if UNITY_WEBGL && !UNITY_EDITOR
-			CloseCurrentWriterSynchronously();
-#else
-			try
-			{
-				_currentWriter?.Dispose();
-			}
-			catch (Exception closeException)
-			{
-				DebugLogger.LogWarning(
-					$"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to close log file: {LogUtil.GetReducedException(closeException)}");
-			}
-			finally
-			{
-				_currentWriter = null;
-				_bytesSinceFlush = 0;
-			}
-#endif
-			_storageReady = false;
-		}
-
-		private void RegisterOwnerAndCleanup()
-		{
-			lock (s_ownersLock)
-			{
-				if (!s_activeOwners.TryGetValue(_directoryPath, out var owners))
-				{
-					owners = new HashSet<string>(StringComparer.Ordinal);
-					s_activeOwners.Add(_directoryPath, owners);
-				}
-
-				owners.Add(_sessionFilePrefix);
+				var command = _frameActiveCommand;
+				if (command == null) return;
+				bool complete = true;
 				try
 				{
-					if (!Directory.Exists(_directoryPath))
+					if (command.CommandType == SnipeLogBufferCommandType.Append)
 					{
-						return;
+						if (command.Offset == 0)
+						{
+							if (_currentFileLength > _limits.MaxFileBytes - command.Data.Length) CloseCurrentWriter();
+							if (!PrepareRecord(command.Data.Length)) continue;
+						}
+						int count = Math.Min(maxBytes, command.Data.Length - command.Offset);
+						// A failed write may have written a prefix before throwing. Charge the
+						// attempted chunk first so even that frame cannot exceed its budget.
+						maxBytes -= count;
+						_currentWriter.Write(command.Data, command.Offset, count);
+						command.Offset += count;
+						_currentFileLength += count;
+						_bytesSinceFlush += count;
+						if (_bytesSinceFlush >= MIN_BYTES_TO_FLUSH)
+						{
+							_currentWriter.Flush();
+							_bytesSinceFlush = 0;
+						}
+						complete = command.Offset == command.Data.Length;
+						if (complete) _cache.CompleteRecord(_currentFile);
 					}
-
-					foreach (string filePath in Directory.GetFiles(_directoryPath, $"{FILE_PREFIX}*{FILE_EXTENSION}"))
+					else
 					{
-						string fileName = Path.GetFileName(filePath);
-						bool hasOwner = false;
-						foreach (string prefix in owners)
-						{
-							if (fileName.StartsWith(prefix, StringComparison.Ordinal))
-							{
-								hasOwner = true;
-								break;
-							}
-						}
-
-						if (!hasOwner)
-						{
-							TryDeleteFile(filePath);
-						}
-					}
-				}
-				catch (Exception ex)
-				{
-					DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to clean stale log files: {LogUtil.GetReducedException(ex)}");
-				}
-			}
-		}
-
-		private void ReleaseFilesAndOwner()
-		{
-			lock (s_ownersLock)
-			{
-				try
-				{
-					lock (_fileSystemLock)
-					{
-						if (Directory.Exists(_directoryPath))
-						{
-							foreach (string filePath in Directory.GetFiles(_directoryPath, $"{_sessionFilePrefix}*{FILE_EXTENSION}"))
-							{
-								TryDeleteFile(filePath);
-							}
-						}
+						bool closed = CloseCurrentWriter();
+						if (closed && command.CommandType == SnipeLogBufferCommandType.SealCurrentFile)
+							command.FilesToSend = _cache.AcquireClosedFiles(_owner);
+						command.Completion.TrySetResult(closed);
 					}
 				}
-				catch (Exception ex)
+				catch (Exception)
 				{
-					DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to clean owned log files: {LogUtil.GetReducedException(ex)}");
+					DiscardFailedWriter();
+					command.Completion?.TrySetResult(false);
 				}
 				finally
 				{
-					if (s_activeOwners.TryGetValue(_directoryPath, out var owners))
+					if (complete)
 					{
-						owners.Remove(_sessionFilePrefix);
-						if (owners.Count == 0)
-						{
-							s_activeOwners.Remove(_directoryPath);
-						}
+						ReleaseRecord(command);
+						_frameActiveCommand = null;
 					}
 				}
 			}
 		}
 
-		private static bool TryDeleteFile(string filePath)
+		private bool PrepareRecord(int bytes)
 		{
-			if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+			string path = _currentFile?.Path ?? Path.Combine(_directoryPath, $"{_owner}{_fileSequence++:D8}.ndjson");
+			bool reserved = _cache.TryReserve(_owner, path, _currentFile, bytes, out var file, out long evicted);
+			lock (_queueLock)
 			{
-				return true;
+				_evictedRecords += evicted;
+				if (!reserved) _quotaDrops++;
 			}
+			if (!reserved) return false;
+			_currentFile = file;
+			if (_currentWriter == null)
+			{
+				Directory.CreateDirectory(_directoryPath);
+				_currentWriter = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read, 4096, !_frameWriter);
+			}
+			return true;
+		}
 
+		private bool CloseCurrentWriter()
+		{
+			if (_currentWriter == null) return true;
 			try
 			{
-				File.Delete(filePath);
+				_currentWriter.Flush();
+				_currentWriter.Dispose();
+				PublishClosedFile();
 				return true;
 			}
-			catch (Exception ex)
+			catch (Exception)
 			{
-				DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to delete {filePath}: {LogUtil.GetReducedException(ex)}");
+				DiscardFailedWriter();
 				return false;
 			}
 		}
 
-		private static bool PathEquals(string left, string right)
+		private void PublishClosedFile()
 		{
-			return s_pathComparer.Equals(left, right);
+			_cache.Seal(_currentFile);
+			_currentWriter = null;
+			_currentFile = null;
+			_currentFileLength = 0;
+			_bytesSinceFlush = 0;
+		}
+
+		private void DiscardFailedWriter()
+		{
+			try { _currentWriter?.Dispose(); }
+			catch (Exception) { /* Retain the full reservation if deletion also fails. */ }
+			_cache.DiscardFailedFile(_currentFile);
+			_currentWriter = null;
+			_currentFile = null;
+			_currentFileLength = 0;
+			_bytesSinceFlush = 0;
+			lock (_queueLock) _writeFailures++;
+		}
+
+		internal void EmitDiagnostics()
+		{
+			string message;
+			lock (_queueLock)
+			{
+				if (_truncatedRecords == 0 && _queueDrops == 0 && _quotaDrops == 0 && _evictedRecords == 0 && _writeFailures == 0) return;
+				message = $"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Buffered logs: truncated={_truncatedRecords}, queueDropped={_queueDrops}, cacheDropped={_quotaDrops}, evicted={_evictedRecords}, writeFailures={_writeFailures}.";
+				_truncatedRecords = _queueDrops = _quotaDrops = _evictedRecords = _writeFailures = 0;
+			}
+			DebugLogger.LogWarning(message);
+		}
+
+		public void Dispose()
+		{
+			SnipeLogBufferCommand[] pending;
+			SnipeLogBufferCommand active;
+#if !UNITY_WEBGL || UNITY_EDITOR
+			SnipeLogBufferCommand stop = null;
+#endif
+			lock (_queueLock)
+			{
+				if (_disposed) return;
+				_disposed = true;
+				_accepting = false;
+				pending = _commands.ToArray();
+				_commands.Clear();
+				active = _frameActiveCommand;
+				_frameActiveCommand = null;
+#if !UNITY_WEBGL || UNITY_EDITOR
+				if (!_frameWriter)
+				{
+					stop = SnipeLogBufferCommand.Stop();
+					_commands.Enqueue(stop);
+					_commandSignal.Release();
+				}
+#endif
+			}
+			foreach (var command in pending)
+			{
+				ReleaseRecord(command);
+				command.Completion?.TrySetResult(false);
+			}
+			ReleaseRecord(active);
+			active?.Completion?.TrySetResult(false);
+			try
+			{
+				if (_frameWriter) CloseCurrentWriter();
+#if !UNITY_WEBGL || UNITY_EDITOR
+				else
+				{
+					stop.Completion.Task.GetAwaiter().GetResult();
+					_writerLoop.GetAwaiter().GetResult();
+				}
+#endif
+			}
+			finally
+			{
+#if !UNITY_WEBGL || UNITY_EDITOR
+				_commandSignal.Dispose();
+#endif
+				_cache.ReleaseOwner(_owner);
+				EmitDiagnostics();
+			}
 		}
 	}
 }

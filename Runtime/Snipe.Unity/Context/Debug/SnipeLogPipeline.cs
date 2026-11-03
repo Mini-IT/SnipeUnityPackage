@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using Cysharp.Threading.Tasks;
@@ -13,6 +12,8 @@ namespace MiniIT.Snipe
 	/// <summary>
 	/// Buffers logs for this instance's lifetime. Unsent files and acknowledgement progress
 	/// are discarded on disposal and are not recovered by subsequent instances.
+	/// Oversized records are truncated; new records can be dropped when the bounded
+	/// queue or cache is full. SendAsync reports delivery of its selected snapshot.
 	/// </summary>
 	public sealed class SnipeLogPipeline : ISnipeLogPipeline
 	{
@@ -22,9 +23,8 @@ namespace MiniIT.Snipe
 
 		private readonly object _stateLock = new object();
 		private readonly AlterSemaphore _sendSemaphore = new AlterSemaphore(1, 1);
-		// Accessed only by the serialized send operation; survives sender reinitialization.
-		private readonly Dictionary<string, long> _acknowledgedRecords = new Dictionary<string, long>();
 		private readonly SnipeLogFileBuffer _buffer;
+		private readonly SnipeLogBufferLimits _limits;
 		private readonly int? _sessionID;
 
 		private ILogFileSender _sender;
@@ -36,11 +36,12 @@ namespace MiniIT.Snipe
 		{
 		}
 
-		internal SnipeLogPipeline(int? sessionID, string cacheDirectory, ILogFileSender sender)
+		internal SnipeLogPipeline(int? sessionID, string cacheDirectory, ILogFileSender sender, SnipeLogBufferLimits limits = null)
 		{
 			_sessionID = sessionID;
 			_sender = sender;
-			_buffer = new SnipeLogFileBuffer(cacheDirectory);
+			_limits = limits ?? SnipeLogBufferLimits.Default;
+			_buffer = new SnipeLogFileBuffer(cacheDirectory, limits: _limits);
 		}
 
 		public void Initialize(SnipeContext context, SnipeOptions options)
@@ -75,7 +76,17 @@ namespace MiniIT.Snipe
 					return;
 				}
 
-				_buffer.Append(SerializeRecordToUtf8(record));
+				if (!TryGetRecordSlice(record, _limits.MaxRecordBytes, out int messageChars, out int stackChars, out int bytes) ||
+					!_buffer.CanAccept(bytes))
+				{
+					return;
+				}
+				var bounded = new SnipeLogRecord(record.Time, record.Level, Prefix(record.Message, messageChars), Prefix(record.StackTrace, stackChars));
+				if (_buffer.Append(SerializeRecordToUtf8(bounded)) &&
+					(messageChars < (record.Message?.Length ?? 0) || stackChars < (record.StackTrace?.Length ?? 0)))
+				{
+					_buffer.NoteTruncation();
+				}
 			}
 		}
 
@@ -90,7 +101,7 @@ namespace MiniIT.Snipe
 				semaphoreOccupied = true;
 
 				ILogFileSender sender;
-				UniTask<bool> fileSeal;
+				UniTask<SnipeLogCacheDirectory.SendBatch> fileSeal;
 				lock (_stateLock)
 				{
 					if (_disposed)
@@ -99,62 +110,36 @@ namespace MiniIT.Snipe
 					}
 
 					sender = _sender;
-					if (sender == null)
+					fileSeal = default;
+					if (sender != null)
 					{
-						DebugLogger.LogWarning($"{DIAGNOSTIC_LOG_PREFIX} Log pipeline is not initialized.");
-						return false;
+						_sendInProgress = true;
+						started = true;
+						fileSeal = _buffer.SealCurrentFileAsync();
 					}
-
-					_sendInProgress = true;
-					started = true;
-					fileSeal = _buffer.SealCurrentFileAsync();
 				}
-
-				if (!await fileSeal)
+				if (sender == null)
 				{
+					DebugLogger.LogWarning($"{DIAGNOSTIC_LOG_PREFIX} Log pipeline is not initialized.");
 					return false;
 				}
 
-				// The buffer removes empty files; preserve an acknowledged file that was unexpectedly truncated.
-				foreach (var progress in _acknowledgedRecords)
+				using (var batch = await fileSeal)
 				{
-					if (progress.Value > 0 && new FileInfo(progress.Key).Length == 0)
+					if (batch == null) return false;
+					foreach (var entry in batch.Files)
 					{
-						throw new InvalidDataException("Acknowledged log file was truncated to zero bytes.");
-					}
-				}
-
-				string[] filesToSend = _buffer.GetFilesReadyToSend();
-				for (int i = 0; i < filesToSend.Length; i++)
-				{
-					string filePath = filesToSend[i];
-					_acknowledgedRecords.TryGetValue(filePath, out long acknowledgedRecords);
-					bool success;
-
-					try
-					{
-						using (var file = new StreamReader(filePath, SnipeLogFileBuffer.Utf8NoBom))
+						long acknowledgedRecords = batch.GetAcknowledgedRecords(entry);
+						if (acknowledgedRecords > 0 && new FileInfo(entry.Path).Length == 0)
+							throw new InvalidDataException("Acknowledged log file was truncated to zero bytes.");
+						bool success;
+						using (var file = new StreamReader(entry.Path, SnipeLogFileBuffer.Utf8NoBom))
 						{
 							SkipAcknowledgedRecords(file, acknowledgedRecords);
-							success = await sender.SendAsync(file, count =>
-							{
-								acknowledgedRecords += count;
-								_acknowledgedRecords[filePath] = acknowledgedRecords;
-							});
+							success = await sender.SendAsync(file, count => batch.Acknowledge(entry, count));
 						}
+						if (!success || !batch.DeleteSentFile(entry)) return false;
 					}
-					catch (Exception ex)
-					{
-						DebugLogger.LogError($"{DIAGNOSTIC_LOG_PREFIX} Failed sending {filePath}: {LogUtil.GetReducedException(ex)}");
-						return false;
-					}
-
-					if (!success || !_buffer.DeleteSentFile(filePath))
-					{
-						return false;
-					}
-
-					_acknowledgedRecords.Remove(filePath);
 				}
 
 				return true;
@@ -182,6 +167,7 @@ namespace MiniIT.Snipe
 					{
 						DisposeBuffer();
 					}
+					else if (semaphoreOccupied) _buffer.EmitDiagnostics();
 				}
 				finally
 				{
@@ -237,7 +223,6 @@ namespace MiniIT.Snipe
 
 		private void DisposeBuffer()
 		{
-			_acknowledgedRecords.Clear();
 			_buffer.Dispose();
 		}
 
@@ -303,6 +288,58 @@ namespace MiniIT.Snipe
 		private static byte[] SerializeRecordToUtf8(SnipeLogRecord record)
 		{
 			return SnipeLogFileBuffer.Utf8NoBom.GetBytes(SerializeRecord(record) + "\n");
+		}
+
+		internal static byte[] SerializeLimitedRecord(SnipeLogRecord record, int maxBytes, out bool truncated)
+		{
+			truncated = false;
+			if (!TryGetRecordSlice(record, maxBytes, out int messageChars, out int stackChars, out _)) return null;
+			truncated = messageChars < (record.Message?.Length ?? 0) || stackChars < (record.StackTrace?.Length ?? 0);
+			return SerializeRecordToUtf8(new SnipeLogRecord(record.Time, record.Level,
+				Prefix(record.Message, messageChars), Prefix(record.StackTrace, stackChars)));
+		}
+
+		private static string Prefix(string value, int length)
+		{
+			return string.IsNullOrEmpty(value) || length == 0 ? string.Empty : length == value.Length ? value : value.Substring(0, length);
+		}
+
+		private static bool TryGetRecordSlice(SnipeLogRecord record, int maxBytes, out int messageChars, out int stackChars, out int bytes)
+		{
+			// Only the fixed envelope is serialized before admission; work on user fields
+			// stops at the limit, even if a producer supplies a multi-megabyte snapshot.
+			bytes = SnipeLogFileBuffer.Utf8NoBom.GetByteCount(SerializeRecord(new SnipeLogRecord(record.Time, record.Level, "", ""))) + 1;
+			messageChars = stackChars = 0;
+			if (bytes > maxBytes) return false;
+			messageChars = TakeEscapedPrefix(record.Message, maxBytes, ref bytes);
+			stackChars = TakeEscapedPrefix(record.StackTrace, maxBytes, ref bytes);
+			return true;
+		}
+
+		private static int TakeEscapedPrefix(string value, int maxBytes, ref int bytes)
+		{
+			if (string.IsNullOrEmpty(value)) return 0;
+			int index = 0;
+			while (index < value.Length)
+			{
+				char c = value[index];
+				int chars = 1;
+				int cost;
+				if (c == '"' || c == '\\' || c == '\b' || c == '\f' || c == '\n' || c == '\r' || c == '\t') cost = 2;
+				else if (c < 0x20) cost = 6;
+				else if (c < 0x80) cost = 1;
+				else if (c < 0x800) cost = 2;
+				else if (char.IsHighSurrogate(c) && index + 1 < value.Length && char.IsLowSurrogate(value[index + 1]))
+				{
+					cost = 4;
+					chars = 2;
+				}
+				else cost = 3; // BMP character or UTF8Encoding's replacement for an unpaired surrogate.
+				if (cost > maxBytes - bytes) break;
+				bytes += cost;
+				index += chars;
+			}
+			return index;
 		}
 	}
 }
