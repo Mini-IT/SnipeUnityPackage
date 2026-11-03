@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using MiniIT.Snipe.Logging;
 #if !UNITY_WEBGL || UNITY_EDITOR
 using System.Threading;
-using System.Threading.Tasks;
 #endif
 
 namespace MiniIT.Snipe.Internal
@@ -17,11 +17,16 @@ namespace MiniIT.Snipe.Internal
 
 		private const string FILE_PREFIX = "snipe-log-";
 		private const string FILE_EXTENSION = ".ndjson";
-		private const int MAX_RETAINED_STALE_FILES = 3;
 		private const int MIN_BYTES_TO_FLUSH = 4096;
 #if UNITY_WEBGL && !UNITY_EDITOR
 		private const int WEB_GL_BYTES_PER_FRAME = 4096;
 #endif
+
+		private static readonly object s_ownersLock = new object();
+		private static readonly StringComparer s_pathComparer =
+			Path.DirectorySeparatorChar == '\\' ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+		private static readonly Dictionary<string, HashSet<string>> s_activeOwners =
+			new Dictionary<string, HashSet<string>>(s_pathComparer);
 
 		private readonly object _queueLock = new object();
 		private readonly object _fileSystemLock = new object();
@@ -46,19 +51,38 @@ namespace MiniIT.Snipe.Internal
 		private bool _accepting = true;
 		private bool _disposed;
 
-		internal SnipeLogFileBuffer(string directoryPath)
+		internal SnipeLogFileBuffer(string directoryPath, Task writerStartGate = null)
 		{
 			if (string.IsNullOrEmpty(directoryPath))
 			{
 				throw new ArgumentException("Log cache directory is required.", nameof(directoryPath));
 			}
 
-			_directoryPath = directoryPath;
+			string fullPath = Path.GetFullPath(directoryPath);
+			_directoryPath = fullPath.Length > Path.GetPathRoot(fullPath).Length
+				? fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+				: fullPath;
 			_sessionFilePrefix = $"{FILE_PREFIX}{Guid.NewGuid():N}-";
-			CleanupStaleFiles();
+			try
+			{
+				RegisterOwnerAndCleanup();
 #if !UNITY_WEBGL || UNITY_EDITOR
-			_writerLoop = Task.Run(ProcessQueueAsync);
+				_writerLoop = Task.Run(async () =>
+				{
+					if (writerStartGate != null)
+					{
+						await writerStartGate.ConfigureAwait(false);
+					}
+
+					await ProcessQueueAsync().ConfigureAwait(false);
+				});
 #endif
+			}
+			catch
+			{
+				ReleaseFilesAndOwner();
+				throw;
+			}
 		}
 
 		internal bool Append(byte[] record)
@@ -118,37 +142,20 @@ namespace MiniIT.Snipe.Internal
 
 		internal bool DeleteSentFile(string filePath)
 		{
-			bool deleted;
 			lock (_fileSystemLock)
 			{
-				deleted = TryDeleteFile(filePath);
+				return TryDeleteFile(filePath);
 			}
-
-			CleanupStaleFiles();
-			return deleted;
 		}
 
 		public void Dispose()
 		{
+			SnipeLogBufferCommand[] pendingCommands;
 #if UNITY_WEBGL && !UNITY_EDITOR
-			lock (_queueLock)
-			{
-				if (_disposed)
-				{
-					return;
-				}
-
-				_disposed = true;
-				_accepting = false;
-				_webGlPumpStopped = true;
-			}
-
-			DrainWebGlQueueSynchronously();
-			CloseCurrentWriterSynchronously();
-			DeleteEmptyCurrentFile();
-			CleanupStaleFiles();
+			SnipeLogBufferCommand activeCommand;
 #else
 			SnipeLogBufferCommand stopCommand;
+#endif
 			lock (_queueLock)
 			{
 				if (_disposed)
@@ -158,23 +165,46 @@ namespace MiniIT.Snipe.Internal
 
 				_disposed = true;
 				_accepting = false;
+				pendingCommands = _commands.ToArray();
+				_commands.Clear();
+#if UNITY_WEBGL && !UNITY_EDITOR
+				_webGlPumpStopped = true;
+				activeCommand = _webGlActiveCommand;
+				_webGlActiveCommand = null;
+#else
 				stopCommand = SnipeLogBufferCommand.Stop();
 				_commands.Enqueue(stopCommand);
+				_commandSignal.Release();
+#endif
 			}
 
-			_commandSignal.Release();
+			for (int i = 0; i < pendingCommands.Length; i++)
+			{
+				pendingCommands[i].Completion?.TrySetResult(false);
+			}
+
 			try
 			{
+#if UNITY_WEBGL && !UNITY_EDITOR
+				activeCommand?.Completion?.TrySetResult(false);
+				CloseCurrentWriterSynchronously();
+#else
 				stopCommand.Completion.Task.GetAwaiter().GetResult();
 				_writerLoop.GetAwaiter().GetResult();
+#endif
 			}
 			catch (Exception ex)
 			{
 				DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to stop log writer: {LogUtil.GetReducedException(ex)}");
 			}
 
-			_commandSignal.Dispose();
+			finally
+			{
+#if !UNITY_WEBGL || UNITY_EDITOR
+				_commandSignal.Dispose();
 #endif
+				ReleaseFilesAndOwner();
+			}
 		}
 
 		private bool TryEnqueue(SnipeLogBufferCommand command)
@@ -187,9 +217,15 @@ namespace MiniIT.Snipe.Internal
 				}
 
 				_commands.Enqueue(command);
+#if !UNITY_WEBGL || UNITY_EDITOR
+				// Notification and admission must finish before Dispose can stop the writer.
+				_commandSignal.Release();
+#endif
 			}
 
+#if UNITY_WEBGL && !UNITY_EDITOR
 			SignalWriter();
+#endif
 			return true;
 		}
 
@@ -201,9 +237,9 @@ namespace MiniIT.Snipe.Internal
 			}
 		}
 
+#if UNITY_WEBGL && !UNITY_EDITOR
 		private void SignalWriter()
 		{
-#if UNITY_WEBGL && !UNITY_EDITOR
 			bool startPump = false;
 			lock (_queueLock)
 			{
@@ -218,10 +254,8 @@ namespace MiniIT.Snipe.Internal
 			{
 				ProcessWebGlQueueAsync().Forget();
 			}
-#else
-			_commandSignal.Release();
-#endif
 		}
+#endif
 
 #if !UNITY_WEBGL || UNITY_EDITOR
 		private async Task ProcessQueueAsync()
@@ -247,8 +281,6 @@ namespace MiniIT.Snipe.Internal
 							break;
 						case SnipeLogBufferCommandType.Stop:
 							await CloseCurrentWriterAsync().ConfigureAwait(false);
-							DeleteEmptyCurrentFile();
-							CleanupStaleFiles();
 							command.Completion.TrySetResult(true);
 							return;
 					}
@@ -314,7 +346,6 @@ namespace MiniIT.Snipe.Internal
 			try
 			{
 				CreateCurrentFile();
-				CleanupStaleFiles();
 				return true;
 			}
 			catch (Exception ex)
@@ -469,7 +500,6 @@ namespace MiniIT.Snipe.Internal
 			try
 			{
 				CreateCurrentFile();
-				CleanupStaleFiles();
 				return true;
 			}
 			catch (Exception ex)
@@ -477,32 +507,6 @@ namespace MiniIT.Snipe.Internal
 				DebugLogger.LogError($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to seal current log file: {LogUtil.GetReducedException(ex)}");
 				_storageReady = false;
 				return false;
-			}
-		}
-
-		private void DrainWebGlQueueSynchronously()
-		{
-			while (true)
-			{
-				SnipeLogBufferCommand command;
-				lock (_queueLock)
-				{
-					command = _webGlActiveCommand;
-					_webGlActiveCommand = null;
-					if (command == null && _commands.Count > 0)
-					{
-						command = _commands.Dequeue();
-					}
-				}
-
-				if (command == null)
-				{
-					return;
-				}
-
-				while (!ProcessWebGlCommand(command, int.MaxValue))
-				{
-				}
 			}
 		}
 
@@ -603,26 +607,42 @@ namespace MiniIT.Snipe.Internal
 			_storageReady = false;
 		}
 
-		private void DeleteEmptyCurrentFile()
+		private void RegisterOwnerAndCleanup()
 		{
-			if (_currentFileLength != 0)
+			lock (s_ownersLock)
 			{
-				return;
-			}
+				if (!s_activeOwners.TryGetValue(_directoryPath, out var owners))
+				{
+					owners = new HashSet<string>(StringComparer.Ordinal);
+					s_activeOwners.Add(_directoryPath, owners);
+				}
 
-			lock (_fileSystemLock)
-			{
-				TryDeleteFile(_currentFilePath);
-			}
-		}
-
-		private void CleanupStaleFiles()
-		{
-			lock (_fileSystemLock)
-			{
+				owners.Add(_sessionFilePrefix);
 				try
 				{
-					CleanupStaleFilesUnsafe();
+					if (!Directory.Exists(_directoryPath))
+					{
+						return;
+					}
+
+					foreach (string filePath in Directory.GetFiles(_directoryPath, $"{FILE_PREFIX}*{FILE_EXTENSION}"))
+					{
+						string fileName = Path.GetFileName(filePath);
+						bool hasOwner = false;
+						foreach (string prefix in owners)
+						{
+							if (fileName.StartsWith(prefix, StringComparison.Ordinal))
+							{
+								hasOwner = true;
+								break;
+							}
+						}
+
+						if (!hasOwner)
+						{
+							TryDeleteFile(filePath);
+						}
+					}
 				}
 				catch (Exception ex)
 				{
@@ -631,36 +651,38 @@ namespace MiniIT.Snipe.Internal
 			}
 		}
 
-		private void CleanupStaleFilesUnsafe()
+		private void ReleaseFilesAndOwner()
 		{
-			if (!Directory.Exists(_directoryPath))
+			lock (s_ownersLock)
 			{
-				return;
-			}
-
-			string[] files = Directory.GetFiles(_directoryPath, $"{FILE_PREFIX}*{FILE_EXTENSION}");
-			var staleFiles = new List<FileInfo>();
-			for (int i = 0; i < files.Length; i++)
-			{
-				string filePath = files[i];
-				if (PathEquals(filePath, _currentFilePath) ||
-					Path.GetFileName(filePath).StartsWith(_sessionFilePrefix, StringComparison.Ordinal))
+				try
 				{
-					continue;
+					lock (_fileSystemLock)
+					{
+						if (Directory.Exists(_directoryPath))
+						{
+							foreach (string filePath in Directory.GetFiles(_directoryPath, $"{_sessionFilePrefix}*{FILE_EXTENSION}"))
+							{
+								TryDeleteFile(filePath);
+							}
+						}
+					}
 				}
-
-				staleFiles.Add(new FileInfo(filePath));
-			}
-
-			staleFiles.Sort((left, right) =>
-			{
-				int comparison = DateTime.Compare(right.LastWriteTimeUtc, left.LastWriteTimeUtc);
-				return comparison != 0 ? comparison : string.CompareOrdinal(left.FullName, right.FullName);
-			});
-
-			for (int i = MAX_RETAINED_STALE_FILES; i < staleFiles.Count; i++)
-			{
-				TryDeleteFile(staleFiles[i].FullName);
+				catch (Exception ex)
+				{
+					DebugLogger.LogWarning($"{SnipeLogPipeline.DIAGNOSTIC_LOG_PREFIX} Failed to clean owned log files: {LogUtil.GetReducedException(ex)}");
+				}
+				finally
+				{
+					if (s_activeOwners.TryGetValue(_directoryPath, out var owners))
+					{
+						owners.Remove(_sessionFilePrefix);
+						if (owners.Count == 0)
+						{
+							s_activeOwners.Remove(_directoryPath);
+						}
+					}
+				}
 			}
 		}
 
@@ -685,7 +707,7 @@ namespace MiniIT.Snipe.Internal
 
 		private static bool PathEquals(string left, string right)
 		{
-			return string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+			return s_pathComparer.Equals(left, right);
 		}
 	}
 }

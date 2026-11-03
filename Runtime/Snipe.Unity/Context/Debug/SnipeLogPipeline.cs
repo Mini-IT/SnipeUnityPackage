@@ -10,6 +10,10 @@ using UnityEngine;
 
 namespace MiniIT.Snipe
 {
+	/// <summary>
+	/// Buffers logs for this instance's lifetime. Unsent files and acknowledgement progress
+	/// are discarded on disposal and are not recovered by subsequent instances.
+	/// </summary>
 	public sealed class SnipeLogPipeline : ISnipeLogPipeline
 	{
 		public const string DIAGNOSTIC_LOG_PREFIX = "[SnipeLogPipeline]";
@@ -24,6 +28,7 @@ namespace MiniIT.Snipe
 		private readonly int? _sessionID;
 
 		private ILogFileSender _sender;
+		private bool _sendInProgress;
 		private bool _disposed;
 
 		public SnipeLogPipeline(int? sessionID = null)
@@ -77,6 +82,7 @@ namespace MiniIT.Snipe
 		public async UniTask<bool> SendAsync()
 		{
 			bool semaphoreOccupied = false;
+			bool started = false;
 
 			try
 			{
@@ -99,6 +105,8 @@ namespace MiniIT.Snipe
 						return false;
 					}
 
+					_sendInProgress = true;
+					started = true;
 					fileSeal = _buffer.SealCurrentFileAsync();
 				}
 
@@ -158,9 +166,29 @@ namespace MiniIT.Snipe
 			}
 			finally
 			{
-				if (semaphoreOccupied)
+				try
 				{
-					_sendSemaphore.Release();
+					bool disposeBuffer = false;
+					if (started)
+					{
+						lock (_stateLock)
+						{
+							_sendInProgress = false;
+							disposeBuffer = _disposed;
+						}
+					}
+
+					if (disposeBuffer)
+					{
+						DisposeBuffer();
+					}
+				}
+				finally
+				{
+					if (semaphoreOccupied)
+					{
+						_sendSemaphore.Release();
+					}
 				}
 			}
 		}
@@ -182,8 +210,13 @@ namespace MiniIT.Snipe
 			}
 		}
 
+		/// <summary>
+		/// Stops accepting logs and new sends. An active send is allowed to finish before
+		/// its files are deleted; this method does not wait for that network operation.
+		/// </summary>
 		public void Dispose()
 		{
+			bool disposeBuffer;
 			lock (_stateLock)
 			{
 				if (_disposed)
@@ -193,8 +226,18 @@ namespace MiniIT.Snipe
 
 				_disposed = true;
 				_sender = null;
+				disposeBuffer = !_sendInProgress;
 			}
 
+			if (disposeBuffer)
+			{
+				DisposeBuffer();
+			}
+		}
+
+		private void DisposeBuffer()
+		{
+			_acknowledgedRecords.Clear();
 			_buffer.Dispose();
 		}
 

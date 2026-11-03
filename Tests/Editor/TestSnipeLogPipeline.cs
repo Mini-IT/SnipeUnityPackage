@@ -426,10 +426,14 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[Test]
-		public void Dispose_DrainsQueuedRecordsAndIsIdempotent()
+		public async Task Dispose_DeletesOwnFilesAndIsIdempotent()
 		{
 			string directory = CreateTemporaryDirectory();
-			var pipeline = new SnipeLogPipeline(null, directory, new RecordingSender(true));
+			var sender = new RecordingSender(false);
+			using var pipeline = new SnipeLogPipeline(null, directory, sender);
+			pipeline.Append(CreateRecord("retained"));
+			Assert.IsFalse(await pipeline.SendAsync());
+			Assert.AreEqual(1, CountNonEmptyLogFiles(directory));
 			for (int i = 0; i < 100; i++)
 			{
 				pipeline.Append(new SnipeLogRecord(i, LogType.Log, $"record-{i:D3}", string.Empty));
@@ -437,13 +441,259 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			pipeline.Dispose();
 			pipeline.Dispose();
-
-			string[] files = Directory.GetFiles(directory, "*.ndjson");
-			Assert.AreEqual(1, files.Length);
-			string content = File.ReadAllText(files[0]);
-			for (int i = 0; i < 100; i++)
+			pipeline.Append(CreateRecord("ignored"));
+			Assert.IsFalse(await pipeline.SendAsync());
+			using (var context = new ContextStub(CreateOptions(), new ReporterStub()))
 			{
-				StringAssert.Contains($"record-{i:D3}", content);
+				Assert.Throws<ObjectDisposedException>(() => pipeline.Initialize(context, CreateOptions()));
+			}
+			Assert.AreEqual(1, sender.Contents.Count);
+			Assert.IsEmpty(Directory.GetFiles(directory, "*.ndjson"));
+		}
+
+		[TestCase(false)]
+		[TestCase(true)]
+		public async Task Dispose_HandlesEmptyAndUninitializedPipeline(bool append)
+		{
+			string directory = CreateTemporaryDirectory();
+			using var pipeline = new SnipeLogPipeline(null, directory, null);
+			if (append)
+			{
+				pipeline.Append(CreateRecord("never-initialized"));
+			}
+			pipeline.Dispose();
+			pipeline.Dispose();
+			Assert.IsFalse(await pipeline.SendAsync());
+			Assert.IsEmpty(Directory.GetFiles(directory, "*.ndjson"));
+		}
+
+		[Test]
+		public async Task Dispose_DeletesPartiallyAcknowledgedFiles()
+		{
+			string directory = CreateTemporaryDirectory();
+			var sender = new BatchedSender(true, false);
+			using (var pipeline = new SnipeLogPipeline(null, directory, sender))
+			{
+				AppendRecords(pipeline, "A", "B");
+				Assert.IsFalse(await pipeline.SendAsync());
+				Assert.AreEqual(1, CountNonEmptyLogFiles(directory));
+			}
+			Assert.AreEqual(2, sender.Contents.Count);
+			Assert.IsEmpty(Directory.GetFiles(directory, "*.ndjson"));
+		}
+
+		[Test]
+		public async Task ConstructorCleanup_DeletesOrphansWithoutSendingOrTouchingOtherFiles()
+		{
+			string directory = CreateTemporaryDirectory();
+			for (int i = 0; i < 5; i++)
+			{
+				File.WriteAllText(Path.Combine(directory, $"snipe-log-old-{i}.ndjson"), "orphan");
+			}
+			string sentinel = Path.Combine(directory, "sentinel.txt");
+			File.WriteAllText(sentinel, "keep-me");
+			string nested = Path.Combine(directory, "nested");
+			Directory.CreateDirectory(nested);
+			string nestedFile = Path.Combine(nested, "snipe-log-nested.ndjson");
+			File.WriteAllText(nestedFile, "nested-data");
+			var sender = new RecordingSender(true);
+			using (var pipeline = new SnipeLogPipeline(null, directory, sender))
+			{
+				Assert.IsEmpty(Directory.GetFiles(directory, "*.ndjson"));
+				pipeline.Append(CreateRecord("new-record"));
+				Assert.IsTrue(await pipeline.SendAsync());
+				Assert.AreEqual(1, sender.Contents.Count);
+				StringAssert.Contains("new-record", sender.Contents[0]);
+				StringAssert.DoesNotContain("orphan", sender.Contents[0]);
+			}
+			Assert.AreEqual("keep-me", File.ReadAllText(sentinel));
+			Assert.AreEqual("nested-data", File.ReadAllText(nestedFile));
+		}
+
+		[Test]
+		public async Task SharedDirectory_PreservesLiveBuffersAndSendOrder()
+		{
+			string directory = CreateTemporaryDirectory();
+			var firstSender = new RecordingSender(false, false, false, false);
+			using (var first = new SnipeLogPipeline(null, directory, firstSender))
+			{
+				foreach (string message in new[] { "A", "B", "C", "D" })
+				{
+					first.Append(CreateRecord(message));
+					Assert.IsFalse(await first.SendAsync());
+				}
+				Assert.AreEqual(4, CountNonEmptyLogFiles(directory));
+				string[] ownedPaths = Directory.GetFiles(directory, "*.ndjson");
+				var retainedFiles = new Dictionary<string, string>();
+				foreach (string path in ownedPaths)
+				{
+					if (new FileInfo(path).Length > 0)
+					{
+						retainedFiles.Add(path, File.ReadAllText(path));
+					}
+				}
+				using (var second = new SnipeLogPipeline(null, Path.Combine(directory, ".") + Path.DirectorySeparatorChar,
+					new RecordingSender(true)))
+				{
+					second.Append(CreateRecord("second-owner"));
+					Assert.IsTrue(await second.SendAsync());
+				}
+				foreach (string path in ownedPaths)
+				{
+					Assert.IsTrue(File.Exists(path), "A live owner must retain its current and sealed files.");
+				}
+				foreach (var file in retainedFiles)
+				{
+					Assert.AreEqual(file.Value, File.ReadAllText(file.Key));
+				}
+				Assert.IsTrue(await first.SendAsync());
+				Assert.AreEqual(8, firstSender.Contents.Count);
+				for (int i = 0; i < 4; i++)
+				{
+					StringAssert.Contains($"\"msg\":\"{(char)('A' + i)}\"", firstSender.Contents[4 + i]);
+				}
+			}
+			Assert.IsEmpty(Directory.GetFiles(directory, "*.ndjson"));
+		}
+
+		[TestCase(false)]
+		[TestCase(true)]
+		public async Task DisposeDuringSend_PreservesReaderAndOwnerUntilCompletion(bool success)
+		{
+			string directory = CreateTemporaryDirectory();
+			var sender = new BlockingSender();
+			using (var pipeline = new SnipeLogPipeline(null, directory, sender))
+			{
+				pipeline.Append(CreateRecord("in-flight"));
+				Task<bool> sending = pipeline.SendAsync().AsTask();
+				await sender.FirstSendStarted;
+				Task<bool> queued = pipeline.SendAsync().AsTask();
+				try
+				{
+					pipeline.Dispose();
+					pipeline.Dispose();
+					Assert.IsFalse(sending.IsCompleted);
+					Assert.AreEqual(1, CountNonEmptyLogFiles(directory));
+					using (var replacement = new SnipeLogPipeline(null, directory, new RecordingSender(false)))
+					{
+						Assert.AreEqual(1, CountNonEmptyLogFiles(directory));
+						replacement.Append(CreateRecord("replacement"));
+						Assert.IsFalse(await replacement.SendAsync());
+						sender.ReleaseFirst(success);
+						Assert.AreEqual(success, await sending);
+						Assert.IsFalse(await queued);
+						Assert.IsFalse(await pipeline.SendAsync());
+						Assert.AreEqual(1, sender.SendCount);
+						Assert.AreEqual(1, CountNonEmptyLogFiles(directory));
+						string replacementFile = Array.Find(Directory.GetFiles(directory, "*.ndjson"),
+							path => new FileInfo(path).Length > 0);
+						StringAssert.Contains("replacement", File.ReadAllText(replacementFile));
+						StringAssert.Contains("in-flight", sender.Contents[0]);
+					}
+				}
+				finally
+				{
+					sender.ReleaseFirst(success);
+					await sending;
+					await queued;
+				}
+			}
+			Assert.IsEmpty(Directory.GetFiles(directory, "*.ndjson"));
+		}
+
+		[Test]
+		public async Task DisposeDuringSend_CompletesAllSelectedFiles()
+		{
+			string directory = CreateTemporaryDirectory();
+			var sender = new BlockingSender(2);
+			using (var pipeline = new SnipeLogPipeline(null, directory, sender))
+			{
+				pipeline.Append(CreateRecord("A"));
+				Assert.IsFalse(await pipeline.SendAsync());
+				pipeline.Append(CreateRecord("B"));
+				Task<bool> sending = pipeline.SendAsync().AsTask();
+				await sender.FirstSendStarted;
+				try
+				{
+					Assert.AreEqual(2, CountNonEmptyLogFiles(directory));
+					pipeline.Append(CreateRecord("after-barrier"));
+					pipeline.Dispose();
+				}
+				finally
+				{
+					sender.ReleaseFirst();
+					await sending;
+				}
+				Assert.IsTrue(await sending);
+				Assert.AreEqual(3, sender.Contents.Count);
+				StringAssert.Contains("\"msg\":\"A\"", sender.Contents[1]);
+				StringAssert.Contains("\"msg\":\"B\"", sender.Contents[2]);
+				Assert.IsEmpty(Directory.GetFiles(directory, "*.ndjson"));
+			}
+		}
+
+		[Test]
+		public async Task BufferDispose_DiscardsPendingCommandsAndCompletesSeals()
+		{
+			string directory = CreateTemporaryDirectory();
+			var startGate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+			var buffer = new SnipeLogFileBuffer(directory, startGate.Task);
+			Task disposing = null;
+			try
+			{
+				Assert.IsTrue(buffer.Append(Encoding.UTF8.GetBytes("discard-me\n")));
+				Task<bool> seal = buffer.SealCurrentFileAsync().AsTask();
+				disposing = Task.Run(() => buffer.Dispose());
+				Task completed = await Task.WhenAny(seal, Task.Delay(TimeSpan.FromSeconds(5)));
+				Assert.AreSame(seal, completed, "A pending seal must complete without starting the writer.");
+				Assert.IsFalse(await seal);
+				Assert.IsFalse(buffer.Append(Encoding.UTF8.GetBytes("rejected\n")));
+				Assert.IsFalse(await buffer.SealCurrentFileAsync());
+				Assert.IsEmpty(Directory.GetFiles(directory));
+			}
+			finally
+			{
+				startGate.TrySetResult(true);
+				if (disposing != null) await disposing;
+				buffer.Dispose();
+			}
+			Assert.IsEmpty(Directory.GetFiles(directory));
+		}
+
+		[Test]
+		[Platform("Win")]
+		public async Task Dispose_FailedDeletionIsRetriedByNextBuffer()
+		{
+			string directory = CreateTemporaryDirectory();
+			using (var pipeline = new SnipeLogPipeline(null, directory, new RecordingSender(false)))
+			{
+				pipeline.Append(CreateRecord("locked-file"));
+				Assert.IsFalse(await pipeline.SendAsync());
+				string file = Directory.GetFiles(directory, "*.ndjson")[0];
+				using (var blocker = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read))
+				{
+					Assert.DoesNotThrow(() => pipeline.Dispose());
+					Assert.IsTrue(File.Exists(file));
+				}
+			}
+			using (var next = new SnipeLogPipeline(null, directory, new RecordingSender(true)))
+			{
+				Assert.IsEmpty(Directory.GetFiles(directory, "*.ndjson"));
+			}
+		}
+
+		[Test]
+		public void ConstructorCleanup_IsScopedToItsDirectory()
+		{
+			string first = CreateTemporaryDirectory();
+			string second = CreateTemporaryDirectory();
+			File.WriteAllText(Path.Combine(first, "snipe-log-old.ndjson"), "first");
+			string untouched = Path.Combine(second, "snipe-log-old.ndjson");
+			File.WriteAllText(untouched, "second");
+			using (var buffer = new SnipeLogFileBuffer(first))
+			{
+				Assert.IsEmpty(Directory.GetFiles(first));
+				Assert.AreEqual("second", File.ReadAllText(untouched));
 			}
 		}
 
@@ -902,6 +1152,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 		private sealed class BlockingSender : ILogFileSender
 		{
+			private readonly int _blockOnSend;
 			private readonly UniTaskCompletionSource<bool> _firstSend = new UniTaskCompletionSource<bool>();
 			private readonly TaskCompletionSource<bool> _firstSendStarted =
 				new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -910,28 +1161,33 @@ namespace MiniIT.Snipe.Tests.Editor
 			internal int SendCount { get; private set; }
 			internal List<string> Contents { get; } = new List<string>();
 
-			public async UniTask<bool> SendAsync(StreamReader file, Action<int> acknowledgeRecords)
+			internal BlockingSender(int blockOnSend = 1)
 			{
-				string content = file.ReadToEnd();
-				Contents.Add(content);
-				SendCount++;
-				if (SendCount == 1)
-				{
-					_firstSendStarted.TrySetResult(true);
-					bool success = await _firstSend.Task;
-					if (!success)
-					{
-						return false;
-					}
-				}
-
-				acknowledgeRecords(CountRecords(content));
-				return true;
+				_blockOnSend = blockOnSend;
 			}
 
-			internal void ReleaseFirst()
+			public async UniTask<bool> SendAsync(StreamReader file, Action<int> acknowledgeRecords)
 			{
-				_firstSend.TrySetResult(true);
+				SendCount++;
+				bool success = SendCount >= _blockOnSend;
+				if (SendCount == _blockOnSend)
+				{
+					_firstSendStarted.TrySetResult(true);
+					success = await _firstSend.Task;
+				}
+
+				string content = file.ReadToEnd();
+				Contents.Add(content);
+				if (success)
+				{
+					acknowledgeRecords(CountRecords(content));
+				}
+				return success;
+			}
+
+			internal void ReleaseFirst(bool success = true)
+			{
+				_firstSend.TrySetResult(success);
 			}
 		}
 	}
