@@ -13,14 +13,13 @@ namespace MiniIT.Snipe.Internal
 	{
 		internal SnipeLogBufferCommandType CommandType { get; }
 		internal byte[] Data { get; }
-		internal TaskCompletionSource<bool> Completion { get; }
+		internal TaskCompletionSource<SnipeLogCacheDirectory.SendBatch> Completion { get; }
 		internal int Offset { get; set; }
-		internal SnipeLogCacheDirectory.SendBatch FilesToSend { get; set; }
 
 		private SnipeLogBufferCommand(
 			SnipeLogBufferCommandType commandType,
 			byte[] data,
-			TaskCompletionSource<bool> completion)
+			TaskCompletionSource<SnipeLogCacheDirectory.SendBatch> completion)
 		{
 			CommandType = commandType;
 			Data = data;
@@ -37,7 +36,7 @@ namespace MiniIT.Snipe.Internal
 			return new SnipeLogBufferCommand(
 				SnipeLogBufferCommandType.SealCurrentFile,
 				null,
-				new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously));
+				new TaskCompletionSource<SnipeLogCacheDirectory.SendBatch>(TaskCreationOptions.RunContinuationsAsynchronously));
 		}
 
 		internal static SnipeLogBufferCommand Stop()
@@ -45,7 +44,7 @@ namespace MiniIT.Snipe.Internal
 			return new SnipeLogBufferCommand(
 				SnipeLogBufferCommandType.Stop,
 				null,
-				new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously));
+				null);
 		}
 	}
 }

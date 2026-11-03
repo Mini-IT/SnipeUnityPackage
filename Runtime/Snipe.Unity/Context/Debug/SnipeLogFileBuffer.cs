@@ -107,7 +107,7 @@ namespace MiniIT.Snipe.Internal
 		{
 			var command = SnipeLogBufferCommand.SealCurrentFile();
 			if (!TryEnqueue(command)) return null;
-			return await command.Completion.Task ? command.FilesToSend : null;
+			return await command.Completion.Task;
 		}
 
 		private bool TryEnqueue(SnipeLogBufferCommand command)
@@ -172,16 +172,15 @@ namespace MiniIT.Snipe.Internal
 					else
 					{
 						bool closed = await CloseCurrentWriterAsync().ConfigureAwait(false);
-						if (closed && command.CommandType == SnipeLogBufferCommandType.SealCurrentFile)
-							command.FilesToSend = _cache.AcquireClosedFiles(_owner);
-						command.Completion.TrySetResult(closed);
+						if (command.CommandType == SnipeLogBufferCommandType.SealCurrentFile)
+							command.Completion.TrySetResult(closed ? _cache.AcquireClosedFiles(_owner) : null);
 						if (command.CommandType == SnipeLogBufferCommandType.Stop) return;
 					}
 				}
 				catch (Exception)
 				{
 					DiscardFailedWriter();
-					command.Completion?.TrySetResult(false);
+					command.Completion?.TrySetResult(null);
 					if (command.CommandType == SnipeLogBufferCommandType.Stop) return;
 				}
 				finally { ReleaseRecord(command); }
@@ -276,15 +275,14 @@ namespace MiniIT.Snipe.Internal
 					else
 					{
 						bool closed = CloseCurrentWriter();
-						if (closed && command.CommandType == SnipeLogBufferCommandType.SealCurrentFile)
-							command.FilesToSend = _cache.AcquireClosedFiles(_owner);
-						command.Completion.TrySetResult(closed);
+						if (command.CommandType == SnipeLogBufferCommandType.SealCurrentFile)
+							command.Completion.TrySetResult(closed ? _cache.AcquireClosedFiles(_owner) : null);
 					}
 				}
 				catch (Exception)
 				{
 					DiscardFailedWriter();
-					command.Completion?.TrySetResult(false);
+					command.Completion?.TrySetResult(null);
 				}
 				finally
 				{
@@ -370,9 +368,6 @@ namespace MiniIT.Snipe.Internal
 		{
 			SnipeLogBufferCommand[] pending;
 			SnipeLogBufferCommand active;
-#if !UNITY_WEBGL || UNITY_EDITOR
-			SnipeLogBufferCommand stop = null;
-#endif
 			lock (_queueLock)
 			{
 				if (_disposed) return;
@@ -385,8 +380,7 @@ namespace MiniIT.Snipe.Internal
 #if !UNITY_WEBGL || UNITY_EDITOR
 				if (!_frameWriter)
 				{
-					stop = SnipeLogBufferCommand.Stop();
-					_commands.Enqueue(stop);
+					_commands.Enqueue(SnipeLogBufferCommand.Stop());
 					_commandSignal.Release();
 				}
 #endif
@@ -394,19 +388,15 @@ namespace MiniIT.Snipe.Internal
 			foreach (var command in pending)
 			{
 				ReleaseRecord(command);
-				command.Completion?.TrySetResult(false);
+				command.Completion?.TrySetResult(null);
 			}
 			ReleaseRecord(active);
-			active?.Completion?.TrySetResult(false);
+			active?.Completion?.TrySetResult(null);
 			try
 			{
 				if (_frameWriter) CloseCurrentWriter();
 #if !UNITY_WEBGL || UNITY_EDITOR
-				else
-				{
-					stop.Completion.Task.GetAwaiter().GetResult();
-					_writerLoop.GetAwaiter().GetResult();
-				}
+				else _writerLoop.GetAwaiter().GetResult();
 #endif
 			}
 			finally

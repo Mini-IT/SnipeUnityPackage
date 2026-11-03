@@ -165,7 +165,7 @@ namespace MiniIT.Snipe
 
 					if (disposeBuffer)
 					{
-						DisposeBuffer();
+						_buffer.Dispose();
 					}
 					else if (semaphoreOccupied) _buffer.EmitDiagnostics();
 				}
@@ -217,13 +217,8 @@ namespace MiniIT.Snipe
 
 			if (disposeBuffer)
 			{
-				DisposeBuffer();
+				_buffer.Dispose();
 			}
-		}
-
-		private void DisposeBuffer()
-		{
-			_buffer.Dispose();
 		}
 
 		internal static bool IsDiagnosticLog(string message)
@@ -290,21 +285,12 @@ namespace MiniIT.Snipe
 			return SnipeLogFileBuffer.Utf8NoBom.GetBytes(SerializeRecord(record) + "\n");
 		}
 
-		internal static byte[] SerializeLimitedRecord(SnipeLogRecord record, int maxBytes, out bool truncated)
-		{
-			truncated = false;
-			if (!TryGetRecordSlice(record, maxBytes, out int messageChars, out int stackChars, out _)) return null;
-			truncated = messageChars < (record.Message?.Length ?? 0) || stackChars < (record.StackTrace?.Length ?? 0);
-			return SerializeRecordToUtf8(new SnipeLogRecord(record.Time, record.Level,
-				Prefix(record.Message, messageChars), Prefix(record.StackTrace, stackChars)));
-		}
-
 		private static string Prefix(string value, int length)
 		{
 			return string.IsNullOrEmpty(value) || length == 0 ? string.Empty : length == value.Length ? value : value.Substring(0, length);
 		}
 
-		private static bool TryGetRecordSlice(SnipeLogRecord record, int maxBytes, out int messageChars, out int stackChars, out int bytes)
+		internal static bool TryGetRecordSlice(SnipeLogRecord record, int maxBytes, out int messageChars, out int stackChars, out int bytes)
 		{
 			// Only the fixed envelope is serialized before admission; work on user fields
 			// stops at the limit, even if a producer supplies a multi-megabyte snapshot.

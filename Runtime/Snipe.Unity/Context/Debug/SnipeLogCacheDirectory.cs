@@ -287,16 +287,6 @@ namespace MiniIT.Snipe.Internal
 					{
 						continue;
 					}
-					bool active = false;
-					foreach (string owner in _owners)
-					{
-						if (Path.GetFileName(path).StartsWith(owner, StringComparison.Ordinal))
-						{
-							active = true;
-							break;
-						}
-					}
-					if (active) continue;
 					try { File.Delete(path); }
 					catch (Exception)
 					{

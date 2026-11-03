@@ -413,21 +413,28 @@ namespace MiniIT.Snipe.Tests.Editor
 		public void SerializedSize_UsesExactUtf8BytesAndPreservesEnvelope()
 		{
 			var empty = CreateRecord("");
-			Assert.IsNull(SnipeLogPipeline.SerializeLimitedRecord(empty, 44, out _));
-			Assert.AreEqual(45, SnipeLogPipeline.SerializeLimitedRecord(empty, 45, out bool emptyTruncated).Length);
-			Assert.IsFalse(emptyTruncated);
+			Assert.IsFalse(SnipeLogPipeline.TryGetRecordSlice(empty, 44, out _, out _, out _));
+			Assert.IsTrue(SnipeLogPipeline.TryGetRecordSlice(empty, 45, out int emptyMessageChars, out int emptyStackChars, out int emptyBytes));
+			Assert.AreEqual(45, emptyBytes);
+			Assert.AreEqual(0, emptyMessageChars);
+			Assert.AreEqual(0, emptyStackChars);
 			var record = new SnipeLogRecord(long.MinValue, LogType.Exception, "\"\\\b\f\n\r\t\u0001А😀\ud800x\udc00", "stack☃");
 			byte[] expected = Encoding.UTF8.GetBytes(SnipeLogPipeline.SerializeRecord(record) + "\n");
 			for (int limit = 45; limit <= expected.Length + 1; limit++)
 			{
-				byte[] data = SnipeLogPipeline.SerializeLimitedRecord(record, limit, out bool truncated);
-				if (data == null) continue; // The longer timestamp and level also belong to the envelope.
+				if (!SnipeLogPipeline.TryGetRecordSlice(record, limit, out int messageChars, out int stackChars, out int bytes))
+					continue; // The longer timestamp and level also belong to the envelope.
+				var bounded = new SnipeLogRecord(record.Time, record.Level,
+					record.Message.Substring(0, messageChars), record.StackTrace.Substring(0, stackChars));
+				byte[] data = Encoding.UTF8.GetBytes(SnipeLogPipeline.SerializeRecord(bounded) + "\n");
+				Assert.AreEqual(bytes, data.Length);
 				Assert.LessOrEqual(data.Length, limit);
 				string json = new UTF8Encoding(false, true).GetString(data);
 				Assert.AreEqual('\n', json[json.Length - 1]);
 				var decoded = UnityEngine.JsonUtility.FromJson<DecodedRecord>(json);
 				Assert.AreEqual(long.MinValue, decoded.time);
 				Assert.AreEqual("Exception", decoded.level);
+				bool truncated = messageChars < record.Message.Length || stackChars < record.StackTrace.Length;
 				Assert.AreEqual(limit < expected.Length, truncated);
 				if (!truncated) CollectionAssert.AreEqual(expected, data);
 			}
@@ -448,11 +455,18 @@ namespace MiniIT.Snipe.Tests.Editor
 				Assert.AreEqual("А😀\"x", decoded.msg);
 				Assert.AreEqual("", decoded.stack);
 			}
-			byte[] split = SnipeLogPipeline.SerializeLimitedRecord(new SnipeLogRecord(1, LogType.Log, "A😀B", "XY"), 49, out bool truncated);
-			Assert.IsTrue(truncated);
-			var prefix = UnityEngine.JsonUtility.FromJson<DecodedRecord>(Encoding.UTF8.GetString(split));
-			Assert.AreEqual("A", prefix.msg);
-			Assert.AreEqual("XY", prefix.stack);
+			sender = new RecordingSender(true);
+			using (var pipeline = new SnipeLogPipeline(null, CreateTemporaryDirectory(), sender,
+				new SnipeLogBufferLimits(49, 98, 98, 196, 4)))
+			{
+				pipeline.Append(new SnipeLogRecord(1, LogType.Log, "A😀B", "XY"));
+				Assert.IsTrue(await pipeline.SendAsync());
+				Assert.AreEqual(1, sender.Contents.Count);
+				Assert.AreEqual(48, Encoding.UTF8.GetByteCount(sender.Contents[0]));
+				var prefix = UnityEngine.JsonUtility.FromJson<DecodedRecord>(sender.Contents[0]);
+				Assert.AreEqual("A", prefix.msg);
+				Assert.AreEqual("XY", prefix.stack);
+			}
 		}
 
 		[Test]
@@ -1327,6 +1341,33 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[Test]
+		public void CacheCleanup_PreservesReservedLiveFile()
+		{
+			string directory = CreateTemporaryDirectory();
+			var limits = new SnipeLogBufferLimits(10, 20, 20, 40, 4);
+			const string firstOwner = "snipe-log-reserved-a-";
+			const string secondOwner = "snipe-log-reserved-b-";
+			var first = SnipeLogCacheDirectory.Register(directory, firstOwner, limits);
+			try
+			{
+				string path = Path.Combine(directory, firstOwner + "1.ndjson");
+				Assert.IsTrue(first.TryReserve(firstOwner, path, null, 10, out var file, out _));
+				File.WriteAllBytes(path, Encoding.UTF8.GetBytes("123456789\n"));
+				Assert.IsFalse(file.Sealed);
+				var second = SnipeLogCacheDirectory.Register(directory, secondOwner, limits);
+				try
+				{
+					Assert.AreSame(first, second);
+					Assert.AreEqual("123456789\n", File.ReadAllText(path));
+					Assert.AreEqual(10, first.UsedBytes);
+					Assert.AreEqual(1, first.FileCount);
+				}
+				finally { second.ReleaseOwner(secondOwner); }
+			}
+			finally { first.ReleaseOwner(firstOwner); }
+		}
+
+		[Test]
 		public async Task SharedDirectory_PreservesLiveBuffersAndSendOrder()
 		{
 			string directory = CreateTemporaryDirectory();
@@ -1463,6 +1504,7 @@ namespace MiniIT.Snipe.Tests.Editor
 				Task completed = await Task.WhenAny(seal, Task.Delay(TimeSpan.FromSeconds(5)));
 				Assert.AreSame(seal, completed, "A pending seal must complete without starting the writer.");
 				Assert.IsNull(await seal);
+				Assert.IsFalse(disposing.IsCompleted, "Dispose must wait for the writer to stop.");
 				Assert.IsFalse(buffer.Append(Encoding.UTF8.GetBytes("rejected\n")));
 				Assert.IsNull(await buffer.SealCurrentFileAsync());
 				Assert.IsEmpty(Directory.GetFiles(directory));
