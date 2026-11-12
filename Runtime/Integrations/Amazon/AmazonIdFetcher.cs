@@ -46,6 +46,12 @@ namespace MiniIT.Snipe.Unity
 		{
 			while (string.IsNullOrEmpty(Value))
 			{
+				if (_cts == null)
+				{
+					// disposed
+					return;
+				}
+
 				try
 				{
 					await AlterTask.Delay(100, cancellationToken: _cts.Token);
