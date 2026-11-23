@@ -3,7 +3,7 @@
     "references": [
         "MiniIT.Snipe.Abstractions",
         "MiniIT.Snipe.Services",
-        "MiniIT.Snipe.SharedPrefs",
+        "MiniIT.Storage.SharedPrefs",
         "MiniIT.Snipe.Logging",
         "MiniIT.Snipe.PackageInfo",
         "MiniIT.Logging",
