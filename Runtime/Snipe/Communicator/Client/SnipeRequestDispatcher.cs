@@ -15,6 +15,7 @@ namespace MiniIT.Snipe
 		public Func<List<IDictionary<string, object>>, bool> SendBatch;
 		public Func<bool> IsConnected;
 		public Action<List<IDictionary<string, object>>> OnPendingQueueOverflow;
+		public Action<List<IDictionary<string, object>>> OnDiscardedRequests;
 		public Func<long> GetTimestamp;
 		public Func<int, CancellationToken, UniTask> Delay;
 		public Func<int> GetRequestsPerSecondLimit;
@@ -52,6 +53,7 @@ namespace MiniIT.Snipe
 		private readonly Func<List<IDictionary<string, object>>, bool> _sendBatch;
 		private readonly Func<bool> _connected;
 		private readonly Action<List<IDictionary<string, object>>> _onPendingQueueOverflow;
+		private readonly Action<List<IDictionary<string, object>>> _onDiscardedRequests;
 		private readonly Func<int, CancellationToken, UniTask> _delay;
 		private readonly Func<int> _getRequestsPerSecondLimit;
 		private readonly Func<int, int> _getJitterDelayMs;
@@ -64,6 +66,7 @@ namespace MiniIT.Snipe
 		private bool _queuedSendInProgress;
 		// Invalidates delayed drain/retry continuations after Clear().
 		private int _sendGeneration;
+		private int _lastPreLoginRequestId;
 
 		internal SnipeRequestDispatcher(SnipeRequestDispatcherOptions options)
 		{
@@ -71,6 +74,7 @@ namespace MiniIT.Snipe
 			_sendBatch = options.SendBatch ?? throw new ArgumentNullException(nameof(options.SendBatch));
 			_connected = options.IsConnected ?? throw new ArgumentNullException(nameof(options.IsConnected));
 			_onPendingQueueOverflow = options.OnPendingQueueOverflow;
+			_onDiscardedRequests = options.OnDiscardedRequests;
 			_analytics = options.Analytics ?? throw new ArgumentNullException(nameof(options.Analytics));
 			_sentRequestTracker = new SnipeSentRequestTracker(_analytics);
 			_logger = options.Logger ?? EmptyLogger.Instance;
@@ -153,6 +157,14 @@ namespace MiniIT.Snipe
 			lock (_lock)
 			{
 				_sentRequestTracker.Remove(requestId);
+			}
+		}
+
+		public void DiscardLoginRequestsThrough(int requestId)
+		{
+			lock (_sendGate)
+			{
+				_lastPreLoginRequestId = requestId;
 			}
 		}
 
@@ -397,6 +409,8 @@ namespace MiniIT.Snipe
 		{
 			bool sent = false;
 			bool staleSend = false;
+			var send = pendingSend;
+			List<IDictionary<string, object>> discardedRequests = null;
 
 			try
 			{
@@ -411,13 +425,18 @@ namespace MiniIT.Snipe
 						}
 						else
 						{
-							sent = pendingSend.TrySend(_sendRequest, _sendBatch);
+							if (_lastPreLoginRequestId > 0)
+							{
+								send = pendingSend.WithoutSupersededLogins(_lastPreLoginRequestId, ref discardedRequests);
+							}
+
+							sent = send != null && send.TrySend(_sendRequest, _sendBatch);
 
 							if (sent)
 							{
 								if (IsCurrentSendGeneration(sendGeneration))
 								{
-									TrackSent(pendingSend);
+									TrackSent(send);
 								}
 								else
 								{
@@ -428,9 +447,9 @@ namespace MiniIT.Snipe
 					}
 					finally
 					{
-						if (sent || staleSend)
+						if (sent)
 						{
-							ReleaseReservedSend(pendingSend, sendGeneration);
+							RecordSuccessfulSend(pendingSend, send.RequestCount, sendGeneration);
 						}
 					}
 				}
@@ -440,9 +459,18 @@ namespace MiniIT.Snipe
 				_logger.LogError(e, "Send request failed");
 			}
 
-			if (!staleSend && !sent && ReleaseFailedSend(pendingSend, sendGeneration))
+			if (!staleSend && !sent && ReleaseFailedSend(pendingSend, sendGeneration) && send != null)
 			{
-				HandleSendFailure(pendingSend);
+				HandleSendFailure(send);
+			}
+
+			if (discardedRequests != null)
+			{
+				for (int i = 0; i < discardedRequests.Count; i++)
+				{
+					RemoveSent(discardedRequests[i].SafeGetValue<int>("id"));
+				}
+				_onDiscardedRequests?.Invoke(discardedRequests);
 			}
 		}
 
@@ -503,12 +531,15 @@ namespace MiniIT.Snipe
 			_reservedSends.Add(pendingSend);
 		}
 
-		private void ReleaseReservedSend(SnipePendingSend pendingSend, int sendGeneration)
+		private void RecordSuccessfulSend(SnipePendingSend pendingSend, int sentRequestCount, int sendGeneration)
 		{
 			lock (_lock)
 			{
+				// A reentrant reconnect drops pending work, but cannot undo a transport send.
+				_rateWindow.RecordSent(sentRequestCount);
 				if (sendGeneration == _sendGeneration)
 				{
+					_rateWindow.Release(pendingSend.RequestCount);
 					_reservedSends.Remove(pendingSend);
 				}
 			}
@@ -664,7 +695,7 @@ namespace MiniIT.Snipe
 			_reservedSends.Clear();
 			_drainStarted = false;
 			_queuedSendInProgress = false;
-			_rateWindow.Clear();
+			_rateWindow.ClearReservations();
 
 			return droppedRequests;
 		}

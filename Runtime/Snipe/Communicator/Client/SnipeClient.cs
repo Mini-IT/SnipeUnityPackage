@@ -81,6 +81,7 @@ namespace MiniIT.Snipe
 				SendBatch = SendBatchNow,
 				IsConnected = () => Connected,
 				OnPendingQueueOverflow = HandlePendingQueueOverflow,
+				OnDiscardedRequests = HandleDroppedRequests,
 				Analytics = _analytics,
 				Logger = services.LoggerFactory.CreateLogger(nameof(SnipeRequestDispatcher)),
 				GetRequestsPerSecondLimit = GetRequestsPerSecondLimit,
@@ -342,6 +343,7 @@ namespace MiniIT.Snipe
 			{
 				_logger.LogDebug("[{0}] ProcessMessage - Login Succeeded", ConnectionId);
 
+				_dispatcher.DiscardLoginRequestsThrough(_requestId);
 				_loggedIn = true;
 				_transportService.SetLoggedIn();
 

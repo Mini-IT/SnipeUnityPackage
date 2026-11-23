@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MiniIT.Threading;
@@ -59,7 +60,12 @@ namespace MiniIT.Snipe
 		protected int _loginAttempt;
 		private bool _registering = false;
 		private bool _reloginning = false;
-		private bool _loginInProgress = false;
+		private CancellationTokenSource _authorization;
+		private bool _retryPending;
+		private bool _sessionAuthenticated;
+		private bool _disposed;
+
+		protected CancellationToken AuthorizationCancellation => _authorization?.Token ?? new CancellationToken(true);
 
 		private readonly int _contextId;
 		protected SnipeOptions _options;
@@ -85,6 +91,8 @@ namespace MiniIT.Snipe
 			_options = options;
 			_communicator = communicator;
 			_communicator.ConnectionEstablished += OnConnectionEstablished;
+			_communicator.ConnectionDisrupted += OnConnectionLost;
+			_communicator.ConnectionClosed += OnConnectionLost;
 
 			_contextId = contextId;
 			_analytics = analytics;
@@ -103,30 +111,26 @@ namespace MiniIT.Snipe
 
 		public void Authorize()
 		{
-			if (_communicator == null
+			if (_disposed || _communicator == null
 				|| !_communicator.Connected)
 			{
 				return;
 			}
 
-			if (_communicator.LoggedIn)
+			if (_sessionAuthenticated || _communicator.LoggedIn)
 			{
 				return;
 			}
 
-			if (_loginInProgress)
+			if (_authorization != null)
 			{
 				_logger.LogInformation($"({_communicator.InstanceId}) Login is already in progress. Manual {nameof(Authorize)}() call is ignored.");
 				return;
 			}
 
-			StartAuthorize();
-		}
-
-		private void StartAuthorize()
-		{
-			_loginInProgress = true;
-
+			_authorization = new CancellationTokenSource();
+			_communicator.MessageReceived -= OnMessageReceived;
+			_communicator.MessageReceived += OnMessageReceived;
 			AuthorizeInternal();
 		}
 
@@ -147,33 +151,68 @@ namespace MiniIT.Snipe
 
 		protected async void DelayedAuthorize()
 		{
-			_loginAttempt++;
-			await AlterTask.Delay(1000 * _loginAttempt);
-
-			if (!_communicator.Connected)
+			var cancellation = AuthorizationCancellation;
+			if (_retryPending || cancellation.IsCancellationRequested)
 			{
 				return;
 			}
 
-			AuthorizeInternal();
+			_retryPending = true;
+			try
+			{
+				await AlterTask.Delay(1000 * ++_loginAttempt, cancellation);
+			}
+			catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+			{
+				return;
+			}
+
+			if (!cancellation.IsCancellationRequested)
+			{
+				_retryPending = false;
+				if (_communicator.Connected && !_communicator.LoggedIn)
+				{
+					AuthorizeInternal();
+				}
+			}
 		}
 
 		protected void OnConnectionEstablished()
 		{
-			JustRegistered = false;
-			_loginAttempt = 0;
-			_loginInProgress = false;
-
-			_communicator.MessageReceived -= OnMessageReceived;
-			_communicator.MessageReceived += OnMessageReceived;
-
-			if (AutoLogin)
+			if (_disposed || !_communicator.Connected || _sessionAuthenticated || _communicator.LoggedIn || _authorization != null)
 			{
-				StartAuthorize();
 				return;
 			}
 
+			JustRegistered = false;
+
+			if (AutoLogin)
+			{
+				Authorize();
+				return;
+			}
+
+			_communicator.MessageReceived -= OnMessageReceived;
+			_communicator.MessageReceived += OnMessageReceived;
 			_logger.LogInformation($"Auto login is disabled. You must manually call {nameof(Authorize)}()");
+		}
+
+		private void EndAuthorization()
+		{
+			var authorization = _authorization;
+			_authorization = null;
+			_retryPending = false;
+			_loginAttempt = 0;
+			authorization?.Cancel();
+			authorization?.Dispose();
+		}
+
+		private void OnConnectionLost()
+		{
+			_communicator.MessageReceived -= OnMessageReceived;
+			_registering = false;
+			_sessionAuthenticated = false;
+			EndAuthorization();
 		}
 
 		private void OnMessageReceived(string messagetype, string errorcode, IDictionary<string, object> data, int requestid)
@@ -201,6 +240,11 @@ namespace MiniIT.Snipe
 
 				case SnipeErrorCodes.USER_ONLINE:
 				case SnipeErrorCodes.LOGOUT_IN_PROGRESS:
+					if (_retryPending)
+					{
+						break;
+					}
+
 					if (_loginAttempt < 4)
 					{
 						DelayedAuthorize();
@@ -209,6 +253,10 @@ namespace MiniIT.Snipe
 					{
 						Disconnect();
 					}
+					break;
+
+				case SnipeErrorCodes.NOT_READY:
+					// Dropped requests are reported before the connection loss event.
 					break;
 
 				case SnipeErrorCodes.GAME_SERVERS_OFFLINE:
@@ -221,13 +269,13 @@ namespace MiniIT.Snipe
 
 		private void Disconnect()
 		{
-			_loginInProgress = false;
-			_communicator.MessageReceived -= OnMessageReceived;
+			OnConnectionLost();
 			_communicator.Disconnect();
 		}
 
 		private void OnLoginSucceeded(IDictionary<string, object> data)
 		{
+			_sessionAuthenticated = true;
 			int userId = data.SafeGetValue<int>("id");
 			UserID = userId;
 
@@ -237,13 +285,12 @@ namespace MiniIT.Snipe
 			}
 
 			AutoLogin = true;
-			_loginAttempt = 0;
-			_loginInProgress = false;
 
 			_communicator.MessageReceived -= OnMessageReceived;
 
 			if (!_registering)
 			{
+				EndAuthorization();
 				_bindingManager.StartBindings();
 				RaiseLoginSucceededEvent(userId);
 
@@ -304,6 +351,7 @@ namespace MiniIT.Snipe
 
 		protected async UniTask FetchLoginId(AuthBinding binding, Dictionary<string, Dictionary<string, object>> providers)
 		{
+			var cancellation = AuthorizationCancellation;
 			string provider = binding.ProviderId;
 			AuthIdFetcher fetcher = binding.Fetcher;
 			bool contextIdPrefix = binding.UseContextIdPrefix;
@@ -312,7 +360,7 @@ namespace MiniIT.Snipe
 
 			fetcher.Fetch(false, uid =>
 			{
-				if (!string.IsNullOrEmpty(uid))
+				if (!cancellation.IsCancellationRequested && !string.IsNullOrEmpty(uid))
 				{
 					if (contextIdPrefix)
 					{
@@ -335,11 +383,17 @@ namespace MiniIT.Snipe
 				done = true;
 			});
 
-			await UniTask.WaitUntil(() => done);
+			await UniTask.WaitUntil(() => done, cancellationToken: cancellation);
 		}
 
 		protected void RequestRegisterAndLogin(Dictionary<string, Dictionary<string, object>> providers)
 		{
+			var cancellation = AuthorizationCancellation;
+			if (cancellation.IsCancellationRequested || !_communicator.Connected || _communicator.LoggedIn || _registering)
+			{
+				return;
+			}
+
 			// Convert dictionary to list
 			var providersList = new List<Dictionary<string, object>>(providers.Count);
 			foreach (var providerData in providers.Values)
@@ -362,11 +416,16 @@ namespace MiniIT.Snipe
 			RunAuthRequest(() => new UnauthorizedRequest(_communicator, _services, SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN)
 				.Request(data, (errorCode, response) =>
 				{
+					if (cancellation.IsCancellationRequested)
+					{
+						return;
+					}
+
 					_registering = false;
 
 					if (errorCode != SnipeErrorCodes.OK)
 					{
-						_loginInProgress = false;
+						EndAuthorization();
 						return;
 					}
 
@@ -609,8 +668,11 @@ namespace MiniIT.Snipe
 
 		public virtual void Dispose()
 		{
+			_disposed = true;
 			_communicator.ConnectionEstablished -= OnConnectionEstablished;
-			_communicator.MessageReceived -= OnMessageReceived;
+			_communicator.ConnectionDisrupted -= OnConnectionLost;
+			_communicator.ConnectionClosed -= OnConnectionLost;
+			OnConnectionLost();
 
 			_bindingManager.Dispose();
 		}

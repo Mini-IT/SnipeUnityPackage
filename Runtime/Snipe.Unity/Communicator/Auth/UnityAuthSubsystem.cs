@@ -18,6 +18,7 @@ namespace MiniIT.Snipe.Unity
 				return;
 			}
 
+			var cancellation = AuthorizationCancellation;
 			var providers = new Dictionary<string, Dictionary<string, object>>();
 
 			if (BindingCount > 0)
@@ -32,10 +33,16 @@ namespace MiniIT.Snipe.Unity
 					}
 				}
 
-				await UniTask.WhenAll(tasks.ToArray());
+				if (await UniTask.WhenAll(tasks.ToArray()).SuppressCancellationThrow())
+				{
+					return;
+				}
 			}
 
-			RequestRegisterAndLogin(providers);
+			if (!cancellation.IsCancellationRequested)
+			{
+				RequestRegisterAndLogin(providers);
+			}
 		}
 	}
 }

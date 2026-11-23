@@ -58,6 +58,48 @@ namespace MiniIT.Snipe
 			return IsBatch ? sendBatch(Batch) : sendRequest(Message);
 		}
 
+		public SnipePendingSend WithoutSupersededLogins(int lastRequestId, ref List<IDictionary<string, object>> discardedRequests)
+		{
+			if (!IsBatch)
+			{
+				if (IsSupersededLogin(Message, lastRequestId))
+				{
+					AddDroppedRequest(ref discardedRequests, Message);
+					return null;
+				}
+
+				return this;
+			}
+
+			List<IDictionary<string, object>> remaining = null;
+			for (int i = 0; i < Batch.Count; i++)
+			{
+				var message = Batch[i];
+				if (IsSupersededLogin(message, lastRequestId))
+				{
+					remaining ??= Batch.GetRange(0, i);
+					AddDroppedRequest(ref discardedRequests, message);
+				}
+				else
+				{
+					remaining?.Add(message);
+				}
+			}
+
+			if (remaining == null)
+			{
+				return this;
+			}
+
+			return remaining.Count > 0 ? CreateBatch(remaining) : null;
+		}
+
+		private static bool IsSupersededLogin(IDictionary<string, object> message, int lastRequestId)
+		{
+			return message.SafeGetString("t") == SnipeMessageTypes.USER_LOGIN &&
+				message.SafeGetValue<int>("id") <= lastRequestId;
+		}
+
 		public void AddDroppedRequests(ref List<IDictionary<string, object>> droppedRequests)
 		{
 			if (IsBatch)

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace MiniIT.Snipe
 {
@@ -9,8 +10,8 @@ namespace MiniIT.Snipe
 		private readonly Func<long> _getTimestamp;
 		private readonly long _timestampFrequency;
 
-		private long _windowStartTimestamp;
-		private int _requestsSentInWindow;
+		private readonly Queue<long> _sentTimestamps = new Queue<long>();
+		private int _reservedSlots;
 
 		public SnipeRequestRateWindow(Func<long> getTimestamp, long timestampFrequency)
 		{
@@ -22,39 +23,43 @@ namespace MiniIT.Snipe
 		{
 			long now = _getTimestamp();
 
-			if (_windowStartTimestamp == 0)
+			while (_sentTimestamps.Count > 0 && now - _sentTimestamps.Peek() >= _timestampFrequency)
 			{
-				_windowStartTimestamp = now;
-				_requestsSentInWindow = 0;
+				_sentTimestamps.Dequeue();
 			}
 
-			double elapsedMs = (now - _windowStartTimestamp) * 1000d / _timestampFrequency;
-
-			if (elapsedMs >= RATE_LIMIT_INTERVAL_MS)
+			delayMs = 1;
+			if (_sentTimestamps.Count > 0)
 			{
-				_windowStartTimestamp = now;
-				_requestsSentInWindow = 0;
-				elapsedMs = 0;
+				long remaining = _timestampFrequency - (now - _sentTimestamps.Peek());
+				delayMs = Math.Max(1, (int)Math.Ceiling(remaining * (double)RATE_LIMIT_INTERVAL_MS / _timestampFrequency));
 			}
 
-			delayMs = Math.Max(1, RATE_LIMIT_INTERVAL_MS - (int)elapsedMs);
-			return Math.Max(0, requestsPerSecondLimit - _requestsSentInWindow);
+			return Math.Max(0, requestsPerSecondLimit - _sentTimestamps.Count - _reservedSlots);
 		}
 
 		public void Reserve(int requestCount)
 		{
-			_requestsSentInWindow += Math.Max(1, requestCount);
+			_reservedSlots += requestCount;
 		}
 
 		public void Release(int requestCount)
 		{
-			_requestsSentInWindow = Math.Max(0, _requestsSentInWindow - Math.Max(1, requestCount));
+			_reservedSlots -= requestCount;
 		}
 
-		public void Clear()
+		public void RecordSent(int requestCount)
 		{
-			_windowStartTimestamp = 0;
-			_requestsSentInWindow = 0;
+			long now = _getTimestamp();
+			for (int i = 0; i < requestCount; i++)
+			{
+				_sentTimestamps.Enqueue(now);
+			}
+		}
+
+		public void ClearReservations()
+		{
+			_reservedSlots = 0;
 		}
 	}
 }

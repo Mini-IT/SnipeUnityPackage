@@ -1,13 +1,162 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using MiniIT.Snipe.Configuration;
+using MiniIT.Snipe.Unity;
 using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace MiniIT.Snipe.Tests.Editor
 {
 	public class TestAuthSubsystem
 	{
+		[Test]
+		public void DroppedLogin_BeforeConnectionDisrupted_DoesNotCallDisconnect()
+		{
+			var fixture = StartReturningPlayer();
+			fixture.Communicator.Connected = false;
+			fixture.Communicator.RaiseMessageReceived(SnipeMessageTypes.USER_LOGIN, SnipeErrorCodes.NOT_READY, null, 1);
+			Assert.AreEqual(0, fixture.Communicator.DisconnectCalls);
+
+			fixture.Communicator.RaiseConnectionDisrupted();
+			fixture.Communicator.Start();
+
+			Assert.AreEqual(2, fixture.Communicator.SentRequests.Count);
+			Assert.AreEqual(SnipeMessageTypes.USER_LOGIN, fixture.Communicator.SentRequests[1].MessageType);
+		}
+
+		[Test]
+		public void RepeatedConnectionEstablished_DuringAndAfterLogin_SendsOneLogin()
+		{
+			var fixture = StartReturningPlayer();
+			int successes = 0;
+			fixture.Auth.LoginSucceeded += _ => successes++;
+			fixture.Communicator.RaiseConnectionEstablished();
+			Assert.AreEqual(1, fixture.Communicator.SentRequests.Count);
+
+			fixture.Communicator.LoggedIn = true;
+			fixture.Communicator.RaiseMessageReceived(SnipeMessageTypes.USER_LOGIN, SnipeErrorCodes.OK, CreateRegisterAndLoginResponse(), 1);
+			fixture.Communicator.RaiseConnectionEstablished();
+			fixture.Auth.Authorize();
+			Assert.AreEqual(1, fixture.Communicator.SentRequests.Count);
+			Assert.AreEqual(1, successes);
+
+			fixture.Communicator.LoggedIn = false;
+			fixture.Communicator.RaiseConnectionDisrupted();
+			fixture.Communicator.RaiseConnectionEstablished();
+			Assert.AreEqual(2, fixture.Communicator.SentRequests.Count);
+			Assert.AreEqual(SnipeMessageTypes.USER_LOGIN, fixture.Communicator.SentRequests[1].MessageType);
+		}
+
+		[UnityTest]
+		public IEnumerator OldLoginRetry_DoesNotSendOnNewConnectionAwaitingLogin()
+		{
+			var fixture = StartReturningPlayer();
+			fixture.Communicator.RaiseMessageReceived(SnipeMessageTypes.USER_LOGIN, SnipeErrorCodes.USER_ONLINE, null, 1);
+			fixture.Communicator.RaiseConnectionDisrupted();
+			fixture.Communicator.RaiseConnectionEstablished();
+			yield return WaitForFirstRetry();
+
+			Assert.AreEqual(2, fixture.Communicator.SentRequests.Count);
+		}
+
+		[UnityTest]
+		public IEnumerator LoginRetry_AfterSuccessOrDisposal_DoesNotSendAgain()
+		{
+			var succeeded = StartReturningPlayer();
+			var disposed = StartReturningPlayer();
+			succeeded.Communicator.RaiseMessageReceived(SnipeMessageTypes.USER_LOGIN, SnipeErrorCodes.USER_ONLINE, null, 1);
+			disposed.Communicator.RaiseMessageReceived(SnipeMessageTypes.USER_LOGIN, SnipeErrorCodes.LOGOUT_IN_PROGRESS, null, 1);
+			succeeded.Communicator.LoggedIn = true;
+			succeeded.Communicator.RaiseMessageReceived(SnipeMessageTypes.USER_LOGIN, SnipeErrorCodes.OK, CreateRegisterAndLoginResponse(), 1);
+			disposed.Auth.Dispose();
+			yield return WaitForFirstRetry();
+
+			Assert.AreEqual(1, succeeded.Communicator.SentRequests.Count);
+			Assert.AreEqual(1, disposed.Communicator.SentRequests.Count);
+		}
+
+		[UnityTest]
+		public IEnumerator LoginRetry_OnSameUnauthenticatedConnection_StillSends()
+		{
+			var fixture = StartReturningPlayer();
+			fixture.Communicator.RaiseMessageReceived(SnipeMessageTypes.USER_LOGIN, SnipeErrorCodes.USER_ONLINE, null, 1);
+			yield return WaitForFirstRetry();
+
+			Assert.AreEqual(2, fixture.Communicator.SentRequests.Count);
+			Assert.AreEqual(SnipeMessageTypes.USER_LOGIN, fixture.Communicator.SentRequests[1].MessageType);
+		}
+
+		private static IEnumerator WaitForFirstRetry()
+		{
+			double end = Time.realtimeSinceStartupAsDouble + 1.3;
+			while (Time.realtimeSinceStartupAsDouble < end)
+			{
+				yield return null;
+			}
+		}
+
+		[UnityTest]
+		public IEnumerator RegistrationProvider_FromOldConnection_CannotSendOnNewConnection()
+		{
+			var fixture = CreateFixture(true, useUnityAuth: true);
+			var fetcher = new DeferredFetcher();
+			fixture.Auth.RegisterBinding(new RegistrationBinding(fetcher, fixture.Communicator.Services));
+			fixture.Communicator.RaiseConnectionEstablished();
+			fixture.Communicator.RaiseConnectionDisrupted();
+			fixture.Communicator.RaiseConnectionEstablished();
+			Assert.AreEqual(2, fetcher.Callbacks.Count);
+
+			fetcher.Callbacks.Dequeue()("old");
+			yield return null;
+			yield return null;
+			Assert.AreEqual(0, fixture.Communicator.SentRequests.Count);
+
+			fetcher.Callbacks.Dequeue()("current");
+			for (int frame = 0; frame < 10 && fixture.Communicator.SentRequests.Count == 0; frame++)
+			{
+				yield return null;
+			}
+
+			Assert.AreEqual(1, fixture.Communicator.SentRequests.Count);
+			Assert.AreEqual(SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN, fixture.Communicator.SentRequests[0].MessageType);
+			fixture.Auth.Dispose();
+		}
+
+		private sealed class DeferredFetcher : AuthIdFetcher
+		{
+			public readonly Queue<Action<string>> Callbacks = new Queue<Action<string>>();
+
+			public override void Fetch(bool waitInitialization, Action<string> callback = null)
+			{
+				Callbacks.Enqueue(callback);
+			}
+		}
+
+		private sealed class RegistrationBinding : AuthBinding
+		{
+			public RegistrationBinding(AuthIdFetcher fetcher, ISnipeServices services) : base("test", fetcher, services)
+			{
+				AvailableForRegistration = true;
+			}
+		}
+
+		private static Fixture StartReturningPlayer()
+		{
+			var fixture = CreateFixture(true);
+			fixture.Communicator.RaiseConnectionEstablished();
+			fixture.Communicator.LoggedIn = true;
+			fixture.Communicator.RaiseMessageReceived(SnipeMessageTypes.AUTH_REGISTER_AND_LOGIN, SnipeErrorCodes.OK, CreateRegisterAndLoginResponse(), 1);
+			fixture.Communicator.LoggedIn = false;
+			fixture.Communicator.RaiseConnectionDisrupted();
+			fixture.Communicator.SentRequests.Clear();
+			fixture.Communicator.RaiseConnectionEstablished();
+			Assert.AreEqual(SnipeMessageTypes.USER_LOGIN, fixture.Communicator.SentRequests[0].MessageType);
+			return fixture;
+		}
+
 		[Test]
 		public void AutoLoginStarted_ManualAuthorize_DoesNotSendSecondLoginRequest()
 		{
@@ -217,7 +366,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			};
 		}
 
-		private static Fixture CreateFixture(bool connected)
+		private static Fixture CreateFixture(bool connected, bool useUnityAuth = false)
 		{
 			var services = new NullSnipeServices();
 			var options = new SnipeOptions(0, new SnipeOptionsData()
@@ -235,16 +384,18 @@ namespace MiniIT.Snipe.Tests.Editor
 				Connected = connected,
 			};
 
-			var auth = new AuthSubsystemStub(0, options, communicator, NullAnalyticsContext.Instance, services);
+			AuthSubsystem auth = useUnityAuth
+				? new UnityAuthSubsystem(0, options, communicator, NullAnalyticsContext.Instance, services)
+				: new AuthSubsystemStub(0, options, communicator, NullAnalyticsContext.Instance, services);
 			return new Fixture(auth, communicator);
 		}
 
 		private sealed class Fixture
 		{
-			public AuthSubsystemStub Auth { get; }
+			public AuthSubsystem Auth { get; }
 			public TestCommunicator Communicator { get; }
 
-			public Fixture(AuthSubsystemStub auth, TestCommunicator communicator)
+			public Fixture(AuthSubsystem auth, TestCommunicator communicator)
 			{
 				Auth = auth;
 				Communicator = communicator;
@@ -275,6 +426,7 @@ namespace MiniIT.Snipe.Tests.Editor
 			public HashSet<SnipeRequestDescriptor> MergeableRequestTypes { get; } = new HashSet<SnipeRequestDescriptor>();
 			public bool Connected { get; set; }
 			public bool LoggedIn { get; set; }
+			public int DisconnectCalls { get; private set; }
 			public bool? RoomJoined => null;
 			public bool BatchMode { get; set; }
 			public ISnipeServices Services { get; }
@@ -303,6 +455,7 @@ namespace MiniIT.Snipe.Tests.Editor
 
 			public void Disconnect()
 			{
+				DisconnectCalls++;
 				Connected = false;
 				ConnectionClosed?.Invoke();
 			}

@@ -10,6 +10,116 @@ namespace MiniIT.Snipe.Tests.Editor
 {
 	public class TestSnipeRequestDispatcher
 	{
+		[TestCase(false)]
+		[TestCase(true)]
+		public void QueuedLogin_AfterLoginSuccess_DoesNotSendOrConsumeSlot(bool batched)
+		{
+			var fixture = new DispatcherFixture(2);
+			try
+			{
+				fixture.Dispatcher.SendBatch(fixture.CreateBatch(1, 2));
+				var loginRetry = fixture.CreateMessage(3);
+				loginRetry["t"] = SnipeMessageTypes.USER_LOGIN;
+				var action = fixture.CreateMessage(4);
+				if (batched)
+				{
+					fixture.Dispatcher.SendBatch(new List<IDictionary<string, object>>() { loginRetry, action });
+				}
+				else
+				{
+					fixture.Dispatcher.Send(loginRetry, false);
+					fixture.Dispatcher.Send(action, false);
+				}
+
+				fixture.Dispatcher.DiscardLoginRequestsThrough(4);
+				var newLogin = fixture.CreateMessage(5);
+				newLogin["t"] = SnipeMessageTypes.USER_LOGIN;
+				fixture.Dispatcher.Send(newLogin, false);
+				fixture.CompleteNextDelay();
+
+				CollectionAssert.AreEqual(new[] { loginRetry }, fixture.Discarded);
+				if (batched)
+				{
+					Assert.AreEqual(2, fixture.Batches.Count);
+					CollectionAssert.AreEqual(new[] { action }, fixture.Batches[1]);
+					CollectionAssert.AreEqual(new[] { newLogin }, fixture.Sent);
+				}
+				else
+				{
+					Assert.AreEqual(1, fixture.Batches.Count);
+					CollectionAssert.AreEqual(new[] { action, newLogin }, fixture.Sent);
+				}
+			}
+			finally
+			{
+				fixture.Dispatcher.DropAll();
+			}
+		}
+
+		[Test]
+		public void BoundaryBurst_OnlyExpiredSlotsBecomeAvailable()
+		{
+			var fixture = new DispatcherFixture(8);
+			try
+			{
+				fixture.Dispatcher.Send(fixture.CreateMessage(1), true);
+				fixture.AdvanceTime(999);
+				for (int id = 2; id <= 8; id++)
+				{
+					fixture.Dispatcher.Send(fixture.CreateMessage(id), true);
+				}
+
+				fixture.AdvanceTime(1);
+				for (int id = 9; id <= 16; id++)
+				{
+					fixture.Dispatcher.Send(fixture.CreateMessage(id), true);
+				}
+
+				Assert.AreEqual(9, fixture.Sent.Count);
+				Assert.AreEqual(0, fixture.Batches.Count);
+				Assert.AreEqual(999, fixture.DelayCalls[0]);
+				fixture.CompleteNextDelay();
+				int total = fixture.Sent.Count;
+				foreach (var batch in fixture.Batches)
+				{
+					total += batch.Count;
+				}
+
+				Assert.AreEqual(16, total);
+			}
+			finally
+			{
+				fixture.Dispatcher.DropAll();
+			}
+		}
+
+		[Test]
+		public void Reconnect_DropsOldWorkAndKeepsRecentlySpentSlots()
+		{
+			var fixture = new DispatcherFixture(2);
+			try
+			{
+				fixture.Dispatcher.SendBatch(fixture.CreateBatch(1, 2));
+				fixture.Dispatcher.RemoveSent(1);
+				fixture.Dispatcher.RemoveSent(2);
+				var oldRequest = fixture.CreateMessage(3);
+				fixture.Dispatcher.Send(oldRequest, true);
+				CollectionAssert.AreEqual(new[] { oldRequest }, fixture.Dispatcher.DropAll());
+				fixture.AdvanceTime(100);
+				fixture.Dispatcher.Send(fixture.CreateMessage(4), true);
+				Assert.AreEqual(0, fixture.Sent.Count);
+				Assert.AreEqual(900, fixture.DelayCalls[1]);
+				fixture.CompleteNextDelay(advanceTime: false);
+				fixture.CompleteNextDelay();
+				Assert.AreEqual(1, fixture.Sent.Count);
+				Assert.AreEqual(4, fixture.Sent[0]["id"]);
+			}
+			finally
+			{
+				fixture.Dispatcher.DropAll();
+			}
+		}
+
 		[UnityTest]
 		public IEnumerator Send_LimitsImmediateRequests()
 		{
@@ -547,6 +657,7 @@ namespace MiniIT.Snipe.Tests.Editor
 		private sealed class DispatcherFixture
 		{
 			public readonly List<IDictionary<string, object>> Sent = new List<IDictionary<string, object>>();
+			public readonly List<IDictionary<string, object>> Discarded = new List<IDictionary<string, object>>();
 			public readonly List<List<IDictionary<string, object>>> Batches = new List<List<IDictionary<string, object>>>();
 			public readonly List<int> DelayCalls = new List<int>();
 
@@ -590,6 +701,7 @@ namespace MiniIT.Snipe.Tests.Editor
 					SendBatch = SendBatch,
 					IsConnected = () => true,
 					OnPendingQueueOverflow = OnDisconnect,
+					OnDiscardedRequests = Discarded.AddRange,
 					Analytics = NullAnalyticsContext.Instance,
 					GetTimestamp = () => _timestamp,
 					TimestampFrequency = 1000,
@@ -632,10 +744,13 @@ namespace MiniIT.Snipe.Tests.Editor
 				return batch;
 			}
 
-			public void CompleteNextDelay()
+			public void CompleteNextDelay(bool advanceTime = true)
 			{
 				var delay = _pendingDelays.Dequeue();
-				_timestamp += delay.DelayMs;
+				if (advanceTime)
+				{
+					_timestamp += delay.DelayMs;
+				}
 				delay.Complete();
 			}
 
