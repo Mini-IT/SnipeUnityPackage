@@ -470,13 +470,14 @@ namespace MiniIT.Snipe
 						// _logger.LogTrace("KCP: received ping message");
 
 						PingTime = time - _lastPingTime;
+						_hasReceivedValidMessage = true;
 
 						if (_state == KcpState.Reconnecting)
 						{
 							_state = KcpState.Authenticated;
+							OnAuthenticated?.Invoke();
 						}
 
-						_hasReceivedValidMessage = true;
 						continue;
 					}
 

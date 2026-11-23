@@ -13,6 +13,7 @@ namespace MiniIT.Snipe
 		private readonly ISnipeServices _services;
 
 		private readonly AuthSubsystem _authSubsystem;
+		private bool _waitingForLogin;
 
 		public SnipeCommunicatorRequest(ISnipeCommunicator communicator,
 			ISnipeServices services,
@@ -70,7 +71,7 @@ namespace MiniIT.Snipe
 			SubscribeDisconnectionEvents();
 
 			_communicator.ConnectionEstablished -= OnCommunicatorReady;
-			_authSubsystem.LoginSucceeded -= OnLoginSucceeded;
+			StopWaitingForLogin();
 			_communicator.MessageReceived -= OnMessageReceived;
 
 			if (_communicator.AllowRequestsToWaitForLogin)
@@ -78,7 +79,9 @@ namespace MiniIT.Snipe
 				string dataJson = Data != null ? JsonUtility.ToJson(Data) : null;
 				GetLogger().LogTrace($"Waiting for login - {MessageType} - {dataJson}");
 
+				_waitingForLogin = true;
 				_authSubsystem.LoginSucceeded += OnLoginSucceeded;
+				TryResumeAfterRecovery();
 			}
 			else
 			{
@@ -88,8 +91,26 @@ namespace MiniIT.Snipe
 
 		protected override void OnLoginSucceeded(int userId)
 		{
+			if (_waitingForLogin)
+			{
+				StopWaitingForLogin();
+				base.OnLoginSucceeded(userId);
+			}
+		}
+
+		internal void TryResumeAfterRecovery()
+		{
+			if (_waitingForLogin && CheckCommunicatorReady())
+			{
+				StopWaitingForLogin();
+				OnCommunicatorReady();
+			}
+		}
+
+		private void StopWaitingForLogin()
+		{
+			_waitingForLogin = false;
 			_authSubsystem.LoginSucceeded -= OnLoginSucceeded;
-			base.OnLoginSucceeded(userId);
 		}
 
 		protected override void OnMessageReceived(string messageType, string errorCode, IDictionary<string, object> responseData, int requestID)
@@ -111,7 +132,7 @@ namespace MiniIT.Snipe
 
 		public override void Dispose()
 		{
-			_authSubsystem.LoginSucceeded -= OnLoginSucceeded;
+			StopWaitingForLogin();
 			base.Dispose();
 		}
 

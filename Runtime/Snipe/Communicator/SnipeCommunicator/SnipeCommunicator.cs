@@ -126,6 +126,7 @@ namespace MiniIT.Snipe
 				{
 					_client = new SnipeClient(_options, _services);
 					_client.ConnectionOpened += OnClientConnectionOpened;
+					_client.ConnectionRecovered += OnClientConnectionRecovered;
 					_client.ConnectionClosed += OnClientConnectionClosed;
 					_client.ConnectionDisrupted += OnClientConnectionDisrupted;
 					_client.UdpConnectionFailed += OnClientUdpConnectionFailed;
@@ -193,6 +194,25 @@ namespace MiniIT.Snipe
 			{
 				AnalyticsTrackConnectionSucceeded(transportInfo);
 				ConnectionEstablished?.Invoke();
+			});
+		}
+
+		private void OnClientConnectionRecovered(Transport transport)
+		{
+			_mainThreadRunner.RunInMainThread(() =>
+			{
+				if (_disconnecting || _client?.GetTransport() != transport || !LoggedIn || _requests == null)
+				{
+					return;
+				}
+
+				foreach (var request in _requests.ToArray())
+				{
+					if (request is SnipeCommunicatorRequest waitingRequest)
+					{
+						waitingRequest.TryResumeAfterRecovery();
+					}
+				}
 			});
 		}
 
@@ -338,6 +358,7 @@ namespace MiniIT.Snipe
 			if (_client != null)
 			{
 				_client.ConnectionOpened -= OnClientConnectionOpened;
+				_client.ConnectionRecovered -= OnClientConnectionRecovered;
 				_client.ConnectionClosed -= OnClientConnectionClosed;
 				_client.ConnectionDisrupted -= OnClientConnectionDisrupted;
 				_client.UdpConnectionFailed -= OnClientUdpConnectionFailed;

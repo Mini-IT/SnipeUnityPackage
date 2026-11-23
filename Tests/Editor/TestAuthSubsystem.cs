@@ -267,6 +267,68 @@ namespace MiniIT.Snipe.Tests.Editor
 		}
 
 		[Test]
+		public void RecoveredConnection_WaitingRequestSendsAndReceivesResponseOnce()
+		{
+			var fixture = StartReturningPlayer();
+			int loginCount = 0;
+			fixture.Auth.LoginSucceeded += _ => loginCount++;
+			fixture.Communicator.LoggedIn = true;
+			fixture.Communicator.RaiseMessageReceived(SnipeMessageTypes.USER_LOGIN, SnipeErrorCodes.OK, CreateRegisterAndLoginResponse(), 1);
+
+			fixture.Communicator.Connected = false;
+			fixture.Communicator.LoggedIn = false;
+			var callbackErrors = new List<string>();
+			var request = new SnipeCommunicatorRequest(fixture.Communicator, fixture.Communicator.Services, fixture.Auth, SnipeMessageTypes.AUTH_RESTORE);
+			request.Request((errorCode, _) => callbackErrors.Add(errorCode));
+			request.TryResumeAfterRecovery();
+			Assert.AreEqual(1, fixture.Communicator.SentRequests.Count);
+
+			fixture.Communicator.Connected = true;
+			fixture.Communicator.LoggedIn = true;
+			request.TryResumeAfterRecovery();
+			request.TryResumeAfterRecovery();
+
+			Assert.AreEqual(2, fixture.Communicator.SentRequests.Count);
+			Assert.AreEqual(SnipeMessageTypes.AUTH_RESTORE, fixture.Communicator.SentRequests[1].MessageType);
+			Assert.AreEqual(1, loginCount);
+			Assert.IsEmpty(callbackErrors);
+
+			fixture.Communicator.RaiseMessageReceived(SnipeMessageTypes.AUTH_RESTORE, SnipeErrorCodes.OK, null, 2);
+			CollectionAssert.AreEqual(new[] { SnipeErrorCodes.OK }, callbackErrors);
+		}
+
+		[Test]
+		public void LostSession_LateRecoveryDoesNotSendDroppedRequestOrBypassNewLogin()
+		{
+			var fixture = StartReturningPlayer();
+			fixture.Communicator.LoggedIn = true;
+			fixture.Communicator.RaiseMessageReceived(SnipeMessageTypes.USER_LOGIN, SnipeErrorCodes.OK, CreateRegisterAndLoginResponse(), 1);
+
+			fixture.Communicator.Connected = false;
+			fixture.Communicator.LoggedIn = false;
+			var callbackErrors = new List<string>();
+			var dropped = new SnipeCommunicatorRequest(fixture.Communicator, fixture.Communicator.Services, fixture.Auth, SnipeMessageTypes.AUTH_RESTORE);
+			dropped.Request((errorCode, _) => callbackErrors.Add(errorCode));
+			fixture.Communicator.RaiseConnectionDisrupted();
+			fixture.Communicator.Start();
+
+			var pending = new SnipeCommunicatorRequest(fixture.Communicator, fixture.Communicator.Services, fixture.Auth, SnipeMessageTypes.AUTH_RESTORE);
+			pending.Request();
+			pending.TryResumeAfterRecovery();
+			Assert.AreEqual(2, fixture.Communicator.SentRequests.Count);
+			Assert.AreEqual(SnipeMessageTypes.USER_LOGIN, fixture.Communicator.SentRequests[1].MessageType);
+
+			fixture.Communicator.LoggedIn = true;
+			fixture.Communicator.RaiseMessageReceived(SnipeMessageTypes.USER_LOGIN, SnipeErrorCodes.OK, CreateRegisterAndLoginResponse(), 2);
+			dropped.TryResumeAfterRecovery();
+			pending.TryResumeAfterRecovery();
+
+			CollectionAssert.AreEqual(new[] { SnipeErrorCodes.NOT_READY }, callbackErrors);
+			Assert.AreEqual(3, fixture.Communicator.SentRequests.Count);
+			Assert.AreEqual(SnipeMessageTypes.AUTH_RESTORE, fixture.Communicator.SentRequests[2].MessageType);
+		}
+
+		[Test]
 		public void Authorize_RequestWaitingForLogin_WaitsAndSendsAfterLogin()
 		{
 			var fixture = CreateFixture(true);

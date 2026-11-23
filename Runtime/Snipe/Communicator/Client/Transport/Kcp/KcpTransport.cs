@@ -15,6 +15,8 @@ namespace MiniIT.Snipe
 		public override bool Connected => _kcpConnection != null && _kcpConnection.Connected;
 		public override bool ConnectionEstablished => _connectionEstablished;
 
+		internal event Action<Transport> ConnectionRecovered;
+
 		private KcpConnection _kcpConnection;
 		private CancellationTokenSource _networkLoopCancellation;
 
@@ -93,6 +95,12 @@ namespace MiniIT.Snipe
 			_connectionEstablished = false;
 		}
 
+		public override void Dispose()
+		{
+			ConnectionRecovered = null;
+			base.Dispose();
+		}
+
 		public override void SendMessage(IDictionary<string, object> message)
 		{
 			DoSendRequest(message);
@@ -115,6 +123,7 @@ namespace MiniIT.Snipe
 			if (_connectionEstablished)
 			{
 				_logger.LogTrace("OnUdpClientConnected - old connection recovered");
+				ConnectionRecovered?.Invoke(this);
 				return;
 			}
 

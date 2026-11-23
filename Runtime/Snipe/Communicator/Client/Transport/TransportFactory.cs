@@ -23,9 +23,9 @@ namespace MiniIT.Snipe
 		}
 
 		internal KcpTransport CreateKcpTransport(Action<Transport> onConnectionOpened, Action<Transport> onConnectionClosed,
-			Action<IDictionary<string, object>> onMessageReceived)
+			Action<IDictionary<string, object>> onMessageReceived, Action<Transport> onConnectionRecovered)
 		{
-			return new KcpTransport(new TransportOptions()
+			var transport = new KcpTransport(new TransportOptions()
 			{
 				SnipeOptions = _options,
 				AnalyticsContext = _analytics,
@@ -38,6 +38,8 @@ namespace MiniIT.Snipe
 				ConnectionClosedHandler = onConnectionClosed,
 				MessageReceivedHandler = onMessageReceived
 			});
+			transport.ConnectionRecovered += onConnectionRecovered;
+			return transport;
 		}
 
 		internal WebSocketTransport CreateWebSocketTransport(Action<Transport> onConnectionOpened, Action<Transport> onConnectionClosed,

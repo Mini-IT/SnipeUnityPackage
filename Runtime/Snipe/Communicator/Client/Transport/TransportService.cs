@@ -31,6 +31,7 @@ namespace MiniIT.Snipe
 		public bool HttpClientConnected => Connected && _currentTransport is HttpTransport;
 
 		public event Action<Transport> ConnectionOpened;
+		internal event Action<Transport> ConnectionRecovered;
 		public event Action<TransportInfo> ConnectionClosed;
 		public event Action<Transport> ConnectionDisrupted;
 		public event Action UdpConnectionFailed;
@@ -65,7 +66,7 @@ namespace MiniIT.Snipe
 			{
 				_transportEntries.Add(new TransportEntry
 				{
-					Factory = () => _transportFactory.CreateKcpTransport(OnTransportOpened, OnTransportClosed, OnMessageReceived),
+					Factory = () => _transportFactory.CreateKcpTransport(OnTransportOpened, OnTransportClosed, OnMessageReceived, OnTransportRecovered),
 					ResolveEndpoint = () =>
 					{
 						var address = _options.GetUdpAddress();
@@ -287,6 +288,14 @@ namespace MiniIT.Snipe
 
 			_analytics.ConnectionEstablishmentTime = StopwatchUtil.GetElapsedTime(_connectionStartTimestamp);
 			ConnectionOpened?.Invoke(transport);
+		}
+
+		private void OnTransportRecovered(Transport transport)
+		{
+			if (transport == _currentTransport && transport.Connected)
+			{
+				ConnectionRecovered?.Invoke(transport);
+			}
 		}
 
 		private void OnTransportClosed(Transport transport)

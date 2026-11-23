@@ -19,6 +19,7 @@ namespace MiniIT.Snipe
 
 		public event MessageReceivedHandler MessageReceived;
 		public event Action<TransportInfo> ConnectionOpened;
+		internal event Action<Transport> ConnectionRecovered;
 		public event Action<TransportInfo> ConnectionClosed;
 		public event Action ConnectionDisrupted;
 		public event Action<TransportInfo> UdpConnectionFailed;
@@ -88,6 +89,7 @@ namespace MiniIT.Snipe
 			});
 
 			_transportService.ConnectionOpened += OnTransportConnectionOpened;
+			_transportService.ConnectionRecovered += transport => ConnectionRecovered?.Invoke(transport);
 			_transportService.ConnectionClosed += OnTransportConnectionClosed;
 			_transportService.ConnectionDisrupted += OnTransportConnectionDisrupted;
 			_transportService.UdpConnectionFailed += () => UdpConnectionFailed?.Invoke(_transportService.GetTransportInfo());
