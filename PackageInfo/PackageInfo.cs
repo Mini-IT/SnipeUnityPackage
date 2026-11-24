@@ -3,6 +3,6 @@ namespace MiniIT.Snipe
 	public static class PackageInfo
 	{
 		public static string VERSION_CODE = "9.3.0";
-		public static string VERSION_NAME = "9.3.0-config-v2";
+		public static string VERSION_NAME = "9.3.0-main";
 	}
 }
