@@ -66,8 +66,8 @@ namespace MiniIT.Snipe
 				CancellationTokenHelper.CancelAndDispose(ref _loadingCancellation);
 			}
 
-			_loadingCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-			CancellationToken loadingToken = _loadingCancellation.Token;
+			var loadingCancellation = _loadingCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+			CancellationToken loadingToken = loadingCancellation.Token;
 
 			if (_loader == null)
 			{
@@ -75,7 +75,8 @@ namespace MiniIT.Snipe
 					_projectID,
 					_services.ApplicationInfo,
 					_services.LoggerFactory.CreateLogger(nameof(SnipeConfigLoader)),
-					_services.HttpClientFactory);
+					_services.HttpClientFactory,
+					_services.SharedPrefs);
 			}
 
 			lock (_statisticsLock)
@@ -83,7 +84,13 @@ namespace MiniIT.Snipe
 				Statistics.SetState(SnipeConfigLoadingStatistics.LoadingState.Loading);
 			}
 
-			_config = await _loader.Load(timeout, additionalRequestParams, Statistics, loadingToken);
+			var config = await _loader.Load(timeout, additionalRequestParams, Statistics, loadingToken);
+			if (_loadingCancellation != loadingCancellation)
+			{
+				return null;
+			}
+
+			_config = config;
 
 			lock (_statisticsLock)
 			{
